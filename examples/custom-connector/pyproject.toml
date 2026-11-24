@@ -1,0 +1,27 @@
+[project]
+name = "simtrail-connector-recorded"
+version = "0.1.0"
+description = "An example Simtrail connector: a view-only device that plays a folder of JPEG screenshots."
+license = "Apache-2.0"
+requires-python = ">=3.10"
+dependencies = ["simtrail @ git+https://github.com/Soflutionltd/simtrail"]
+
+# How Simtrail finds it: a factory taking a ConnectorContext, under the connector's name.
+[project.entry-points."simtrail.connectors"]
+recorded = "recorded_connector:create"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+only-include = ["recorded_connector.py"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

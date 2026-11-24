@@ -1,0 +1,1266 @@
+# SPDX-License-Identifier: Apache-2.0
+"""The device manager: a device brought up in the background, claimed, shared, bounded, on the connector that can
+reach it, and ended when off, idle or asked."""
+
+from __future__ import annotations
+
+import asyncio
+import dataclasses
+import logging
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from simtrail.config.model import SimConfig
+from simtrail.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Shot
+from simtrail.core.availability import ONLY_ON_A_MAC
+from simtrail.core.control import SimulatorControl
+from simtrail.core.frames import StreamSettings
+from simtrail.core.instance import BOOTING, FAILED, READY, STOPPED, DeviceInstance
+from simtrail.core.manager import BOOT_TIMEOUT_S, GONE_CHECK_S, RESTART_S, SimulatorUnavailable
+from simtrail.core.signing import SigningTeams
+from simtrail.platform.errors import DeviceControlError
+from simtrail.platform.keychain import Team
+from simtrail.protocol import CLOSE_FORBIDDEN, CLOSE_RESTARTING, CLOSE_STOPPED, AppHierarchy
+from simtrail.storage.claims import Claims
+from simtrail.testing.fakes import (
+    BOOTED_UDID,
+    JPEG,
+    PHONE_UDID,
+    SCREEN,
+    FakeConnector,
+    FakeEngine,
+    FakePhoneBackend,
+    fixture_udid,
+    made,
+)
+from simtrail.testing.rig import DeviceRig, closer_log, scope, settle
+
+SHUTDOWN_UDID = fixture_udid("iPhone 17 Pro Max")
+TP1 = scope("tp-1")
+
+
+def simulator_control(rig: DeviceRig, instance: DeviceInstance) -> SimulatorControl:
+    control = rig.manager.control(instance)
+    assert isinstance(control, SimulatorControl)
+    return control
+
+
+async def test_why_a_scope_cannot_have_a_simulator(tmp_path: Path) -> None:
+    assert await DeviceRig(tmp_path, platform="linux").manager.unavailable(TP1) == ONLY_ON_A_MAC
+    rig = DeviceRig(tmp_path)
+    assert await rig.manager.unavailable(TP1) is None
+    rig.policy.area = False
+    assert await rig.manager.unavailable(TP1) == "The iOS Simulator is not available here."
+    rig.policy.area = True
+    rig.config.set(enabled=False)
+    assert await rig.manager.unavailable(TP1) == "The iOS Simulator is off for this project (`simtrail config`)."
+    rig.config.set(enabled=True)
+    rig.idb.available = rig.simctl_connector.available = False
+    assert (await rig.manager.unavailable(TP1) or "").startswith("No connector can reach a simulator here.")
+
+
+async def test_a_scope_gets_its_device_at_once_and_it_is_brought_up_in_the_background(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", hold=True))
+    instance = await rig.manager.ensure(TP1)
+    assert (instance.state, instance.udid, instance.created, instance.name) == (
+        BOOTING,
+        made(1),
+        True,
+        "Simtrail · alpha · tp-1",
+    )
+    assert instance.session is None and instance.connector == "idb" and instance.fallback_reason is None
+    events = instance.events.subscribe()
+    assert rig.manager.instance(TP1) is instance and rig.manager.instances() == [instance]
+    status = await rig.manager.status(TP1)
+    assert (
+        status["device"] is not None and status["device"]["state"] == "booting" and status["device"]["screen"] is None
+    )
+    assert status["reason"] is None and status["connector"] == "idb" and "element_tree" in status["capabilities"]
+    assert status["stream"] == {"encoding": "auto", "fps": 30} and status["cursor"] == {"enabled": True, "lead_ms": 250}
+    assert rig.idb.release is not None
+    rig.idb.release.set()
+    assert instance.task is not None
+    await instance.task
+    assert instance.state == READY and instance.screen == SCREEN and instance.hub is not None
+    assert instance.session is not None and instance.session.screen is rig.idb.engine
+    assert events.get_nowait()["state"] == "ready"
+    assert instance.booted_by_us and ("simctl", "boot", made(1)) in rig.argv()
+    device = (await rig.manager.status(TP1))["device"]
+    assert device is not None and device["screen"] == {"points": {"w": 402, "h": 874},
+                                                       "pixels": {"w": 1206, "h": 2622}, "scale": 3.0}  # fmt: skip
+    bootstatus = next(call for call in rig.xcrun.calls if call.args[1] == "bootstatus")
+    assert bootstatus.args == ("simctl", "bootstatus", made(1), "-b") and bootstatus.timeout == BOOT_TIMEOUT_S
+    assert rig.idb.attached == [made(1)]
+    rig.clock.now += 30
+    assert await rig.manager.ensure(TP1) is instance and instance.last_used == rig.clock.now
+    unknown = await rig.manager.status(scope("tp-9"))
+    assert unknown["device"] is None and unknown["connector"] == "idb" and unknown["fallback_reason"] is None
+
+
+async def test_without_idb_a_device_is_mirrored_by_simctl_and_says_why(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", available=False, reasons=("no idb_companion.",)))
+    before = await rig.manager.status(TP1)
+    assert before["connector"] == "simctl" and before["fallback_reason"] == "no idb_companion."
+    assert "input_touch" not in before["capabilities"] and before["reason"] is None
+    instance = await rig.up()
+    assert instance.connector == "simctl" and instance.fallback_reason == "no idb_companion."
+    assert Capability.INPUT_TOUCH not in instance.capabilities
+    assert instance.hub is not None and instance.hub.settings == StreamSettings(4, 75, 900)
+    status = await rig.manager.status(TP1)
+    assert status["connector"] == "simctl" and status["fallback_reason"] == "no idb_companion."
+
+
+async def test_a_device_that_is_off_is_booted_and_one_already_on_is_left_as_it_was(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.directory.memory.choose(scope("tp-1"), False, SHUTDOWN_UDID)
+    rig.manager.directory.memory.choose(scope("tp-2"), False, BOOTED_UDID)
+    off, on = await rig.up("tp-1"), await rig.up("tp-2")
+    assert off.booted_by_us and ("simctl", "boot", SHUTDOWN_UDID) in rig.argv() and not off.created
+    assert not on.booted_by_us and ("simctl", "boot", BOOTED_UDID) not in rig.argv()
+
+
+async def test_a_restarting_stop_tells_its_screens_the_device_will_be_back(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.up()
+    closed, close = closer_log()
+    rig.manager.attach(instance, close)
+    assert await rig.manager.stop(TP1, shutdown_device=True, restarting=True) is True
+    assert closed == [(CLOSE_RESTARTING, "the simulator is restarting")] and instance.state == STOPPED
+    assert ("simctl", "shutdown", made(1)) in rig.argv() and rig.idb.closed == [made(1)]
+
+
+async def test_screens_are_told_when_an_app_in_front_starts_or_stops_sharing_its_hierarchy(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.manager.ensure(TP1)
+    assert instance.task is not None
+    await instance.task
+    events = instance.events.subscribe()
+    shared: AppHierarchy = {"name": "AppSDK", "bundle_id": "com.example.app", "sdk_version": "1.0.0"}
+    rig.manager.share_app(instance.udid, shared)
+    rig.manager.share_app(instance.udid, dict(shared))  # type: ignore[arg-type]
+    rig.manager.share_app("11111111-0000-0000-0000-000000000000", None)
+    assert events.get_nowait()["app_hierarchy"] == shared and events.empty()
+    device = (await rig.manager.status(TP1))["device"]
+    assert device is not None and device["app_hierarchy"] == shared
+    rig.manager.share_app(instance.udid, None)
+    assert events.get_nowait()["app_hierarchy"] is None and instance.app_hierarchy is None
+
+
+async def test_a_device_simtrail_made_is_shut_down_when_idle_even_if_an_earlier_run_booted_it(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(idle_minutes=5)
+    rig.manager.directory.memory.choose(scope("tp-2"), False, BOOTED_UDID)
+    made_here, persons = await rig.up("tp-1"), await rig.up("tp-2")
+    made_here.booted_by_us = False
+    assert made_here.created and made_here.may_shut_down
+    assert not persons.created and not persons.booted_by_us and not persons.may_shut_down
+    rig.clock.now += 5 * 60
+    assert sorted(await rig.manager.reap()) == sorted([made_here.udid, persons.udid])
+    assert ("simctl", "shutdown", made_here.udid) in rig.argv()
+    assert ("simctl", "shutdown", BOOTED_UDID) not in rig.argv()
+
+
+async def test_a_device_simctl_no_longer_lists_is_not_booted_and_boot_status_decides(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, list_created=False)
+    instance = await rig.up()
+    assert instance.state == READY and not instance.booted_by_us
+    assert not any(args[1] == "boot" for args in rig.argv())
+
+
+async def test_a_shared_group_puts_every_scope_on_one_device_until_the_last_lets_go(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(device_mode="shared")
+    first = await rig.up("tp-1")
+    second = await rig.manager.ensure(scope("tp-2"))
+    assert second is first and first.scopes == {"tp-1", "tp-2"} and first.name == "Simtrail · alpha"
+    assert await rig.manager.stop(scope("tp-1")) is True
+    assert first.state == READY and rig.manager.instance(scope("tp-2")) is first
+    assert await rig.manager.stop(scope("tp-2")) is True and first.state == STOPPED
+    assert await rig.manager.stop(scope("tp-2")) is False
+
+
+async def test_refusals_say_why_with_the_status_they_mean(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+
+    async def refused() -> tuple[int, str]:
+        with pytest.raises(SimulatorUnavailable) as caught:
+            await rig.manager.ensure(TP1)
+        return caught.value.status, str(caught.value)
+
+    rig.config.set(enabled=False)
+    status, message = await refused()
+    assert status == 409 and "is off for this project" in message
+    rig.config.set(enabled=True, runtime="iOS 99.0")
+    status, message = await refused()
+    assert status == 409 and "No iOS 99.0 simulator runtime" in message
+    rig.config.set(runtime="")
+    rig.xcrun.on("simctl", "list", "runtimes", rc=1, err="CoreSimulatorService connection became invalid")
+    status, message = await refused()
+    assert status == 502 and "connection became invalid" in message
+
+
+async def test_a_device_that_cannot_be_brought_up_says_why_and_starts_over_when_asked_again(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", fail=ConnectorUnavailable("idb_companion did not answer", 504)))
+    failed = await rig.up()
+    assert failed.state == FAILED and failed.reason == "idb_companion did not answer" and failed.live is False
+    assert not (tmp_path / "claims" / f"{failed.udid}.json").exists()
+    rig.idb.fail = None
+    again = await rig.up()
+    assert again is not failed and again.state == READY and failed.state == STOPPED
+
+
+async def test_a_shared_device_that_failed_is_started_over_by_the_next_scope_that_asks(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", fail=ConnectorUnavailable("not now")))
+    rig.config.set(device_mode="shared")
+    failed = await rig.up("tp-1")
+    rig.idb.fail = None
+    fresh = await rig.up("tp-2")
+    assert fresh is not failed and fresh.state == READY and failed.state == STOPPED
+
+
+async def test_a_connector_that_cannot_describe_the_screen_is_let_go_again(tmp_path: Path) -> None:
+    engine = FakeEngine(describe_error=ConnectorError("describing the device failed: offline"))
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=engine))
+    instance = await rig.up()
+    assert instance.state == FAILED and "offline" in (instance.reason or "")
+    assert rig.idb.closed == [made(1)] and instance.session is None
+
+
+async def test_something_unexpected_while_starting_is_a_failure_and_logged(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    rig = DeviceRig(tmp_path)
+
+    def explode(args: tuple[str, ...]) -> object:
+        raise RuntimeError("boom")
+
+    rig.xcrun.on("simctl", "bootstatus", then=explode)  # type: ignore[arg-type]
+    with caplog.at_level(logging.ERROR):
+        instance = await rig.up()
+    assert instance.state == FAILED and instance.reason == "The simulator could not be started: boom"
+    assert "could not be started" in caplog.text
+
+
+async def test_a_device_another_process_is_driving_is_refused_saying_who(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.directory.memory.choose(TP1, False, BOOTED_UDID)
+    rig.alive_pids.add(9999)
+
+    async def started(pid: int) -> str | None:
+        return f"started-{pid}"
+
+    other = Claims(tmp_path / "claims", owner="Host", pid=9999, pid_alive=lambda pid: True, start_time=started)
+    await other.acquire(BOOTED_UDID)
+    instance = await rig.up()
+    assert instance.state == FAILED and rig.idb.attached == []
+    assert instance.reason == (
+        "Another Host on this Mac (pid 9999) is already showing this simulator. "
+        "Stop it there, or give this Simtrail a different device."
+    )
+    assert await other.holder(BOOTED_UDID) is None and await rig.claims.holder(BOOTED_UDID) is not None
+    await other.release(BOOTED_UDID)
+    again = await rig.up()
+    assert again.state == READY and await other.holder(BOOTED_UDID) is not None
+    await rig.manager.stop(TP1)
+    assert await other.holder(BOOTED_UDID) is None
+
+
+async def test_max_booted_ends_the_least_recently_used_idle_device_or_refuses(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(max_booted=1)
+    rig.manager.directory.memory.choose(scope("tp-1"), False, SHUTDOWN_UDID)
+    first = await rig.up("tp-1")
+    rig.clock.now += 5
+    second = await rig.up("tp-2")
+    assert first.state == STOPPED and ("simctl", "shutdown", SHUTDOWN_UDID) in rig.argv() and second.state == READY
+    _closed, close = closer_log()
+
+    class Holding:
+        def __init__(self, held: bool) -> None:
+            self.held = held
+
+        def in_use(self, device: object) -> bool:
+            return self.held
+
+    def by_viewer() -> None:
+        rig.manager.attach(second, close)
+
+    def by_build() -> None:
+        second.busy = "tests running"
+
+    def by_agent() -> None:
+        rig.manager.usage = Holding(True)
+
+    for hold in (by_viewer, by_build, by_agent):
+        rig.manager.detach(second, close)
+        second.busy = None
+        rig.manager.usage = Holding(False)
+        hold()
+        with pytest.raises(SimulatorUnavailable, match="1 simulator is already running and in use"):
+            await rig.manager.ensure(scope("tp-3"))
+    assert second.state == READY
+
+
+async def test_stopping_closes_every_screen_and_shuts_the_device_down_when_asked(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.up()
+    closed, close = closer_log()
+
+    async def broken(code: int, reason: str) -> None:
+        raise RuntimeError("socket already gone")
+
+    rig.manager.attach(instance, close)
+    rig.manager.attach(instance, broken)
+    assert instance.viewers == 2
+    rig.xcrun.on("simctl", "shutdown", rc=1, err="Invalid device")
+    with caplog.at_level(logging.WARNING):
+        assert await rig.manager.stop(TP1, shutdown_device=True) is True
+    assert closed == [(CLOSE_STOPPED, "the simulator stopped")] and instance.viewers == 0
+    assert rig.idb.closed == [made(1)] and ("simctl", "shutdown", made(1)) in rig.argv()
+    assert "could not shut down the simulator" in caplog.text
+
+
+async def test_stopping_a_device_still_being_brought_up_cancels_it(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", hold=True))
+    instance = await rig.manager.ensure(TP1)
+    await settle()
+    assert rig.idb.attached and instance.state == BOOTING
+    assert await rig.manager.stop(TP1) is True
+    assert instance.task is not None and instance.task.cancelled() and instance.state == STOPPED
+    assert rig.idb.closed == []
+
+
+async def test_tickets_open_a_screen_once_and_viewers_keep_a_device_in_use(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.up()
+    bound = rig.manager.mint_ticket(instance, origin="http://localhost:3000")
+    # A scope with no device never reaches the ticket; the right scope from the wrong origin spends it.
+    assert rig.manager.consume_ticket(scope("tp-2"), bound) is None
+    assert rig.manager.consume_ticket(TP1, bound, origin="http://evil.test") is None
+    assert rig.manager.consume_ticket(TP1, bound, origin="http://localhost:3000") is None
+    again = rig.manager.mint_ticket(instance, origin="http://localhost:3000")
+    assert rig.manager.consume_ticket(TP1, again, origin="http://localhost:3000") is instance
+    fresh = rig.manager.mint_ticket(instance)
+    assert rig.manager.consume_ticket(TP1, fresh) is instance and rig.manager.consume_ticket(TP1, fresh) is None
+    _closed, close = closer_log()
+    rig.clock.now += 10
+    rig.manager.attach(instance, close)
+    assert instance.viewers == 1 and instance.last_used == 110
+    rig.clock.now += 10
+    rig.manager.touch(instance)
+    assert instance.last_used == 120 and rig.manager.now() == 120
+    rig.clock.now += 10
+    rig.manager.detach(instance, close)
+    assert instance.viewers == 0 and instance.last_used == 130
+    rig.manager.person_touched(instance)
+    assert instance.person_touch_at == 130 and simulator_control(rig, instance).simctl.developer_dir == ""
+
+
+async def test_changed_settings_apply_at_once_to_that_groups_devices(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    running = await rig.up("tp-1")
+    rig.idb.release = asyncio.Event()
+    booting = await rig.manager.ensure(scope("tp-2"))
+    elsewhere = await rig.manager.ensure(scope("tp-3", group="beta"))
+    rig.config.set(stream_fps=12, stream_quality=40)
+    await rig.manager.reconcile("beta")
+    assert running.hub is not None and running.hub.settings == StreamSettings(30, 75, 900)
+    await rig.manager.reconcile("alpha")
+    assert running.hub.settings == StreamSettings(12, 40, 900) and booting.hub is None
+    closed, close = closer_log()
+    rig.manager.attach(running, close)
+    rig.config.set(enabled=False)
+    await rig.manager.reconcile("alpha")
+    off = "The iOS Simulator is off for this project (`simtrail config`)."
+    assert running.state == STOPPED and booting.state == STOPPED and rig.manager.instances() == [elsewhere]
+    assert closed == [(CLOSE_FORBIDDEN, off)] and running.reason == off
+    await rig.manager.reconcile()
+    assert elsewhere.state == STOPPED
+
+
+async def test_a_connector_switched_since_brings_the_device_back_on_the_new_one(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.up()
+    closed, close = closer_log()
+    rig.manager.attach(instance, close)
+    rig.config.set(connector="simctl")
+    await rig.manager.reconcile()
+    assert instance.state == STOPPED and closed == [(CLOSE_RESTARTING, "the simulator is restarting")]
+    assert ("simctl", "shutdown", made(1)) not in rig.argv()
+    mirrored = await rig.up()
+    assert mirrored.connector == "simctl" and mirrored.udid == instance.udid
+
+
+XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
+
+
+@pytest.mark.parametrize(("before", "after"), [("", XCODE_27), (XCODE_27, "")])
+async def test_a_device_whose_xcode_changed_is_brought_back_up_on_the_new_one(
+    tmp_path: Path, before: str, after: str
+) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(developer_dir=before)
+    instance = await rig.up()
+    closed, close = closer_log()
+    rig.manager.attach(instance, close)
+    rig.config.set(developer_dir=after)
+    await rig.manager.reconcile()
+    assert instance.state == STOPPED and closed == [(CLOSE_RESTARTING, "the simulator is restarting")]
+    assert ("simctl", "shutdown", made(1)) not in rig.argv()
+    again = await rig.up()
+    assert again is not instance and again.udid == instance.udid and again.developer_dir == after
+    assert rig.xcrun.calls[-1].developer_dir == after and simulator_control(rig, again).simctl.developer_dir == after
+
+
+async def test_a_device_whose_xcode_did_not_change_is_left_running_whatever_else_changed(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(developer_dir=XCODE_27)
+    instance = await rig.up()
+    closed, close = closer_log()
+    rig.manager.attach(instance, close)
+    rig.config.set(developer_dir=XCODE_27, stream_fps=12)
+    await rig.manager.reconcile()
+    assert instance.state == READY and closed == [] and rig.manager.instance(TP1) is instance
+    assert instance.hub is not None and instance.hub.settings.fps == 12
+
+
+async def test_on_a_shared_device_only_the_owners_xcode_decides(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(device_mode="shared")
+    shared = await rig.up("tp-1")
+    assert await rig.manager.ensure(scope("tp-2")) is shared
+    rig.config.set_for("tp-2", developer_dir=XCODE_27)
+    await rig.manager.reconcile()
+    assert shared.state == READY and shared.developer_dir == ""
+    rig.config.set_for("tp-1", developer_dir=XCODE_27)
+    await rig.manager.reconcile()
+    assert shared.state == STOPPED
+
+
+async def test_the_reaper_ends_what_is_off_or_idle_attaches_what_lost_its_connector_and_spares_what_is_used(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(idle_minutes=5)
+    rig.manager.directory.memory.choose(scope("tp-2"), False, SHUTDOWN_UDID)
+    watched, idle, held, crashed, recent = [await rig.up(t) for t in ("tp-1", "tp-2", "tp-3", "tp-4", "tp-5")]
+    _closed, close = closer_log()
+    rig.manager.attach(watched, close)
+
+    class HeldOne:
+        def in_use(self, device: object) -> bool:
+            return device is held
+
+    rig.manager.usage = HeldOne()
+    rig.idb.dead.add(crashed.udid)
+    rig.clock.now += 5 * 60
+    recent.last_used = rig.clock.now - 1
+    assert await rig.manager.reap() == [idle.udid]
+    assert ("simctl", "shutdown", SHUTDOWN_UDID) in rig.argv()
+    assert watched.state == READY and watched.last_used == rig.clock.now and held.state == READY
+    assert recent.state == READY
+    assert crashed.state == READY and crashed.recovery is not None
+    await crashed.recovery
+    assert crashed.session is not None and crashed.session.alive and rig.idb.closed.count(crashed.udid) == 1
+    assert rig.idb.attached.count(crashed.udid) == 2
+    assert await rig.manager.reap() == [crashed.udid]
+    rig.config.set(enabled=False)
+    assert await rig.manager.reap() == [watched.udid, held.udid, recent.udid]
+
+
+async def test_a_screen_source_in_trouble_stalls_the_device_until_frames_come_again(tmp_path: Path) -> None:
+    engine = FakeEngine()
+    engine.screenshot_errors = [ConnectorError("screen went away"), ConnectorError("still away")]
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=engine))
+    instance = await rig.up()
+    events = instance.events.subscribe()
+    assert instance.hub is not None
+    viewer = instance.hub.subscribe("jpeg")
+    assert await viewer.next() is not None
+    seen = [events.get_nowait() for _ in range(events.qsize())]
+    assert [(event["state"], event["reason"]) for event in seen] == [("stalled", "screen went away"), ("ready", None)]
+    await rig.manager.shutdown()
+
+
+async def test_a_watched_simulator_shut_down_outside_simtrail_is_ended_as_its_screen_fails(tmp_path: Path) -> None:
+    engine = FakeEngine()
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=engine))
+    instance = await rig.up()
+    closed, close = closer_log()
+    rig.manager.attach(instance, close)
+    assert instance.hub is not None
+    viewer = instance.hub.subscribe("jpeg")
+    assert await viewer.next() is not None
+    lists = rig.argv().count(LIST)
+    rig.set_state(instance.udid, "Shutdown")
+    rig.idb.dead.add(instance.udid)
+    engine.screenshot_errors = [ConnectorError("the simulator companion did not answer") for _ in range(500)]
+    assert await asyncio.wait_for(viewer.next(), 2) is None, "the stream ends rather than stalling"
+    assert instance.gone_check is not None and await instance.gone_check is True
+    assert (instance.state, instance.reason) == (STOPPED, "the simulator was shut down")
+    assert closed == [(CLOSE_STOPPED, "the simulator was shut down")] and rig.manager.instance(TP1) is None
+    assert rig.idb.attached == [instance.udid], "its stopped connector is not started again"
+    assert rig.argv().count(LIST) == lists + 1, "asked once, not on every failure"
+
+
+async def test_a_screen_in_trouble_on_a_simulator_still_booted_asks_once_and_then_only_every_so_often(
+    tmp_path: Path,
+) -> None:
+    engine = FakeEngine()
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=engine))
+    instance = await rig.up()
+    assert instance.hub is not None
+    viewer = instance.hub.subscribe("jpeg")
+    assert await viewer.next() is not None
+    lists = rig.argv().count(LIST)
+    engine.screenshot_errors = [ConnectorError("screen went away") for _ in range(20)]
+    await settle(200)
+    assert instance.gone_check is not None and await instance.gone_check is False
+    assert instance.state == READY and rig.argv().count(LIST) == lists + 1
+    engine.screenshot_errors = [ConnectorError("away again")]
+    await settle(50)
+    assert rig.argv().count(LIST) == lists + 1, f"not again within {GONE_CHECK_S:g}s"
+    rig.clock.advance(GONE_CHECK_S)
+    engine.screenshot_errors = [ConnectorError("away once more")]
+    await settle(50)
+    assert instance.gone_check is not None and await instance.gone_check is False
+    assert rig.argv().count(LIST) == lists + 2 and instance.state == READY
+    busy = instance.busy = "running tests (b1)"
+    rig.set_state(instance.udid, "Shutdown")
+    rig.clock.advance(GONE_CHECK_S)
+    engine.screenshot_errors = [ConnectorError("restarting for a test")]
+    await settle(50)
+    assert instance.gone_check is not None and await instance.gone_check is False
+    assert rig.argv().count(LIST) == lists + 2, "a busy device is not asked about"
+    assert instance.state == READY and instance.busy == busy
+    instance.busy = None
+    await rig.manager.shutdown()
+
+
+async def test_a_connector_that_stops_is_attached_again_and_its_viewers_keep_watching(tmp_path: Path) -> None:
+    first = FakeEngine()
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=first))
+    instance = await rig.up()
+    assert instance.hub is not None
+    viewer = instance.hub.subscribe("jpeg")
+    frame = await viewer.next()
+    assert frame is not None and frame.data == JPEG
+    events = instance.events.subscribe()
+    second = FakeEngine()
+    second.shot = Shot(b"\xff\xd8second\xff\xd9", 402, 874)
+    rig.idb.engine = second
+    rig.idb.dead.add(instance.udid)
+    first.screenshot_errors = [ConnectorError("the simulator companion did not answer") for _ in range(500)]
+    again = await asyncio.wait_for(viewer.next(), 2)
+    assert again is not None and again.data == second.shot.jpeg
+    assert instance.recovery is not None
+    await instance.recovery
+    assert instance.session is not None and instance.session.screen is second and instance.state == READY
+    assert rig.idb.closed == [instance.udid] and len(rig.idb.attached) == 2
+    seen = [events.get_nowait() for _ in range(events.qsize())]
+    assert [(event["state"], event["reason"]) for event in seen] == [
+        ("stalled", "the simulator companion did not answer"),
+        ("ready", None),
+    ]
+    await rig.manager.shutdown()
+
+
+@pytest.mark.parametrize("breaks", ["attach", "describe", "uninstalled"])
+async def test_a_connector_that_will_not_start_again_fails_the_device_saying_why(tmp_path: Path, breaks: str) -> None:
+    slept: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        slept.append(seconds)
+        await asyncio.sleep(0)
+
+    rig = DeviceRig(tmp_path, sleep=sleep)
+    instance = await rig.up()
+    slept.clear()
+    rig.idb.dead.add(instance.udid)
+    if breaks == "attach":
+        rig.idb.fail = ConnectorUnavailable("idb_companion exited as it started (exit 1)")
+    elif breaks == "describe":
+        rig.idb.engine = FakeEngine(describe_error=ConnectorError("the device is not booted"))
+    else:
+        instance.connector = "swift-helper"
+    assert await rig.manager.reap() == []
+    assert instance.recovery is not None
+    await instance.recovery
+    assert slept == list(RESTART_S) and instance.state == FAILED
+    assert (instance.reason or "").startswith("The simulator's connector stopped and could not be started again (")
+    expected = {
+        "attach": "exit 1",
+        "describe": "the device is not booted",
+        "uninstalled": "the swift-helper connector is no longer installed",
+    }[breaks]
+    assert expected in (instance.reason or "")
+    attempts = 1 + (len(RESTART_S) if breaks != "uninstalled" else 0)
+    assert len(rig.idb.attached) == attempts
+
+
+async def test_a_restart_under_way_is_not_started_twice_and_a_device_with_no_frame_hub_still_gets_one(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.up()
+    instance.hub = None
+    rig.idb.dead.add(instance.udid)
+    await rig.manager.reap()
+    under_way = instance.recovery
+    await rig.manager.reap()
+    assert instance.recovery is under_way and under_way is not None
+    await under_way
+    assert len(rig.idb.attached) == 2 and instance.session is not None and instance.session.alive
+    assert instance.hub is None
+
+
+async def test_a_device_ended_or_failed_while_its_connector_waits_to_start_again_is_left_alone(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    ended, failed = await rig.up("tp-1"), await rig.up("tp-2")
+    for instance in (ended, failed):
+        rig.idb.dead.add(instance.udid)
+    await rig.manager.reap()
+    await rig.manager.stop(scope("tp-1"))
+    assert ended.recovery is not None and ended.recovery.cancelled()
+    failed.state = FAILED
+    assert failed.recovery is not None
+    await failed.recovery
+    assert rig.idb.attached == [ended.udid, failed.udid]
+
+
+async def test_the_picker_lists_this_macs_ios_simulators_and_a_pick_is_kept(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    listed = await rig.manager.devices(TP1)
+    assert all(device["runtime"].startswith("iOS ") and not device["created"] for device in listed)
+    assert [(d["runtime"], d["name"]) for d in listed] == sorted((d["runtime"], d["name"]) for d in listed)
+    choice = {
+        "udid": BOOTED_UDID,
+        "name": "iPhone 17 Pro",
+        "runtime": "iOS 26.5",
+        "state": "Booted",
+        "created": False,
+        "kind": "simulator",
+        "connection": None,
+        "detail": None,
+        "usable": True,
+        "agents": [],
+    }
+    assert choice in listed
+    instance = await rig.up()
+    mine = {**choice, "udid": made(1), "name": "Simtrail · alpha · tp-1", "state": "Booted", "created": True}
+    assert mine in await rig.manager.devices(TP1)
+    await rig.manager.choose(TP1, BOOTED_UDID)
+    assert instance.state == STOPPED and rig.manager.directory.memory.assigned(TP1, False) == BOOTED_UDID
+    for udid, status in (("00000000-0000-0000-0000-000000000000", 404), ("not-a-udid", 400)):
+        with pytest.raises(SimulatorUnavailable) as caught:
+            await rig.manager.choose(TP1, udid)
+        assert caught.value.status == status
+    rig.xcrun.on("simctl", "list", "devices", rc=1, err="boom")
+    with pytest.raises(SimulatorUnavailable, match="boom") as refused:
+        await rig.manager.devices(TP1)
+    assert refused.value.status == 502
+
+
+async def test_orphans_are_reaped_at_boot_and_shutdown_leaves_devices_running(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    rig = DeviceRig(tmp_path)
+
+    class Leftovers(FakeConnector):
+        async def reap_orphans(self) -> int:
+            return 2
+
+    class Broken(FakeConnector):
+        async def reap_orphans(self) -> int:
+            raise ConnectorError("cannot list its folder")
+
+    rig.registry._connectors = {"idb": Leftovers("idb"), "simctl": Broken("simctl")}
+    assert await rig.manager.start_at_boot() == 2 and "could not clean up" in caplog.text
+    rig.registry._connectors = {"idb": rig.idb, "simctl": rig.simctl_connector}
+    instance = await rig.up()
+    await rig.manager.shutdown()
+    assert instance.state == STOPPED and rig.manager.instances() == []
+    assert not any(args[1] == "shutdown" for args in rig.argv())
+
+
+async def test_a_scope_that_cannot_have_a_simulator_lists_and_picks_no_devices(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(enabled=False)
+    with pytest.raises(SimulatorUnavailable, match="is off for this project") as listing:
+        await rig.manager.devices(TP1)
+    with pytest.raises(SimulatorUnavailable, match="is off for this project") as picking:
+        await rig.manager.choose(TP1, "any-udid")
+    assert listing.value.status == picking.value.status == 409
+    assert not any(args[:3] == ("simctl", "list", "devices") for args in rig.argv())
+
+
+async def test_a_device_ended_while_it_boots_is_shut_down_as_one_simtrail_booted(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.directory.memory.choose(TP1, False, SHUTDOWN_UDID)
+    real, booting = rig.xcrun, asyncio.Event()
+
+    async def slow_boot(*args: str, **options: Any) -> Any:
+        if args[:2] == ("simctl", "boot"):
+            booting.set()
+            await asyncio.Event().wait()
+        return await real(*args, **options)
+
+    rig.xcrun = slow_boot  # type: ignore[assignment]
+    instance = await rig.manager.ensure(TP1)
+    await asyncio.wait_for(booting.wait(), 2)
+    rig.config.set(enabled=False)
+    await rig.manager.reconcile()
+    assert instance.state == STOPPED and ("simctl", "shutdown", SHUTDOWN_UDID) in real.argv()
+
+
+async def test_a_device_simtrail_booted_is_still_its_to_shut_down_after_a_start_that_failed(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", fail=ConnectorUnavailable("not now")))
+    rig.manager.directory.memory.choose(TP1, False, SHUTDOWN_UDID)
+    failed = await rig.up()
+    assert failed.state == FAILED and failed.booted_by_us
+    for devices in rig.devices["devices"].values():
+        for device in devices:
+            if device["udid"] == SHUTDOWN_UDID:
+                device["state"] = "Booted"
+    rig.idb.fail = None
+    again = await rig.up()
+    assert again is not failed and again.state == READY and again.booted_by_us and again.may_shut_down
+
+
+async def test_a_scope_switched_off_on_a_shared_device_lets_go_of_it_and_the_others_keep_it(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(device_mode="shared")
+    shared = await rig.up("tp-1")
+    assert await rig.manager.ensure(scope("tp-2")) is shared
+    first_closed, first = closer_log()
+    second_closed, second = closer_log()
+    rig.manager.attach(shared, first, "tp-1")
+    rig.manager.attach(shared, second, "tp-2")
+    rig.config.set_for("tp-1", enabled=False)
+    await rig.manager.reconcile()
+    off = "The iOS Simulator is off for this project (`simtrail config`)."
+    assert shared.state == READY and first_closed == [(CLOSE_FORBIDDEN, off)] and second_closed == []
+    assert shared.owner.id == "tp-2" and shared.scopes == {"tp-2"} and set(shared.members) == {"tp-2"}
+    assert rig.manager.instance(scope("tp-1")) is None and shared.viewers == 1
+    rig.config.set_for("tp-2", enabled=False)
+    assert await rig.manager.reap() == [shared.udid]
+    assert shared.state == STOPPED and second_closed == [(CLOSE_FORBIDDEN, off)]
+
+
+async def test_when_the_first_scope_on_a_shared_device_lets_go_the_next_one_owns_it(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(device_mode="shared")
+    shared = await rig.up("tp-1")
+    await rig.manager.ensure(scope("tp-2"))
+    assert set(shared.members) == {"tp-1", "tp-2"} and shared.owner.id == "tp-1"
+    await rig.manager.stop(scope("tp-1"))
+    assert shared.owner.id == "tp-2" and set(shared.members) == {"tp-2"} and shared.state == READY
+
+
+async def test_a_native_helper_that_cannot_reach_the_device_gives_way_to_idb_saying_why(tmp_path: Path) -> None:
+    native = FakeConnector("native", fail=ConnectorUnavailable("The native helper cannot send input to this simulator"))
+    rig = DeviceRig(tmp_path, native=native)
+    instance = await rig.up()
+    assert instance.state == READY and instance.connector == "idb" and instance.chosen == "native"
+    assert instance.fallback_reason == "The native helper cannot send input to this simulator"
+    assert native.attached == [instance.udid] and rig.idb.attached == [instance.udid]
+    assert (await rig.manager.status(scope("tp-1")))["connector"] == "idb"
+    # The settings still choose native, which the device came up asking for: nothing to move.
+    await rig.manager.reconcile()
+    assert rig.manager.instance(scope("tp-1")) is instance and instance.state == READY
+    rig.config.set(connector="simctl")
+    await rig.manager.reconcile()
+    assert instance.state == STOPPED
+    await rig.manager.shutdown()
+
+
+async def test_auto_never_leaves_a_device_unable_to_take_a_touch_it_was_offered(tmp_path: Path) -> None:
+    native = FakeConnector("native", fail=ConnectorUnavailable("the helper exited as it started"))
+    rig = DeviceRig(tmp_path, native=native, idb=FakeConnector("idb", available=False))
+    instance = await rig.up()
+    assert instance.state == FAILED and instance.reason == "the helper exited as it started"
+    assert rig.simctl_connector.attached == []
+
+
+async def test_a_named_native_connector_that_cannot_reach_the_device_is_not_replaced(tmp_path: Path) -> None:
+    native = FakeConnector("native", fail=ConnectorUnavailable("no digitizer"))
+    rig = DeviceRig(tmp_path, native=native)
+    rig.config.set(connector="native")
+    instance = await rig.up()
+    assert instance.state == FAILED and instance.reason == "no digitizer" and rig.idb.attached == []
+
+
+async def test_a_native_session_that_stops_and_cannot_start_again_is_carried_on_by_idb(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, native=FakeConnector("native"))
+    instance = await rig.up()
+    assert instance.connector == "native" and instance.fallback_reason is None
+    assert rig.native is not None
+    rig.native.dead.add(instance.udid)
+    rig.native.fail = ConnectorUnavailable("the helper exited as it started (exit 3)")
+    assert await rig.manager.reap() == []
+    assert instance.recovery is not None
+    await instance.recovery
+    assert instance.state == READY and instance.connector == "idb" and instance.chosen == "native"
+    assert instance.session is not None and instance.session.connector == "idb"
+    assert instance.fallback_reason == "the helper exited as it started (exit 3)"
+    await rig.manager.shutdown()
+
+
+@pytest.mark.parametrize("preferred", ["auto", "idb"])
+async def test_a_device_is_not_carried_on_by_a_connector_that_can_do_less(tmp_path: Path, preferred: str) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(connector=preferred)
+    instance = await rig.up()
+    rig.idb.dead.add(instance.udid)
+    rig.idb.fail = ConnectorUnavailable("idb_companion exited as it started (exit 1)")
+    assert await rig.manager.reap() == []
+    assert instance.recovery is not None
+    await instance.recovery
+    assert instance.state == FAILED and rig.simctl_connector.attached == []
+
+
+async def test_attaching_with_no_connector_to_try_says_so(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.up()
+    with pytest.raises(ConnectorError, match="No connector can reach this simulator"):
+        await rig.manager._attach(instance, SimConfig.defaults(), ())
+    await rig.manager.shutdown()
+
+
+async def test_a_real_device_is_attached_signed_by_its_scope_s_team_and_attached_again_when_asked(
+    tmp_path: Path,
+) -> None:
+    async def mac() -> list[Team]:
+        return [Team("MACTEAM001", "Me", datetime(2126, 1, 1, tzinfo=timezone.utc))]
+
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}))
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone, signing=SigningTeams(lambda _: None, mac))
+    assert rig.manager.reattach(PHONE_UDID) is False, "nothing runs it yet"
+    await rig.manager.choose(scope("tp-1"), PHONE_UDID)
+    instance = await rig.up()
+    assert phone.configs[-1].real_devices_team_id == "MACTEAM001"
+    await rig.up("tp-2")
+    assert rig.idb.configs[-1].real_devices_team_id == "", "a simulator is signed by nobody"
+    events = instance.events.subscribe()
+    assert rig.manager.reattach(PHONE_UDID) is True
+    assert instance.recovery is not None
+    await instance.recovery
+    assert phone.attached == [PHONE_UDID, PHONE_UDID] and instance.session is not None
+    # Its state is as it was, and screens are told again what the new session can do -- its buttons among it.
+    told = [event for event in (events.get_nowait() for _ in range(events.qsize())) if event.get("type") == "status"]
+    assert told and told[-1]["state"] == "ready" and told[-1]["buttons"] == list(instance.buttons)
+
+
+async def test_a_device_whose_session_could_be_reached_better_is_attached_again_and_others_are_left(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}))
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
+    await rig.manager.choose(scope("tp-1"), PHONE_UDID)
+    instance = await rig.up()
+    await rig.up("tp-2")
+    cabled = False
+
+    async def better() -> bool:
+        return cabled
+
+    old = instance.session
+    assert old is not None
+    old.better = better
+    assert await rig.manager.improve() == [] and instance.recovery is None
+    cabled = True
+    instance.busy = "a test run"
+    assert await rig.manager.improve() == [], "a run on the device is not cut off"
+    instance.busy = None
+    pending: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+    instance.recovery = pending  # type: ignore[assignment]
+    assert await rig.manager.improve() == [], "one attach at a time"
+    pending.cancel()
+    # Not reachable yet the moment its cable is back: the session it has is kept, and used as it was.
+    phone.fail = ConnectorUnavailable("Test iPhone is not connected: plug it in and unlock it")
+    with caplog.at_level(logging.INFO):
+        assert await rig.manager.improve() == [PHONE_UDID]
+        assert instance.recovery is not None
+        await instance.recovery
+    assert instance.session is old and old.alive and instance.state == READY and phone.closed == []
+    assert "keeps its session: a better one could not be had: Test iPhone is not connected" in caplog.text
+    phone.fail = None
+    with caplog.at_level(logging.INFO):
+        assert await rig.manager.improve() == [PHONE_UDID]
+        assert instance.recovery is not None
+        await instance.recovery
+    assert instance.session is not old and not old.alive and instance.session is not None
+    assert phone.attached == [PHONE_UDID] * 3 and phone.closed == [PHONE_UDID] and instance.session.better is None
+    assert "the physical " + PHONE_UDID + " can be reached better now" in caplog.text
+    assert "attached the physical " + PHONE_UDID + " again, better" in caplog.text
+
+    async def broken() -> bool:
+        raise DeviceControlError("usbmuxd cannot be reached")
+
+    instance.session.better = broken
+    with caplog.at_level(logging.INFO):
+        assert await rig.manager.improve() == []
+    assert "could not ask whether " + PHONE_UDID + " can be reached better: usbmuxd cannot be reached" in caplog.text
+    await rig.manager.shutdown()
+
+
+async def test_a_better_session_whose_screen_cannot_be_described_is_let_go_and_one_ended_meanwhile_is_left(
+    tmp_path: Path,
+) -> None:
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}))
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
+    await rig.manager.choose(scope("tp-1"), PHONE_UDID)
+    instance = await rig.up()
+    old = instance.session
+    assert old is not None
+    phone.engine.describe_error = ConnectorError("the screen went away")
+    await rig.manager._upgrade(instance, old)
+    assert instance.session is old and phone.closed == [PHONE_UDID], "the new one let go, the old one kept"
+    phone.engine.describe_error = None
+    await rig.manager._upgrade(instance, dataclasses.replace(old))
+    assert instance.session is old and len(phone.attached) == 2, "a session replaced meanwhile is not replaced"
+    instance.connector = "uninstalled"
+    await rig.manager._upgrade(instance, old)
+    assert len(phone.attached) == 2, "nor one whose connector is gone"
+    instance.connector = "phone"
+    await rig.manager.shutdown()
+    await rig.manager._upgrade(instance, old)
+    assert len(phone.attached) == 2, "nor is a device that ended"
+
+
+async def test_a_session_attached_beside_one_that_could_be_touched_but_cannot_be_itself_is_let_go(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A cabled phone tried again for its live screen may find WebDriverAgent not answering in that moment: the session
+    that could touch it is kept, rather than replaced by one that shows the same screenshots and cannot."""
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}))
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
+    await rig.manager.choose(scope("tp-1"), PHONE_UDID)
+    instance = await rig.up()
+    old = instance.session
+    assert old is not None and Capability.INPUT_TOUCH in old.capabilities
+    told = (instance.connector, instance.capabilities, instance.fallback_reason)
+    phone.session_capabilities = frozenset(old.capabilities - {Capability.INPUT_TOUCH, Capability.ELEMENT_TREE})
+    phone.note = "WebDriverAgent did not answer"
+    with caplog.at_level(logging.INFO):
+        await rig.manager._upgrade(instance, old)
+    assert instance.session is old and old.alive and phone.closed == [PHONE_UDID], "the new one let go"
+    assert (instance.connector, instance.capabilities, instance.fallback_reason) == told
+    assert "keeps its session: the one attached beside it cannot do element_tree, input_touch" in caplog.text
+    # One that can do all it could, and more or the same, takes its place.
+    phone.session_capabilities = frozenset(old.capabilities - {Capability.LOGS})
+    await rig.manager._upgrade(instance, old)
+    assert instance.session is not old and not old.alive and instance.fallback_reason == "WebDriverAgent did not answer"
+    await rig.manager.shutdown()
+
+
+class Held:
+    """A `UsageProbe` for an agent holding every device -- a lease renewed while its client runs."""
+
+    def in_use(self, device: object) -> bool:
+        return True
+
+
+LIST = ("simctl", "list", "devices", "-j")
+
+
+async def test_a_simulator_shut_down_outside_simtrail_has_its_session_ended_though_an_agent_holds_it(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.usage = Held()
+    rig.manager.directory.memory.choose(scope("tp-2"), False, BOOTED_UDID)
+    mine, persons = await rig.up("tp-1"), await rig.up("tp-2")
+    closed, close = closer_log()
+    rig.manager.attach(mine, close)
+    assert await rig.manager.reap() == [], "both still booted"
+    rig.set_state(mine.udid, "Shutdown")
+    with caplog.at_level(logging.INFO):
+        assert await rig.manager.reap() == [mine.udid]
+    assert (mine.state, mine.reason) == (STOPPED, "the simulator was shut down")
+    assert closed == [(CLOSE_STOPPED, "the simulator was shut down")] and rig.idb.closed == [mine.udid]
+    assert "shut down outside Simtrail" in caplog.text
+    assert ("simctl", "shutdown", mine.udid) not in rig.argv(), "it is already off"
+    assert persons.state == READY and rig.manager.instance(scope("tp-2")) is persons
+    again = await rig.up("tp-1")
+    assert again is not mine and again.state == READY and ("simctl", "boot", mine.udid) in rig.argv()
+    lists = rig.argv().count(LIST)
+    await rig.manager.reap()
+    assert rig.argv().count(LIST) == lists + 1, "one listing for every simulator"
+
+
+async def test_a_simulator_shutting_down_or_deleted_is_gone_and_its_stopped_connector_is_not_started_again(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.usage = Held()
+    stopping, deleted = await rig.up("tp-1"), await rig.up("tp-2")
+    rig.set_state(stopping.udid, "Shutting Down")
+    rig.idb.dead.add(stopping.udid)
+    for entries in rig.devices["devices"].values():
+        entries[:] = [entry for entry in entries if entry["udid"] != deleted.udid]
+    assert sorted(await rig.manager.reap()) == sorted([stopping.udid, deleted.udid])
+    assert stopping.recovery is None and stopping.state == STOPPED and deleted.state == STOPPED
+
+
+async def test_a_simulator_still_booting_busy_or_whose_state_cannot_be_read_is_left_as_it_is(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", hold=True))
+    rig.manager.usage = Held()
+    booting = await rig.manager.ensure(TP1)
+    await settle()
+    assert booting.state == BOOTING
+    lists = rig.argv().count(LIST)
+    assert await rig.manager.gone(TP1) is False and await rig.manager.reap() == []
+    assert rig.argv().count(LIST) == lists, "nothing up to ask about"
+    await rig.manager.stop(TP1)
+    rig = DeviceRig(tmp_path / "up")
+    rig.manager.usage = Held()
+    busy, unreadable = await rig.up("tp-1"), await rig.up("tp-2")
+    busy.busy = "running tests (b1)"
+    rig.set_state(busy.udid, "Shutdown")
+    assert await rig.manager.reap() == [] and busy.state == READY
+    assert await rig.manager.gone(scope("tp-1")) is False
+    rig.set_state(unreadable.udid, "Shutdown")
+    rig.xcrun.on(*LIST, rc=1, err="CoreSimulatorService connection became invalid")
+    with caplog.at_level(logging.WARNING):
+        assert await rig.manager.reap() == [] and await rig.manager.gone(scope("tp-2")) is False
+    assert unreadable.state == READY and "could not tell whether the simulators are still booted" in caplog.text
+
+
+async def test_a_scope_asks_whether_its_device_is_gone_and_one_that_is_is_ended(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    assert await rig.manager.gone(TP1) is False, "nothing runs"
+    instance = await rig.up()
+    assert await rig.manager.gone(TP1) is False and instance.state == READY
+    rig.set_state(instance.udid, "Shutdown")
+    assert await rig.manager.gone(TP1) is True
+    assert instance.state == STOPPED and rig.manager.instance(TP1) is None and rig.idb.closed == [instance.udid]
+
+
+async def test_a_real_device_is_never_called_gone_by_its_backend(tmp_path: Path) -> None:
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}))
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
+    rig.manager.usage = Held()
+    await rig.manager.choose(TP1, PHONE_UDID)
+    instance = await rig.up()
+    assert await rig.manager.gone(TP1) is False and await rig.manager.reap() == []
+    assert instance.state == READY and LIST not in rig.argv()
+
+
+async def test_a_real_device_s_session_is_started_over_in_place_and_the_device_is_never_asked_to_shut_down(
+    tmp_path: Path,
+) -> None:
+    phones = FakePhoneBackend()
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}))
+    rig = DeviceRig(tmp_path, phones=phones, phone=phone)
+    assert await rig.manager.reconnect(TP1) is False, "nothing runs: there is no session to start over"
+    await rig.manager.choose(TP1, PHONE_UDID)
+    booting = await rig.manager.ensure(TP1)
+    assert await rig.manager.reconnect(TP1) is False, "still being brought up"
+    assert booting.task is not None
+    await booting.task
+    # A reattach its connector's trouble queued is done now instead, not twice.
+    assert rig.manager.reattach(PHONE_UDID) is True
+    queued = booting.recovery
+    assert await rig.manager.reconnect(TP1) is True
+    assert queued is not None and queued.cancelled() and phone.attached == [PHONE_UDID, PHONE_UDID]
+    assert rig.manager.instance(TP1) is booting and booting.state == READY
+    phone.fail = ConnectorUnavailable("Test iPhone is not connected: plug it in and unlock it", 409)
+    with pytest.raises(SimulatorUnavailable, match="is not connected") as refused:
+        await rig.manager.reconnect(TP1)
+    assert refused.value.status == 409 and booting.state == FAILED and booting.session is None
+    assert await rig.claims.holder(PHONE_UDID) is None, "its claim let go, so another can take it"
+    phone.fail = None
+    again = await rig.up()
+    # Whoever asks -- a person's stop with shutdown, a reconcile, the reaper -- a real device is only let go of.
+    assert await rig.manager.stop(TP1, shutdown_device=True) is True
+    assert again.udid == PHONE_UDID and phones.released == [(PHONE_UDID, False), (PHONE_UDID, False)]
+
+
+@pytest.mark.parametrize("by", ["reconcile", "reap"])
+async def test_real_devices_switched_off_end_a_real_device_s_session_at_once_and_leave_simulators_be(
+    tmp_path: Path, by: str
+) -> None:
+    phones = FakePhoneBackend()
+    rig = DeviceRig(tmp_path, phones=phones, phone=FakeConnector("phone", kinds=frozenset({"physical"})))
+    simulator = await rig.up("tp-2")
+    await rig.manager.choose(TP1, PHONE_UDID)
+    phone = await rig.up()
+    closed, close = closer_log()
+    rig.manager.attach(phone, close)
+    rig.config.set(real_devices=False)
+    await (rig.manager.reconcile() if by == "reconcile" else rig.manager.reap())
+    off = rig.copy.kind_unavailable("physical")
+    assert (phone.state, phone.reason, closed) == (STOPPED, off, [(CLOSE_FORBIDDEN, off)])
+    assert phones.released == [(PHONE_UDID, False)] and simulator.state == READY
+    assert rig.manager.kind(TP1) == "physical", "the pick is kept for when they are on again"
+
+
+# -- a scope's default, and the devices its agents chose ------------------------------------------------------------
+
+
+async def test_a_device_an_agent_chose_is_brought_up_beside_the_scopes_default_and_stopped_alone(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.directory.memory.choose(TP1, False, BOOTED_UDID)
+    default = await rig.up()
+    chosen = await rig.manager.ensure(TP1, SHUTDOWN_UDID)
+    assert chosen is not default and chosen.task is not None
+    await chosen.task
+    assert chosen.state == READY and chosen.name == "iPhone 17 Pro Max" and chosen.scopes == {"tp-1"}
+    assert rig.manager.instance(TP1) is default and rig.manager.default_udid(TP1) == BOOTED_UDID
+    assert rig.manager.instance(TP1, SHUTDOWN_UDID) is chosen and rig.manager.instance(TP1, BOOTED_UDID) is default
+    assert rig.manager.instance(scope("tp-2"), SHUTDOWN_UDID) is None, "not another scope's"
+    assert rig.manager.scope_instances(TP1) == [default, chosen] and rig.manager.running(SHUTDOWN_UDID) is chosen
+    assert await rig.manager.ensure(TP1, SHUTDOWN_UDID) is chosen, "joined while it runs"
+    assert await rig.manager.ensure(TP1, BOOTED_UDID) is default, "the default asked for by its UDID is the default"
+    assert rig.manager.kind(TP1, SHUTDOWN_UDID) == "simulator" and rig.manager.kind(TP1, PHONE_UDID) == "physical"
+    assert (await rig.manager.status(TP1, SHUTDOWN_UDID))["device"]["udid"] == SHUTDOWN_UDID  # type: ignore[index]
+    assert await rig.manager.stop(TP1, udid=SHUTDOWN_UDID) is True
+    assert chosen.state == STOPPED and default.state == READY and rig.manager.instance(TP1) is default
+    assert await rig.manager.stop(TP1, udid=SHUTDOWN_UDID) is False, "nothing left of it to stop"
+    assert await rig.manager.stop(TP1, udid=BOOTED_UDID) is True and rig.manager.instance(TP1) is None
+
+
+async def test_a_device_an_agent_chose_that_is_gone_or_cannot_be_used_is_refused_and_one_that_failed_is_started_again(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=FakeConnector("phone", kinds=frozenset({"physical"})))
+    with pytest.raises(SimulatorUnavailable) as gone:
+        await rig.manager.ensure(TP1, "00000000-0000-0000-0000-000000000001")
+    assert gone.value.status == 404
+    assert rig.phones is not None
+    rig.phones.blocked[PHONE_UDID] = "Locked"
+    with pytest.raises(SimulatorUnavailable) as locked:
+        await rig.manager.ensure(TP1, PHONE_UDID)
+    assert locked.value.status == 409 and "Locked" in str(locked.value)
+    del rig.phones.blocked[PHONE_UDID]
+
+    async def failing_lookup(udid: str, config: SimConfig) -> None:
+        raise DeviceControlError("devicectl is not answering")
+
+    looked = rig.phones.lookup
+    rig.phones.lookup = failing_lookup  # type: ignore[method-assign]
+    with pytest.raises(SimulatorUnavailable) as unlisted:
+        await rig.manager.ensure(TP1, PHONE_UDID)
+    assert unlisted.value.status == 502
+    rig.phones.lookup = looked  # type: ignore[method-assign]
+    phone = await rig.manager.ensure(TP1, PHONE_UDID)
+    assert phone.task is not None
+    await phone.task
+    phone.state = FAILED
+    again = await rig.manager.ensure(TP1, PHONE_UDID)
+    assert again is not phone and phone.state == STOPPED and not again.booted_by_us, "a failed one is started afresh"
+    assert again.task is not None
+    await again.task
+    again.state = FAILED
+    again.booted_by_us = True
+    third = await rig.manager.ensure(TP1, PHONE_UDID)
+    assert third.booted_by_us, "what an instance that failed had booted is still Simtrail's to shut down"
+
+
+async def test_a_scope_that_may_not_share_a_device_another_runs_is_refused_it_by_udid(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager._may_share = lambda one, other: one.group == other.group
+    rig.manager.directory.memory.choose(scope("tp-2", "beta"), False, SHUTDOWN_UDID)
+    await rig.up("tp-2", "beta")
+    with pytest.raises(SimulatorUnavailable) as refused:
+        await rig.manager.ensure(TP1, SHUTDOWN_UDID)
+    assert refused.value.status == 409
+
+
+async def test_a_ticket_opens_any_device_of_its_scope_and_a_choose_may_keep_the_old_default_running(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.directory.memory.choose(TP1, False, BOOTED_UDID)
+    default = await rig.up()
+    chosen = await rig.manager.ensure(TP1, SHUTDOWN_UDID)
+    assert chosen.task is not None
+    await chosen.task
+    ticket = rig.manager.mint_ticket(chosen)
+    assert rig.manager.consume_ticket(scope("tp-2"), ticket) is None
+    ticket = rig.manager.mint_ticket(chosen)
+    assert rig.manager.consume_ticket(TP1, ticket) is chosen, "found on a device that is not the default"
+    assert rig.manager.consume_ticket(TP1, rig.manager.mint_ticket(default)) is default
+    closed, close = closer_log()
+    rig.manager.attach(default, close)
+    followed: list[tuple[str, str, str]] = []
+    rig.manager.followed = lambda *moved: followed.append(moved)
+    await rig.manager.choose(TP1, SHUTDOWN_UDID, restarting=True, stop_old=False, follow=False)
+    assert default.state == READY and closed == [(CLOSE_RESTARTING, "the simulator is restarting")]
+    assert rig.manager.instance(TP1) is None and rig.manager.default_udid(TP1) == SHUTDOWN_UDID and followed == []
+    assert await rig.manager.ensure(TP1) is chosen and rig.manager.instance(TP1) is chosen
+    await rig.manager.choose(TP1, BOOTED_UDID, stop_old=False)
+    assert followed == [("tp-1", SHUTDOWN_UDID, BOOTED_UDID)], "a person's pick moves the agents on the old one"
+    assert chosen.state == READY
+
+
+async def test_a_device_no_agent_of_its_scope_works_on_any_more_is_not_held_for_the_scopes_leases(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(idle_minutes=5)
+    rig.manager.directory.memory.choose(TP1, False, BOOTED_UDID)
+    default = await rig.up()
+    chosen = await rig.manager.ensure(TP1, SHUTDOWN_UDID)
+    assert chosen.task is not None
+    await chosen.task
+    asked: list[object] = []
+
+    class Leased:
+        def in_use(self, device: object) -> bool:
+            asked.append(device)
+            return True
+
+    rig.manager.usage = Leased()
+    bound = {SHUTDOWN_UDID}
+    rig.manager.bound = lambda scope_id, udid: udid in bound
+    assert rig.manager.in_use(chosen) and asked[-1] is chosen, "held for every scope on it: asked of itself"
+    bound.clear()
+    assert not rig.manager.in_use(chosen), "nobody works on it: not held"
+    rig.manager._scopes["tp-2"] = SHUTDOWN_UDID
+    chosen.scopes.add("tp-2")
+    chosen.members["tp-2"] = scope("tp-2")
+    assert rig.manager.in_use(chosen) and asked[-1] is not chosen, "held for tp-2 alone"
+    assert getattr(asked[-1], "scopes", None) == ("tp-2",)
+    del rig.manager._scopes["tp-2"]
+    chosen.scopes.discard("tp-2")
+    del chosen.members["tp-2"]
+    rig.clock.now += 5 * 60
+    assert await rig.manager.reap() == [SHUTDOWN_UDID] and default.state == READY
+
+
+async def test_a_scope_switched_off_on_a_device_it_does_not_default_to_keeps_its_default(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.directory.memory.choose(scope("tp-2"), False, SHUTDOWN_UDID)
+    theirs = await rig.up("tp-2")
+    rig.manager.directory.memory.choose(TP1, False, BOOTED_UDID)
+    default = await rig.up()
+    assert await rig.manager.ensure(TP1, SHUTDOWN_UDID) is theirs
+    rig.config.set_for("tp-1", enabled=False)
+    await rig.manager.reconcile()
+    assert "tp-1" not in theirs.scopes and theirs.state == READY and default.state == STOPPED
+    assert rig.manager._scopes == {"tp-2": SHUTDOWN_UDID}
+
+
+async def test_a_failed_shared_device_is_started_again_keeping_the_scopes_it_was_default_for(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.usage = type("Leased", (), {"in_use": lambda self, device: True})()
+    rig.manager.directory.memory.choose(TP1, False, BOOTED_UDID)
+    default = await rig.up()
+    await rig.manager.ensure(scope("tp-2"), BOOTED_UDID)
+    default.state = FAILED
+    again = await rig.manager.ensure(TP1)
+    assert again is not default and again.scopes == {"tp-1", "tp-2"}
+    assert rig.manager.instance(TP1) is again and rig.manager.instance(scope("tp-2")) is None, "tp-2 only chose it"
+    chosen = await rig.manager.ensure(scope("tp-3"), BOOTED_UDID)
+    assert chosen is again

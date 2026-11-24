@@ -1,0 +1,538 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Readers: a companion's document as a tree, read as it said it; and trees merged, the first one kept whole."""
+
+from __future__ import annotations
+
+import asyncio
+from collections.abc import Awaitable
+from dataclasses import replace
+
+import pytest
+
+from simtrail.config.model import SimConfig
+from simtrail.connectors.base import ConnectorError, Screen
+from simtrail.connectors.mcpbridge.hierarchy import document_from_hierarchy
+from simtrail.perception.model import DESTRUCTIVE, NAMED, PIXELS, ElementNode, Frame, Modal, ScreenTree
+from simtrail.perception.orientation import Orientation
+from simtrail.perception.readers import (
+    ACCESSIBILITY_SAID_NOTHING,
+    CombinedExtraReaders,
+    DocumentReader,
+    FallbackReader,
+    InterfaceReader,
+    MergedReader,
+    NamingReader,
+    NoExtraReaders,
+    TreeReader,
+    compose,
+    name_unlabeled,
+    tree_from_document,
+)
+from simtrail.perception.snapshot import build
+from simtrail.testing.fakes import FakeEngine, fixture, fixture_json
+
+
+def test_a_document_reads_as_its_elements_depth_first() -> None:
+    tree = tree_from_document(
+        {
+            "elements": [
+                {
+                    "type": "Application",
+                    "label": "Notes",
+                    "children": [
+                        {"type": "Button", "label": "Add", "identifier": "add", "frame": {"x": 1, "y": 2, "width": 3,
+                                                                                         "height": 4}},
+                        "not an element",
+                        {"type": "TextField", "value": 0, "title": "Title", "traits": ["IsEditing"],
+                         "subrole": "AXSearchField", "enabled": False, "frame": "not a frame"},
+                    ],
+                }
+            ],
+            "modal": {"type": "Alert"},
+            "truncated": 1,
+        }
+    )  # fmt: skip
+    assert [node.role for node in tree.walk()] == ["Application", "Button", "TextField"]
+    add, field = tree.roots[0].children
+    assert add == ElementNode(role="Button", label="Add", identifier="add", frame=Frame(1, 2, 3, 4), source="idb")
+    assert (field.value, field.title, field.traits, field.subrole, field.disabled, field.frame) == (
+        "",
+        "Title",
+        ("IsEditing",),
+        "AXSearchField",
+        True,
+        None,
+    )
+    assert tree.modal == Modal("Alert") and tree.truncated is True
+
+
+def test_what_a_document_leaves_out_or_says_oddly_reads_as_nothing() -> None:
+    assert tree_from_document({}) == ScreenTree()
+    assert tree_from_document({"elements": "nope", "modal": True}).modal == Modal("")
+    odd = tree_from_document({"elements": [{"frame": {"x": "left"}, "traits": "Selected"}]}, source="ocr")
+    assert odd.roots[0] == ElementNode(source="ocr")
+    assert tree_from_document({"elements": [{"custom_actions": "Delete"}]}).roots[0].actions == ()
+
+
+def test_an_elements_custom_actions_are_read_where_its_document_says_them() -> None:
+    # idb_companion lists them: a home screen icon's, and a row's swipe actions.
+    icon = next(node for node in tree_from_document(fixture_json("ax-home-ios27.json")).walk() if node.actions)
+    assert icon.actions == ("Edit mode", "Today", "App Library")
+    row = tree_from_document({"elements": [{"type": "Cell", "label": "Milk", "custom_actions": ["Delete", "", 7]}]})
+    assert row.roots[0].actions == ("Delete", "7")
+
+
+async def test_a_document_reader_reads_a_connectors_document_marked_with_its_name() -> None:
+    tree = await DocumentReader(FakeEngine()).read()
+    assert tree == tree_from_document(fixture_json("ax-settings-interactable.json"))
+    named = await DocumentReader(FakeEngine(), "mcpbridge").read()
+    assert {node.source for node in named.walk()} == {"mcpbridge"}
+
+
+class Fixed:
+    def __init__(self, tree: ScreenTree | Exception) -> None:
+        self._tree = tree
+
+    async def read(self) -> ScreenTree:
+        if isinstance(self._tree, Exception):
+            raise self._tree
+        return self._tree
+
+
+def button(label: str, y: float, *, source: str, identifier: str = "") -> ElementNode:
+    return ElementNode(role="Button", label=label, identifier=identifier, frame=Frame(0, y, 100, 40), source=source)
+
+
+async def test_merging_keeps_the_first_tree_and_adds_only_what_it_did_not_have() -> None:
+    first = ScreenTree(roots=(button("Save", 10, source="idb"),), modal=Modal("x"))
+    second = ScreenTree(
+        roots=(
+            ElementNode(role="Group", source="ocr", children=(button("Save", 10.2, source="ocr"),
+                                                              button("Share", 60, source="ocr"))),
+            ElementNode(role="Image", source="ocr"),
+        )
+    )  # fmt: skip
+    merged = await MergedReader(Fixed(first), [Fixed(ConnectorError("no vision")), Fixed(second)]).read()
+    assert [(node.label, node.source) for node in merged.roots] == [("Save", "idb"), ("Share", "ocr")]
+    assert merged.modal == Modal("x") and merged.roots[1].children == ()
+    assert await MergedReader(Fixed(first)).read() is first
+    assert await MergedReader(Fixed(first), [Fixed(ScreenTree())]).read() is first
+
+
+def at(role: str, label: str, x: float, y: float, w: float, h: float, **more: object) -> ElementNode:
+    return ElementNode(role=role, label=label, frame=Frame(x, y, w, h), source="xcode", **more)  # type: ignore[arg-type]
+
+
+async def test_an_element_an_earlier_reader_already_says_in_the_same_place_is_not_added_whatever_its_role() -> None:
+    first = ScreenTree(
+        roots=(
+            ElementNode(role="Button", label="General", frame=Frame(16, 380, 370, 52), source="idb"),
+            ElementNode(role="CheckBox", label="Wi-Fi", identifier="wifi", frame=Frame(16, 440, 370, 44), source="idb"),
+        )
+    )
+    second = ScreenTree(
+        roots=(
+            at("StaticText", "general", 30, 392, 100, 28),
+            at("Switch", "", 325, 440, 63, 28, identifier="wifi"),
+            at("Other", "Vertical scroll bar, 2 pages", 369, 62, 30, 750),
+            at("Link", "Learn more", 80, 316, 83, 21),
+            at("StaticText", "Learn more", 80, 316, 83, 21),
+            at("StaticText", "General", 30, 700, 100, 28),
+            at("StaticText", "wi fi", 330, 445, 40, 20),
+        )
+    )
+    merged = await MergedReader(Fixed(first), [Fixed(second)]).read()
+    assert [(node.role, node.label, node.frame.y if node.frame else None) for node in merged.roots[2:]] == [
+        ("Link", "Learn more", 316),
+        ("StaticText", "General", 700),
+    ]
+    placeless = ScreenTree(roots=(ElementNode(role="StaticText", label="General", source="xcode"),))
+    assert len((await MergedReader(Fixed(first), [Fixed(placeless)]).read()).roots) == 3
+
+
+async def test_what_only_an_app_says_is_destructive_marks_what_already_says_it() -> None:
+    yes, no = button("Yes", 400, source="idb"), button("No", 450, source="idb")
+    first = ScreenTree(roots=(ElementNode(role="Other", label="Clear the list?", source="idb", children=(yes, no)),))
+    styled = replace(button("Yes", 400.5, source="app"), traits=(DESTRUCTIVE,))
+    app = ScreenTree(roots=(styled, button("No", 450, source="app"),
+                            replace(button("Erase", 600, source="app"), traits=(DESTRUCTIVE,))))  # fmt: skip
+    merged = await MergedReader(Fixed(first), [NamingReader(Fixed(app))]).read()
+    marked = {node.label: node.traits for node in merged.walk() if node.role == "Button"}
+    assert marked == {"Yes": (DESTRUCTIVE,), "No": (), "Erase": (DESTRUCTIVE,)}
+    assert [node.source for node in merged.walk() if node.role == "Button"] == ["idb", "idb", "app"]
+    # Read again, what is already marked stays marked once; and what has nothing destructive is left as it was.
+    again = await MergedReader(Fixed(merged), [Fixed(app)]).read()
+    assert [node.traits for node in again.walk() if node.label == "Yes"] == [(DESTRUCTIVE,)]
+    plain = ScreenTree(roots=(button("No", 450, source="app"),))
+    assert await MergedReader(Fixed(first), [Fixed(plain)]).read() is first
+
+
+async def test_a_modal_or_a_failure_only_a_later_reader_knows_of_reaches_the_snapshot() -> None:
+    first = ScreenTree(roots=(button("OK", 10, source="idb"),), notes=("kept",))
+    alert = ScreenTree(roots=(button("OK", 10, source="xcode"),), modal=Modal("Delete?"))
+    merged = await MergedReader(Fixed(first), [Fixed(ConnectorError("Xcode has not approved it")), Fixed(alert)]).read()
+    assert merged.modal == Modal("Delete?") and merged.notes == ("kept", "Xcode has not approved it")
+    assert merged.roots == first.roots
+    snapshot = build(merged, device="iOS 27.0", screen=Screen(402, 874, 402, 874, 1.0), max_elements=10)
+    assert snapshot.notes == ("a modal is in front: Delete?", "kept", "Xcode has not approved it")
+
+
+async def test_merging_xcodes_hierarchy_into_idbs_adds_what_idb_leaves_out_and_nothing_it_has() -> None:
+    screen = Screen(1206, 2622, 402, 874, 3.0)
+    added: dict[str, list[str]] = {}
+    for name in ("safari", "settings", "home", "probe", "alert", "keyboard"):
+        idb = tree_from_document(fixture_json(f"ax-{name}-ios27.json"))
+        xcode = tree_from_document(document_from_hierarchy(fixture(f"mcpbridge-hierarchy-{name}.txt")), source="x")
+        before = build(idb, device="iOS 27.0", screen=screen, max_elements=200)
+        after = build(await MergedReader(Fixed(idb), [Fixed(xcode)]).read(), device="", screen=screen, max_elements=200)
+        added[name] = [element.line() for element in after.elements[len(before.elements) :]]
+    assert added == {
+        "safari": [
+            'e6 text "Example Domain" (174,190)',
+            'e7 text "This domain is for use in documentation examples without ne…" (200,260)',
+            'e8 link "Learn more" (122,326)',
+        ],
+        "settings": [],
+        "home": [
+            'e14 text "WEDNESDAY" (265,115)',
+            'e15 text "16" (248,139)',
+            'e16 text "No Events Today" (287,198)',
+            'e17 text "23:15" (74,33)',
+            'e18 image "Wi-Fi" (323,33)',
+        ],
+        "probe": [],
+        "alert": [],
+        "keyboard": [],
+    }
+
+
+async def test_without_extra_readers_only_the_connectors_own_is_read() -> None:
+    extra = NoExtraReaders()
+    assert extra.readers("U", "idb", SimConfig.defaults()) == ()
+    extra.forget("U")
+    await extra.close()
+
+
+def app(role: str, label: str, x: float, y: float, w: float, h: float, **more: object) -> ElementNode:
+    return ElementNode(role=role, label=label, frame=Frame(x, y, w, h), source="app", **more)  # type: ignore[arg-type]
+
+
+def idb(role: str, label: str, x: float, y: float, w: float, h: float, **more: object) -> ElementNode:
+    return ElementNode(role=role, label=label, frame=Frame(x, y, w, h), source="idb", **more)  # type: ignore[arg-type]
+
+
+async def test_a_naming_reader_names_what_the_first_found_unlabeled_and_changes_nothing_else() -> None:
+    field = idb("TextField", "", 20, 352, 362, 34, identifier="note")
+    slider = idb("Slider", "", 20, 309, 362, 31, value="50%")
+    first = ScreenTree(roots=(idb("Application", "Probe", 0, 0, 402, 874, children=(field, slider)),))
+    found = ScreenTree(roots=(app("TextField", "Note", 20, 352, 362, 34), app("Slider", "Volume", 21, 309, 360, 31)))
+    merged = await MergedReader(Fixed(first), [NamingReader(Fixed(found))]).read()
+    named_field, named_slider = merged.roots[0].children
+    assert named_field == ElementNode(
+        role="TextField", label="Note", identifier="note", frame=field.frame, source="idb"
+    )
+    assert (named_slider.label, named_slider.value, named_slider.source) == ("Volume", "50%", "idb")
+    assert len(merged.roots) == 1, "what named an element is not added again"
+    snapshot = build(merged, device="iOS 27.0", screen=Screen(402, 874, 402, 874, 1.0), max_elements=10)
+    assert [element.line() for element in snapshot.elements] == [
+        'e1 field "Note" (201,369)',
+        'e2 slider "Volume" ="50%" (201,324)',
+    ]
+
+
+async def test_a_reader_that_is_not_naming_only_adds() -> None:
+    first = ScreenTree(roots=(idb("Button", "", 0, 0, 44, 44),))
+    found = ScreenTree(roots=(app("Button", "Trash", 0, 0, 44, 44),))
+    merged = await MergedReader(Fixed(first), [Fixed(found)]).read()
+    assert [(node.label, node.source) for node in merged.roots] == [("", "idb"), ("Trash", "app")]
+
+
+async def test_an_unlabeled_element_in_the_place_of_one_saying_its_value_adds_nothing() -> None:
+    checkbox = idb("CheckBox", "", 170, 372, 61, 28, value="0")
+    first = ScreenTree(roots=(checkbox,))
+    same = app("Switch", "", 170.5, 372, 63, 28, value="0")
+    other = app("Switch", "", 170.5, 372, 63, 28, value="1")
+    elsewhere = app("Switch", "", 170, 500, 61, 28, value="0")
+    merged = await MergedReader(Fixed(first), [Fixed(ScreenTree(roots=(same, other, elsewhere)))]).read()
+    assert [(node.role, node.value, node.frame) for node in merged.roots] == [
+        ("CheckBox", "0", checkbox.frame),
+        ("Switch", "1", other.frame),
+        ("Switch", "0", elsewhere.frame),
+    ]
+
+
+def test_naming_prefers_the_same_role_then_the_closest_frame_and_uses_each_label_once() -> None:
+    icon = idb("Button", "", 0, 0, 44, 44)
+    twin = idb("Button", "", 0, 0, 44, 44)
+    first = ScreenTree(roots=(icon, twin))
+    found = ScreenTree(
+        roots=(
+            app("Image", "trash", 0, 0, 44, 44),
+            app("Button", "Delete", 2, 2, 42, 42),
+            app("Button", "Remove", 0, 0, 44, 44),
+        )
+    )
+    named = name_unlabeled(first, found)
+    assert [node.label for node in named.roots] == ["Remove", "Delete"]
+    closest = ScreenTree(roots=(app("Image", "big", 0, 0, 44, 50), app("Image", "exact", 0, 0, 44, 44)))
+    assert name_unlabeled(ScreenTree(roots=(icon,)), closest).roots[0].label == "exact"
+    reversed_order = ScreenTree(roots=tuple(reversed(closest.roots)))
+    assert name_unlabeled(ScreenTree(roots=(icon,)), reversed_order).roots[0].label == "exact"
+
+
+def test_naming_leaves_what_does_not_overlap_enough_says_something_or_holds_others() -> None:
+    far = ScreenTree(roots=(app("Button", "Trash", 20, 20, 44, 44),))
+    icon = idb("Button", "", 0, 0, 44, 44)
+    tree = ScreenTree(roots=(icon,))
+    assert name_unlabeled(tree, far) is tree
+    assert name_unlabeled(tree, ScreenTree()) is tree
+    flat = ScreenTree(roots=(app("Button", "Trash", 0, 0, 44, 0), ElementNode(role="Button", label="Placeless")))
+    assert name_unlabeled(tree, flat) is tree
+    titled = ScreenTree(roots=(idb("TextField", "", 0, 0, 44, 44, title="Search"),))
+    group = ScreenTree(roots=(idb("Group", "", 0, 0, 44, 44), ElementNode(role="Button")))
+    found = ScreenTree(roots=(app("Button", "Trash", 0, 0, 44, 44),))
+    assert name_unlabeled(titled, found) is titled
+    assert name_unlabeled(group, found) is group
+
+
+def test_a_name_its_developer_gave_renames_what_accessibility_already_calls_something_else() -> None:
+    gear = idb("Button", "gearshape", 161, 184, 27, 27)
+    trash = idb("Button", "Trash", 216, 184, 25, 27)
+    save = idb("Button", "Save", 20, 600, 100, 44)
+    tree = ScreenTree(roots=(gear, trash, save))
+    found = ScreenTree(
+        roots=(
+            app("Other", "Settings", 161, 184, 27, 26, traits=(NAMED,)),
+            app("Button", "Delete list", 216, 184, 24, 27, traits=(NAMED,)),
+            app("Button", "Store", 20, 600, 100, 44),
+        )
+    )
+    named = name_unlabeled(tree, found)
+    assert [(node.label, node.role, node.source) for node in named.roots] == [
+        ("Settings", "Button", "idb"),
+        ("Delete list", "Button", "idb"),
+        ("Save", "Button", "idb"),
+    ]
+    same = ScreenTree(roots=(app("Button", "Save", 20, 600, 100, 44, traits=(NAMED,)),))
+    assert name_unlabeled(ScreenTree(roots=(save,)), same).roots[0] is save
+
+
+def test_a_label_an_element_inside_already_says_names_nothing() -> None:
+    cell = idb("Cell", "", 16, 380, 370, 52, children=(idb("StaticText", "General", 30, 392, 100, 28),))
+    other = idb("Button", "", 0, 0, 44, 44)
+    tree = ScreenTree(roots=(cell, other))
+    found = ScreenTree(roots=(app("Cell", "General", 16, 380, 370, 52), app("Button", "Back", 0, 0, 44, 44)))
+    named = name_unlabeled(tree, found)
+    assert named.roots[0] is cell, "an untouched element is the same element"
+    assert named.roots[1].label == "Back"
+
+
+async def test_the_other_readers_are_read_at_once_and_answer_in_their_order() -> None:
+    started = asyncio.Event()
+
+    class Waiting:
+        async def read(self) -> ScreenTree:
+            await asyncio.wait_for(started.wait(), timeout=5)
+            return ScreenTree(notes=("waited",))
+
+    class Starting:
+        async def read(self) -> ScreenTree:
+            started.set()
+            return ScreenTree(notes=("started",))
+
+    first = ScreenTree(roots=(button("Save", 10, source="idb"),))
+    merged = await MergedReader(Fixed(first), [Waiting(), Fixed(ConnectorError("no app")), Starting()]).read()
+    assert merged.notes == ("waited", "no app", "started")
+
+
+async def test_when_the_first_reader_fails_the_others_are_stopped() -> None:
+    started, cancelled = asyncio.Event(), asyncio.Event()
+
+    class Failing:
+        async def read(self) -> ScreenTree:
+            await started.wait()
+            raise ConnectorError("no tree")
+
+    class Slow:
+        async def read(self) -> ScreenTree:
+            started.set()
+            try:
+                await asyncio.sleep(60)
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+            return ScreenTree()  # pragma: no cover - never reached: the reader is cancelled
+
+    with pytest.raises(ConnectorError, match="no tree"):
+        await MergedReader(Failing(), [Slow()]).read()
+    assert cancelled.is_set()
+
+
+async def test_a_naming_reader_that_cannot_read_names_nothing_and_says_why() -> None:
+    first = ScreenTree(roots=(idb("Button", "", 0, 0, 44, 44),))
+    merged = await MergedReader(Fixed(first), [NamingReader(Fixed(ConnectorError("the app went away")))]).read()
+    assert merged.roots == first.roots and merged.notes == ("the app went away",)
+
+
+async def test_merging_says_whether_pixels_were_read_to_make_the_tree() -> None:
+    first = ScreenTree(roots=(button("Save", 10, source="idb"),))
+    pixels = ScreenTree(roots=(button("Save", 10, source=PIXELS),), pixels=True)
+    merged = await MergedReader(Fixed(first), [Fixed(pixels)]).read()
+    assert merged.pixels is True and merged.roots == first.roots
+    assert (await MergedReader(Fixed(pixels), [Fixed(first)]).read()).pixels is True
+
+
+class Turning:
+    """Reads the screen's pixels in the interface's points: says when it started, and the way it was told the
+    interface is turned."""
+
+    def __init__(self, tree: ScreenTree | Exception) -> None:
+        self._tree = tree
+        self.started = asyncio.Event()
+        self.told: list[Orientation | None] = []
+
+    async def read(self) -> ScreenTree:
+        self.told.append(None)
+        return await self._answer("portrait")
+
+    async def read_in(self, orientation: Awaitable[Orientation]) -> ScreenTree:
+        self.started.set()
+        turned = await orientation
+        self.told.append(turned)
+        return await self._answer(turned)
+
+    async def _answer(self, orientation: Orientation) -> ScreenTree:
+        if isinstance(self._tree, Exception):
+            raise self._tree
+        return ScreenTree(self._tree.roots, notes=self._tree.notes, pixels=True, orientation=orientation)
+
+
+class Turned:
+    """The first reader on an app turned to landscape, which answers once `ready` is set."""
+
+    def __init__(self, tree: ScreenTree, ready: asyncio.Event) -> None:
+        self._tree = tree
+        self._ready = ready
+
+    async def read(self) -> ScreenTree:
+        await asyncio.wait_for(self._ready.wait(), timeout=5)
+        return ScreenTree(self._tree.roots, orientation="landscape_right")
+
+
+async def test_pixels_read_in_the_interfaces_points_merge_into_a_turned_apps_tree() -> None:
+    pixels = Turning(ScreenTree(roots=(button("High score", 300, source=PIXELS),)))
+    assert isinstance(pixels, InterfaceReader) and not isinstance(Fixed(SAID), InterfaceReader)
+    first = Turned(ScreenTree(roots=(button("Play", 10, source="native"),)), pixels.started)
+    merged = await MergedReader(first, [pixels]).read()
+    # Begun at once -- the first reader answered only once the pixels' reading had started -- and told the way after.
+    assert pixels.told == ["landscape_right"]
+    # Before, a turned app's pixels were left out, with a note.
+    assert [node.label for node in merged.walk()] == ["Play", "High score"] and merged.notes == ()
+    assert merged.orientation == "landscape_right" and merged.pixels is True
+
+
+async def test_a_fallback_reading_the_interfaces_points_is_told_the_way_the_first_reader_found() -> None:
+    silent = ScreenTree(SILENT.roots, modal=SILENT.modal, notes=SILENT.notes, orientation="portrait_upside_down")
+    pixels = Turning(READ)
+    tree = await FallbackReader(Fixed(silent), pixels, screen=SCREEN).read()
+    assert pixels.told == ["portrait_upside_down"] and tree.orientation == "portrait_upside_down"
+    assert tree.roots == READ.roots and tree.notes == ("quiet", ACCESSIBILITY_SAID_NOTHING, "from pixels")
+    # With no first reader to say, the pixels are read as they lie on the device's screen.
+    broken = Turning(READ)
+    fallen = await FallbackReader(Fixed(ConnectorError("no tree")), broken, screen=SCREEN).read()
+    assert broken.told == [None] and fallen.orientation == "portrait"
+
+
+class Parts:
+    """Extra readers of one kind, noting what they were asked."""
+
+    def __init__(self, *readers: TreeReader, fail_close: bool = False) -> None:
+        self._readers = readers
+        self.forgotten: list[str] = []
+        self.closed = False
+        self._fail_close = fail_close
+
+    def readers(self, udid: str, connector: str, config: SimConfig) -> tuple[TreeReader, ...]:
+        return self._readers
+
+    def forget(self, udid: str) -> None:
+        self.forgotten.append(udid)
+
+    async def close(self) -> None:
+        self.closed = True
+        if self._fail_close:
+            raise RuntimeError("could not close")
+
+
+async def test_combined_extra_readers_read_every_parts_readers_in_order_and_let_go_of_all(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    a, b, c = Fixed(ScreenTree()), Fixed(ScreenTree()), Fixed(ScreenTree())
+    first, second = Parts(a, b, fail_close=True), Parts(c)
+    combined = CombinedExtraReaders(first, second)
+    assert combined.readers("U", "idb", SimConfig.defaults()) == (a, b, c)
+    combined.forget("U")
+    assert first.forgotten == second.forgotten == ["U"]
+    with caplog.at_level("ERROR"):
+        await combined.close()
+    assert first.closed and second.closed and "closing screen readers failed" in caplog.text
+    assert CombinedExtraReaders().readers("U", "idb", SimConfig.defaults()) == ()
+
+
+SCREEN = Screen(1206, 2622, 402, 874, 3.0)
+SAID = ScreenTree(roots=(button("Save", 10, source="idb"),), notes=("from idb",))
+SILENT = ScreenTree(roots=(ElementNode(role="Application", label="Game"),), modal=Modal("sheet"), notes=("quiet",))
+READ = ScreenTree(roots=(button("Play", 300, source=PIXELS),), notes=("from pixels",), pixels=True)
+
+
+async def test_a_fallback_is_not_read_while_the_first_reader_says_anything() -> None:
+    assert await FallbackReader(Fixed(SAID), Fixed(ConnectorError("unused")), screen=SCREEN).read() is SAID
+
+
+async def test_a_first_reader_that_says_nothing_falls_back_keeping_what_it_did_say() -> None:
+    tree = await FallbackReader(Fixed(SILENT), Fixed(READ), screen=SCREEN).read()
+    assert tree.roots == READ.roots and tree.pixels is True and tree.modal == Modal("sheet")
+    assert tree.notes == ("quiet", ACCESSIBILITY_SAID_NOTHING, "from pixels")
+
+
+async def test_a_fallback_that_fails_leaves_the_silent_tree_with_why() -> None:
+    tree = await FallbackReader(Fixed(SILENT), Fixed(ConnectorError("Vision failed")), screen=SCREEN).read()
+    assert tree.roots == SILENT.roots and tree.notes == ("quiet", "Vision failed")
+
+
+async def test_a_first_reader_that_fails_falls_back_and_says_why_and_both_failing_says_both() -> None:
+    broken = ConnectorError("kAXErrorServerNotFound")
+    tree = await FallbackReader(Fixed(broken), Fixed(READ), screen=SCREEN).read()
+    assert tree.roots == READ.roots
+    assert tree.notes == ("accessibility could not be read: kAXErrorServerNotFound", "from pixels")
+    with pytest.raises(ConnectorError) as both:
+        await FallbackReader(Fixed(broken), Fixed(ConnectorError("Vision failed")), screen=SCREEN).read()
+    # Before, the fallback's own failure was dropped.
+    assert str(both.value) == "kAXErrorServerNotFound; the screen's pixels could not be read either: Vision failed"
+    assert both.value.__cause__ is broken
+
+
+def test_a_document_says_what_its_reader_left_out() -> None:
+    document = {"elements": [], "notes": ["a list was cut short", ""], "modal": {"type": "Alert", "label": None}}
+    tree = tree_from_document(document, source="wda")
+    assert tree.notes == ("a list was cut short",) and tree.modal == Modal("Alert")
+    assert tree_from_document({"elements": [], "notes": "not a list"}).notes == ()
+
+
+async def test_a_devices_readers_are_composed_as_its_scope_reads_pixels() -> None:
+    tree, extra, pixels = Fixed(SILENT), Fixed(SAID), Fixed(READ)
+    off = compose(structured=[tree, extra], pixels=pixels, mode="off", screen=SCREEN)
+    assert isinstance(off, MergedReader) and len((await off.read()).roots) == 2
+    assert compose(structured=[], pixels=pixels, mode="off", screen=SCREEN) is None
+    assert compose(structured=[], pixels=None, mode="fallback", screen=SCREEN) is None
+    assert compose(structured=[], pixels=pixels, mode="fallback", screen=SCREEN) is pixels
+    assert compose(structured=[], pixels=pixels, mode="merge", screen=SCREEN) is pixels
+    without = compose(structured=[tree], pixels=None, mode="merge", screen=SCREEN)
+    assert isinstance(without, MergedReader) and await without.read() is SILENT
+    fallback = compose(structured=[tree], pixels=pixels, mode="fallback", screen=SCREEN)
+    assert isinstance(fallback, FallbackReader) and (await fallback.read()).pixels is True
+    told = compose(structured=[tree], pixels=pixels, mode="fallback", screen=SCREEN, silent="nothing here")
+    assert told is not None and (await told.read()).notes == ("quiet", "nothing here", "from pixels")
+    merge = compose(structured=[Fixed(SAID)], pixels=pixels, mode="merge", screen=SCREEN)
+    assert isinstance(merge, MergedReader)
+    assert [node.label for node in (await merge.read()).roots] == ["Save", "Play"]

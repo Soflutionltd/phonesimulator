@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+/build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.json
+coverage.xml
+htmlcov/
+
+# Swift
+helper/.build/
+helper/.swiftpm/
+/.build/
+/.swiftpm/
+xcuserdata/
+*.xcresult
+
+# Node
+node_modules/
+viewer/dist/
+viewer/coverage/
+*.tgz
+
+# The committed standalone viewer bundle lives in src/simtrail/server/static/viewer/ and is not ignored.
+
+# macOS and editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.profraw

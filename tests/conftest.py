@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0
+"""What every test runs under: no real Simulator, Xcode or agent, and Simtrail's folders in a temporary one."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from simtrail.testing import guards
+from simtrail.testing.macos import FakeMacOS
+
+
+@pytest.fixture(autouse=True)
+def _isolated_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    guards.isolate_state(monkeypatch, tmp_path / "simtrail")
+
+
+@pytest.fixture(autouse=True)
+def _fake_mac_targets(monkeypatch: pytest.MonkeyPatch) -> None:
+    from simtrail.core import runtime
+
+    monkeypatch.setattr(runtime, "MacOS", lambda: FakeMacOS().mac)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_programs(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
+    if request.node.get_closest_marker("allow_subprocess"):
+        return
+    guards.install_subprocess_guard(monkeypatch)

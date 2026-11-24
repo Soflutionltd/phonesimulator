@@ -1,0 +1,1016 @@
+// SPDX-License-Identifier: Apache-2.0
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const decoding = vi.hoisted(() => ({
+  sinks: [] as Array<{
+    options: { draw: (frame: { displayWidth: number; displayHeight: number }) => void; onError: (error: Error) => void }
+    push: ReturnType<typeof vi.fn>
+    close: ReturnType<typeof vi.fn>
+  }>,
+}))
+vi.mock('./h264-decoder', () => ({
+  createH264Sink: vi.fn((options: (typeof decoding.sinks)[number]['options']) => {
+    const sink = { options, push: vi.fn(), close: vi.fn() }
+    decoding.sinks.push(sink)
+    return sink
+  }),
+}))
+
+import { FakeSocket } from '../test-support/fake-socket'
+import {
+  CLOCK, DEVICE, FULL, HELLO, INPUT_CLOCK, RECT, VIEW_ONLY, flush, frame, hear, live, pointer, said, setup, socket,
+  started,
+} from '../test-support/viewer-harness'
+import { ACTIVE_MS, ONGOING_MS, THINK_AFTER_MS } from './agent-cursor'
+import {
+  CLOSE_BAD_MESSAGE, CLOSE_FORBIDDEN, CLOSE_RESTARTING, CLOSE_STOPPED, CLOSE_UNSUPPORTED, TAG_JPEG, TEXT_MAX_CHARS,
+  type Device, type ServerHello, type Started,
+} from './protocol.generated'
+import { readDevice } from './status-view'
+import { STYLE_ID } from './styles'
+import { MOVE_MS, TYPE_SETTLE_MS } from './viewer-input'
+import { RECONNECT_MS, readServerHello } from './viewer-stream'
+import { settingsView } from '../test-support/settings'
+
+let drawImage: ReturnType<typeof vi.fn>
+
+beforeEach(() => {
+  FakeSocket.reset()
+  decoding.sinks.length = 0
+  drawImage = vi.fn()
+  vi.stubGlobal('WebSocket', FakeSocket)
+  // A picture is drawn on the next animation frame (screen-canvas.ts); here that frame comes at once.
+  vi.stubGlobal('requestAnimationFrame', (paint: FrameRequestCallback) => { paint(0); return 1 })
+  vi.stubGlobal('createImageBitmap', vi.fn(async (blob: Blob) => ({ width: 1206, height: 2622, size: blob.size,
+                                                                     close: vi.fn() })))
+  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({ drawImage })) as never
+})
+
+afterEach(() => {
+  document.body.innerHTML = ''
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
+
+describe('readers', () => {
+  it('takes a device state it can show, and nothing else', () => {
+    expect(readDevice({ type: 'status', ...DEVICE })).toMatchObject({ udid: 'U1', state: 'ready' })
+    expect(readDevice({ udid: 'U1', name: 'x', state: 'melting' })).toBeNull()
+    expect(readDevice({ udid: 1, name: 'x', state: 'ready' })).toBeNull()
+    expect(readDevice({ udid: 'U1', state: 'ready' })).toBeNull()
+  })
+
+  it('takes a server hello this viewer speaks, and nothing else', () => {
+    expect(readServerHello({ ...HELLO })).toEqual(HELLO)
+    expect(readServerHello({ ...HELLO, server: 7, fallback_reason: 'idb is not installed' }))
+      .toEqual({ ...HELLO, server: '', fallback_reason: 'idb is not installed' })
+    const refused: Array<Record<string, unknown>> = [
+      { ...HELLO, type: 'stream' }, { ...HELLO, v: 2 }, { ...HELLO, encodings: 'jpeg' }, { ...HELLO, capabilities: [1] },
+      { ...HELLO, connector: null }, { ...HELLO, fallback_reason: 3 },
+    ]
+    for (const body of refused) expect(readServerHello(body)).toBeNull()
+  })
+})
+
+describe('createViewer', () => {
+  it('connects only while active, says hello, counts the boot, then shows the screen and draws its frames', async () => {
+    vi.useFakeTimers(CLOCK)
+    const { view, transport, $, onState } = setup()
+    await flush()
+    expect(transport.start).not.toHaveBeenCalled()
+    view.setActive(true)
+    view.setActive(true)
+    await flush()
+    expect(transport.start).toHaveBeenCalledOnce()
+    expect(transport.socketUrl).toHaveBeenCalledWith('tk')
+    expect(socket().binaryType).toBe('arraybuffer')
+    expect($('[data-smv-name]').textContent).toBe('iPhone 17 Pro · iOS 26.5')
+    expect($<HTMLElement>('[data-smv-state]').dataset.state).toBe('booting')
+    expect($('[data-smv-state]').textContent).toBe('Starting')
+    expect(said(view)).toBe('Starting iPhone 17 Pro… 2s')
+    vi.advanceTimersByTime(1000)
+    expect(said(view)).toBe('Starting iPhone 17 Pro… 3s')
+
+    socket().open()
+    expect(socket().sent).toEqual([{ type: 'hello', v: 1, encodings: ['jpeg'] }])
+    expect(view.connected()).toBe(true)
+    socket().message({ type: 'hello', v: 2 })
+    expect(view.hello).toBeNull()
+    socket().message(HELLO)
+    socket().message({ type: 'stream', encoding: 'webp' })
+    expect(view.encoding).toBeNull()
+    socket().message({ type: 'stream', encoding: 'jpeg' })
+    expect(view.encoding).toBe('jpeg')
+    expect(view.hello).toEqual(HELLO)
+    socket().message({ type: 'status', ...DEVICE })
+    expect($<HTMLElement>('[data-smv-empty]').hidden).toBe(true)
+    expect($<HTMLCanvasElement>('[data-smv-canvas]').hidden).toBe(false)
+    expect($('[data-smv-state]').textContent).toBe('Ready')
+    expect($<HTMLElement>('[data-smv-mode]').hidden).toBe(true)
+    expect(onState).toHaveBeenLastCalledWith({
+      device: expect.objectContaining({ state: 'ready' }), connector: 'idb', capabilities: FULL, viewOnly: false,
+      connected: true,
+    })
+    vi.advanceTimersByTime(5000)
+    expect($<HTMLElement>('[data-smv-empty]').hidden).toBe(true)
+    expect(view.device?.udid).toBe('U1')
+
+    socket().message(frame(TAG_JPEG, 5))
+    socket().message(frame(TAG_JPEG, 1))
+    socket().message(frame(0x09))
+    socket().message('not json')
+    socket().message('3')
+    socket().message({ type: 'status', udid: 'U1' })
+    socket().message({ type: 'agent', id: 'a0' })
+    socket().message({ type: 'other' })
+    await flush()
+    expect(createImageBitmap).toHaveBeenCalledOnce()
+    expect((vi.mocked(createImageBitmap).mock.calls[0][0] as Blob).size).toBe(4)
+    expect(drawImage).toHaveBeenCalledOnce()
+
+    view.setActive(false)
+    expect(socket().closed).toBe(true)
+    expect(view.connected()).toBe(false)
+  })
+
+  it('shows a device it was not told about as a plain simulator, and starts on a page when not placed', async () => {
+    const { view, $ } = setup({ transport: { start: vi.fn(async () => started(null)) }, placement: undefined })
+    view.setActive(true)
+    await flush()
+    expect($('[data-smv-name]').textContent).toBe('iOS Simulator')
+    // Still starting: the socket's first status says how the device stands.
+    expect($('[data-smv-state]').textContent).toBe('Starting')
+    expect(said(view)).toBe('Starting the simulator…')
+    expect(view.el.dataset.placement).toBe('page')
+  })
+
+  it('says it is starting from the moment a start is asked for, not that the device is stopped', async () => {
+    const pending: Array<(value: Started) => void> = []
+    const start = vi.fn(() => new Promise<Started>((resolve) => pending.push(resolve)))
+    const { view, $ } = setup({ transport: { start } })
+    const pill = () => $<HTMLElement>('[data-smv-state]').textContent
+    expect(pill()).toBe('Stopped')
+    view.setActive(true)
+    await flush()
+    // It said "Stopped" for as long as the start took: a whole boot.
+    expect(pill()).toBe('Starting')
+    expect(said(view)).toBe('Starting the simulator…')
+    pending[0](started({ ...DEVICE, kind: 'physical', connection: 'usb' }))
+    await flush()
+    hear(HELLO, { ...DEVICE, kind: 'physical', connection: 'usb' })
+    expect(pill()).toBe('Ready')
+    $<HTMLButtonElement>('[data-smv="stop"]').click()
+    // Let go: the pill no longer says "Ready" over a screen that is gone.
+    expect(pill()).toBe('Stopped')
+    expect(view.device?.state).toBe('stopped')
+    expect(said(view)).toBe('The device is let go, as it was.Show the device')
+    $<HTMLButtonElement>('[data-smv="start"]').click()
+    await flush()
+    expect(pill()).toBe('Starting')
+    expect(said(view)).toBe('Starting the device…')
+    view.destroy()
+  })
+
+  it('says how a device stands when it is not ready, and offers a way on where there is one', async () => {
+    const { view, $ } = await live()
+    const tell = (device: Partial<Device>) => socket().message({ type: 'status', ...DEVICE, ...device })
+    tell({ state: 'stalled', reason: 'The companion stopped' })
+    expect(said(view)).toBe('The companion stopped. Reconnecting…')
+    tell({ state: 'stalled', reason: 'The companion stopped.' })
+    expect(said(view)).toBe('The companion stopped. Reconnecting…')
+    expect(view.el.querySelector('[data-smv="start"]')).toBeNull()
+    tell({ state: 'stalled' })
+    expect(said(view)).toBe('The simulator stopped answering. Reconnecting…')
+    tell({ state: 'failed', reason: 'Boot timed out' })
+    expect(said(view)).toContain('Boot timed out')
+    expect($('[data-smv="start"]').textContent).toBe('Try again')
+    tell({ state: 'failed' })
+    expect(said(view)).toContain('The simulator could not start.')
+    tell({ state: 'stopped' })
+    expect($('[data-smv="start"]').textContent).toBe('Start the simulator')
+    expect($<HTMLCanvasElement>('[data-smv-canvas]').hidden).toBe(true)
+  })
+
+  it('sends one finger as a touch stream, a move at most every MOVE_MS, and nothing from outside the screen', async () => {
+    vi.useFakeTimers(INPUT_CLOCK)
+    const { canvas } = await live()
+    canvas.dispatchEvent(pointer('pointerdown', 201, 437))
+    canvas.dispatchEvent(pointer('pointerdown', 10, 10, { id: 2 }))
+    canvas.dispatchEvent(pointer('pointermove', 100, 100))
+    canvas.dispatchEvent(pointer('pointermove', 100.5, 218.5))
+    canvas.dispatchEvent(pointer('pointermove', 1, 1, { id: 2 }))
+    expect(socket().sent).toHaveLength(2)
+    vi.advanceTimersByTime(MOVE_MS)
+    canvas.dispatchEvent(pointer('pointermove', 300, 300))
+    canvas.dispatchEvent(pointer('pointerup', 402, 874, { id: 2 }))
+    canvas.dispatchEvent(pointer('pointerup', 402, 874))
+    vi.advanceTimersByTime(MOVE_MS)
+    canvas.dispatchEvent(pointer('pointermove', 5, 5))
+    canvas.dispatchEvent(pointer('pointerdown', 40.2, 87.4, { button: 2 }))
+    canvas.dispatchEvent(pointer('pointerdown', 40.2, 87.4))
+    canvas.dispatchEvent(pointer('pointercancel', 40.2, 87.4))
+    expect(socket().sent).toEqual([
+      { type: 'touch', phase: 'down', nx: 0.5, ny: 0.5 },
+      // The first move goes at once; the next waits out MOVE_MS and goes as the latest.
+      { type: 'touch', phase: 'move', nx: 0.2488, ny: 0.1144 },
+      { type: 'touch', phase: 'move', nx: 0.25, ny: 0.25 },
+      // A move still waiting when the finger lifts goes before the lift.
+      { type: 'touch', phase: 'move', nx: 0.7463, ny: 0.3432 },
+      { type: 'touch', phase: 'up', nx: 1, ny: 1 },
+      { type: 'touch', phase: 'down', nx: 0.1, ny: 0.1 },
+      { type: 'touch', phase: 'cancel', nx: 0.1, ny: 0.1 },
+    ])
+
+    canvas.getBoundingClientRect = () => ({ ...RECT, width: 1000 }) as DOMRect
+    const outside = pointer('pointerdown', 10, 10)
+    canvas.dispatchEvent(outside)
+    expect(outside.defaultPrevented).toBe(false)
+    expect(socket().sent).toHaveLength(7)
+  })
+
+  it('takes hold of the pointer where the browser can', async () => {
+    const { canvas } = await live()
+    const capture = vi.fn()
+    canvas.setPointerCapture = capture
+    canvas.dispatchEvent(pointer('pointerdown', 201, 437, { id: 7 }))
+    expect(capture).toHaveBeenCalledWith(7)
+  })
+
+  it('scrolls by what the wheel moved, at most every MOVE_MS, from over the screen only', async () => {
+    vi.useFakeTimers(INPUT_CLOCK)
+    const { canvas } = await live()
+    const wheel = (deltaY: number) => new WheelEvent('wheel', { clientX: 201, clientY: 437, deltaY, cancelable: true })
+    const first = wheel(30)
+    canvas.dispatchEvent(first)
+    canvas.dispatchEvent(wheel(40))
+    canvas.dispatchEvent(wheel(5))
+    vi.advanceTimersByTime(MOVE_MS)
+    canvas.getBoundingClientRect = () => ({ ...RECT, width: 1000 }) as DOMRect
+    const outside = new WheelEvent('wheel', { clientX: 5, clientY: 5, deltaY: 10, cancelable: true })
+    canvas.dispatchEvent(outside)
+    vi.advanceTimersByTime(MOVE_MS)
+    expect(first.defaultPrevented).toBe(true)
+    expect(outside.defaultPrevented).toBe(true)
+    expect(socket().sent).toEqual([
+      { type: 'scroll', nx: 0.5, ny: 0.5, dy: 30 },
+      { type: 'scroll', nx: 0.5, ny: 0.5, dy: 45 },
+    ])
+    canvas.dispatchEvent(new MouseEvent('contextmenu', { cancelable: true }))
+  })
+
+  it('types in bursts, names the keys the device knows, and leaves shortcuts and paste to the browser', async () => {
+    vi.useFakeTimers(CLOCK)
+    const { canvas, host } = await live()
+    const outer = vi.fn()
+    host.addEventListener('keydown', outer)
+    const key = (init: KeyboardEventInit) => {
+      const event = new KeyboardEvent('keydown', { cancelable: true, bubbles: true, ...init })
+      canvas.dispatchEvent(event)
+      return event
+    }
+    key({ key: 'T' })
+    key({ key: 'r' })
+    vi.advanceTimersByTime(TYPE_SETTLE_MS)
+    key({ key: 'i' })
+    key({ key: 'Enter' })
+    key({ key: 'ArrowUp' })
+    const shortcut = key({ key: 'v', metaKey: true })
+    key({ key: 'a', ctrlKey: true })
+    const shift = key({ key: 'Shift' })
+    key({ key: 'p' })
+    const paste = new Event('paste', { cancelable: true }) as ClipboardEvent
+    Object.defineProperty(paste, 'clipboardData', { value: { getData: () => 'x'.repeat(TEXT_MAX_CHARS + 5) } })
+    canvas.dispatchEvent(paste)
+    const empty = new Event('paste') as ClipboardEvent
+    Object.defineProperty(empty, 'clipboardData', { value: null })
+    canvas.dispatchEvent(empty)
+    for (let i = 0; i < TEXT_MAX_CHARS; i++) key({ key: 'z' })
+    expect(socket().sent).toEqual([
+      { type: 'text', text: 'Tr' },
+      { type: 'text', text: 'i' },
+      { type: 'key', name: 'return' },
+      { type: 'key', name: 'up' },
+      { type: 'text', text: 'p' },
+      { type: 'text', text: 'x'.repeat(TEXT_MAX_CHARS) },
+      { type: 'text', text: 'z'.repeat(TEXT_MAX_CHARS) },
+    ])
+    expect(shortcut.defaultPrevented).toBe(false)
+    expect(shift.defaultPrevented).toBe(false)
+    expect(outer).not.toHaveBeenCalled()
+  })
+
+  it('presses Home and Lock, and switches the appearance only when the device can hear it', async () => {
+    const { view, $ } = await live()
+    $<HTMLButtonElement>('[data-smv="home"]').click()
+    $<HTMLButtonElement>('[data-smv="lock"]').click()
+    const appearance = $<HTMLButtonElement>('[data-smv="appearance"]')
+    appearance.click()
+    expect(appearance.getAttribute('aria-pressed')).toBe('true')
+    expect(appearance.title).toBe('Light appearance')
+    expect(appearance.querySelector('svg[data-icon="sun"]')).not.toBeNull()
+    appearance.click()
+    expect(appearance.getAttribute('aria-pressed')).toBe('false')
+    expect(appearance.querySelector('svg[data-icon="moon"]')).not.toBeNull()
+    expect(socket().sent).toEqual([
+      { type: 'button', name: 'home' }, { type: 'button', name: 'lock' },
+      { type: 'appearance', mode: 'dark' }, { type: 'appearance', mode: 'light' },
+    ])
+    view.setActive(false)
+    appearance.click()
+    expect(appearance.getAttribute('aria-pressed')).toBe('false')
+    view.el.querySelector<HTMLElement>('.smv-bar')!.click()
+  })
+
+  it('starts the appearance button as the device is, and follows whoever changes it', async () => {
+    const { $ } = await live()
+    const appearance = $<HTMLButtonElement>('[data-smv="appearance"]')
+    // A dark device: the button offered "Dark appearance", and its first click asked for dark again.
+    socket().message({ type: 'status', ...DEVICE, appearance: 'dark' })
+    expect([appearance.getAttribute('aria-pressed'), appearance.title]).toEqual(['true', 'Light appearance'])
+    appearance.click()
+    expect(socket().sent).toEqual([{ type: 'appearance', mode: 'light' }])
+    // Another viewer or an agent made it dark again.
+    socket().message({ type: 'status', ...DEVICE, appearance: 'dark' })
+    expect(appearance.querySelector('svg[data-icon="sun"]')).not.toBeNull()
+    // An older server says nothing, and the button keeps what it showed.
+    socket().message({ type: 'status', ...DEVICE, appearance: undefined })
+    expect(appearance.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('says, over the screen, input the device did not take or that never reached it', async () => {
+    const { view, canvas, $ } = await live()
+    const note = $<HTMLElement>('[data-smv-note]')
+    socket().message({ type: 'input_refused', reason: 'The simulator did not take that: companion gone' })
+    expect(note.hidden).toBe(false)
+    expect(note.textContent).toBe('The simulator did not take that: companion gone')
+    socket().message({ type: 'input_refused' })
+    expect(note.textContent).toBe('The simulator did not take that: companion gone')
+    // The screen stays: the note is beside it, not instead of it.
+    expect(said(view)).toBe('')
+    socket().readyState = WebSocket.CLOSING
+    canvas.dispatchEvent(pointer('pointerdown', 201, 437))
+    expect(note.textContent).toBe('That did not reach the device: its screen is not connected.')
+    view.destroy()
+  })
+
+  it('mirrors a device it cannot touch: says so, offers nothing that would not reach it, and sends no input', async () => {
+    const hello: ServerHello = {
+      ...HELLO, encodings: ['jpeg'], connector: 'simctl', capabilities: VIEW_ONLY,
+      fallback_reason: 'idb_companion is not installed',
+    }
+    const { canvas, $, onState } = await live({}, hello)
+    const mode = $<HTMLElement>('[data-smv-mode]')
+    expect([mode.hidden, mode.title]).toEqual([false, 'idb_companion is not installed'])
+    expect($<HTMLButtonElement>('[data-smv="home"]').hidden).toBe(true)
+    expect($<HTMLButtonElement>('[data-smv="lock"]').hidden).toBe(true)
+    expect($<HTMLButtonElement>('[data-smv="appearance"]').hidden).toBe(false)
+    expect($<HTMLButtonElement>('[data-smv="devices"]').hidden).toBe(false)
+    canvas.dispatchEvent(pointer('pointerdown', 201, 437))
+    canvas.dispatchEvent(new WheelEvent('wheel', { clientX: 201, clientY: 437, deltaY: 30, cancelable: true }))
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', cancelable: true }))
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }))
+    const paste = new Event('paste', { cancelable: true }) as ClipboardEvent
+    Object.defineProperty(paste, 'clipboardData', { value: { getData: () => 'hello' } })
+    canvas.dispatchEvent(paste)
+    $<HTMLButtonElement>('[data-smv="appearance"]').click()
+    expect(socket().sent).toEqual([{ type: 'appearance', mode: 'dark' }])
+    expect(onState).toHaveBeenLastCalledWith(expect.objectContaining({ connector: 'simctl', viewOnly: true }))
+    socket().message({ ...hello, fallback_reason: null })
+    expect(mode.title).toBe('The simctl connector shows the screen but cannot touch it.')
+  })
+
+  it('lists this Mac’s simulators, marks the one in use, and switches to another', async () => {
+    const { view, transport, $ } = await live()
+    const first = socket()
+    const button = $<HTMLButtonElement>('[data-smv="devices"]')
+    expect(button.getAttribute('aria-expanded')).toBe('false')
+    button.click()
+    expect($('[data-smv-picker]').textContent).toBe('Looking for devices…')
+    expect(button.getAttribute('aria-expanded')).toBe('true')
+    await flush()
+    const rows = view.el.querySelectorAll<HTMLButtonElement>('[data-smv-udid]')
+    expect([...rows].map((row) => row.getAttribute('aria-checked'))).toEqual(['true', 'false'])
+    expect(rows[1].innerHTML).toContain('iPhone &lt;Air&gt;')
+    rows[0].click()
+    expect($<HTMLElement>('[data-smv-picker]').hidden).toBe(true)
+    expect(button.getAttribute('aria-expanded')).toBe('false')
+    expect(transport.choose).not.toHaveBeenCalled()
+
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    await flush()
+    view.el.querySelectorAll<HTMLButtonElement>('[data-smv-udid]')[1].click()
+    expect(transport.choose).toHaveBeenCalledWith('U2')
+    await flush()
+    expect(first.closed).toBe(true)
+    expect(transport.start).toHaveBeenCalledTimes(2)
+    expect(FakeSocket.instances).toHaveLength(2)
+    expect(said(view)).toBe('Starting iPhone 17 Pro… 2s')
+  })
+
+  it('closes the picker on Escape without the device hearing it, and gives focus back to its button', async () => {
+    const { view, canvas, $ } = await live()
+    const button = $<HTMLButtonElement>('[data-smv="devices"]')
+    const escape = () => {
+      const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      canvas.dispatchEvent(event)
+      return event
+    }
+    button.click()
+    await flush()
+    expect(document.activeElement).toBe(view.el.querySelector('[data-smv-udid="U1"]'))
+    canvas.focus()
+    expect(escape().defaultPrevented).toBe(true)
+    expect([$<HTMLElement>('[data-smv-picker]').hidden, button.getAttribute('aria-expanded')]).toEqual([true, 'false'])
+    expect($('[data-smv-picker]').innerHTML).toBe('')
+    expect(document.activeElement).toBe(button)
+    expect(socket().sent).toEqual([])
+    // With no menu open, Escape is the device's key again.
+    escape()
+    expect(socket().sent).toEqual([{ type: 'key', name: 'escape' }])
+  })
+
+  it('sends nothing to the device while the picker is open, and a press on the screen only closes it', async () => {
+    vi.useFakeTimers(INPUT_CLOCK)
+    const { canvas, $ } = await live()
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    await flush()
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }))
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    const paste = new Event('paste', { cancelable: true }) as ClipboardEvent
+    Object.defineProperty(paste, 'clipboardData', { value: { getData: () => 'hello' } })
+    canvas.dispatchEvent(paste)
+    canvas.dispatchEvent(new WheelEvent('wheel', { clientX: 201, clientY: 437, deltaY: 30, cancelable: true }))
+    canvas.dispatchEvent(pointer('pointerdown', 201, 437))
+    vi.advanceTimersByTime(TYPE_SETTLE_MS + MOVE_MS)
+    expect($<HTMLElement>('[data-smv-picker]').hidden).toBe(true)
+    expect(socket().sent).toEqual([])
+    canvas.dispatchEvent(pointer('pointerdown', 201, 437))
+    expect(socket().sent).toEqual([{ type: 'touch', phase: 'down', nx: 0.5, ny: 0.5 }])
+  })
+
+  it('offers settings only through a transport that reads them, and one of the picker and settings at a time', async () => {
+    const plain = await live()
+    expect(plain.$<HTMLButtonElement>('[data-smv="settings"]').hidden).toBe(true)
+    plain.view.destroy()
+    const settings = vi.fn(async () => settingsView())
+    const changeSettings = vi.fn(async () => settingsView())
+    const { view, $, canvas } = await live({ transport: { settings, changeSettings } })
+    const gear = $<HTMLButtonElement>('[data-smv="settings"]')
+    const panel = $<HTMLElement>('[data-smv-settings]')
+    expect([gear.hidden, gear.getAttribute('aria-haspopup')]).toEqual([false, 'dialog'])
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    await flush()
+    gear.click()
+    await flush()
+    expect([panel.hidden, $<HTMLElement>('[data-smv-picker]').hidden, settings.mock.calls.length]).toEqual([false, true, 1])
+    expect(panel.querySelectorAll('[role="tab"]')).toHaveLength(3)
+    // While the panel is open, nothing typed reaches the device.
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }))
+    expect(socket().sent).toEqual([])
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    await flush()
+    expect([panel.hidden, $<HTMLElement>('[data-smv-picker]').hidden]).toEqual([true, false])
+    gear.click()
+    await flush()
+    gear.click()
+    expect(panel.hidden).toBe(true)
+    view.destroy()
+  })
+
+  it('says when the simulators cannot be listed or used, and stays closed when closed while listing', async () => {
+    const devices = vi.fn()
+      .mockRejectedValueOnce(new Error('simctl failed'))
+      .mockRejectedValueOnce(new Error(''))
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ udid: 'U2', name: 'iPhone Air', runtime: 'iOS 26.5', state: 'Shutdown', created: false }])
+    const choose = vi.fn().mockRejectedValueOnce(new Error('No such simulator')).mockRejectedValueOnce(new Error(''))
+    const { view, $ } = await live({ transport: { devices, choose } })
+    const open = async () => {
+      $<HTMLButtonElement>('[data-smv="devices"]').click()
+      await flush()
+      return $('[data-smv-picker]').textContent
+    }
+    expect(await open()).toBe('simctl failed')
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    expect(await open()).toBe('The devices could not be listed.')
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    expect(await open()).toBe('No simulators or devices on this Mac.Shut down this device')
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    await flush()
+    expect($<HTMLElement>('[data-smv-picker]').hidden).toBe(true)
+
+    let fail: (error: Error) => void = () => {}
+    devices.mockImplementationOnce(() => new Promise((_, reject) => { fail = reject }))
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    fail(new Error('late'))
+    await flush()
+    expect($('[data-smv-picker]').textContent).toBe('')
+
+    // The device in use is still in use: its screen stays, the pill with it, and a note says why.
+    const note = () => $<HTMLElement>('[data-smv-note]')
+    await open()
+    view.el.querySelector<HTMLButtonElement>('[data-smv-udid]')!.click()
+    await flush()
+    expect(note().textContent).toContain('No such simulator')
+    expect(said(view)).toBe('')
+    expect($<HTMLCanvasElement>('[data-smv-canvas]').hidden).toBe(false)
+    expect($('[data-smv-state]').textContent).toBe('Ready')
+    await open()
+    view.el.querySelector<HTMLButtonElement>('[data-smv-udid]')!.click()
+    await flush()
+    expect(note().textContent).toContain('That device could not be used.')
+    expect(view.el.querySelector('[data-smv="start"]')).toBeNull()
+  })
+
+  it('lets the device go, or shuts it down, and starts again on request', async () => {
+    const stop = vi.fn().mockRejectedValueOnce(new Error('gone')).mockResolvedValue(true)
+    const { view, transport, $ } = await live({ transport: { stop } })
+    $<HTMLButtonElement>('[data-smv="stop"]').click()
+    await flush()
+    expect(stop).toHaveBeenLastCalledWith(false)
+    expect(socket().closed).toBe(true)
+    expect(said(view)).toContain('its device keeps running for next time')
+    $<HTMLButtonElement>('[data-smv="start"]').click()
+    await flush()
+    expect(transport.start).toHaveBeenCalledTimes(2)
+    socket().open()
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    await flush()
+    $<HTMLButtonElement>('[data-smv="shutdown"]').click()
+    expect(stop).toHaveBeenLastCalledWith(true)
+    expect(said(view)).toContain('The device is shut down.')
+  })
+
+  it('says why the screen went away, whether trying again can help, and puts the pill in step', async () => {
+    const { view, $ } = await live()
+    const pill = () => $<HTMLElement>('[data-smv-state]').textContent
+    socket().end(CLOSE_STOPPED, 'the simulator stopped')
+    expect(said(view)).toContain('The simulator stopped.')
+    expect($('[data-smv="start"]').textContent).toBe('Start the simulator')
+    expect(pill()).toBe('Stopped')
+    // Refused here is Failed, not Stopped: the device may be running. A reason is a sentence before "Reconnecting…".
+    const ends: Array<[number, string, string, boolean, string]> = [
+      [CLOSE_FORBIDDEN, 'Turned off in its settings', 'Turned off in its settings', true, 'Failed'],
+      [CLOSE_FORBIDDEN, '', 'The simulator is off here.', true, 'Failed'],
+      [CLOSE_UNSUPPORTED, 'protocol version 2 is not supported', 'protocol version 2 is not supported', true, 'Failed'],
+      [CLOSE_BAD_MESSAGE, '', 'This viewer and the server do not speak the same protocol.', true, 'Failed'],
+      [1014, 'companion gone', "The simulator's screen closed: companion gone. Reconnecting…", false, 'Reconnecting'],
+      [1014, 'BAD_TICKET!', "The simulator's screen closed: BAD_TICKET! Reconnecting…", false, 'Reconnecting'],
+      [1006, '', 'The connection to the simulator ended. Reconnecting…', false, 'Reconnecting'],
+    ]
+    for (const [code, reason, message, retry, state] of ends) {
+      view.el.querySelector<HTMLButtonElement>('[data-smv="start"]')?.click()
+      view.setActive(false)
+      view.setActive(true)
+      await flush()
+      socket().message({ type: 'status', ...DEVICE })
+      socket().end(code, reason)
+      expect(said(view)).toContain(message)
+      expect(view.el.querySelector('[data-smv="start"]') !== null).toBe(retry)
+      expect(pill()).toBe(state)
+    }
+    view.destroy()
+  })
+
+  it('reconnects by itself when a live device’s connection drops, a few times, then offers to try again', async () => {
+    vi.useFakeTimers(CLOCK)
+    const { view, transport, $ } = await live()
+    const pill = () => $<HTMLElement>('[data-smv-state]').textContent
+    socket().end(1006, '')
+    expect(said(view)).toBe('The connection to the simulator ended. Reconnecting…')
+    expect(pill()).toBe('Reconnecting')
+    vi.advanceTimersByTime(RECONNECT_MS[0] - 1)
+    await flush()
+    expect(transport.start).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(1)
+    await flush()
+    expect(transport.start).toHaveBeenCalledTimes(2)
+    socket().open()
+    // Ready again: the next drop starts counting afresh.
+    socket().message({ type: 'status', ...DEVICE })
+    for (const wait of RECONNECT_MS) {
+      socket().end(1006, '')
+      expect(view.el.querySelector('[data-smv="start"]')).toBeNull()
+      vi.advanceTimersByTime(wait)
+      await flush()
+    }
+    expect(transport.start).toHaveBeenCalledTimes(2 + RECONNECT_MS.length)
+    socket().end(1006, '')
+    expect(said(view)).toContain('The connection to the simulator ended.')
+    expect($('[data-smv="start"]').textContent).toBe('Try again')
+    // Out of attempts, the device could not be reached: that is a failure, not a stop.
+    expect(pill()).toBe('Failed')
+    // A device that had failed is not reconnected to by itself, and stays failed with its own reason.
+    $<HTMLButtonElement>('[data-smv="start"]').click()
+    await flush()
+    socket().message({ type: 'status', ...DEVICE, state: 'failed', reason: 'Boot timed out' })
+    socket().end(1006, '')
+    expect($('[data-smv="start"]').textContent).toBe('Try again')
+    expect(said(view)).toBe('Boot timed outTry again')
+    expect(pill()).toBe('Failed')
+    // One that stopped stays stopped.
+    $<HTMLButtonElement>('[data-smv="start"]').click()
+    await flush()
+    socket().message({ type: 'status', ...DEVICE, state: 'stopped' })
+    socket().end(1006, '')
+    expect(pill()).toBe('Stopped')
+    view.destroy()
+  })
+
+  it('reconnects by itself when the device is restarted, even after dropped connections used up the attempts', async () => {
+    vi.useFakeTimers(CLOCK)
+    const { view, transport, $ } = await live()
+    for (const wait of RECONNECT_MS) {
+      socket().end(1006, '')
+      vi.advanceTimersByTime(wait)
+      await flush()
+    }
+    const starts = transport.start.mock.calls.length
+    socket().end(CLOSE_RESTARTING, 'the simulator is restarting')
+    expect(said(view)).toBe('The simulator is restarting. Reconnecting…')
+    expect(view.el.querySelector('[data-smv="start"]')).toBeNull()
+    expect($<HTMLElement>('[data-smv-state]').textContent).toBe('Reconnecting')
+    vi.advanceTimersByTime(RECONNECT_MS[0])
+    await flush()
+    expect(transport.start).toHaveBeenCalledTimes(starts + 1)
+    view.destroy()
+  })
+
+  it('asks for a fresh start when trying again after a failed start, though its screen is still open', async () => {
+    const { view, transport, $ } = await live()
+    socket().message({ type: 'status', ...DEVICE, state: 'failed', reason: 'Boot timed out' })
+    const waiting = socket()
+    expect($('[data-smv="start"]').textContent).toBe('Try again')
+    $<HTMLButtonElement>('[data-smv="start"]').click()
+    await flush()
+    expect(waiting.closed).toBe(true)
+    expect(transport.start).toHaveBeenCalledTimes(2)
+    expect(socket()).not.toBe(waiting)
+    view.destroy()
+  })
+
+  it('reconnects after a restart even when the stopped status reached it before the close', async () => {
+    vi.useFakeTimers(CLOCK)
+    const { view, transport } = await live()
+    socket().message({ type: 'status', ...DEVICE, state: 'stopped' })
+    socket().end(CLOSE_RESTARTING, 'the simulator is restarting')
+    expect(said(view)).toBe('The simulator is restarting. Reconnecting…')
+    vi.advanceTimersByTime(RECONNECT_MS[0])
+    await flush()
+    expect(transport.start).toHaveBeenCalledTimes(2)
+    view.destroy()
+  })
+
+  it('paints nothing and starts no timer when it is closed or put away while its start is on the way', async () => {
+    vi.useFakeTimers(CLOCK)
+    const pending: Array<(value: Started) => void> = []
+    const start = vi.fn(() => new Promise<Started>((resolve) => pending.push(resolve)))
+    const closed = setup({ transport: { start } })
+    closed.view.setActive(true)
+    await flush()
+    closed.view.destroy()
+    pending[0](started())
+    await flush()
+    expect(vi.getTimerCount()).toBe(0)
+    const away = setup({ transport: { start } })
+    away.view.setActive(true)
+    await flush()
+    away.view.setActive(false)
+    pending[1](started())
+    await flush()
+    expect(vi.getTimerCount()).toBe(0)
+    // What it said as the start was asked for, and no count of seconds after it was put away.
+    expect(said(away.view)).toBe('Starting the simulator…')
+    away.view.destroy()
+  })
+
+  it('keeps trying while the server is away, then says why it could not', async () => {
+    vi.useFakeTimers(CLOCK)
+    const start = vi.fn(async () => started({ ...DEVICE }))
+    const { view, $ } = await live({ transport: { start } })
+    start.mockRejectedValue(new Error('Failed to fetch'))
+    socket().end(1006, '')
+    for (const wait of RECONNECT_MS) {
+      expect(said(view)).toBe('The connection to the simulator ended. Reconnecting…')
+      expect(view.el.querySelector('[data-smv="start"]')).toBeNull()
+      vi.advanceTimersByTime(wait)
+      await flush()
+    }
+    expect(start).toHaveBeenCalledTimes(1 + RECONNECT_MS.length)
+    expect(said(view)).toContain('Failed to fetch')
+    expect($('[data-smv="start"]').textContent).toBe('Try again')
+    expect($<HTMLElement>('[data-smv-state]').textContent).toBe('Failed')
+    socket().end(1006, '')
+    view.setActive(false)
+    view.destroy()
+  })
+
+  it('says why the simulator would not start', async () => {
+    const start = vi.fn().mockRejectedValueOnce(new Error('The iOS Simulator is off for this project.'))
+      .mockRejectedValueOnce(new Error(''))
+    const { view, $ } = setup({ transport: { start } })
+    view.setActive(true)
+    await flush()
+    expect(said(view)).toContain('The iOS Simulator is off for this project.')
+    expect($<HTMLElement>('[data-smv-state]').textContent).toBe('Failed')
+    $<HTMLButtonElement>('[data-smv="start"]').click()
+    await flush()
+    expect(said(view)).toContain('The simulator could not start.')
+  })
+
+  it('draws what an agent does over the screen and says who is using the device, or what it is busy with', async () => {
+    vi.useFakeTimers(CLOCK)
+    const { view, $ } = await live()
+    const badge = $<HTMLElement>('[data-smv-badge]')
+    expect(badge.hidden).toBe(true)
+    socket().message({ type: 'status', ...DEVICE, busy: 'running tests (b1)' })
+    expect(badge.textContent).toBe('Busy: running tests (b1)')
+    socket().message({
+      type: 'agent', id: 'a1', phase: 'intent', agent: { key: 'k', title: 'Claude Code · notes' },
+      gesture: { kind: 'tap', duration_ms: 80, points: [[0.5, 0.5]] }, label: '', caption: '', lead_ms: 250,
+      pointer: true,
+    })
+    expect(badge.textContent).toBe('Claude Code · notes is using this device')
+    expect(badge.title).toBe('Claude Code · notes is using this device')
+    expect($<HTMLElement>('[data-ac-pointer]').style.transform).toBe('translate(201px, 437px)')
+    // What it does now, as the server says it, with its name kept whole in the pill's tooltip.
+    socket().message({
+      type: 'agent', id: 'w1', phase: 'working', agent: { key: 'k', title: 'Claude Code · notes' }, ongoing: true,
+      linger_ms: 0, activity: 'Reading the screen',
+    })
+    expect(badge.textContent).toBe('Claude Code · notes · Reading the screen')
+    expect(badge.title).toBe('Claude Code · notes is using this device')
+    expect(badge.classList.contains('is-agent')).toBe(true)
+    expect(badge.style.getPropertyValue('--ac-color')).toBe('')
+    // A scope's own colour: the pill is drawn in it, as the pointer is.
+    socket().message({
+      type: 'agent', id: 'w2', phase: 'working', agent: { key: 'k', title: 'Claude Code · notes' }, ongoing: true,
+      linger_ms: 0, activity: 'Reading the screen', color: '#ffd60a',
+    })
+    expect([badge.style.getPropertyValue('--ac-color'), badge.style.getPropertyValue('--ac-text')])
+      .toEqual(['#ffd60a', '#111113'])
+    vi.advanceTimersByTime(ONGOING_MS)
+    expect(badge.textContent).toBe('Busy: running tests (b1)')
+    expect(badge.title).toBe('')
+    expect(badge.classList.contains('is-agent')).toBe(false)
+    expect(badge.style.getPropertyValue('--ac-color')).toBe('')
+    socket().message({ type: 'status', ...DEVICE })
+    expect(badge.hidden).toBe(true)
+    expect(view.device?.busy).toBeNull()
+  })
+
+  it('moves Thinking between the header and the visible cursor while keeping the agent name', async () => {
+    vi.useFakeTimers(CLOCK)
+    const { $ } = await live()
+    const badge = $<HTMLElement>('[data-smv-badge]')
+    const working = { type: 'agent', id: 'w1', phase: 'working', agent: { key: 'k', title: 'codex' },
+      linger_ms: 0, ongoing: false }
+    socket().message(working)
+    vi.advanceTimersByTime(THINK_AFTER_MS)
+    const suffix = $<HTMLElement>('.smv-agent-activity')
+    expect(badge.textContent).toBe('codex · Thinking…')
+    expect(getComputedStyle(suffix).clipPath).not.toBe('inset(50%)')
+
+    socket().message({ ...working, phase: 'intent', pointer: true, lead_ms: 0, gesture: { kind: 'tap', duration_ms: 80, points: [[0.5, 0.5]] } })
+    socket().message({ type: 'agent', phase: 'done', id: 'w1', ok: true })
+    vi.advanceTimersByTime(THINK_AFTER_MS)
+    expect(badge.hidden).toBe(false)
+    expect(badge.firstChild?.textContent).toBe('codex')
+    expect($<HTMLElement>('[data-ac-chip]').textContent).toBe('Thinking…')
+    expect(getComputedStyle(suffix).clipPath).toBe('inset(50%)')
+
+    // A background call stays active after a zero-linger pointer disappears.
+    socket().message({ ...working, ongoing: true, activity: 'Building' })
+    vi.advanceTimersByTime(ACTIVE_MS)
+    expect($<HTMLElement>('[data-ac-pointer]').hidden).toBe(true)
+    expect(badge.textContent).toBe('codex · Building')
+    expect(getComputedStyle(suffix).clipPath).not.toBe('inset(50%)')
+  })
+
+  it('names the app in front that shares its view hierarchy, as text, until it stops or an older server says nothing', async () => {
+    const { $ } = await live()
+    const chip = $<HTMLElement>('[data-smv-app]')
+    expect(chip.hidden).toBe(true)
+    const shared = { name: 'Notes <b>Pro</b>', bundle_id: 'com.example.notes', sdk_version: '1.0.0' }
+    socket().message({ type: 'status', ...DEVICE, app_hierarchy: shared })
+    expect(chip.hidden).toBe(false)
+    expect(chip.textContent).toBe('Notes <b>Pro</b> · SDK')
+    expect(chip.querySelector('b')).toBeNull()
+    const said = "Notes <b>Pro</b> (com.example.notes) shares its view hierarchy through Simtrail's SDK 1.0.0"
+    expect(chip.title).toBe(said)
+    expect(chip.getAttribute('aria-label')).toBe(said)
+    socket().message({ type: 'status', ...DEVICE })
+    expect(chip.hidden).toBe(true)
+    expect(chip.textContent).toBe('')
+    expect(chip.hasAttribute('aria-label')).toBe(false)
+    socket().message({ type: 'status', ...DEVICE, app_hierarchy: shared })
+    const { app_hierarchy: _, ...older } = DEVICE
+    socket().message({ type: 'status', ...older })
+    expect(chip.hidden).toBe(true)
+  })
+
+  it('measures an agent’s gesture against the canvas before the device says its size', async () => {
+    const { view, $ } = setup({ transport: { start: vi.fn(async () => started({ ...DEVICE, state: 'booting', screen: null })) } })
+    view.setActive(true)
+    await flush()
+    socket().open()
+    socket().message({
+      type: 'agent', id: 'a1', phase: 'intent', agent: { key: 'k', title: 'Claude' },
+      gesture: { kind: 'tap', duration_ms: 80, points: [[1, 1]] }, label: '', caption: '', lead_ms: 0, pointer: true,
+    })
+    expect($<HTMLElement>('[data-ac-pointer]').style.transform).toBe('translate(402px, 874px)')
+  })
+
+  it('outlines the text read from the screen under the agent’s pointer, and lets it go when the screen goes', async () => {
+    const { $, canvas, view } = await live()
+    const box = { text: 'Sign in', confidence: 0.93, x: 0.25, y: 0.5, w: 0.25, h: 0.05 }
+    const boxes = () => view.el.querySelectorAll('[data-tx-box]')
+    socket().message({ type: 'screen_text', id: 't1', hold_ms: 0, boxes: [box] })
+    expect(boxes()).toHaveLength(1)
+    const overlay = $<HTMLElement>('[data-smv-overlay]')
+    expect(Array.from(overlay.children).map((child) => child.className)).toEqual(['tx', 'ac'])
+    expect($<HTMLElement>('[data-tx-frame]').style.transform).toBe('translate(0px, 0px)')
+    canvas.dispatchEvent(pointer('pointermove', 120, 450))
+    expect($<HTMLElement>('[data-tx-caption]').textContent).toBe('Sign in93%')
+    socket().message({ type: 'screen_text', id: 't2', hold_ms: -5, boxes: [] })
+    expect(boxes()).toHaveLength(1)
+    socket().message({ type: 'screen_text', id: 't3', hold_ms: 0, boxes: [] })
+    expect(boxes()).toHaveLength(0)
+    socket().message({ type: 'screen_text', id: 't4', hold_ms: 0, boxes: [box] })
+    socket().message({ type: 'status', ...DEVICE, state: 'booting' })
+    expect(boxes()).toHaveLength(0)
+    socket().message({ type: 'status', ...DEVICE })
+    socket().message({ type: 'screen_text', id: 't5', hold_ms: 0, boxes: [box] })
+    socket().end(CLOSE_STOPPED)
+    expect(boxes()).toHaveLength(0)
+  })
+
+  it('offers to undock, dock and open a page as its placement allows, and closes on request', () => {
+    const { view, options, $ } = setup()
+    const place = $<HTMLButtonElement>('[data-smv="place"]')
+    const page = $<HTMLAnchorElement>('[data-smv-page]')
+    expect(view.el.dataset.placement).toBe('dock')
+    expect(place.title).toBe('Undock into a window')
+    expect(place.querySelector('svg[data-icon="undock"]')).not.toBeNull()
+    expect(page.hidden).toBe(false)
+    expect(page.getAttribute('href')).toBe('/viewer/tp-1')
+    place.click()
+    expect(options.onPlace).toHaveBeenLastCalledWith('window')
+    view.setPlacement('window')
+    expect(place.title).toBe('Dock beside the page')
+    expect(place.querySelector('svg[data-icon="dock"]')).not.toBeNull()
+    place.click()
+    expect(options.onPlace).toHaveBeenLastCalledWith('dock')
+    view.setPlacement('page')
+    expect(place.hidden).toBe(true)
+    expect(page.hidden).toBe(true)
+    $<HTMLButtonElement>('[data-smv="close"]').click()
+    expect(options.onClose).toHaveBeenCalled()
+
+    const bare = setup({ onPlace: undefined, pageHref: undefined, onClose: undefined, onState: undefined })
+    expect(bare.$<HTMLButtonElement>('[data-smv="place"]').hidden).toBe(true)
+    expect(bare.$<HTMLAnchorElement>('[data-smv-page]').hidden).toBe(true)
+    expect(bare.$<HTMLButtonElement>('[data-smv="close"]').hidden).toBe(true)
+    bare.$<HTMLButtonElement>('[data-smv="place"]').click()
+    bare.$<HTMLButtonElement>('[data-smv="close"]').click()
+    bare.view.setActive(true)
+  })
+
+  it('draws its bar with a host’s own icons, and puts its styles in the document once however many viewers there are', () => {
+    const drawn = setup({ icon: (name) => `<i data-host-icon="${name}"></i>` })
+    setup()
+    expect(drawn.$('[data-smv="home"] [data-host-icon="home"]')).not.toBeNull()
+    // The agent's pointer is Simtrail's own drawing, whatever icons the host draws the bar with.
+    expect(drawn.$('[data-ac-pointer] [data-host-icon]')).toBeNull()
+    expect(drawn.$('[data-ac-pointer] svg[data-ac-shape]')).not.toBeNull()
+    expect(document.head.querySelectorAll(`style#${STYLE_ID}`)).toHaveLength(1)
+  })
+
+  it('lets go of everything when destroyed', async () => {
+    vi.useFakeTimers(INPUT_CLOCK)
+    const { view, host, canvas, $ } = setup()
+    view.focus()
+    expect(document.activeElement).toBe(canvas)
+    view.setActive(true)
+    await flush()
+    hear()
+    canvas.dispatchEvent(pointer('pointerdown', 201, 437))
+    canvas.dispatchEvent(pointer('pointermove', 100, 100))
+    canvas.dispatchEvent(pointer('pointermove', 150, 150))
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', cancelable: true }))
+    socket().message({ type: 'status', ...DEVICE, state: 'booting' })
+    const ws = socket()
+    socket().message({ type: 'screen_text', id: 't1', hold_ms: 0,
+                       boxes: [{ text: 'Sign in', confidence: 1, x: 0, y: 0, w: 0.5, h: 0.1 }] })
+    expect(view.el.querySelector('.tx')).not.toBeNull()
+    view.destroy()
+    expect(ws.closed).toBe(true)
+    expect(host.children).toHaveLength(0)
+    expect(view.el.querySelector('.tx')).toBeNull()
+    vi.advanceTimersByTime(10_000)
+    expect(ws.sent.filter((m) => (m as { type: string }).type === 'text')).toEqual([])
+    // The second move was still waiting: destroyed, it never goes.
+    expect(ws.sent.filter((m) => (m as { phase?: string }).phase === 'move')).toHaveLength(1)
+    view.setActive(false)
+    view.setActive(true)
+    await flush()
+    expect(FakeSocket.instances).toHaveLength(1)
+    expect($('[data-smv-empty]').textContent).toContain('Starting')
+  })
+
+  it('sends what was typed before going inactive', async () => {
+    const { view, canvas } = await live()
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', cancelable: true }))
+    const ws = socket()
+    view.setActive(false)
+    expect(ws.sent).toEqual([{ type: 'text', text: 'q' }])
+  })
+})
+
+describe('H.264 frames', () => {
+  const h264 = () => socket().message(new Uint8Array([0x02, 0, 0, 1, 0x65]).buffer)
+
+  it('offers H.264 first where this page decodes it, and only JPEG where it cannot', async () => {
+    const decodes = setup({ canDecodeH264: () => true })
+    decodes.view.setActive(true)
+    await flush()
+    socket().open()
+    expect(socket().sent[0]).toEqual({ type: 'hello', v: 1, encodings: ['h264', 'jpeg'] })
+    for (const canDecodeH264 of [() => false, undefined]) {
+      const cannot = setup({ canDecodeH264 })
+      cannot.view.setActive(true)
+      await flush()
+      socket().open()
+      expect(socket().sent[0]).toEqual({ type: 'hello', v: 1, encodings: ['jpeg'] })
+    }
+  })
+
+  it('decodes H.264 frames into the canvas through one decoder per connection', async () => {
+    const { canvas } = await live({ canDecodeH264: () => true })
+    h264()
+    socket().message(new Uint8Array([0x02, 7]).buffer)
+    expect(decoding.sinks).toHaveLength(1)
+    const [sink] = decoding.sinks
+    expect(sink.push).toHaveBeenCalledTimes(2)
+    expect(Array.from(sink.push.mock.calls[0][0] as Uint8Array)).toEqual([0, 0, 1, 0x65])
+    const picture = { displayWidth: 1206, displayHeight: 2622 }
+    sink.options.draw(picture)
+    expect(drawImage).toHaveBeenCalledWith(picture, 0, 0)
+    expect([canvas.width, canvas.height]).toEqual([1206, 2622])
+    socket().message(new Uint8Array([0x02]).buffer)
+    expect(sink.push).toHaveBeenCalledTimes(2)
+  })
+
+  it('falls back to JPEG for as long as the page is open when this page cannot decode the stream', async () => {
+    await live({ canDecodeH264: () => true })
+    h264()
+    const first = socket()
+    decoding.sinks[0].options.onError(new Error('unsupported'))
+    await flush()
+    expect(first.closed).toBe(true)
+    expect(decoding.sinks[0].close).toHaveBeenCalledOnce()
+    expect(FakeSocket.instances).toHaveLength(2)
+    socket().open()
+    expect(socket().sent[0]).toEqual({ type: 'hello', v: 1, encodings: ['jpeg'] })
+  })
+
+  it('lets the decoder go with its connection: ended, let go, switched, inactive or destroyed', async () => {
+    const { view, $ } = await live({ canDecodeH264: () => true })
+    h264()
+    socket().end(CLOSE_STOPPED, 'the simulator stopped')
+    expect(decoding.sinks[0].close).toHaveBeenCalledOnce()
+
+    $<HTMLButtonElement>('[data-smv="start"]').click()
+    await flush()
+    socket().open()
+    h264()
+    $<HTMLButtonElement>('[data-smv="stop"]').click()
+    expect(decoding.sinks[1].close).toHaveBeenCalledOnce()
+
+    $<HTMLButtonElement>('[data-smv="start"]').click()
+    await flush()
+    socket().open()
+    h264()
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    await flush()
+    view.el.querySelectorAll<HTMLButtonElement>('[data-smv-udid]')[1].click()
+    await flush()
+    expect(decoding.sinks[2].close).toHaveBeenCalledOnce()
+
+    socket().open()
+    h264()
+    view.setActive(false)
+    expect(decoding.sinks[3].close).toHaveBeenCalledOnce()
+    view.setActive(true)
+    await flush()
+    socket().open()
+    h264()
+    view.destroy()
+    expect(decoding.sinks[4].close).toHaveBeenCalledOnce()
+  })
+})

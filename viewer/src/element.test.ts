@@ -1,0 +1,167 @@
+// SPDX-License-Identifier: Apache-2.0
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { FakeSocket } from '../test-support/fake-socket'
+import { defineSimtrailElement, ELEMENT_NAME, SimtrailElement } from './element'
+import type { Started } from './protocol.generated'
+import { STYLE_ID } from './styles'
+import type { SimtrailTransport } from './transport'
+
+const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve() }
+
+const STARTED: Started = {
+  enabled: true, reason: null, device: null, stream: { encoding: 'auto', fps: 30 }, cursor: { enabled: true, lead_ms: 250 },
+  connector: 'idb', capabilities: [], fallback_reason: null, default_udid: null, ticket: 'tk',
+}
+
+function transport() {
+  return {
+    status: vi.fn(async () => STARTED),
+    start: vi.fn(async () => STARTED),
+    stop: vi.fn(async () => true),
+    devices: vi.fn(async () => []),
+    choose: vi.fn(async () => undefined),
+    socketUrl: vi.fn((ticket: string) => `ws://host/screen?ticket=${ticket}`),
+  }
+}
+
+const answering = () => vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ ok: true, data: STARTED }) }))
+
+function element(attributes: Record<string, string> = {}): SimtrailElement {
+  const el = document.createElement(ELEMENT_NAME) as SimtrailElement
+  for (const [name, value] of Object.entries(attributes)) el.setAttribute(name, value)
+  return el
+}
+
+beforeEach(() => {
+  FakeSocket.reset()
+  vi.stubGlobal('WebSocket', FakeSocket)
+  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({ drawImage: vi.fn() })) as never
+  defineSimtrailElement()
+})
+
+afterEach(() => {
+  document.body.innerHTML = ''
+  vi.unstubAllGlobals()
+})
+
+describe('<simtrail>', () => {
+  it('is defined once under its name, and a name already taken is left alone', () => {
+    const registry = { get: vi.fn(() => undefined), define: vi.fn() }
+    defineSimtrailElement('simtrail-other', registry as unknown as CustomElementRegistry)
+    expect(registry.define).toHaveBeenCalledOnce()
+    const taken = { get: vi.fn(() => SimtrailElement), define: vi.fn() }
+    defineSimtrailElement(ELEMENT_NAME, taken as unknown as CustomElementRegistry)
+    expect(taken.define).not.toHaveBeenCalled()
+    expect(customElements.get(ELEMENT_NAME)).toBeDefined()
+  })
+
+  it('shows its scope from its attributes, in a shadow root with its own styles, let in with its token', async () => {
+    const fetcher = answering()
+    vi.stubGlobal('fetch', fetcher)
+    const el = element({ server: 'http://127.0.0.1:7466', scope: 'demo', token: 'viewer-token' })
+    document.body.appendChild(el)
+    await flush()
+    const shadow = el.shadowRoot!
+    expect(shadow.querySelector('.smv')).not.toBeNull()
+    expect(shadow.querySelector(`style#${STYLE_ID}`)).not.toBeNull()
+    expect(shadow.querySelector('[part="screen"]')).not.toBeNull()
+    expect(fetcher).toHaveBeenCalledWith('http://127.0.0.1:7466/api/v1/scopes/demo', expect.objectContaining({
+      method: 'POST', headers: expect.objectContaining({ Authorization: 'Bearer viewer-token' }),
+    }))
+    expect(FakeSocket.last().url).toBe('ws://127.0.0.1:7466/api/v1/scopes/demo/screen?ticket=tk')
+    el.remove()
+    expect(FakeSocket.last().closed).toBe(true)
+    expect(el.view).toBeNull()
+  })
+
+  it('reaches its own page’s server when it names none', async () => {
+    const fetcher = answering()
+    vi.stubGlobal('fetch', fetcher)
+    document.body.appendChild(element({ scope: 'demo' }))
+    await flush()
+    expect(fetcher).toHaveBeenCalledWith(`${window.location.origin}/api/v1/scopes/demo`, expect.anything())
+  })
+
+  it('tells the page how the device stands, and when a person places or closes it', async () => {
+    const el = element({ placement: 'dock' })
+    el.transport = transport() as unknown as SimtrailTransport
+    const heard: Array<[string, unknown]> = []
+    for (const type of ['state', 'place', 'close']) {
+      el.addEventListener(`simtrail:${type}`, (event) => heard.push([type, (event as CustomEvent).detail]))
+    }
+    document.body.appendChild(el)
+    await flush()
+    FakeSocket.last().open()
+    expect(heard.at(-1)?.[0]).toBe('state')
+    const shadow = el.shadowRoot!
+    shadow.querySelector<HTMLButtonElement>('[data-smv="place"]')!.click()
+    shadow.querySelector<HTMLButtonElement>('[data-smv="close"]')!.click()
+    expect(heard.filter(([type]) => type !== 'state')).toEqual([['place', { placement: 'window' }], ['close', null]])
+    el.setAttribute('placement', 'window')
+    expect(el.view!.el.dataset.placement).toBe('window')
+    el.setAttribute('placement', 'window')
+    el.setAttribute('placement', 'nonsense')
+    expect(el.view!.el.dataset.placement).toBe('page')
+  })
+
+  it('shows the device its attribute names, and keeps the attribute in step with a person’s pick', async () => {
+    const fetcher = vi.fn(async (url: string) => ({
+      ok: true, status: 200,
+      json: async () => ({ ok: true, data: url.endsWith('/devices') ? { devices: [
+        { udid: 'U1', name: 'iPhone 17 Pro', runtime: 'iOS 26.5', state: 'Booted', created: false, agents: [] },
+        { udid: 'U3', name: 'iPhone Air', runtime: 'iOS 26.5', state: 'Booted', created: false, agents: [] },
+      ] } : { ...STARTED, device: { udid: 'U2', name: 'iPhone 17e', state: 'ready' }, default_udid: 'U1' } }),
+    }))
+    vi.stubGlobal('fetch', fetcher)
+    const el = element({ server: 'http://127.0.0.1:7466', scope: 'demo', device: 'U2' })
+    const picked: unknown[] = []
+    el.addEventListener('simtrail:device', (event) => picked.push((event as CustomEvent).detail))
+    document.body.appendChild(el)
+    await flush()
+    expect(fetcher).toHaveBeenCalledWith('http://127.0.0.1:7466/api/v1/scopes/demo?udid=U2', expect.anything())
+    const view = el.view
+    const shadow = el.shadowRoot!
+    const picker = async () => {
+      shadow.querySelector<HTMLButtonElement>('[data-smv="devices"]')!.click()
+      await flush()
+    }
+    await picker()
+    shadow.querySelector<HTMLButtonElement>('[data-smv-udid="U3"]')!.click()
+    await flush()
+    expect([el.getAttribute('device'), el.view]).toEqual(['U3', view])
+    await picker()
+    shadow.querySelector<HTMLButtonElement>('[data-smv="follow"]')!.click()
+    await flush()
+    expect([el.hasAttribute('device'), el.view]).toEqual([false, view])
+    expect(picked).toEqual([{ udid: 'U3' }, { udid: null }])
+    // Set by the page, it is a new view of that device.
+    el.setAttribute('device', 'U2')
+    await flush()
+    expect(el.view).not.toBe(view)
+    expect(fetcher).toHaveBeenLastCalledWith('http://127.0.0.1:7466/api/v1/scopes/demo?udid=U2', expect.anything())
+  })
+
+  it('shows nothing without a scope or a transport, and starts over when either changes', async () => {
+    const el = element()
+    document.body.appendChild(el)
+    expect(el.view).toBeNull()
+    expect(el.shadowRoot!.children).toHaveLength(0)
+    const first = transport()
+    el.transport = first as unknown as SimtrailTransport
+    await flush()
+    expect(el.view).not.toBeNull()
+    expect(first.start).toHaveBeenCalledOnce()
+    const second = transport()
+    el.transport = second as unknown as SimtrailTransport
+    await flush()
+    expect(second.start).toHaveBeenCalledOnce()
+    expect(el.transport).toBe(second)
+    el.setAttribute('scope', 'other')
+    await flush()
+    expect(second.start).toHaveBeenCalledTimes(2)
+    el.remove()
+    el.setAttribute('scope', 'again')
+    el.transport = null
+    expect(el.view).toBeNull()
+  })
+})

@@ -1,0 +1,153 @@
+# SPDX-License-Identifier: Apache-2.0
+"""The doctor's real tap: a tap on Settings' General row that reaches the device, one that is swallowed, and every way
+it cannot be tried."""
+
+from __future__ import annotations
+
+import asyncio
+import copy
+from pathlib import Path
+from typing import Any
+
+from simtrail.connectors.base import ConnectorError, ConnectorUnavailable
+from simtrail.core.runtime import Runtime
+from simtrail.doctor.tap import (
+    CHOOSE_TOUCH,
+    INSTALL_TOUCH,
+    READ_WAIT_S,
+    READY_POLL_S,
+    SWALLOWED,
+    TAP_SCOPE,
+    check_tap,
+)
+from simtrail.testing.fakes import BOOTED_UDID, FakeConnector, FakeEngine, fixture_json, fixture_udid, made
+from simtrail.testing.rig import DeviceRig
+
+SETTINGS = fixture_json("ax-settings-interactable.json")
+
+
+def general_page() -> dict[str, Any]:
+    page = copy.deepcopy(SETTINGS)
+    page["elements"][0]["children"].append(
+        {"type": "StaticText", "label": "About", "frame": {"x": 20, "y": 120, "width": 200, "height": 44}}
+    )
+    return page
+
+
+class Settings(FakeEngine):
+    """Settings, whose General row opens General's page -- unless touches never arrive."""
+
+    def __init__(self, *, swallowed: bool = False, general: bool = True) -> None:
+        super().__init__()
+        self.swallowed = swallowed
+        if not general:
+            self.document = copy.deepcopy(SETTINGS)
+            children = self.document["elements"][0]["children"]
+            children[:] = [node for node in children if node.get("label") != "General"]
+
+    async def accessibility(self) -> dict[str, Any]:
+        if self.hid_events and not self.swallowed:
+            return general_page()
+        return await super().accessibility()
+
+
+class Tapping:
+    def __init__(self, root: Path, **connector: Any) -> None:
+        root.mkdir(parents=True, exist_ok=True)
+        self.rig = DeviceRig(root, idb=FakeConnector("idb", **connector))
+        self.runtime = Runtime.build(
+            config=self.rig.config,
+            state=self.rig.state,
+            memory=self.rig.memory,
+            policy=self.rig.policy,
+            copy=self.rig.copy,
+            registry=self.rig.registry,
+            claims=self.rig.claims,
+            xcrun=self.rig.xcrun,
+            clock=self.rig.clock,
+            sleep=self.tick,
+        )
+
+    async def tick(self, seconds: float) -> None:
+        self.rig.clock.advance(seconds)
+        await asyncio.sleep(0)
+
+    async def tap(self, device: str | None = None) -> Any:
+        result = await check_tap(self.runtime, device, self.tick)
+        assert self.runtime.manager.instance(TAP_SCOPE) is None
+        return result
+
+
+async def test_a_tap_that_reaches_the_booted_simulator_opens_general(tmp_path: Path) -> None:
+    here = Tapping(tmp_path, engine=Settings())
+    result = await here.tap()
+    assert (result.status, result.detail) == ("ok", "a tap on General reached iPhone 17 Pro through idb")
+    assert ("simctl", "launch", "--terminate-running-process", BOOTED_UDID, "com.apple.Preferences") in here.rig.argv()
+
+
+NOT_YET = "reading the screen failed: No translation object returned for simulator."
+
+
+async def test_a_device_whose_screen_cannot_be_read_yet_is_waited_for_as_on_its_first_start(tmp_path: Path) -> None:
+    engine = Settings()
+    engine.accessibility_errors = [ConnectorError(NOT_YET)] * 4
+    here = Tapping(tmp_path, engine=engine)
+    started = here.rig.clock.now
+    result = await here.tap()
+    assert (result.status, result.detail) == ("ok", "a tap on General reached iPhone 17 Pro through idb")
+    assert engine.accessibility_errors == [] and here.rig.clock.now - started >= 4 * READY_POLL_S
+
+
+async def test_a_screen_that_never_becomes_readable_fails_with_what_it_said(tmp_path: Path) -> None:
+    engine = Settings()
+    engine.accessibility_errors = [ConnectorError(NOT_YET)] * (int(READ_WAIT_S / READY_POLL_S) + 2)
+    result = await Tapping(tmp_path, engine=engine).tap()
+    assert result.status == "fail" and result.detail.startswith(
+        f"iPhone 17 Pro's screen still could not be read after {round(READ_WAIT_S)}s: {NOT_YET}"
+    )
+    assert "Unlock the simulator" in result.fix and "Device Hub" not in result.fix
+
+
+async def test_a_tap_that_changes_nothing_says_input_was_swallowed_and_what_to_do(tmp_path: Path) -> None:
+    result = await Tapping(tmp_path, engine=Settings(swallowed=True)).tap()
+    assert (
+        result.status == "fail" and result.detail == "a tap on General did not change iPhone 17 Pro's screen within 3s"
+    )
+    assert result.fix == SWALLOWED and "Device Hub" in result.fix
+
+
+async def test_the_device_named_is_tapped_and_without_a_booted_one_the_doctor_uses_its_own(tmp_path: Path) -> None:
+    named = Tapping(tmp_path / "named", engine=Settings())
+    other = fixture_udid("iPhone 17 Pro Max")
+    assert (await named.tap(other)).status == "ok"
+    assert ("simctl", "launch", "--terminate-running-process", other, "com.apple.Preferences") in named.rig.argv()
+    own = Tapping(tmp_path / "own", engine=Settings())
+    for devices in own.rig.devices["devices"].values():
+        for device in devices:
+            device["state"] = "Shutdown"
+    assert (await own.tap()).status == "ok"
+    assert ("simctl", "launch", "--terminate-running-process", made(1), "com.apple.Preferences") in own.rig.argv()
+
+
+async def test_a_tap_that_cannot_be_tried_says_why(tmp_path: Path) -> None:
+    assert (await check_tap(None, None, asyncio.sleep)).detail == "skipped (--no-tap)"
+    view_only = await Tapping(tmp_path / "view-only", available=False).tap()
+    assert view_only.status == "warn" and "shown through simctl, which cannot take touches" in view_only.detail
+    assert view_only.fix == INSTALL_TOUCH
+    chosen = Tapping(tmp_path / "chosen")
+    chosen.rig.config.set(connector="simctl")
+    assert (await chosen.tap()).fix == CHOOSE_TOUCH
+    no_general = await Tapping(tmp_path / "no-general", engine=Settings(general=False)).tap()
+    assert no_general.status == "fail" and no_general.detail.endswith("but its General row was not on screen to tap")
+    failing = await Tapping(tmp_path / "failing", fail=ConnectorUnavailable("no companion")).tap()
+    assert (failing.status, failing.detail) == ("fail", "the simulator failed: no companion")
+    stuck = Tapping(tmp_path / "stuck", hold=True)
+    assert (await stuck.tap()).detail == "the simulator was still booting after 120s"
+    await stuck.runtime.close()
+    off = Tapping(tmp_path / "off")
+    off.rig.config.set(enabled=False)
+    refused = await check_tap(off.runtime, None, off.tick)
+    assert (refused.status, refused.detail) == (
+        "fail",
+        "The iOS Simulator is off for this project (`simtrail config`).",
+    )

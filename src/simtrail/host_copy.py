@@ -1,0 +1,432 @@
+# SPDX-License-Identifier: Apache-2.0
+"""The words Simtrail uses for where its settings are and what its scopes are, which a host supplies.
+
+A message such as "the iOS Simulator is off" has to say where to turn it on, and that place is the host's: the
+`simtrail config` command for a standalone install, a settings page for an application that embeds Simtrail. So
+every such message is built here from a `HostCopy`, whose defaults are the standalone install's, and a host passes
+its own.
+
+A host that rewrites a method keeps what Simtrail calls it with: a message that needs more to say is a new method
+beside the old one, which falls back to the host's rewrite of the old one until the host rewrites the new one too.
+`claimed_of_kind` and `in_use_elsewhere_of_kind` are such methods, for `claimed` and `device_in_use_elsewhere`, which
+say "simulator" whatever the device is; and `not_usable_after`, for `not_usable`, which says what WebDriverAgent last
+said too.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from simtrail.protocol import DeviceKind
+
+
+def _rewritten(copy: HostCopy, name: str) -> bool:
+    """Whether a host's subclass has its own words for this message."""
+    return bool(getattr(type(copy), name) is not getattr(HostCopy, name))
+
+
+@dataclass(frozen=True)
+class HostCopy:
+    #: What a scope is called in messages: "project" standalone.
+    scope_noun: str = "project"
+    #: Where settings are changed, said in parentheses after a refusal.
+    settings: str = "`simtrail config`"
+    #: Where the simulator's own settings are, when that is more specific.
+    simulator_settings: str = "`simtrail config`"
+    #: Why a scope has no simulator when the host itself has turned the area off.
+    area_off: str = "The iOS Simulator is not available here."
+    #: How a person points Simtrail at an idb_companion that is installed somewhere else.
+    companion_path_hint: str = "set its path with `simtrail config set connectors.idb.companion_path /path/to/it`"
+    #: How the process that owns Simtrail is named when another one is using a device.
+    owner_name: str = "Simtrail"
+    #: Said after a reason a connector cannot be used.
+    doctor_hint: str = "Run `simtrail doctor` to see why."
+    #: The command that changes one setting at the terminal, before its path and value.
+    set_command: str = "simtrail config set"
+    #: The command that opens the settings panel able to change settings.
+    open_settings_command: str = "simtrail open --settings"
+    #: The command that shows a sensitive change waiting to be confirmed, and its code.
+    confirm_command: str = "simtrail settings confirm"
+    #: How a person gives an agent a folder to build in.
+    build_folder_hint: str = "start `simtrail mcp` in the project's folder, or give it `--root /path/to/the/project`"
+    #: The command that has Xcode approve Simtrail to use its tools, before a project's path.
+    xcode_approve_command: str = "simtrail xcode approve"
+    #: How a person points Simtrail at a native helper that is somewhere else.
+    helper_path_hint: str = "set its path with `simtrail config set connectors.native.helper_path /path/to/it`"
+    #: The command that builds the native helper for this install.
+    helper_build_command: str = "simtrail helper build"
+    #: Where a person reads how an app shares its view hierarchy through Simtrail's debug SDK.
+    app_sdk_docs: str = "https://github.com/Soflutionltd/simtrail/blob/main/docs/app-sdk.md"
+    #: The command that builds WebDriverAgent and puts it on a real device, so Simtrail can touch it.
+    wda_setup_command: str = "simtrail wda setup"
+    #: The command that lists the development teams this Mac signs for.
+    wda_teams_command: str = "simtrail wda teams"
+    #: Where a person sets WebDriverAgent up for a device with a click.
+    touch_setup_hint: str = "press Set up touch in the viewer"
+
+    def off(self) -> str:
+        return f"The iOS Simulator is off for this {self.scope_noun} ({self.settings})."
+
+    def agent_tools_off(self) -> str:
+        return f"The iOS Simulator's agent tools are off for this {self.scope_noun} ({self.settings})."
+
+    def build_tools_off(self) -> str:
+        return f"The iOS Simulator's build tools are off for this {self.scope_noun} ({self.settings})."
+
+    def shells_not_allowed(self) -> str:
+        return f"A build runs commands, and this {self.scope_noun} does not allow them ({self.settings})."
+
+    def no_build_folder(self) -> str:
+        return f"There is no folder to build in for this {self.scope_noun}: {self.build_folder_hint}."
+
+    def companion_missing(self, configured: str) -> str:
+        install = f"Install it with `brew install facebook/fb/idb-companion`, or {self.companion_path_hint}."
+        if configured:
+            return f"The simulator companion at {configured} cannot be run. {install}"
+        return f"The simulator companion (idb_companion) is not installed. {install}"
+
+    def helper_missing(self, configured: str) -> str:
+        """Why the native connector cannot be used: its helper is not where it was looked for."""
+        if configured:
+            return (
+                f"The native helper at {configured} cannot be run. Point connectors.native.helper_path at a built "
+                f"helper, or empty it to use {self.owner_name}'s own ({self.settings})."
+            )
+        return (
+            f"{self.owner_name}'s native helper is not built for this install. Build it with "
+            f"`{self.helper_build_command}` (it needs Xcode), or {self.helper_path_hint}."
+        )
+
+    def helper_mismatch(self, binary: str, found: str, wanted: str) -> str:
+        """Why a native helper that runs is not used: it was built for another version of Simtrail."""
+        return (
+            f"The native helper at {binary} is {found}, and this {self.owner_name} needs {wanted}. Build it again with "
+            f"`{self.helper_build_command}`."
+        )
+
+    def helper_input_unreachable(self, reasons: str) -> str:
+        """Why a native helper that started cannot drive the device."""
+        return f"The native helper cannot send input to this simulator: {reasons}"
+
+    def mcpbridge_missing(self, developer_dir: str) -> str:
+        where = f" at {developer_dir}" if developer_dir else ""
+        return (
+            f"Reading the screen through Xcode needs Xcode 27 or later; the Xcode in use{where} is older, or has no "
+            f"mcpbridge ({self.simulator_settings})."
+        )
+
+    def xcode_device_in_use(self, session: str) -> str:
+        return (
+            f"Xcode's tools already have a session on this simulator ({session!r}), and it can have one at a time: "
+            "end that session where it was started, then read the screen again."
+        )
+
+    def xcode_not_approved(self) -> str:
+        return (
+            f"Xcode has not approved {self.owner_name} to use its tools yet. Xcode approves an agent that opens a "
+            f"project through them: run `{self.xcode_approve_command} /path/to/App.xcodeproj` once, and allow it if "
+            "Xcode asks."
+        )
+
+    def app_hierarchy_unread(self, app: str, reason: str) -> str:
+        return f"{app} shares its view hierarchy, but this snapshot could not read it: {reason}"
+
+    def app_hierarchy_cut(self, app: str, limit: int) -> str:
+        return (
+            f"The view hierarchy {app} shares was cut short: at most {limit} views are read "
+            f"(connectors.app.max_nodes, {self.simulator_settings})"
+        )
+
+    def app_sdk_newer(self, app: str, protocol: int) -> str:
+        return (
+            f"{app} was built with a newer Simtrail SDK (app SDK protocol {protocol}) than {self.owner_name} reads: "
+            "update it to read all it shares"
+        )
+
+    def app_hierarchy_none(self) -> str:
+        return (
+            "no app on it shares its view hierarchy. That is optional: a debug build that calls Simtrail.start() "
+            f"does, so screens without accessibility labels still read well ({self.app_sdk_docs})"
+        )
+
+    def too_many_booted(self, running: int, limit: int) -> str:
+        count = "1 simulator is" if running == 1 else f"{running} simulators are"
+        return (
+            f"{count} already running and in use, and this Mac keeps at most {limit} booted "
+            f"({self.simulator_settings})."
+        )
+
+    def no_runtime(self, wanted: str) -> str:
+        if wanted:
+            return f"No {wanted} simulator runtime is installed ({self.simulator_settings})."
+        return "No iOS simulator runtime is installed. Add one in Xcode → Settings → Components."
+
+    def claimed(self, owner: str, pid: int) -> str:
+        return (
+            f"Another {owner} on this Mac (pid {pid}) is already showing this simulator. "
+            f"Stop it there, or give this {self.owner_name} a different device."
+        )
+
+    def claimed_of_kind(self, owner: str, pid: int, kind: DeviceKind) -> str:
+        """Why a device cannot be used: another process on this Mac is using it, said for its kind. A host whose own
+        `claimed` says it otherwise keeps those words until it rewrites this too."""
+        if kind == "simulator" or _rewritten(self, "claimed"):
+            return self.claimed(owner, pid)
+        return (
+            f"Another {owner} on this Mac (pid {pid}) is already using this device. "
+            f"Stop it there, or give this {self.owner_name} a different device."
+        )
+
+    def setting_command(self, path: str, scope_id: str | None) -> str:
+        """How a person changes one setting at the terminal: for a scope, or -- None -- for every scope."""
+        scoped = f" --scope {scope_id}" if scope_id is not None else ""
+        return f"{self.set_command} {path} <value>{scoped}"
+
+    def setting_locked(self, where: str) -> str:
+        """Why a setting cannot be changed from a page: something above config.toml sets it."""
+        return f"Set by {where}, which config.toml cannot override: change it there."
+
+    def settings_read_only(self) -> str:
+        return (
+            f"This page can read the {self.scope_noun}'s settings but not change them: "
+            f"open them with `{self.open_settings_command}`."
+        )
+
+    def settings_need_terminal(self, paths: str) -> str:
+        """Why a change a page cannot confirm is refused outright."""
+        return f"{paths} can only be changed at the terminal ({self.settings})."
+
+    def settings_confirm(self, paths: str) -> str:
+        return (
+            f"Changing {paths} needs a person at the terminal: run `{self.confirm_command}` "
+            "and enter the code it shows for this change."
+        )
+
+    def settings_this_scope_only(self) -> str:
+        return f"This credential changes settings for its own {self.scope_noun}s only, one at a time."
+
+    def device_in_use_elsewhere(self) -> str:
+        return (
+            f"That simulator is in use by a {self.scope_noun} of another host on this daemon: choose another, or let "
+            f"{self.owner_name} make one."
+        )
+
+    def in_use_elsewhere_of_kind(self, kind: DeviceKind) -> str:
+        """Why a device a scope asked for is refused: a scope of another host on this daemon uses it, said for its
+        kind. A host whose own `device_in_use_elsewhere` says it otherwise keeps those words until it rewrites this
+        too."""
+        if kind == "simulator" or _rewritten(self, "device_in_use_elsewhere"):
+            return self.device_in_use_elsewhere()
+        return (
+            f"That device is in use by a {self.scope_noun} of another host on this daemon: choose another device, or a "
+            "simulator."
+        )
+
+    def settings_code_wrong(self) -> str:
+        return f"That code does not confirm this change: run `{self.confirm_command}` again for this one."
+
+    def no_such_device(self, kind: str) -> str:
+        """Why a device a person picked cannot be used: it is not there."""
+        if kind == "physical":
+            return "That device is not connected to this Mac."
+        if kind == "android":
+            return "That Android emulator or phone is not on this Mac: its AVD is gone, or the phone is unplugged."
+        if kind == "mac":
+            return "That macOS app is not running: open it once, then choose it."
+        return "That simulator does not exist on this Mac."
+
+    def iphone_limits(
+        self, *, live: bool = False, cable: str | None = None, touch: bool = False, wda: str | None = None
+    ) -> str | None:
+        """What a real device cannot do as it is shown, and what would let it; None when it can do everything.
+
+        `live` when its cable shows the screen, else `cable` why the cable could not; `touch` when WebDriverAgent
+        drives it, else `wda` why WebDriverAgent could not be started.
+        """
+        said: list[str] = []
+        if cable:
+            said.append(f"Its cable could not show the screen ({cable}), so it shows screenshots instead.")
+        elif not live:
+            said.append("The screen shows screenshots: plug the device in by cable for a live picture.")
+        if wda:
+            said.append(f"It cannot be touched or read yet: {wda}")
+        elif not touch:
+            said.append(f"Touching and reading it needs WebDriverAgent, which is off here ({self.settings}).")
+        return " ".join(said) or None
+
+    def android_limits(self, *, scrcpy: str | None = None, locked: bool = False) -> str | None:
+        """What an Android device cannot do as it is shown, and what would let it; None when it can do everything.
+
+        `scrcpy` is why scrcpy's server does not stream and touch it -- None when it does; `locked` when its screen is
+        locked, which Simtrail never unlocks."""
+        said: list[str] = []
+        if scrcpy:
+            said.append(f"It shows screenshots and is touched slowly through adb alone: {scrcpy}")
+        if locked:
+            said.append("Its screen is locked: unlock it on the device, as Simtrail never types a passcode.")
+        return " ".join(said) or None
+
+    def wda_needs_team(self) -> str:
+        """Why WebDriverAgent cannot be built or started: no team is known to sign it."""
+        return (
+            "WebDriverAgent is signed by a development team, and none is known here: the project names none, "
+            f"real_devices.team_id is empty and this Mac signs for several teams or none. Set real_devices.team_id "
+            f"({self.settings}); `{self.wda_teams_command}` lists the teams this Mac signs for."
+        )
+
+    def wda_offer(self, udid: str) -> str:
+        """What sets WebDriverAgent up for a device the first time: a person asks, once."""
+        return (
+            f"Touching and reading it needs WebDriverAgent, set up once: {self.touch_setup_hint}, or run "
+            f"`{self.wda_setup_command} --device {udid}`."
+        )
+
+    def wda_building(self, team: str) -> str:
+        """Why a device cannot be touched yet: WebDriverAgent is being built for it."""
+        return f"WebDriverAgent is being built for team {team}; touch works when it is ready, in a minute or two."
+
+    def wda_setup_failed(self, said: str) -> str:
+        """Why WebDriverAgent could not be set up, and what to try."""
+        return (
+            f"WebDriverAgent could not be set up: {said}. If Xcode's account was refused, sign in again in Xcode > "
+            f"Settings > Accounts; then set it up again ({self.touch_setup_hint})."
+        )
+
+    def wda_silent(self) -> str:
+        """Why a device WebDriverAgent was started on is not touched: it does not answer now."""
+        return (
+            "WebDriverAgent was started on the device but does not answer now: unlock the device and check its cable; "
+            "`sim_device restart` starts it over."
+        )
+
+    def not_driven(self, what: str, note: str | None) -> str:
+        """Why a tool cannot touch or read a real device now, though WebDriverAgent is on: what its session says."""
+        why = note or "WebDriverAgent is not driving it."
+        return (
+            f"{what} cannot touch or read this device now. {why} Once that is put right it is attached again by "
+            "itself, within seconds of its cable being plugged in; `sim_device restart` starts its session over at "
+            "once. Ask the person rather than calling again in a loop; sim_screenshot still shows the screen."
+        )
+
+    def wda_off(self) -> str:
+        """Why a real device is not touched: WebDriverAgent is turned off."""
+        return f"WebDriverAgent is off here (real_devices.wda.enabled, {self.settings}), so the device is view only."
+
+    def android_agents_may_not_choose(self) -> str:
+        """Why an agent may not switch to an Android phone."""
+        return (
+            f"Agents may not switch to an Android phone here (android.agents_choose, {self.settings}); a person can "
+            "pick it in the viewer."
+        )
+
+    def agents_may_not_choose(self) -> str:
+        """Why an agent may not switch to a real device."""
+        return (
+            f"Agents may not switch to a real device here (real_devices.agents_choose, {self.settings}); a person can "
+            "pick it in the viewer."
+        )
+
+    def wda_needs_cable(self) -> str:
+        """Why WebDriverAgent is not used: it is reached only over the device's cable."""
+        return "WebDriverAgent is reached only over the device's cable: plug it in."
+
+    def wda_ended(self, said: str, log: str, udid: str) -> str:
+        """Why WebDriverAgent stopped as it started, what to do about it, and where its log is."""
+        if "profile cannot be installed" in said or "integrity could not be verified" in said:
+            steps = (
+                "Its profile does not cover this device: build it for the device with "
+                f"`{self.wda_setup_command} --device {udid}`."
+            )
+        else:
+            steps = (
+                "On the device, trust your developer in Settings > General > VPN & Device Management, and turn on "
+                "Settings > Developer > Enable UI Automation."
+            )
+            if "Authentication canceled" in said:
+                steps += (
+                    " Authentication canceled can also mean a passcode prompt on the device was cancelled: unlock "
+                    "it, start it again, and enter the passcode if it asks."
+                )
+        return f"WebDriverAgent ended as it started ({said or 'it said nothing'}). {steps} Its log is {log}."
+
+    def wda_stopped(self, code: int, said: str, log: str) -> str:
+        """Why a device WebDriverAgent was driving is not driven any more: it ended, and what it last said."""
+        last = f": {said}" if said else ""
+        return (
+            f"WebDriverAgent ended on the device (exit {code}){last}. It starts again when the device is attached "
+            f"again; `sim_device restart` does that at once. Its log is {log}."
+        )
+
+    def wda_starting(self, seconds: int, timeout: int) -> str:
+        """What a device whose WebDriverAgent is being started is waiting for, and for how long it may."""
+        return (
+            f"WebDriverAgent has been starting on the device for {seconds} s, and is given {timeout} s "
+            "(real_devices.wda.startup_timeout): keep the device unlocked and answer anything it asks -- trust the "
+            "developer, Enable UI Automation, a passcode"
+        )
+
+    def wda_slow(self, seconds: int, log: str) -> str:
+        """Why WebDriverAgent was given up on: it did not answer in time."""
+        return (
+            f"WebDriverAgent did not answer within {seconds} seconds: unlock the device and answer anything it asks, "
+            f"then try again. Its log is {log}."
+        )
+
+    def cable_only(self, name: str) -> str:
+        """Why a real device is not used: its screen is to be read only over a cable it is not plugged in by."""
+        return f"{name}'s screen is read only over its cable (real_devices.screen): plug it in, or set that to auto."
+
+    def not_usable(self, name: str, detail: str | None) -> str:
+        """Why a device that is listed cannot be picked now: what stands in its way."""
+        return f"{name} cannot be used now ({detail or 'it is not ready'}): plug it in and unlock it, or pick another."
+
+    def not_usable_after(self, name: str, detail: str | None, last_error: str | None) -> str:
+        """Why a device that is listed cannot be picked now, and what kept WebDriverAgent from driving it last, when
+        something did. A host whose own `not_usable` says it otherwise keeps those words until it rewrites this too."""
+        if not last_error or _rewritten(self, "not_usable"):
+            return self.not_usable(name, detail)
+        return f"{self.not_usable(name, detail)} WebDriverAgent's last error there: {last_error}"
+
+    def not_connected(self, name: str) -> str:
+        """Why a real device a person picked cannot be used now: it is not reachable."""
+        return f"{name} is not connected: plug it in and unlock it, or pick a simulator."
+
+    def kind_unavailable(self, kind: str) -> str:
+        """Why a scope cannot have its device: this host does not drive that kind of device."""
+        if kind == "physical":
+            return f"Real devices are not available here ({self.settings}): pick a simulator."
+        if kind == "android":
+            return f"Android devices are not available here ({self.settings}): pick a simulator."
+        return self.area_off
+
+    def device_held(self, device: str, title: str, since: str, quiet_s: int) -> str:
+        """Why a call that would change a device is refused: another agent drives it, and acted on it within the last
+        two minutes (``device.exclusive``). `since` is the time of day it began; `quiet_s`, when it last acted."""
+        return (
+            f"{device} is held by {title} since {since} (its last call {quiet_s} s ago); sim_device list shows the "
+            f"devices nobody uses, and choose takes one -- or pass steal: true to take this one, or call again once it "
+            f"has been left alone for 2 minutes (device.exclusive, {self.settings})."
+        )
+
+    def device_bound(self, device: str, title: str, quiet_s: int) -> str:
+        """Why a call that would change a device is refused: another live agent works on it (``device.exclusive``),
+        and last called `quiet_s` ago."""
+        return (
+            f"{device} is in use by {title} (its last call {quiet_s} s ago); sim_device list shows the devices nobody "
+            f"uses, and choose takes one -- or pass steal: true to take this one (device.exclusive, {self.settings})."
+        )
+
+    def also_drove(self, title: str, seconds: int) -> str:
+        """Said with a call's answer when another agent also changed the device, `seconds` ago."""
+        return f"{title} also drove this device {seconds} s ago"
+
+    def works_on(self, title: str, seconds: int) -> str:
+        """Said first in an answer from a device another live agent works on, whose last call was `seconds` ago."""
+        return f"{title} works on this device (last call {seconds} s ago); sim_device list shows free ones"
+
+    def given_free(self, device: str, title: str) -> str:
+        """Said first when an agent that chose no device was given one nobody uses (``device.agent_default``)."""
+        return (
+            f"you were given {device}, a device nobody uses: {title} works on this {self.scope_noun}'s own "
+            "(device.agent_default)"
+        )

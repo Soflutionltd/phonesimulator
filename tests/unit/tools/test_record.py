@@ -1,0 +1,363 @@
+# SPDX-License-Identifier: Apache-2.0
+"""`sim_record`: an agent records a demo -- start, its steps, stop -- and is told where each file it kept is."""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import dataclasses
+from pathlib import Path
+from typing import Any
+
+from simtrail.config.model import SimConfig
+from simtrail.core.actions import AgentActions
+from simtrail.core.recordings import CaptureRate, RecordingRefused, Recordings, Rendered, RenderJob
+from simtrail.core.selections import Selections
+from simtrail.protocol import Recording
+from simtrail.seams import Caller
+from simtrail.testing.fakes import no_wait
+from simtrail.testing.recording import FakeRenderer, SimctlRecorder
+from simtrail.testing.rig import DeviceRig, scope
+from simtrail.tools.context import ToolContext
+from simtrail.tools.record import describe, stopped
+from simtrail.tools.record import rendering as rendering_text
+from simtrail.tools.registry import ToolRegistry
+from simtrail.tools.results import Result
+
+CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
+REGISTRY = ToolRegistry()
+
+
+def context(rig: DeviceRig, recordings: Recordings | None) -> ToolContext:
+    return ToolContext(
+        manager=rig.manager,
+        actions=AgentActions(rig.manager, rig.config, clock=rig.clock, sleep=no_wait),
+        caller=CALLER,
+        config=rig.config.get(CALLER.scope),
+        copy=rig.copy,
+        sleep=no_wait,
+        recordings=recordings,
+    )
+
+
+async def record(rig: DeviceRig, recordings: Recordings | None, arguments: dict[str, Any]) -> Result:
+    return await REGISTRY.call("sim_record", arguments, context(rig, recordings))
+
+
+def said(result: Result) -> str:
+    return str(result["content"][0]["text"])
+
+
+async def test_an_agent_records_a_demo_and_is_told_where_it_was_kept(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    folder = tmp_path / "recordings"
+    recordings = Recordings(
+        FakeRenderer(sizes={"mp4": 2_500_000, "gif": 40_000}, duration_s=6.2),
+        tool_recorder=SimctlRecorder(),
+        folder_for=lambda config: folder,
+    )
+    assert said(await record(rig, recordings, {})) == "nothing is being recorded; sim_record start begins"
+    assert said(await record(rig, recordings, {"action": "list"})) == "no recordings kept yet"
+    started = await record(rig, recordings, {"action": "start", "format": "both", "speed": "2"})
+    assert said(started) == (
+        "recording Simtrail · alpha · tp-1 as both; sim_record stop keeps it (it stops by itself after 300s)"
+    )
+    assert said(await record(rig, recordings, {"action": "status"})).startswith(
+        "recording Simtrail · alpha · tp-1 for 0s, started by Claude · notes"
+    )
+    again = await record(rig, recordings, {"action": "start"})
+    assert again["isError"] and "already being recorded" in said(again)
+    kept = said(await record(rig, recordings, {"action": "stop"}))
+    lines = kept.splitlines()
+    assert lines[0].startswith("kept 2")
+    assert lines[0].endswith("-simtrail-alpha-tp-1 · Simtrail · alpha · tp-1 · 6.2s")
+    assert lines[1].startswith("mp4 400x868 · 2.5 MB · ") and lines[1].endswith(".mp4")
+    assert lines[2].startswith("gif 400x868 · 40 KB · ") and lines[2].endswith(".gif")
+    listed = said(await record(rig, recordings, {"action": "list"}))
+    assert listed == kept.removeprefix("kept ")
+
+
+async def test_what_a_recording_cannot_be_is_refused(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    recordings = Recordings(
+        FakeRenderer(sizes={"mp4": 2_500_000, "gif": 40_000}, duration_s=6.2),
+        tool_recorder=SimctlRecorder(),
+        folder_for=lambda config: tmp_path,
+    )
+    for arguments, refusal in (
+        ({"action": "rewind"}, "action is one of start, stop, status, list"),
+        ({"action": "stop"}, "nothing is being recorded"),
+        ({"action": "start", "format": "webm"}, "format is one of mp4, gif, both"),
+        ({"action": "start", "touches": "yes"}, "touches is true or false"),
+        ({"action": "start", "preset": "slack"}, "preset is one of pr"),
+        ({"action": "start", "width": 9000}, "width is a whole number of pixels from 240 to 1200"),
+        ({"action": "start", "quality": "best"}, "quality is one of low, medium, high"),
+    ):
+        refused = await record(rig, recordings, arguments)
+        assert refused["isError"] and said(refused) == refusal, said(refused)
+    unavailable = await record(rig, None, {"action": "list"})
+    assert unavailable["isError"] and said(unavailable) == "recording is not available here"
+    await rig.up()
+    idle = await record(rig, recordings, {"action": "stop"})
+    assert idle["isError"] and said(idle).endswith("is not being recorded")
+
+
+async def test_an_agents_tap_while_recording_is_drawn_where_it_landed(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    renderer = FakeRenderer(sizes={"mp4": 2_500_000, "gif": 40_000}, duration_s=6.2)
+    recordings = Recordings(renderer, tool_recorder=SimctlRecorder(), folder_for=lambda config: tmp_path)
+    ctx = context(rig, recordings)
+    await REGISTRY.call("sim_record", {"action": "start"}, ctx)
+    tapped = await REGISTRY.call("sim_act", {"steps": [{"tap": [201, 437]}]}, ctx)
+    assert not tapped["isError"], said(tapped)
+    await REGISTRY.call("sim_record", {"action": "stop"}, ctx)
+    [touch] = renderer.jobs[0].touches
+    assert (touch.kind, touch.by, touch.points) == ("tap", "agent", ((0.5, 0.5),))
+
+
+async def test_an_agent_records_for_a_pull_request_with_its_preset_or_its_own_width(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    renderer = FakeRenderer()
+    recordings = Recordings(renderer, tool_recorder=SimctlRecorder(), folder_for=lambda config: tmp_path)
+    for arguments in ({"preset": "pr"}, {"format": "both", "width": 600, "quality": "medium"}):
+        started = await record(rig, recordings, {"action": "start", **arguments})
+        assert not started["isError"], said(started)
+        await record(rig, recordings, {"action": "stop"})
+    pr, own = renderer.jobs
+    assert (pr.mp4_width, pr.mp4_quality, pr.codec, pr.gif) == (450, "medium", "h264", None)
+    assert (own.mp4_width, own.gif_width, own.mp4_quality, own.gif is not None) == (600, 600, "medium", True)
+
+
+async def test_stop_keeps_a_copy_for_a_pull_request_beside_the_full_size_file_when_asked(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    renderer = FakeRenderer()
+    recordings = Recordings(renderer, tool_recorder=SimctlRecorder(), folder_for=lambda config: tmp_path)
+    for start, stop in (({"also": "pr"}, {}), ({}, {"also": "pr"})):
+        assert not (await record(rig, recordings, {"action": "start", **start}))["isError"]
+        kept = said(await record(rig, recordings, {"action": "stop", **stop})).splitlines()
+        assert kept[1].startswith("mp4 400x868 · 2 KB · ") and kept[1].endswith(".mp4")
+        assert kept[2].startswith("mp4 400x868 · 2 KB · ") and kept[2].endswith(".pr.mp4")
+        assert kept[3].startswith("note: ") and kept[3].endswith(".pr.mp4 is the pr copy, beside the recording")
+    assert [job.mp4_width for job in renderer.jobs] == [0, 450, 0, 450]
+    assert not (await record(rig, recordings, {"action": "start"}))["isError"]
+    wrong = await record(rig, recordings, {"action": "stop", "also": "gif"})
+    assert wrong["isError"] and said(wrong) == "also is one of pr: a copy kept beside the recording"
+    refused = await record(rig, recordings, {"action": "start", "also": "gif"})
+    assert refused["isError"] and "already being recorded" not in said(refused)
+
+
+def test_a_recording_described_without_pixels_or_with_a_note() -> None:
+    assert (
+        describe(
+            {
+                "id": "r",
+                "device": "iPhone",
+                "started_at": "2026-09-29T00:00:00Z",
+                "duration_ms": 1500,
+                "files": [{"name": "r.mp4", "path": "/r.mp4", "format": "mp4", "bytes": 10, "width": 0, "height": 0}],
+                "notes": ["kept as recorded"],
+            }
+        )
+        == "r · iPhone · 1.5s\nmp4 · 1 KB · /r.mp4\nnote: kept as recorded"
+    )
+    assert dataclasses.is_dataclass(Rendered)
+
+
+async def instantly(delay: float) -> None:
+    return None
+
+
+class Held(FakeRenderer):
+    """Renders once `go` is set."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.go = asyncio.Event()
+
+    async def render(self, job: RenderJob, config: SimConfig) -> list[Rendered]:
+        await self.go.wait()
+        return await super().render(job, config)
+
+
+async def test_an_agent_says_how_long_a_recording_may_run_and_what_its_file_is_called(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    recordings = Recordings(FakeRenderer(), tool_recorder=SimctlRecorder(), folder_for=lambda config: tmp_path)
+    started = await record(rig, recordings, {"action": "start", "max_seconds": 2400, "label": "Firmware update"})
+    assert said(started).endswith("(it stops by itself after 2400s)")
+    kept = said(await record(rig, recordings, {"action": "stop"}))
+    assert kept.splitlines()[1].endswith("-simtrail-alpha-tp-1-firmware-update.mp4")
+    for arguments, refusal in (
+        ({"max_seconds": 4}, "max_seconds is a whole number of seconds from 5 to 3600"),
+        ({"label": "?!"}, "label needs a letter or a digit: it is joined into the file's name"),
+    ):
+        refused = await record(rig, recordings, {"action": "start", **arguments})
+        assert refused["isError"] and said(refused) == refusal
+
+
+async def test_a_recording_that_stopped_by_itself_is_told_by_status_and_answered_by_stop(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    recordings = Recordings(
+        FakeRenderer(), tool_recorder=SimctlRecorder(), folder_for=lambda config: tmp_path, sleep=instantly
+    )
+    await record(rig, recordings, {"action": "start", "max_seconds": 300})
+    instance = rig.manager.instance(CALLER.scope)
+    assert instance is not None and instance.recording is not None
+    run = instance.recording
+    assert run.watchdog is not None and not isinstance(run, str)
+    await run.watchdog
+    assert run.finishing is not None
+    await run.finishing
+    status = said(await record(rig, recordings, {"action": "status"}))
+    assert status == f"{run.id} stopped by itself at 0s, its limit, and is kept; sim_record stop answers with its files"
+    stopped = said(await record(rig, recordings, {"action": "stop"})).splitlines()
+    assert stopped[0] == f"stopped by itself at 0s, its limit; kept {run.id} · Simtrail · alpha · tp-1 · 2.5s"
+    assert stopped[-1] == "note: it stopped by itself after 300s, its limit"
+    assert said(await record(rig, recordings, {"action": "status"})).startswith("nothing is being recorded")
+    failing = Recordings(
+        FakeRenderer(refuse="no helper"), tool_recorder=SimctlRecorder(), folder_for=lambda c: tmp_path, sleep=instantly
+    )
+    await record(rig, failing, {"action": "start", "format": "gif"})
+    lost = instance.recording
+    assert lost is not None and not isinstance(lost, str) and lost.watchdog is not None
+    await lost.watchdog
+    assert lost.finishing is not None
+    with contextlib.suppress(RecordingRefused):
+        await lost.finishing
+    status = said(await record(rig, failing, {"action": "status"}))
+    assert status.startswith(f"{lost.id} stopped by itself at 0s, its limit, and could not be kept: no helper; ")
+
+
+async def test_a_long_render_is_said_by_stop_status_and_list_until_it_is_kept(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    renderer = Held()
+    recordings = Recordings(
+        renderer, tool_recorder=SimctlRecorder(), folder_for=lambda config: tmp_path, stop_wait=0.01
+    )
+    await record(rig, recordings, {"action": "start"})
+    instance = rig.manager.instance(CALLER.scope)
+    assert instance is not None
+    run = instance.recording
+    assert run is not None and not isinstance(run, str)
+    stopped = said(await record(rig, recordings, {"action": "stop"})).splitlines()
+    path = tmp_path / f"{run.id}.mp4"
+    assert stopped[0] == f"still rendering {run.id} · Simtrail · alpha · tp-1 · 0.0s"
+    assert (
+        stopped[1]
+        == f"note: still being rendered; it will be kept at {path}, and listed with the recordings once it is"
+    )
+    assert stopped[2] == "sim_record list names it as rendering until it is kept, then with its files"
+    rendering = f"rendering {run.id} · Simtrail · alpha · tp-1 (stopped at 0s); it will be kept at {path}"
+    assert said(await record(rig, recordings, {"action": "status"})) == rendering
+    assert said(await record(rig, recordings, {"action": "list"})) == rendering
+    renderer.go.set()
+    assert run.finishing is not None
+    await run.finishing
+    assert said(await record(rig, recordings, {"action": "list"})).startswith(f"{run.id} · ")
+    assert said(await record(rig, recordings, {"action": "status"})).startswith("nothing is being recorded")
+
+
+def test_what_stop_answers_reads_an_older_servers_answer_too() -> None:
+    recording: Recording = {
+        "id": "r",
+        "device": "iPhone",
+        "started_at": "2026-09-29T00:00:00Z",
+        "duration_ms": 1500,
+        "files": [],
+        "notes": [],
+    }
+    older: Any = {"recording": recording}
+    assert stopped(older, ask="") == "kept r · iPhone · 1.5s"
+    by_itself = rendering_text(
+        {
+            "id": "r",
+            "device": "iPhone",
+            "started_at": "x",
+            "recorded_ms": 300_000,
+            "stopped_by_itself": True,
+            "paths": ["/r.mp4", "/r.gif"],
+        }
+    )
+    assert by_itself == "rendering r · iPhone (stopped by itself at 300s); it will be kept at /r.mp4 and /r.gif"
+
+
+async def test_an_agent_records_part_of_the_screen_faster_and_is_told_how_fast_its_pictures_came(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    renderer = FakeRenderer(source=CaptureRate(pictures=50, busiest_fps=20, longest_gap_s=0.25))
+    now = [0.0]
+    recordings = Recordings(
+        renderer, tool_recorder=SimctlRecorder(), folder_for=lambda config: tmp_path, clock=lambda: now[0]
+    )
+    started = await record(
+        rig, recordings, {"action": "start", "fps": 120, "region": {"x": 0, "y": 0, "w": 201, "h": 437}}
+    )
+    assert said(started) == (
+        "recording Simtrail · alpha · tp-1 as mp4 at 120 fps (a region of the screen); sim_record stop keeps it "
+        "(it stops by itself after 300s)"
+    )
+    now[0] = 5.0
+    kept = said(await record(rig, recordings, {"action": "stop"})).splitlines()
+    assert renderer.jobs[0].mp4_fps == 120 and renderer.jobs[0].crop == (0.0, 0.0, 0.5, 0.5)
+    assert kept[2] == "captured: 50 pictures, up to 20 in a second (kept at 120 fps); longest wait 0.25s"
+    assert kept[3].startswith("note: the screen sent at most 20 pictures a second while it changed")
+    for wrong, says in (
+        ({"fps": 24}, "fps is one of 30, 60, 120"),
+        ({"region": {"x": 900, "y": 0, "w": 10, "h": 10}}, "is off the 402x874pt screen"),
+    ):
+        refused = await record(rig, recordings, {"action": "start", **wrong})
+        assert refused["isError"] and says in said(refused)
+
+
+async def test_a_recording_that_will_stutter_says_so_when_it_starts(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(recording_do_not_disturb=True)
+    recordings = Recordings(FakeRenderer(), tool_recorder=SimctlRecorder(), folder_for=lambda config: tmp_path)
+    ctx = context(rig, recordings)
+    original = Recordings.start
+
+    async def warned(self: Recordings, *args: Any, **kwargs: Any) -> Any:
+        run = await original(self, *args, **kwargs)
+        run.warnings = ("its screen is shown by screenshot",)
+        return run
+
+    Recordings.start = warned  # type: ignore[method-assign]
+    try:
+        started = await REGISTRY.call("sim_record", {"action": "start"}, ctx)
+    finally:
+        Recordings.start = original  # type: ignore[method-assign]
+    assert said(started).splitlines()[1] == "warning: its screen is shown by screenshot"
+    await REGISTRY.call("sim_record", {"action": "stop"}, ctx)
+
+
+async def test_a_recording_another_connected_agent_started_is_theirs_to_stop_unless_the_call_steals(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    recordings = Recordings(FakeRenderer(), tool_recorder=SimctlRecorder(), folder_for=lambda config: tmp_path)
+    selections = Selections(clock=rig.clock)
+    other = Caller(scope("tp-1"), key="agent-2", title="Codex #bbbb")
+
+    def as_(caller: Caller, per_agent: bool = True) -> ToolContext:
+        return dataclasses.replace(context(rig, recordings), caller=caller, selections=selections, per_agent=per_agent)
+
+    selections.begin(CALLER)
+    started = await REGISTRY.call("sim_record", {"action": "start"}, as_(CALLER))
+    assert started["isError"] is False
+    selections.end(CALLER)
+    refused = await REGISTRY.call("sim_record", {"action": "stop"}, as_(other, per_agent=False))
+    assert refused["isError"] is True and said(refused) == (
+        "Claude · notes started this recording, and it is theirs to stop; pass steal: true to stop it anyway, only "
+        "when the person asked for it"
+    ), "whether agents share their scope's device or not"
+    yes = await REGISTRY.call("sim_record", {"action": "stop", "steal": "yes"}, as_(other))
+    assert yes["isError"] is True and said(yes) == "steal is true or false"
+    stolen = await REGISTRY.call("sim_record", {"action": "stop", "steal": True}, as_(other))
+    assert stolen["isError"] is False and said(stolen).startswith("kept ")
+    await REGISTRY.call("sim_record", {"action": "start"}, as_(CALLER))
+    selections.forget("agent-1")
+    gone = await REGISTRY.call("sim_record", {"action": "stop"}, as_(other))
+    assert gone["isError"] is False, "an agent whose connection ended left its recording to whoever stops it"
+    await REGISTRY.call("sim_record", {"action": "start"}, as_(CALLER))
+    own = await REGISTRY.call("sim_record", {"action": "stop"}, as_(CALLER))
+    assert own["isError"] is False, "its own"

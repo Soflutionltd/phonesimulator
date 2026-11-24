@@ -1,0 +1,176 @@
+# SPDX-License-Identifier: Apache-2.0
+"""The native connector: full control of a device through Simtrail's own helper, with nothing but Xcode.
+
+It does everything the idb connector does -- the screen as JPEG or H.264, touches, buttons, keys and text, and the
+accessibility tree -- without idb_companion, and faster: the helper reads the simulator's framebuffer as shared
+memory, encodes the moment a frame is presented, and sends input straight to the device's HID service
+(`connectors.native.helper`). ``auto`` tries it first. It also turns the simulator, as Simulator.app's Device > Rotate
+does, which no other connector can -- where its helper says it can (`capabilities_of`).
+
+Attaching starts a helper for the device, with the scope's Xcode, and greets it. The helper answers once it has opened
+the device's framebuffer and its H.264 encoder -- the first low-latency encoder a process makes takes most of a second
+-- so the first picture a viewer asks for comes at once. A helper that starts but cannot send input to the device -- the
+one thing only a helper that runs can tell -- is ended and refused, so ``auto`` goes on to idb. The element tree's
+first read on a device is slow while the simulator's accessibility wakes up, so it is read once as the session starts,
+in the background.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import os
+from collections.abc import Awaitable, Callable, Sequence
+from pathlib import Path
+
+from simtrail.config.model import SimConfig
+from simtrail.connectors.base import Capability, ConnectorError, ConnectorReport, ConnectorUnavailable, DeviceSession
+from simtrail.connectors.native.helper import (
+    PACKAGED,
+    PROGRAM,
+    AskVersion,
+    CachedVersions,
+    HelperLauncher,
+    HelperVersion,
+    built_helper,
+    helper_version,
+    install_helper,
+    locate_helper,
+)
+from simtrail.connectors.registry import ConnectorContext
+from simtrail.host_copy import HostCopy
+from simtrail.platform.developer_dir import ChosenXcode, choose_xcode
+from simtrail.platform.local_signing import LocalSigning
+from simtrail.storage import app_support
+
+NAME = "native"
+#: Everything a device can be asked for; building is Simtrail's own, not a connector's.
+CAPABILITIES = frozenset(Capability) - {Capability.INPUT_POINTER, Capability.BUILD_PREVIEW}
+#: What the helper says it can do (``features``) that a capability needs: a helper built before it could is not asked.
+FEATURES = {Capability.ROTATE: "rotate"}
+#: What the helper says when it can answer what is at points of the screen (`connectors.base.PointReader`).
+POINTS_FEATURE = "at"
+
+
+def capabilities_of(version: HelperVersion) -> frozenset[Capability]:
+    """What a device served by this helper can do: everything, less what it does not say it can."""
+    return CAPABILITIES - {capability for capability, feature in FEATURES.items() if feature not in version.features}
+
+
+ChooseXcode = Callable[[str], Awaitable[ChosenXcode | None]]
+
+
+def default_candidates() -> Sequence[Path]:
+    """Where a helper is looked for when none is configured: the installed copy -- put in place from the one shipped
+    with Simtrail, else the one built for this version (`install_helper`) -- then those two themselves, should it
+    not be writable."""
+    shipped = (PACKAGED, built_helper(app_support.helpers_dir(os.environ)))
+    signing = LocalSigning(app_support.signing_dir(os.environ))
+    installed = install_helper(shipped, app_support.installed_helper_dir(os.environ) / PROGRAM, signing)
+    return (installed, *shipped) if installed is not None else shipped
+
+
+class NativeConnector:
+    name = NAME
+
+    def __init__(
+        self,
+        launcher: HelperLauncher,
+        *,
+        copy: HostCopy | None = None,
+        candidates: Callable[[], Sequence[Path]] = default_candidates,
+        ask_version: AskVersion = helper_version,
+        choose: ChooseXcode = choose_xcode,
+    ) -> None:
+        self._launcher = launcher
+        self._copy = copy or HostCopy()
+        self._candidates = candidates
+        self._choose = choose
+        self._version = CachedVersions(ask_version)
+
+    async def _usable(self, config: SimConfig) -> tuple[str, HelperVersion] | str:
+        """The helper to run and its version, or why there is none."""
+        found = await locate_helper(config.native_helper_path, self._candidates(), self._version)
+        if found.binary is None or found.version is None or not found.usable:
+            return found.reason(self._copy, config.native_helper_path) or ""
+        return found.binary, found.version
+
+    async def probe(self, config: SimConfig) -> ConnectorReport:
+        found = await self._usable(config)
+        if isinstance(found, str):
+            return ConnectorReport(NAME, False, reasons=(found,))
+        binary, version = found
+        versions = {PROGRAM: binary, "version": version.version}
+        if version.core_simulator:
+            versions["CoreSimulator"] = version.core_simulator
+        return ConnectorReport(NAME, True, capabilities_of(version), versions)
+
+    async def attach(self, udid: str, config: SimConfig) -> DeviceSession:
+        found = await self._usable(config)
+        if isinstance(found, str):
+            raise ConnectorUnavailable(found, 409)
+        binary, version = found
+        capabilities = capabilities_of(version)
+        xcode = await self._choose(config.developer_dir)
+        running = await self._launcher.start(
+            binary,
+            udid,
+            xcode.path if xcode else "",
+            hid=config.native_hid_transport,
+            idle_key_frames=config.native_idle_key_frames,
+            ready_timeout_s=config.native_startup_timeout,
+        )
+        client = running.engine
+        try:
+            hello = await client.hello(config.native_startup_timeout)
+        except (ConnectorError, asyncio.CancelledError):
+            await self._launcher.stop(running)
+            raise
+        if hello.hid is None:
+            await self._launcher.stop(running)
+            reasons = "; ".join(hello.reasons) or "it did not say why"
+            raise ConnectorUnavailable(self._copy.helper_input_unreachable(reasons), 409)
+        warming = asyncio.ensure_future(_warm(client.accessibility))
+
+        async def close() -> None:
+            warming.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await warming
+            await self._launcher.stop(running)
+
+        def alive() -> bool:
+            return running.alive
+
+        return DeviceSession(
+            connector=NAME,
+            capabilities=capabilities,
+            screen=client,
+            input=client,
+            reader=client,
+            rotator=client if Capability.ROTATE in capabilities else None,
+            points=client if POINTS_FEATURE in version.features else None,
+            is_alive=alive,
+            on_close=close,
+        )
+
+    async def reap_orphans(self) -> int:
+        return await self._launcher.reap_orphans()
+
+
+async def _warm(read: Callable[[], Awaitable[object]]) -> None:
+    """Read the screen once so the next read is quick; a read that fails now is no failure of the session."""
+    with contextlib.suppress(ConnectorError):
+        await read()
+
+
+def create(context: ConnectorContext) -> NativeConnector:
+    """The native connector for a host: its helpers' sockets, pid files and logs in the host's folders."""
+    state = context.state
+    launcher = HelperLauncher(
+        run_dir=state.run_dir(),
+        log_dir=state.log_dir(),
+        owner_tag=state.owner_tag,
+        copy=context.copy,
+        ensure_dir=state.ensure_dir,
+    )
+    return NativeConnector(launcher, copy=context.copy)

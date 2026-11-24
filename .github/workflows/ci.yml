@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+  # By hand, on any branch, once this file is on main: `gh workflow run CI --ref <branch>`.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: macos-15
+    # A test that hangs fails here in minutes rather than running until GitHub's own limit hours later.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked
+      - run: make lint-python typecheck guards
+      - run: make coverage-python
+
+  helper:
+    name: Native helper
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+      - run: uv sync --locked
+      - run: swift --version
+      # The core's tests with the per-file coverage gate, then the wheel a release builds: the universal helper, signed,
+      # inside it.
+      - run: make helper-coverage
+      - run: make helper-release
+      - run: SIMTRAIL_HELPER_BINARY="$PWD/dist/helper/simtrail-helper" uv build --out-dir dist/python
+      - run: uv run --no-project python scripts/check_wheel.py --helper dist/python/*.whl
+
+  sdk:
+    name: App SDK
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+      - run: xcodebuild -version
+      # The package's tests and the sample app's on the runner's Xcode and simulator, then the Release builds. The
+      # per-file coverage gate and swift-format run locally on each supported Xcode (make sdk-all): SwiftUI's debug
+      # data is read on iOS 26 only, and formatting rules move between swift-format releases.
+      # A simulator of its own on the newest iOS runtime installed: a runner image does not always come with devices.
+      - name: A simulator to test on
+        run: |
+          runtime="$(xcrun simctl list runtimes --json | jq -r '[.runtimes[] | select(.platform == "iOS" and .isAvailable)] | last | .identifier')"
+          udid="$(xcrun simctl create sdk-ci com.apple.CoreSimulator.SimDeviceType.iPhone-16 "$runtime")"
+          echo "SDK_DESTINATION=id=$udid" >> "$GITHUB_ENV"
+      - run: make sdk-test sdk-app-test sdk-release-check
+
+  mac-sdk:
+    name: macOS app SDK
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: uv sync --locked
+      - run: npm ci
+        working-directory: viewer
+      - run: make sdk-mac-coverage sdk-mac-app-test sdk-mac-release-check
+      - run: make sdk-web-test sdk-web-release-check sdk-tauri-release-check sdk-cef-test sdk-cef-release-check
+
+  viewer:
+    name: Viewer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - uses: astral-sh/setup-uv@v10.3.0
+      - run: npm ci
+        working-directory: viewer
+      # Lint and typecheck, tests with per-file coverage, then a rebuild that must match the committed page bundle
+      # and stay within the size budget.
+      - run: make lint-viewer coverage-viewer viewer-bundle

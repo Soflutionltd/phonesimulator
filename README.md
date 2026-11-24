@@ -1,0 +1,232 @@
+<!-- mcp-name: io.github.Soflutionltd/simtrail -->
+
+# Simtrail
+
+**Mirror and drive iOS Simulators, real iPhones and Android devices from Claude Code, CLI agents and the browser.**
+
+[![CI](https://github.com/Soflutionltd/simtrail/actions/workflows/ci.yml/badge.svg)](https://github.com/Soflutionltd/simtrail/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Soflutionltd/simtrail?include_prereleases&sort=semver)](https://github.com/Soflutionltd/simtrail/releases)
+
+<img src="docs/media/hero.gif" width="100%"
+  alt="A Claude Code session driving a calendar app on an iPhone 17 simulator in the viewer: it opens an event, scrolls
+through its notes, then fills in and saves a new one, the agent's cursor gliding to each spot before it taps">
+
+
+A live iOS Simulator -- or your own iPhone, over its cable, or an Android emulator or phone -- in any browser tab or
+web page, an animated cursor that
+shows exactly what your AI agent is about to tap, and token-efficient UI snapshots so agents read the screen as compact
+text instead of screenshots. Record any screen as an MP4 or a GIF for a pull request. Works with Claude Code, Codex,
+Cursor and any other MCP client.
+
+
+## Why Simtrail
+
+- **See the simulator anywhere.** A live H.264 or JPEG stream in a Chrome tab, an iframe or a `<simtrail>` web
+  component, with touch, scrolling, typing, hardware buttons and light and dark mode.
+- **Watch what the agent does.** Every agent gesture is announced before it lands, and the viewer's cursor glides to
+  the spot first -- so you can follow along, and step in: an agent waits for your hand to be still.
+- **Spend fewer tokens.** Agents read accessibility snapshots with stable element refs and diffs between screens, act
+  in batches with waits, and reach for a screenshot only when a question is visual.
+- **Read screens accessibility cannot.** A game or a canvas reads from its pixels, and an app under development can
+  share its own views, so icon-only buttons and hand-drawn controls read by name.
+- **Test on a real iPhone.** Plug it in and it sits beside the simulators: live over the cable at up to 60 fps, touched
+  and typed on from the browser or by an agent, and given back everything Simtrail changed on it.
+- **Check connection recovery.** Open Control Center on a real iPhone to manage Wi-Fi and Bluetooth connections or
+  toggle airplane mode, then return to your app to check how it reconnects to a BLE or Wi-Fi accessory.
+  See [the connectivity workflow](docs/real-devices.md#connectivity-workflows).
+- **Show what happened.** Record a flow as an MP4 or a GIF with every touch drawn in -- at 60 or 120 frames a second
+  for a short animation, or only the part of the screen that matters -- and put it in a pull request.
+
+## Install
+
+**Claude Code**, with the plugin (tools, a skill that teaches snapshot-first use, and `/simtrail:open`):
+
+```
+/plugin marketplace add Soflutionltd/simtrail
+/plugin install simtrail@simtrail
+```
+
+**Any MCP client**, as a stdio server:
+
+```sh
+claude mcp add simtrail -- uvx --from git+https://github.com/Soflutionltd/simtrail simtrail mcp
+```
+
+Configurations for [Codex](docs/clients/codex.md), [Cursor](docs/clients/cursor.md) and
+[other clients](docs/clients/other-mcp.md).
+The plugin includes four [workflow skills](docs/clients/skills.md); the release also packages them for Codex and Cursor.
+
+**The command**, for `simtrail open`, `doctor` and the rest:
+
+```sh
+uv tool install git+https://github.com/Soflutionltd/simtrail
+```
+
+**The viewer library**, for your own pages, is in [`viewer/`](viewer/README.md).
+
+**Requirements:** an Apple Silicon Mac, Xcode 26 or later, and [uv](https://docs.astral.sh/uv/). Nothing
+else: Simtrail drives a simulator with its own helper, which comes in the package. A real iPhone needs Developer Mode,
+and an Apple development team to be touched. Details in [Installation](docs/installation.md).
+
+## Quickstart
+
+```sh
+simtrail doctor     # check this Mac, ending with a real tap on a simulator
+simtrail open       # this project's simulator, live in a browser tab
+```
+
+Then ask your agent:
+
+> Open Settings → General → About and tell me which iOS version this simulator runs. Use sim_snapshot rather than
+> screenshots.
+
+With an iPhone plugged in, unlocked and in Developer Mode:
+
+> Switch to my iPhone, build and run the app on it, walk through sign-up and record it as a GIF.
+
+The first time, press **Set up touch** in the viewer: it builds WebDriverAgent with your project's own signing team.
+
+[Getting started](docs/getting-started.md) explains what happens along the way.
+
+## Features
+
+**Live viewer.** H.264 through WebCodecs where the page can decode it, JPEG otherwise, negotiated per connection.
+Touch, drag, scroll, typing and paste, Home and Lock, light and dark, and a device picker. It reconnects by itself
+after a blip and says plainly when the simulator is off.
+
+**Agent cursor.** Every agent gesture -- tap, long press, swipe, drag, typing -- reaches the viewer before it lands, and
+the viewer's own pointer glides there first (`agent.cursor_lead_ms`), labelled with what the agent is doing --
+Tapping “Add”, Reading the screen, Thinking…, Building. After a real break it waits in a corner. Never the Mac's pointer. On a macOS app the same
+pointer is drawn over the app's own window on the Mac too, click-through and out of every capture.
+
+**Screen understanding.** A snapshot is a few lines -- `e2 button "General" (201,319)` -- with refs that stay with their
+elements across scrolls, a digest, and diffs. `sim_act` plays up to 20 steps in one call and waits for text, its
+absence, or the screen to settle -- past a spinner or a pulsing dot that never stops. An app turned to landscape is
+read and touched in its own points, `sim_device rotate` turns a simulator, and a tap on what a tab bar, a toolbar or
+the keyboard covers is refused with how to reach it. See [Screen understanding](docs/screen-understanding.md).
+
+**Observe mode.** For a walkthrough on an account the agent must not change, `agent.observe` refuses a tap on what
+reads like Delete, Save, Send or Sign out -- in English and a dozen other languages, or styled destructive by its app --
+unless the call confirms it. See [Security](docs/security.md).
+
+**Reading pixels.** A screen whose accessibility says nothing -- a game, a canvas, an app still loading -- reads as the
+text macOS's Vision finds in it, with refs to tap and text to wait for, and the viewer can outline what was read
+(`perception.ocr`). See [Read from pixels](docs/screen-understanding.md#read-from-pixels).
+
+**App SDK.** An app under development can link **SimtrailKit**, a small Swift package, and call `Simtrail.start()`:
+in a Debug build on the simulator it shares its own UIKit and SwiftUI views, so an icon-only button, a card with a tap
+gesture or a hand-drawn control reads by name, and `.simtrail("Settings")` names a SwiftUI view. Optional, and nothing
+of it is in a Release build. See [The app SDK](docs/app-sdk.md).
+
+**Real devices.** A cabled iPhone or iPad shows up beside the simulators, and an agent can switch to it
+(`sim_device list` and `choose`): its live screen over the cable; its apps, logs, look and
+location through Xcode's `devicectl`; and touching, typing and its element tree through WebDriverAgent, set up once
+with a click and signed by your project's own team -- a tap lands in about a third of a second. It is reached only over
+the cable, and what Simtrail changes on it is put back when it is let go. See [Real devices](docs/real-devices.md).
+
+**Android.** Android emulators and phones sit beside the simulators, with the same viewer, cursor and tools: adb
+lists, starts and drives them, scrcpy's server -- set up once with a click -- shows the screen live, UI Automator reads
+it for snapshots, and `sim_build_run` and `sim_test` build a Gradle project with its own wrapper. A phone is never
+started or shut down, and what Simtrail changes on it is put back. See [Android](docs/android.md).
+
+**Recording.** The viewer's Record button, `sim_record` or `simtrail record` keep a device's screen as an MP4, a GIF
+or both, with each touch drawn where it landed and a 9:41 status bar, and `preset: "pr"` keeps one small enough for
+a pull request. See [Recording](docs/recording.md).
+
+**Connectors.** Simtrail's own native helper gives full control with nothing to install; idb_companion still can,
+and the simctl connector mirrors the screen view-only when neither is there, and says why. `auto` uses the fastest that
+works and falls back when one fails. More connectors plug in through an entry point. See
+[Connectors](docs/connectors.md).
+
+**Embedding.** An [iframe](docs/embedding/iframe.md) with a one-shot ticket, the
+[`<simtrail>` element](docs/embedding/web-component.md) themed with CSS custom properties, or Simtrail
+[inside a Python application](docs/embedding/python-fastapi.md) with its own sign-in.
+
+**Settings panel.** `simtrail open --settings` puts every setting a click away in the viewer, a tab per section,
+saved for one project or all of them and applied before it says so. Settings that decide what runs or who may reach
+the daemon wait for a code from `simtrail settings confirm`. See [The settings panel](docs/settings.md).
+
+**Doctor.** Checks Xcode, its Simulator frameworks, runtimes, the native helper and idb_companion, Device Hub and the
+desktop session, the text reader and an app's shared hierarchy, then proves a tap reaches a simulator. See [the doctor](docs/doctor.md).
+
+**Security.** Loopback only, a Host allowlist, exact Origin checks, CORS and framing only for origins you list, hashed
+scoped tokens, and one-shot codes in URL fragments. See [Security](docs/security.md).
+
+**Build and test.** `sim_build_run` and `sim_test` build with xcodebuild for the agent's simulator, install and
+launch, and answer with only what failed and where -- each failing test named so it can be run again alone, and on
+another simulator when asked -- and with the folder, branch and commit they built. They build the git worktree the
+agent works in, with the configuration its scheme runs. Off by default, since they run commands: `simtrail config
+set build.tools true`.
+
+## Measure the token cost
+
+`benchmarks/tool_budget.py` calls each read-only tool through the same MCP relay a client uses and prints each answer's
+bytes, estimated tokens and latency on your own screens; see [the token budget example](examples/token-budget/).
+Measured with Simtrail 2.4.0 on an iOS simulator using the native connector, showing Settings → General:
+30 calls per tool after a separate initial round and 3 warmup rounds (2026-10-29). Host and device details are omitted
+from the public report for privacy.
+
+| Call | Tool | Bytes | Tokens (est.) | p50 ms | p95 ms |
+|---|---|---:|---:|---:|---:|
+| device info | `sim_device` | 275 | 49 | 260.1 | 282.9 |
+| snapshot, full | `sim_snapshot` | 561 | 112 | 74.3 | 83.3 |
+| snapshot, diff of an unchanged screen | `sim_snapshot` | 83 | 5 | 66.5 | 73.5 |
+| screenshot, 400 px wide | `sim_screenshot` | 55958 | 469 | 15.5 | 17.0 |
+| screenshot, 1200 px wide | `sim_screenshot` | 251484 | 4181 | 24.2 | 25.8 |
+
+On a physical iOS device over USB with WebDriverAgent, the same 30-round run measured 199 estimated tokens for a
+full snapshot (p50 859.1 ms), 5 for an unchanged-screen diff (817.9 ms), and 469 for a 400-pixel screenshot (31.4 ms).
+
+Bytes are the whole answer, an image's base64 included; tokens are estimates (text at about 4 characters a token,
+an image at about 750 pixels a token), not billed usage or whole-task costs. All measured calls succeeded. See the
+[performance report](docs/performance.md) for real-iPhone results, initial-call timings, raw samples and the older
+baseline. Different connectors and environments make these separate observations, not a before/after speedup claim.
+
+## Compatibility
+
+| | Expected to work |
+|---|---|
+| macOS | 26 (15 with Xcode 16.4, view-only) |
+| Xcode | 26 and 27 |
+| Connectors | native helper (full control), idb_companion 1.5 (full control), simctl (view-only) |
+| Real devices | an iPhone or iPad that Xcode's `devicectl` reaches, by cable (view-only without WebDriverAgent) |
+| Android | emulators and phones adb reaches, with the Android SDK; scrcpy 5.0.1 for the live screen; Gradle builds |
+| App SDK | Debug builds on the iOS Simulator, iOS 16 or later |
+| Clients | Claude Code, Codex, Cursor, any stdio MCP client |
+| Browsers | Chrome, Safari, Firefox, Edge |
+
+Rows checked on real hardware are marked verified, with the date, in [Compatibility](docs/compatibility.md).
+
+From 1.0 the tools, the protocol, the embedding API, the viewer package, settings and the command line are held to
+[what Simtrail promises not to break](docs/stability.md): a release adds, and never breaks; 2.0 broke nothing.
+Connectors are the exception, and pin a minor version.
+
+## Documentation
+
+[Everything](docs/README.md): getting started, clients, embedding, screen understanding, connectors, security,
+architecture, and the reference for [tools](docs/reference/tools.md), [configuration](docs/reference/configuration.md),
+the [command line](docs/reference/cli.md) and the [protocol](docs/reference/protocol.md).
+
+## Roadmap
+
+- **Sign-in through 1Password**: fill an app's login from the person's password manager, never showing the agent a
+  password.
+- **Flutter end to end**: build, install and hot reload a Flutter app from the same tools.
+- **Replayable flows**: record a named walkthrough once, replay it in one call.
+- **Device matrix**: the same screen on several devices, in light and dark mode, in one call.
+
+How Simtrail relates to other tools is in [Comparison](docs/comparison.md).
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md); AI
+coding agents read [AGENTS.md](AGENTS.md). Report security issues privately as described in [SECURITY.md](SECURITY.md).
+Questions go to [Discussions](https://github.com/Soflutionltd/simtrail/discussions).
+
+## License
+
+[Apache-2.0](LICENSE). See [NOTICE](NOTICE) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+Simtrail is an independent project, not affiliated with Apple or Anthropic. iOS, iPhone, Xcode and Simulator are
+trademarks of Apple Inc.; Claude and Claude Code are trademarks of Anthropic PBC.

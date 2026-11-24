@@ -1,0 +1,642 @@
+# SPDX-License-Identifier: Apache-2.0
+"""The iphone connector: a real device's screen by screenshot, and what it is offered by what it says it can do."""
+
+from __future__ import annotations
+
+import asyncio
+import dataclasses
+import json
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from simtrail.config.model import SimConfig
+from simtrail.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Crop
+from simtrail.connectors.iphone.cable import UsbCable
+from simtrail.connectors.iphone.capture import CableCapture, LiveScreen
+from simtrail.connectors.iphone.connector import (
+    ALWAYS,
+    CABLE_WAIT_S,
+    DRIVEN,
+    LIVE,
+    LIVE_RETRY_S,
+    MOST,
+    WDA_FPS_LIMIT,
+    IPhoneConnector,
+    capabilities_of,
+    create,
+)
+from simtrail.connectors.iphone.screen import FPS_LIMIT, DevicectlScreen, screen_of
+from simtrail.connectors.iphone.wda_client import WdaClient
+from simtrail.connectors.iphone.wda_roles import WdaInput, WdaReader, WdaShots, WdaText
+from simtrail.connectors.registry import ConnectorContext
+from simtrail.core.device_logs import DeviceLogBook
+from simtrail.host_copy import HostCopy
+from simtrail.platform.devicectl import Devicectl, DevicectlError, Display, PhysicalDevice
+from simtrail.platform.errors import DeviceControlError
+from simtrail.platform.lockdown import SYSLOG_RELAY
+from simtrail.platform.usbmux import Usbmux, UsbmuxError
+from simtrail.platform.xcrun import XcrunResult
+from simtrail.testing.fakes import (
+    PHONE_UDID,
+    FakeEngine,
+    FakeXcrun,
+    ManualClock,
+    MemoryStateStore,
+    fixture_json,
+    tiny_jpeg,
+)
+from simtrail.testing.native import short_run_dir
+from simtrail.testing.usbmux import FakeMuxd, FakeService
+from simtrail.testing.wda import FakeWda
+
+ON = SimConfig.defaults().with_values(real_devices=True, developer_dir="/X.app/Contents/Developer")
+DISPLAY = Display(1179, 2556, 3.0, "portrait")
+
+
+class Shots:
+    """devicectl's screenshots: a PNG written where asked, or a failure."""
+
+    def __init__(self, png: bytes = b"\x89PNG fake", fail: Exception | None = None) -> None:
+        self.png = png
+        self.fail = fail
+
+    async def screenshot(self, udid: str, destination: Path) -> None:
+        if self.fail is not None:
+            raise self.fail
+        if self.png:
+            destination.write_bytes(self.png)
+
+
+def converter(answer: bytes | None) -> Any:
+    seen: list[tuple[bytes, int | None, int]] = []
+
+    async def convert(data: bytes, *, max_width: int | None, quality: int) -> bytes | None:
+        seen.append((data, max_width, quality))
+        return answer
+
+    convert.seen = seen  # type: ignore[attr-defined]
+    return convert
+
+
+async def test_a_screenshot_is_made_a_jpeg_no_wider_than_asked_and_the_screen_is_measured_exactly() -> None:
+    jpeg = tiny_jpeg(400, 868)
+    convert = converter(jpeg)
+    screen = DevicectlScreen(Shots(), PHONE_UDID, DISPLAY, convert=convert)  # type: ignore[arg-type]
+    described = await screen.describe()
+    assert (described.width_pt, described.height_pt, described.scale) == (393, 852, 3.0)
+    shot = await screen.screenshot(max_width=400, quality=70)
+    assert (shot.width, shot.height, shot.jpeg) == (400, 868, jpeg)
+    await screen.screenshot(max_width=2000, quality=80)
+    assert convert.seen == [(b"\x89PNG fake", 400, 70), (b"\x89PNG fake", None, 80)]
+    assert screen_of(Display(750, 1334, 2.0, "portrait")).width_pt == 375 and FPS_LIMIT == 1
+
+
+@pytest.mark.parametrize(
+    ("shots", "answer", "said"),
+    [
+        (Shots(fail=DevicectlError("the device is locked")), b"", "taking a screenshot failed: the device is locked"),
+        (Shots(png=b""), b"", "devicectl wrote no picture"),
+        (Shots(), None, "could not be made a JPEG"),
+        (Shots(), b"not a jpeg", "could not be made a JPEG"),
+    ],
+)
+async def test_a_screenshot_that_cannot_be_had_says_why(shots: Shots, answer: bytes | None, said: str) -> None:
+    screen = DevicectlScreen(shots, PHONE_UDID, DISPLAY, convert=converter(answer))  # type: ignore[arg-type]
+    with pytest.raises(ConnectorError, match=said):
+        await screen.screenshot(max_width=400, quality=70)
+
+
+async def test_a_region_or_a_live_stream_needs_more_than_screenshots() -> None:
+    screen = DevicectlScreen(Shots(), PHONE_UDID, DISPLAY, convert=converter(None))  # type: ignore[arg-type]
+    with pytest.raises(ConnectorError, match="needs the device's cable or WebDriverAgent"):
+        await screen.screenshot(max_width=400, quality=70, crop=Crop(0, 0, 10, 10))
+    with pytest.raises(ConnectorError, match="needs its cable"):
+        async for _unit in screen.h264(fps=30, scale=1.0, key_frame_s=1.0, bitrate=1_000_000):
+            pass
+
+
+async def test_a_device_is_offered_what_it_says_it_can_do() -> None:
+    [_second, phone] = await Devicectl(FakeXcrun().with_devicectl()).devices()
+    offered = capabilities_of(phone)
+    assert offered >= ALWAYS and {Capability.SCREENSHOT, Capability.APP_LAUNCH, Capability.LOCATION} <= offered
+    assert Capability.STATUS_BAR not in offered and Capability.INPUT_TOUCH not in offered
+    bare = dataclasses.replace(phone, features=frozenset({"simulateStatusBar"}))
+    assert capabilities_of(bare) == ALWAYS | {Capability.STATUS_BAR}
+
+
+async def test_the_connector_reaches_a_device_by_screenshot_and_says_what_would_do_more(tmp_path: Path) -> None:
+    fake = FakeXcrun().with_devicectl()
+    context = ConnectorContext(state=MemoryStateStore(tmp_path), copy=HostCopy(), simctl_for=None, xcrun=fake)  # type: ignore[arg-type]
+    connector = create(context)
+    assert connector.name == "iphone" and connector.kinds == frozenset({"physical"})
+    report = await connector.probe(ON)
+    assert report.available and report.capabilities == MOST and report.kinds == frozenset({"physical"})
+    session = await connector.attach(PHONE_UDID, ON)
+    assert session.connector == "iphone" and session.fps_limit == 1 and session.input is None
+    assert session.note is not None and "plug the device in by cable for a live picture" in session.note
+    assert "WebDriverAgent is reached only over the device's cable" in session.note, "on by default, and uncabled"
+    watched = await connector.attach(PHONE_UDID, ON.with_values(wda_enabled=False))
+    assert watched.note is not None and "needs WebDriverAgent, which is off here" in watched.note
+    assert (await session.screen.describe()).width_px == 1179
+    assert all(call.developer_dir == "/X.app/Contents/Developer" for call in fake.calls)
+    own = ON.with_values(real_devices_developer_dir="/Y.app/Contents/Developer")
+    await connector.attach(PHONE_UDID, own)
+    assert fake.calls[-1].developer_dir == "/Y.app/Contents/Developer"
+    assert await connector.reap_orphans() == 0
+
+
+async def test_the_connector_refuses_what_it_cannot_reach() -> None:
+    connector = IPhoneConnector(lambda xcode: Devicectl(FakeXcrun().with_devicectl()), has_xcrun=lambda: False)
+    off = await connector.probe(SimConfig.defaults().with_values(real_devices=False))
+    assert not off.available and "Real devices are not available here" in off.reasons[0]
+    assert (await connector.probe(ON)).reasons == ("Xcode command-line tools are not installed (no xcrun).",)
+    with pytest.raises(ConnectorUnavailable, match="00008120-0000000000000000 is not connected") as missing:
+        await connector.attach("00008120-0000000000000000", ON)
+    assert missing.value.status == 409
+    failing = IPhoneConnector(
+        lambda xcode: Devicectl(FakeXcrun().on("devicectl", rc=1, err="CoreDevice is not running"))
+    )
+    with pytest.raises(ConnectorUnavailable, match="CoreDevice is not running"):
+        await failing.attach(PHONE_UDID, ON)
+    # Listed still, a moment after its cable came out with nothing else to reach it by, but not to be asked anything.
+    gone = (
+        FakeXcrun()
+        .with_devicectl()
+        .on(
+            "devicectl",
+            "-q",
+            "device",
+            "info",
+            "displays",
+            rc=1,
+            err="A connection to this device could not be established.",
+        )
+    )
+    with pytest.raises(ConnectorUnavailable) as unreachable:
+        await IPhoneConnector(lambda xcode: Devicectl(gone)).attach(PHONE_UDID, ON)
+    assert str(unreachable.value).startswith("Test iPhone is not connected: plug it in and unlock it")
+    assert "A connection to this device could not be established." in str(unreachable.value)
+    assert unreachable.value.status == 409
+
+
+async def test_a_device_whose_tunnel_was_idle_is_offered_all_it_can_do_once_asked_something() -> None:
+    listing = fixture_json("devicectl-devices.json")
+    idle = json.loads(json.dumps(listing))
+    for device in idle["result"]["devices"]:
+        device["capabilities"] = device["capabilities"][:5]
+    answers = [json.dumps(idle), json.dumps(listing)]
+
+    def listed(args: tuple[str, ...]) -> XcrunResult:
+        return XcrunResult(0, answers.pop(0) if len(answers) > 1 else answers[0], "")
+
+    fake = FakeXcrun().with_devicectl().on("devicectl", "-q", "list", "devices", then=listed)
+    session = await IPhoneConnector(lambda xcode: Devicectl(fake)).attach(PHONE_UDID, ON)
+    assert {Capability.APP_LAUNCH, Capability.SCREENSHOT} <= session.capabilities
+    assert [call.args[2:5] for call in fake.calls] == [
+        ("list", "devices", "--json-output"),
+        ("device", "info", "displays"),
+        ("list", "devices", "--json-output"),
+    ]
+
+
+class Cable:
+    """A device's cable as a test says: plugged in or not, and its log readable or not."""
+
+    def __init__(self, *, plugged: bool = True, log: Exception | None = None) -> None:
+        self.plugged = plugged
+        self.log = log
+        self.opened: list[str] = []
+        self.waited: list[float] = []
+
+    def cabled(self, udid: str) -> bool:
+        return self.plugged
+
+    def plugged_within(self, udid: str, seconds: float) -> bool:
+        self.waited.append(seconds)
+        return self.plugged
+
+    def open_log(self, udid: str) -> Any:
+        self.opened.append(udid)
+        if self.log is not None:
+            raise self.log
+        return Stream()
+
+
+class Stream:
+    def __init__(self) -> None:
+        self.closed = False
+
+    def recv(self, size: int) -> bytes:
+        return b""
+
+    def close(self) -> None:
+        self.closed = True
+
+
+async def test_a_cabled_devices_log_is_kept_while_it_is_driven_and_one_without_a_cable_says_so() -> None:
+    book = DeviceLogBook()
+    cable = Cable()
+    connector = IPhoneConnector(lambda xcode: Devicectl(FakeXcrun().with_devicectl()), cable=cable, logs=book)
+    session = await connector.attach(PHONE_UDID, ON.with_values(real_devices_log_buffer_mb=8))
+    assert Capability.LOGS in session.capabilities and cable.opened == [PHONE_UDID]
+    assert book.lines(PHONE_UDID, since_s=60, bundle_id=None) == []
+    await session.close()
+    assert book.lines(PHONE_UDID, since_s=60, bundle_id=None) is None
+    cable.plugged = False
+    unplugged = await connector.attach(PHONE_UDID, ON)
+    assert Capability.LOGS not in unplugged.capabilities and cable.opened == [PHONE_UDID]
+    unreadable = IPhoneConnector(
+        lambda xcode: Devicectl(FakeXcrun().with_devicectl()),
+        cable=Cable(log=DeviceControlError("no pairing record")),
+        logs=book,
+    )
+    assert Capability.LOGS not in (await unreadable.attach(PHONE_UDID, ON)).capabilities
+    logless = IPhoneConnector(lambda xcode: Devicectl(FakeXcrun().with_devicectl()), cable=Cable())
+    no_book = await logless.attach(PHONE_UDID, ON)
+    assert Capability.LOGS not in no_book.capabilities
+    await no_book.close()
+
+
+async def test_a_session_lets_go_only_of_the_log_it_kept_so_the_one_replacing_it_keeps_its_own() -> None:
+    book = DeviceLogBook()
+    cable = Cable(plugged=False)
+    connector = IPhoneConnector(lambda xcode: Devicectl(FakeXcrun().with_devicectl()), cable=cable, logs=book)
+    unplugged = await connector.attach(PHONE_UDID, ON)
+    cable.plugged = True
+    plugged = await connector.attach(PHONE_UDID, ON)
+    await unplugged.close()
+    assert book.lines(PHONE_UDID, since_s=60, bundle_id=None) == [], "still kept for the session that kept it"
+    await plugged.close()
+    assert book.lines(PHONE_UDID, since_s=60, bundle_id=None) is None
+
+
+def test_the_real_cable_asks_usbmuxd() -> None:
+    muxd = FakeMuxd().plug(PHONE_UDID)
+    muxd.lockdownd().services[SYSLOG_RELAY] = (50324, False)
+    muxd.ports[50324] = FakeService(b"log")
+    cable = UsbCable(Usbmux("/tmp/fake-usbmuxd", connect=muxd.connect))
+    assert cable.cabled(PHONE_UDID) and not cable.cabled("00008150-0099887766554433")
+    assert cable.plugged_within(PHONE_UDID, 5) and not cable.plugged_within("00008150-0099887766554433", 5)
+    with pytest.raises(DeviceControlError, match="the pairing record's certificate cannot be used"):
+        cable.open_log(PHONE_UDID)
+    broken = UsbCable(Usbmux("/tmp/nowhere", connect=lambda path, timeout: (_ for _ in ()).throw(UsbmuxError("gone"))))
+    assert not broken.cabled(PHONE_UDID) and not broken.plugged_within(PHONE_UDID, 5)
+    assert isinstance(UsbCable().usbmux, Usbmux)
+
+
+def test_a_host_s_connector_has_a_cable_its_helpers_and_somewhere_to_keep_logs_when_it_has() -> None:
+    state = MemoryStateStore(Path("/nowhere"))
+    kept = create(ConnectorContext(state=state, copy=HostCopy(), simctl_for=None, device_logs=DeviceLogBook()))  # type: ignore[arg-type]
+    plain = create(ConnectorContext(state=state, copy=HostCopy(), simctl_for=None))  # type: ignore[arg-type]
+    assert isinstance(kept._cable, UsbCable) and isinstance(kept._screens, CableCapture)
+    assert kept._logs is not None and plain._logs is None
+
+
+class Screens:
+    """What shows a cabled device's live screen, as a test says: a helper's screen, or why there is none."""
+
+    def __init__(self, fail: str | None = None, reaped: int = 0) -> None:
+        self.fail = fail
+        self.reaped = reaped
+        self.opened: list[tuple[str, bool]] = []
+        self.closed = 0
+        self.running = True
+        #: What the helper reading the screen says went wrong since it started; None for the default it is given.
+        self.error: str | None = None
+
+    async def open(
+        self, device: PhysicalDevice, display: Display, config: SimConfig, devicectl: Devicectl, *, twins: bool
+    ) -> LiveScreen:
+        self.opened.append((device.udid, twins))
+        if self.fail is not None:
+            raise ConnectorUnavailable(self.fail, 409)
+
+        async def close() -> None:
+            self.closed += 1
+
+        if self.error is None:
+            return LiveScreen(FakeEngine(), lambda: self.running, close)
+        return LiveScreen(FakeEngine(), lambda: self.running, close, lambda: self.error)
+
+    async def reap_orphans(self) -> int:
+        return self.reaped
+
+
+def cabled(screens: Screens, *, plugged: bool = True, fake: FakeXcrun | None = None) -> IPhoneConnector:
+    return IPhoneConnector(
+        lambda xcode: Devicectl(fake or FakeXcrun().with_devicectl()), cable=Cable(plugged=plugged), screens=screens
+    )
+
+
+async def test_a_cabled_device_shows_its_live_screen_and_is_offered_a_stream() -> None:
+    screens = Screens(reaped=2)
+    session = await cabled(screens).attach(PHONE_UDID, ON)
+    assert screens.opened == [(PHONE_UDID, False)]
+    assert session.capabilities >= LIVE and session.fps_limit is None and session.is_alive is not None
+    assert session.note == HostCopy().iphone_limits(live=True) and "WebDriverAgent" in session.note
+    assert isinstance(session.screen, FakeEngine) and session.is_alive()
+    assert session.last_error is not None and session.last_error() is None, "its helper has said nothing wrong"
+    await session.close()
+    assert screens.closed == 1
+    screens.error = "macOS has not let simtrail-helper use the Camera"
+    camera = await cabled(screens).attach(PHONE_UDID, ON)
+    assert camera.last_error is not None and camera.last_error() == screens.error, "what its helper said, when asked"
+    screens.error = "Test iPhone has sent no picture of its screen in 15 seconds: is it unlocked?"
+    assert camera.last_error() == screens.error, "read live, not when it was attached"
+    await camera.close()
+    shots = await IPhoneConnector(lambda xcode: Devicectl(FakeXcrun().with_devicectl())).attach(PHONE_UDID, ON)
+    assert shots.last_error is None, "screenshots alone run no helper"
+    assert await cabled(screens).reap_orphans() == 2
+    assert await IPhoneConnector(lambda xcode: Devicectl(FakeXcrun())).reap_orphans() == 0
+
+
+async def test_a_cable_that_cannot_show_the_screen_leaves_screenshots_and_says_why() -> None:
+    session = await cabled(Screens(fail="macOS has not let simtrail-helper use the Camera")).attach(PHONE_UDID, ON)
+    assert isinstance(session.screen, DevicectlScreen) and session.fps_limit == FPS_LIMIT
+    assert Capability.STREAM_H264 not in session.capabilities
+    assert session.note is not None and session.note.startswith(
+        "Its cable could not show the screen (macOS has not let simtrail-helper use the Camera), so it shows"
+    )
+    unplugged = Screens()
+    session = await cabled(unplugged, plugged=False).attach(PHONE_UDID, ON)
+    assert unplugged.opened == [] and session.note == HostCopy().iphone_limits()
+    by_screenshot = Screens()
+    await cabled(by_screenshot).attach(PHONE_UDID, ON.with_values(real_devices_screen="screenshot"))
+    assert by_screenshot.opened == []
+
+
+async def test_a_cabled_device_whose_cable_could_not_show_its_screen_is_tried_again_less_and_less_often() -> None:
+    """A phone attached while locked was left on screenshots until a person restarted it: it is tried again by itself,
+    15 s after, a minute after that, then every five minutes, until a session shows it live."""
+    clock = ManualClock()
+    screens = Screens(fail="Test iPhone has sent no picture of its screen in 15 seconds: is it unlocked?")
+    connector = IPhoneConnector(
+        lambda xcode: Devicectl(FakeXcrun().with_devicectl()), cable=Cable(), screens=screens, clock=clock
+    )
+    first = await connector.attach(PHONE_UDID, ON)
+    assert first.better is not None and Capability.STREAM_H264 not in first.capabilities
+    assert LIVE_RETRY_S == (15.0, 60.0, 300.0)
+    for wait in (*LIVE_RETRY_S, LIVE_RETRY_S[-1]):
+        clock.advance(wait - 1)
+        assert not await first.better(), f"not yet, {wait - 1:g} s after"
+        clock.advance(1)
+        assert await first.better(), f"{wait:g} s after"
+        assert not await first.better(), "said once: it is tried now"
+        again = await connector.attach(PHONE_UDID, ON)
+        assert again.better is not None and not await again.better(), "the next try waits its turn"
+    # Unlocked at last: the session that shows it live waits for nothing, and nor does the one it replaces.
+    screens.fail = None
+    live = await connector.attach(PHONE_UDID, ON)
+    assert live.better is None and Capability.STREAM_H264 in live.capabilities
+    clock.advance(LIVE_RETRY_S[-1])
+    assert not await first.better()
+    screens.fail = "locked again"
+    later = await connector.attach(PHONE_UDID, ON)
+    assert later.better is not None
+    clock.advance(LIVE_RETRY_S[0])
+    assert await later.better(), "counted from the start again"
+
+
+async def test_a_device_whose_live_screen_was_never_to_be_read_over_its_cable_is_not_tried_again() -> None:
+    screens = Screens(fail="use the Camera")
+    assert (await cabled(screens).attach(PHONE_UDID, ON.with_values(real_devices_screen="screenshot"))).better is None
+    assert (await cabled(Screens()).attach(PHONE_UDID, ON)).better is None, "live already"
+    unplugged = await cabled(screens, plugged=False).attach(PHONE_UDID, ON)
+    assert unplugged.better is not None and screens.opened == [], "watched for its cable instead, as before"
+
+
+async def test_a_screen_read_only_over_the_cable_refuses_a_device_it_cannot_show() -> None:
+    usb = ON.with_values(real_devices_screen="usb")
+    with pytest.raises(ConnectorUnavailable, match="Test iPhone's screen is read only over its cable") as missing:
+        await cabled(Screens(), plugged=False).attach(PHONE_UDID, usb)
+    assert missing.value.status == 409
+    with pytest.raises(ConnectorUnavailable, match="use the Camera"):
+        await cabled(Screens(fail="use the Camera")).attach(PHONE_UDID, usb)
+    assert (await cabled(Screens()).attach(PHONE_UDID, usb)).fps_limit is None
+
+
+async def test_a_device_sharing_its_name_with_another_cabled_one_is_told_apart() -> None:
+    twins = json.loads(json.dumps(fixture_json("devicectl-devices.json")))
+    for device in twins["result"]["devices"]:
+        if device["hardwareProperties"].get("udid") != PHONE_UDID:
+            # devicectl says each twice: in its deprecated keys, and in the properties read first.
+            device["deviceProperties"]["name"] = device["properties"]["state"]["name"] = "Test iPhone"
+            device["connectionProperties"]["transportType"] = "wired"
+            device["properties"]["connection"]["transportType"] = "wired"
+    fake = FakeXcrun().with_devicectl().on("devicectl", "-q", "list", "devices", out=json.dumps(twins))
+    screens = Screens()
+    await cabled(screens, fake=fake).attach(PHONE_UDID, ON)
+    assert screens.opened == [(PHONE_UDID, True)]
+    lone = Screens()
+    await cabled(lone).attach(PHONE_UDID, ON)
+    assert lone.opened == [(PHONE_UDID, False)], "the other device has another name and no cable"
+
+
+class Driver:
+    """WebDriverAgent's service as a test says: a client for the device, or why there is none."""
+
+    def __init__(self, wda: FakeWda | None = None, fail: str | None = None) -> None:
+        self.wda = wda
+        self.fail = fail
+        self.asked: list[tuple[str, str]] = []
+        self.stopped: list[str] = []
+        self.running = True
+        self.failures: list[tuple[str, str]] = []
+
+    def failed(self, udid: str, message: str) -> None:
+        self.failures.append((udid, message))
+
+    def last_error(self, udid: str) -> str | None:
+        return next((said for which, said in reversed(self.failures) if which == udid), None)
+
+    def progress(self, udid: str) -> str | None:
+        return f"starting on {udid}"
+
+    def starting_left(self, udid: str) -> float | None:
+        return 120.0
+
+    async def client(self, udid: str, config: SimConfig, developer_dir: str) -> WdaClient:
+        self.asked.append((udid, developer_dir))
+        if self.fail is not None or self.wda is None:
+            raise ConnectorUnavailable(self.fail or "no WebDriverAgent", 409)
+        return WdaClient(self.wda.opener())
+
+    async def stop(self, udid: str) -> None:
+        self.stopped.append(udid)
+
+    def alive(self, udid: str) -> bool:
+        return self.running
+
+    async def reap_orphans(self) -> int:
+        return 3
+
+
+def driven(driver: Driver, screens: Screens | None = None, *, plugged: bool = True) -> IPhoneConnector:
+    return IPhoneConnector(
+        lambda xcode: Devicectl(FakeXcrun().with_devicectl()),
+        cable=Cable(plugged=plugged),
+        screens=screens,
+        wda=driver,  # type: ignore[arg-type]
+    )
+
+
+WDA_ON = ON.with_values(wda_enabled=True)
+
+
+async def test_a_device_attached_without_its_cable_is_watched_for_it_while_the_cable_would_let_it_do_more() -> None:
+    cable = Cable(plugged=False)
+    connector = IPhoneConnector(lambda xcode: Devicectl(FakeXcrun().with_devicectl()), cable=cable, screens=Screens())
+    unplugged = await connector.attach(PHONE_UDID, ON)
+    assert unplugged.better is not None and not await unplugged.better()
+    cable.plugged = True
+    assert await unplugged.better(), "plugged back in, it can show its live screen"
+    assert cable.waited == [CABLE_WAIT_S, CABLE_WAIT_S], "each look listens a while for the cable"
+    assert (await connector.attach(PHONE_UDID, ON)).better is None, "a cabled device waits for nothing"
+    cable.plugged = False
+    screenshots = await connector.attach(PHONE_UDID, ON.with_values(real_devices_screen="screenshot"))
+    assert screenshots.better is None, "a device shown by screenshot and never touched has no use for its cable"
+    touched = await driven(Driver(), plugged=False).attach(
+        PHONE_UDID, WDA_ON.with_values(real_devices_screen="screenshot")
+    )
+    assert touched.better is not None, "plugged back in, WebDriverAgent can touch it"
+    cableless = IPhoneConnector(lambda xcode: Devicectl(FakeXcrun().with_devicectl()), screens=Screens())
+    assert (await cableless.attach(PHONE_UDID, ON)).better is None
+
+
+async def test_a_cabled_device_webdriveragent_drives_is_touched_typed_on_and_read(tmp_path: Path) -> None:
+    with short_run_dir() as folder:
+        wda = await FakeWda(folder).serve()
+        try:
+            driver, screens = Driver(wda), Screens()
+            session = await driven(driver, screens).attach(PHONE_UDID, WDA_ON)
+            assert session.capabilities >= DRIVEN and session.capabilities >= LIVE and session.note is None
+            assert isinstance(session.input, WdaInput) and isinstance(session.text, WdaText)
+            assert session.pressable == ("home", "lock", "side")
+            assert session.reader is not None and (await session.reader.accessibility())["backend"] == "wda"
+            assert driver.asked == [(PHONE_UDID, "/X.app/Contents/Developer")] and session.is_alive()
+            driver.running = False
+            assert not session.is_alive(), "a WebDriverAgent that ended ends the session"
+            await session.close()
+            assert driver.stopped == [PHONE_UDID] and screens.closed == 1
+            kept = await driven(driver).attach(PHONE_UDID, WDA_ON.with_values(wda_keep_running=True))
+            await kept.close()
+            assert driver.stopped == [PHONE_UDID], "kept running when the settings say so"
+            assert await driven(driver, Screens(reaped=2)).reap_orphans() == 5
+        finally:
+            await wda.stop()
+
+
+async def test_a_session_replaced_by_one_beside_it_leaves_it_webdriveragent_and_the_log_they_share() -> None:
+    with short_run_dir() as folder:
+        wda = await FakeWda(folder).serve()
+        try:
+            book, driver = DeviceLogBook(), Driver(wda)
+            connector = IPhoneConnector(
+                lambda xcode: Devicectl(FakeXcrun().with_devicectl()),
+                cable=Cable(),
+                screens=Screens(fail="is it unlocked?"),
+                logs=book,
+                wda=driver,  # type: ignore[arg-type]
+            )
+            old = await connector.attach(PHONE_UDID, WDA_ON)
+            new = await connector.attach(PHONE_UDID, WDA_ON)
+            await old.close()
+            assert driver.stopped == [] and book.lines(PHONE_UDID, since_s=60, bundle_id=None) == []
+            await new.close()
+            assert driver.stopped == [PHONE_UDID] and book.lines(PHONE_UDID, since_s=60, bundle_id=None) is None
+            kept = await connector.attach(PHONE_UDID, WDA_ON.with_values(wda_keep_running=True))
+            await kept.close()
+            last = await connector.attach(PHONE_UDID, WDA_ON)
+            await last.close()
+            assert driver.stopped == [PHONE_UDID] * 2, "one kept running is counted all the same"
+        finally:
+            await wda.stop()
+
+
+async def test_a_driven_device_reads_its_tree_as_the_settings_say_and_its_screenshots_do_not_queue_behind_it() -> None:
+    with short_run_dir() as folder:
+        wda = await FakeWda(folder).serve()
+        try:
+            settings = WDA_ON.with_values(wda_source_timeout_ms=12000, wda_source_max_children=900)
+            session = await driven(Driver(wda)).attach(PHONE_UDID, settings)
+            reader = session.reader
+            assert isinstance(reader, WdaReader) and (reader._timeout_s, reader._max_children) == (12.0, 900)
+            assert isinstance(session.input, WdaInput) and isinstance(session.text, WdaText)
+            assert session.input._wait_s == session.text._wait_s == 12.0, "a touch waits as long as a read"
+            assert isinstance(session.screen, DevicectlScreen)
+            shots = session.screen._devicectl
+            assert isinstance(shots, WdaShots) and isinstance(shots._fallback, Devicectl), "devicectl while it is busy"
+            await session.close()
+        finally:
+            await wda.stop()
+
+
+async def test_a_driven_device_says_whether_webdriveragent_answers_now() -> None:
+    with short_run_dir() as folder:
+        wda = await FakeWda(folder).serve()
+        session = await driven(Driver(wda), Screens()).attach(PHONE_UDID, WDA_ON)
+        assert session.answers is not None and await session.answers() is None
+        wda.answers[("GET", "/wda/activeAppInfo")] = (200, {"value": {"bundleId": "com.example.notes"}})
+        assert session.front_app is not None and await session.front_app() == "com.example.notes"
+        await wda.stop()
+        assert await session.answers() == HostCopy().wda_silent()
+        assert await session.front_app() is None, "WebDriverAgent not answering cannot say"
+        await session.close()
+    watched = await cabled(Screens()).attach(PHONE_UDID, ON)
+    assert watched.answers is None and watched.front_app is None, "nothing to ask of a device not driven"
+
+
+async def test_without_a_cable_screen_webdriveragents_screenshots_are_shown(tmp_path: Path) -> None:
+    with short_run_dir() as folder:
+        wda = await FakeWda(folder).serve()
+        try:
+            session = await driven(Driver(wda)).attach(PHONE_UDID, WDA_ON)
+            assert isinstance(session.screen, DevicectlScreen) and session.fps_limit == WDA_FPS_LIMIT
+            assert session.note == HostCopy().iphone_limits(touch=True)
+            assert Capability.STREAM_H264 not in session.capabilities
+            only = await driven(Driver(wda), Screens()).attach(PHONE_UDID, ON.with_values(real_devices_screen="wda"))
+            assert session.fps_limit == WDA_FPS_LIMIT and only.input is not None, "the wda screen needs WebDriverAgent"
+            # Turned off, WebDriverAgent shows the wda screen and nothing else: the device is view only.
+            shown = await driven(Driver(wda)).attach(
+                PHONE_UDID, ON.with_values(real_devices_screen="wda", wda_enabled=False)
+            )
+            assert shown.fps_limit == WDA_FPS_LIMIT and shown.input is None and shown.reader is None
+            assert not DRIVEN & shown.capabilities and shown.note == HostCopy().iphone_limits(touch=False)
+        finally:
+            await wda.stop()
+
+
+async def test_a_device_webdriveragent_cannot_drive_is_watched_and_says_why() -> None:
+    session = await driven(Driver(fail="the developer is not trusted")).attach(PHONE_UDID, WDA_ON)
+    assert session.input is None and session.text is None and not DRIVEN & session.capabilities
+    assert session.note is not None
+    assert session.note.endswith("cannot be touched or read yet: the developer is not trusted")
+    unplugged_driver = Driver()
+    unplugged = await driven(unplugged_driver, plugged=False).attach(PHONE_UDID, WDA_ON)
+    assert unplugged.note is not None and "reached only over the device's cable" in unplugged.note
+    assert unplugged_driver.failures == [(PHONE_UDID, HostCopy().wda_needs_cable())], "kept as its last error"
+    connector = driven(unplugged_driver)
+    assert connector.last_error(PHONE_UDID) == HostCopy().wda_needs_cable()
+    assert connector.progress(PHONE_UDID) == f"starting on {PHONE_UDID}"
+    assert connector.starting_left(PHONE_UDID) == 120.0, "how much of its time to start is left"
+    watched = IPhoneConnector(lambda xcode: Devicectl(FakeXcrun()))
+    assert watched.last_error(PHONE_UDID) is None and watched.progress(PHONE_UDID) is None, "no WebDriverAgent here"
+    assert watched.starting_left(PHONE_UDID) is None
+    off = Driver()
+    await driven(off).attach(PHONE_UDID, ON.with_values(wda_enabled=False))
+    assert off.asked == [], "not asked for while it is off"
+    with pytest.raises(ConnectorUnavailable, match="not trusted"):
+        await driven(Driver(fail="not trusted")).attach(PHONE_UDID, ON.with_values(real_devices_screen="wda"))
+
+
+async def test_a_live_screen_is_let_go_when_webdriveragent_is_let_go_of_mid_start() -> None:
+    class Cancelled(Driver):
+        async def client(self, udid: str, config: SimConfig, developer_dir: str) -> WdaClient:
+            raise asyncio.CancelledError
+
+    screens = Screens()
+    with pytest.raises(asyncio.CancelledError):
+        await driven(Cancelled(), screens).attach(PHONE_UDID, WDA_ON)
+    assert screens.closed == 1

@@ -1,0 +1,1142 @@
+# SPDX-License-Identifier: Apache-2.0
+"""The agent tools: one catalogue offered by what the connector can do, answers shaped as MCP's, the device brought up
+on first use, and what a call may reach checked first."""
+
+from __future__ import annotations
+
+import asyncio
+import base64
+import contextlib
+import dataclasses
+import plistlib
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from simtrail._version import __version__
+from simtrail.config.model import SimConfig
+from simtrail.config.schema import BY_KEY, Whole
+from simtrail.connectors.base import Capability, ConnectorError, ConnectorUnavailable
+from simtrail.core.actions import AgentActions
+from simtrail.perception.ocr import OcrReaders
+from simtrail.protocol import CLOSE_RESTARTING, CLOSE_STOPPED
+from simtrail.seams import Caller
+from simtrail.testing.fakes import (
+    FULL_CONTROL,
+    JPEG,
+    PHONE_UDID,
+    FakeConnector,
+    FakeEngine,
+    FakePhoneBackend,
+    fixture_json,
+    made,
+    no_wait,
+)
+from simtrail.testing.rig import VIEW_ONLY, DeviceRig, closer_log, scope
+from simtrail.testing.vision import FakeTextRecognizer
+from simtrail.tools.context import READY_WAIT_S, STARTING_MARGIN_S, STARTING_WAIT_MAX_S, ToolContext, ready_device
+from simtrail.tools.device import HEALTH_READ_S, NO_SESSION, NOT_RESTARTED, VERSION_LINE
+from simtrail.tools.registry import ToolRegistry
+from simtrail.tools.results import SHUT_DOWN, Result, text
+from simtrail.tools.snapshot import MAX_ELEMENTS
+
+CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
+REGISTRY = ToolRegistry()
+LIST = ("simctl", "list", "devices", "-j")
+
+
+def context(rig: DeviceRig, **changes: Any) -> ToolContext:
+    actions = AgentActions(rig.manager, rig.config, clock=rig.clock, sleep=no_wait)
+    ctx = ToolContext(
+        manager=rig.manager,
+        actions=actions,
+        caller=CALLER,
+        config=rig.config.get(CALLER.scope),
+        copy=rig.copy,
+        sleep=no_wait,
+    )
+    return dataclasses.replace(ctx, **changes)
+
+
+async def use(rig: DeviceRig, name: object, arguments: object, **changes: Any) -> Result:
+    return await REGISTRY.call(name, arguments, context(rig, **changes))
+
+
+def said(result: Result) -> str:
+    return str(result["content"][0]["text"])
+
+
+def folder(path: Path) -> Path:
+    path.mkdir(parents=True)
+    return path
+
+
+# -- the catalogue ---------------------------------------------------------------------------------------------------
+
+
+def test_every_tool_is_described_once_with_a_closed_schema_and_listed_whatever_the_device_can_do() -> None:
+    on = dataclasses.replace(SimConfig.defaults(), build_tools=True)
+    listed = REGISTRY.manifest(on)
+    names = [tool["name"] for tool in listed["tools"]]
+    assert names == [
+        "sim_device",
+        "sim_snapshot",
+        "sim_screenshot",
+        "sim_act",
+        "sim_app",
+        "sim_record",
+        "sim_build_run",
+        "sim_test",
+    ]
+    assert REGISTRY.names() == names
+    for tool in listed["tools"]:
+        assert tool["description"] and tool["inputSchema"]["type"] == "object"
+        assert tool["inputSchema"]["additionalProperties"] is False
+    assert next(t for t in listed["tools"] if t["name"] == "sim_act")["inputSchema"]["required"] == ["steps"]
+    assert "sim_snapshot" in listed["instructions"] and "sim_build_run" in listed["instructions"]
+    without = REGISTRY.manifest(dataclasses.replace(on, build_tools=False))
+    assert [tool["name"] for tool in without["tools"]] == names[:6]
+    assert "xcodebuild" in without["instructions"] and "sim_build_run" not in without["instructions"]
+
+
+async def test_a_call_to_no_tool_or_with_arguments_that_are_not_an_object_is_an_error(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    assert await use(rig, "sim_fly", {}) == text("there is no tool named 'sim_fly'", error=True)
+    assert await use(rig, 42, {}) == text("there is no tool named 42", error=True)
+    assert await use(rig, "sim_snapshot", ["full"]) == text("arguments must be an object", error=True)
+
+
+async def test_a_tool_the_connector_cannot_serve_is_refused_with_the_connector_and_the_doctor(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", available=False))
+    refused = await use(rig, "sim_snapshot", {"mode": "full"})
+    assert refused == text(
+        "sim_snapshot needs element_tree, which the simctl connector showing this device cannot do (the idb "
+        "connector is switched off in this test). Run `simtrail doctor` to see why.",
+        error=True,
+    ), "the cause -- why a lesser connector shows it -- and where the fix is"
+    assert "sim_act needs input_touch, which the simctl connector" in said(await use(rig, "sim_act", {"steps": []}))
+    assert said(await use(rig, "sim_screenshot", {})) == (
+        "1 frame · 402x874px\nnote: the idb connector is switched off in this test"
+    ), "a screen that is not live says why"
+
+
+# -- the device ------------------------------------------------------------------------------------------------------
+
+
+async def test_device_info_does_not_start_one_boot_does_and_both_give_the_build_destination(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    nothing = "No simulator is running here; sim_device boot starts one."
+    assert said(await use(rig, "sim_device", {})) == f"{nothing}\n{VERSION_LINE}"
+    booted = await use(rig, "sim_device", {"action": "boot"})
+    assert booted["isError"] is False
+    assert said(booted) == (
+        f"Simtrail · alpha · tp-1 · iOS 26.5 · ready · 402x874pt @3x\nudid {made(1)}\n"
+        f"build for: -destination 'platform=iOS Simulator,id={made(1)}'"
+    )
+    assert said(await use(rig, "sim_device", {"action": "info"})) == f"{said(booted)}\n{VERSION_LINE}"
+    assert f"simtrail {__version__}" == VERSION_LINE, "info ends with the version answering"
+    assert said(await use(rig, "sim_device", {"action": "appearance", "mode": "dark"})) == "appearance dark"
+    assert ("simctl", "ui", made(1), "appearance", "dark") in rig.argv()
+    assert await use(rig, "sim_device", {"action": "appearance"}) == text(
+        "appearance takes a mode of light or dark", error=True
+    )
+    assert await use(rig, "sim_device", {"action": "reboot"}) == text(
+        "action is one of windows, window, info, list, choose, boot, restart, stop, appearance, "
+        "status_bar, location, clear_location, "
+        "text_size, contrast, reduce_motion, rotate, health",
+        error=True,
+    )
+
+
+async def test_a_device_s_look_and_place_change_as_asked_and_each_checks_what_it_is_given(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    for arguments, answer, argv in (
+        ({"action": "status_bar", "preset": "demo"}, "demo status bar", ("status_bar", made(1), "override")),
+        ({"action": "status_bar", "preset": "clear"}, "the device's own status bar", ("status_bar", made(1), "clear")),
+        ({"action": "location", "latitude": 51.5, "longitude": -0.12}, "located at 51.5, -0.12", ("location",)),
+        (
+            {"action": "location", "waypoints": [[51.5, -0.12], [48.85, 2.35]], "speed": 30},
+            "moving along 2 waypoints at 30 m/s",
+            ("location", made(1), "start", "--speed=30", "51.500000,-0.120000", "48.850000,2.350000"),
+        ),
+        ({"action": "clear_location"}, "location cleared", ("location", made(1), "clear")),
+        ({"action": "text_size", "size": "extra-large"}, "text size extra-large", ("ui", made(1), "content_size")),
+        ({"action": "contrast", "on": True}, "increased contrast on", ("ui", made(1), "increase_contrast", "enabled")),
+    ):
+        answered = await use(rig, "sim_device", arguments)
+        assert said(answered) == answer and not answered["isError"]
+        assert any(args[1 : 1 + len(argv)] == argv for args in rig.argv()), argv
+    for arguments, refusal in (
+        ({"action": "status_bar"}, "status_bar takes a preset of demo or clear"),
+        ({"action": "location", "latitude": 91, "longitude": 0}, "latitude is a number from -90 to 90"),
+        ({"action": "location", "latitude": True, "longitude": 0}, "latitude is a number from -90 to 90"),
+        ({"action": "location", "latitude": 0, "longitude": "east"}, "longitude is a number from -180 to 180"),
+        ({"action": "location", "waypoints": [[1, 2]]}, "waypoints are 2 to 100 [latitude, longitude] pairs"),
+        ({"action": "location", "waypoints": [[1, 2], [3]]}, "each waypoint is [latitude, longitude]"),
+        ({"action": "location", "waypoints": [[1, 2], [3, 4]], "speed": 0}, "speed is metres a second, from 0.5"),
+        ({"action": "text_size", "size": "huge"}, "text_size takes a size: extra-small"),
+        ({"action": "contrast", "on": "yes"}, "contrast takes on: true or false"),
+    ):
+        refused = await use(rig, "sim_device", arguments)
+        assert refused["isError"] and said(refused).startswith(refusal), said(refused)
+    motion = await use(rig, "sim_device", {"action": "reduce_motion", "on": True})
+    assert motion["isError"] and "simctl has no way to" in said(motion)
+    plain = DeviceRig(tmp_path / "plain", idb=FakeConnector("idb", capabilities=VIEW_ONLY - {Capability.ACCESSIBILITY}))
+    refused = await use(plain, "sim_device", {"action": "text_size", "size": "large"})
+    assert said(refused).startswith("sim_device text_size needs accessibility, which the idb connector")
+
+
+def turning(rig: DeviceRig) -> AgentActions:
+    """An agent's actions whose waiting moves the rig's clock, so a turn the app does not follow is waited out."""
+
+    async def sleep(seconds: float) -> None:
+        rig.clock.advance(seconds)
+
+    return AgentActions(rig.manager, rig.config, clock=rig.clock, sleep=sleep)
+
+
+def upright() -> dict[str, Any]:
+    frame = {"x": 0, "y": 0, "width": 402, "height": 874}
+    app = {"type": "Application", "label": "Probe", "frame": frame, "children": []}
+    return {"elements": [app], "modal": None, "truncated": False, "orientation": "portrait"}
+
+
+async def test_rotate_turns_a_simulator_and_says_how_the_app_on_it_then_lies(tmp_path: Path) -> None:
+    engine = FakeEngine(document=upright())
+    upside_down = {**upright(), "orientation": "portrait_upside_down"}
+    engine.turned = {
+        "landscape_right": fixture_json("ax-probe-rotated-left-ios26.json"),
+        "portrait_upside_down": upside_down,
+    }
+    native = FakeConnector("native", engine=engine, capabilities=FULL_CONTROL | {Capability.ROTATE})
+    rig = DeviceRig(tmp_path, native=native)
+    actions = turning(rig)
+    refused = await use(rig, "sim_device", {"action": "rotate", "to": "left"}, actions=actions)
+    assert refused == text("rotate takes to: one of portrait, landscape_left, landscape_right, upside_down", error=True)
+    turned = said(await use(rig, "sim_device", {"action": "rotate", "to": "landscape_right"}, actions=actions))
+    assert turned.startswith("turned to landscape_right: the app on screen lies landscape_right · 874x402pt\n")
+    assert 'button "Bravo"' in turned
+    # The device is turned the other way round from how the app then lies, which the helper knows; here, the name.
+    assert engine.turns == ["landscape_right"]
+    stays = said(await use(rig, "sim_device", {"action": "rotate", "to": "landscape_left"}, actions=actions))
+    assert stays.startswith(
+        "turned the device to landscape_left, but the app on screen stays landscape_right · 874x402pt: it does not "
+        "turn that way (an app that runs only upright stays portrait"
+    )
+    over = said(await use(rig, "sim_device", {"action": "rotate", "to": "upside_down"}, actions=actions))
+    assert over.startswith("turned to upside_down: the app on screen lies upside_down · 402x874pt\n")
+    assert engine.turns == ["landscape_right", "landscape_left", "portrait_upside_down"]
+    engine.accessibility_errors = [ConnectorError("no frontmost application")] * 20
+    unread = said(await use(rig, "sim_device", {"action": "rotate", "to": "portrait"}, actions=actions))
+    assert unread.startswith("turned the device to portrait\nthe screen after turning could not be read")
+
+
+async def test_rotate_is_refused_where_nothing_can_turn_the_device(tmp_path: Path) -> None:
+    idb = DeviceRig(tmp_path / "idb")
+    refused = await use(idb, "sim_device", {"action": "rotate", "to": "portrait"})
+    assert refused == text(
+        "the idb connector showing this device cannot turn it, and only the native connector can", error=True
+    )
+    old = DeviceRig(tmp_path / "old", native=FakeConnector("native"))
+    refused = await use(old, "sim_device", {"action": "rotate", "to": "portrait"})
+    assert said(refused) == (
+        "the native connector showing this device cannot turn it; the native helper here was built before it "
+        "could, and `simtrail helper build` builds it again"
+    )
+    real = DeviceRig(
+        tmp_path / "real", phones=FakePhoneBackend(), phone=FakeConnector("phone", kinds=frozenset({"physical"}))
+    )
+    await real.manager.choose(CALLER.scope, PHONE_UDID)
+    refused = await use(real, "sim_device", {"action": "rotate", "to": "landscape_left"})
+    assert refused == text("a real device is turned in the hand: sim_device rotate turns only a simulator", error=True)
+
+
+async def test_restart_shuts_the_device_down_and_brings_it_back_unless_tests_are_running_on_it(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    # Nothing running yet: a restart is a boot.
+    fresh = await use(rig, "sim_device", {"action": "restart"})
+    assert said(fresh).startswith("restarted · Simtrail · alpha · tp-1 · iOS 26.5 · ready")
+    assert ("simctl", "shutdown", made(1)) not in rig.argv()
+    first = rig.manager.instance(CALLER.scope)
+    assert first is not None
+    closed, close = closer_log()
+    rig.manager.attach(first, close)
+    restarted = await use(rig, "sim_device", {"action": "restart"})
+    assert restarted["isError"] is False and said(restarted).startswith("restarted · Simtrail · alpha · tp-1")
+    assert ("simctl", "shutdown", made(1)) in rig.argv()
+    # A window watching is told the device will be back, so it reconnects rather than offering to start it.
+    assert closed == [(CLOSE_RESTARTING, "the simulator is restarting")]
+    again = rig.manager.instance(CALLER.scope)
+    assert again is not None and again is not first and again.state == "ready" and len(rig.idb.attached) == 2
+    again.busy = "running tests (b1)"
+    assert await use(rig, "sim_device", {"action": "restart"}) == text(
+        "the device is busy: running tests (b1)", error=True
+    )
+    assert rig.manager.instance(CALLER.scope) is again
+
+
+async def test_stop_ends_the_session_and_shuts_the_simulator_down_only_when_asked(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    assert await use(rig, "sim_device", {"action": "stop"}) == text(
+        "Nothing is running here to stop; sim_device boot starts the device."
+    )
+    first = await rig.up()
+    closed, close = closer_log()
+    rig.manager.attach(first, close)
+    stopped = await use(rig, "sim_device", {"action": "stop"})
+    assert stopped == text(
+        "stopped Simtrail · alpha · tp-1: the simulator keeps running, and shutdown: true shuts it down too. The next "
+        "call that needs the device starts it again."
+    )
+    assert closed == [(CLOSE_STOPPED, "the simulator stopped")] and rig.idb.closed == [made(1)]
+    assert rig.manager.instance(CALLER.scope) is None and ("simctl", "shutdown", made(1)) not in rig.argv()
+    second = await rig.up()
+    assert await use(rig, "sim_device", {"action": "stop", "shutdown": "yes"}) == text(
+        "shutdown is true or false", error=True
+    )
+    second.busy = "running tests (b1)"
+    assert await use(rig, "sim_device", {"action": "stop", "shutdown": True}) == text(
+        "the device is busy: running tests (b1)", error=True
+    )
+    second.busy = None
+    down = await use(rig, "sim_device", {"action": "stop", "shutdown": True})
+    assert said(down).startswith("stopped Simtrail · alpha · tp-1: the simulator is shut down.")
+    assert ("simctl", "shutdown", made(1)) in rig.argv() and second.state == "stopped"
+
+
+async def test_stop_never_shuts_down_a_simulator_another_scope_uses_nor_a_real_device(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.config.set(device_mode="shared")
+    shared = await rig.up("tp-1")
+    assert await rig.up("tp-2") is shared
+    kept = await use(rig, "sim_device", {"action": "stop", "shutdown": True})
+    assert said(kept).startswith("stopped Simtrail · alpha: another project still uses it, so it keeps running.")
+    assert (
+        shared.state == "ready" and shared.scopes == {"tp-2"} and ("simctl", "shutdown", shared.udid) not in rig.argv()
+    )
+    phones = FakePhoneBackend()
+    real = DeviceRig(tmp_path / "real", phones=phones, phone=FakeConnector("phone", kinds=frozenset({"physical"})))
+    await real.manager.choose(CALLER.scope, PHONE_UDID)
+    await real.up()
+    left = await use(real, "sim_device", {"action": "stop", "shutdown": True})
+    assert said(left).startswith("stopped Test iPhone: a real device is never shut down by Simtrail, so it stays on.")
+    assert phones.released == [(PHONE_UDID, False)] and real.manager.instance(CALLER.scope) is None
+
+
+async def test_a_device_shut_down_outside_simtrail_says_so_and_its_session_ends(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.up()
+    rig.set_state(instance.udid, "Shutdown")
+    # Nothing runs on a device that is off, so quitting an app there is done already.
+    rig.xcrun.on("simctl", "terminate", rc=149, err="Unable to lookup in current state: Shutdown")
+    assert said(await use(rig, "sim_app", {"action": "terminate", "bundle_id": "com.acme.Notes"})) == (
+        "com.acme.Notes was not running"
+    )
+    rig.xcrun.on("simctl", "launch", rc=149, err="Unable to lookup in current state: Shutdown")
+    assert await use(rig, "sim_app", {"action": "launch", "bundle_id": "com.acme.Notes"}) == text(SHUT_DOWN, error=True)
+    assert instance.state == "stopped" and rig.idb.closed == [instance.udid]
+    assert rig.manager.instance(CALLER.scope) is None
+    # The next call brings it up again, as a first one does.
+    again = await rig.up()
+    rig.set_state(again.udid, "Shutdown")
+    assert await use(rig, "sim_device", {"action": "info"}) == text(f"{SHUT_DOWN}\n{VERSION_LINE}")
+    assert rig.manager.instance(CALLER.scope) is None
+
+
+async def test_a_look_or_a_touch_on_a_shut_down_device_says_so_and_a_failure_of_its_own_asks_nothing(
+    tmp_path: Path,
+) -> None:
+    engine = FakeEngine()
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=engine))
+    instance = await rig.up()
+    lists = rig.argv().count(LIST)
+    instance.busy = "building (b1)"
+    assert await use(rig, "sim_act", {"steps": [{"tap": [10, 10]}]}) == text(
+        "the device is busy: building (b1)", error=True
+    )
+    instance.busy = None
+    engine.accessibility_errors = [ConnectorError("the companion did not answer")]
+    unread = await use(rig, "sim_snapshot", {})
+    assert unread["isError"] and said(unread).startswith("the companion did not answer")
+    assert rig.argv().count(LIST) == lists + 1, "only the failure the device gave asks whether it is there"
+    missed = await use(rig, "sim_act", {"steps": [{"tap": "e99"}], "snapshot": "none"})
+    assert missed["isError"] and SHUT_DOWN not in said(missed)
+    rig.set_state(instance.udid, "Shutdown")
+    tapped = await use(rig, "sim_act", {"steps": [{"tap": "e99"}], "snapshot": "none"})
+    assert tapped["isError"] and said(tapped).endswith("\n" + SHUT_DOWN) and instance.state == "stopped"
+    again = await rig.up()
+    rig.set_state(again.udid, "Shutdown")
+    engine.accessibility_errors = [ConnectorError("the companion did not answer")]
+    assert await use(rig, "sim_snapshot", {}) == text(SHUT_DOWN, error=True)
+
+
+async def test_a_device_still_booting_is_waited_for_and_one_that_cannot_start_says_why(tmp_path: Path) -> None:
+    rig = DeviceRig(folder(tmp_path / "waiting"), idb=FakeConnector("idb", hold=True))
+    polls: list[float] = []
+
+    async def release_later(seconds: float) -> None:
+        polls.append(seconds)
+        if len(polls) == 2:
+            assert rig.idb.release is not None
+            rig.idb.release.set()
+        await asyncio.sleep(0)
+
+    assert (await use(rig, "sim_snapshot", {"mode": "full"}, sleep=release_later))["isError"] is False
+    assert len(polls) >= 2
+    await rig.manager.shutdown()
+
+    stuck = DeviceRig(folder(tmp_path / "stuck"), idb=FakeConnector("idb", hold=True))
+    assert await use(stuck, "sim_snapshot", {}) == text(
+        f"the simulator is still booting after {round(READY_WAIT_S)}s; call again shortly", error=True
+    )
+    await stuck.manager.shutdown()
+
+    failing = DeviceRig(
+        folder(tmp_path / "failing"), idb=FakeConnector("idb", fail=ConnectorUnavailable("no companion"))
+    )
+    assert await use(failing, "sim_snapshot", {}) == text("the simulator failed: no companion", error=True)
+    failing.config.set(enabled=False)
+    assert (
+        said(await use(failing, "sim_snapshot", {})) == "The iOS Simulator is off for this project (`simtrail config`)."
+    )
+
+
+async def test_a_device_that_failed_without_saying_why_still_says_it_failed(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.up()
+
+    async def fail_quietly(seconds: float) -> None:
+        instance.state, instance.reason = "failed", None
+        await asyncio.sleep(0)
+
+    instance.state = "booting"
+    assert await use(rig, "sim_snapshot", {}, sleep=fail_quietly) == text(
+        "the simulator failed: no reason was given", error=True
+    )
+
+
+# -- looking and touching --------------------------------------------------------------------------------------------
+
+
+async def test_snapshot_screenshot_and_act_answer_as_mcp_does(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    full = await use(rig, "sim_snapshot", {"mode": "full"})
+    assert said(full).startswith("iOS 26.5 · Settings · 402x874pt · #") and full["isError"] is False
+    assert await use(rig, "sim_snapshot", {"mode": "all"}) == text("mode is diff or full", error=True)
+    shots = await use(rig, "sim_screenshot", {"frames": 2, "interval_ms": 100})
+    assert said(shots) == "2 frames · 402x874px" and shots["isError"] is False
+    image = {"type": "image", "data": base64.b64encode(JPEG).decode(), "mimeType": "image/jpeg"}
+    assert shots["content"][1:] == [image, image]
+    assert rig.idb.engine.screenshots[-1][0] == 400
+    one = await use(rig, "sim_screenshot", {"width": 300})
+    assert said(one) == "1 frame · 402x874px" and rig.idb.engine.screenshots[-1][0] == 300
+    assert await use(rig, "sim_screenshot", {"width": 5000}) == text(
+        "width must be a whole number of pixels from 160 to 1200", error=True
+    )
+    tapped = await use(rig, "sim_act", {"steps": [{"tap": "e2"}], "snapshot": "none"})
+    assert said(tapped) == 'ok tap e2 "General" (201,319) +0ms' and not tapped["isError"]
+    assert tapped["structuredContent"] == {
+        "completed_steps": 1,
+        "failed_step": None,
+        "failed_step_may_have_run": False,
+        "wait_met": None,
+    }
+    missed = await use(rig, "sim_act", {"steps": [{"tap": "e99"}], "snapshot": "none"})
+    assert missed["isError"] is True and said(missed).startswith("error step 1: e99 is not on screen now")
+    assert await use(rig, "sim_act", {"steps": [{"tap": "e2"}], "snapshot": "some"}) == text(
+        "snapshot is diff, full or none", error=True
+    )
+    assert (await use(rig, "sim_act", {"steps": "tap"}))["isError"] is True
+
+
+async def test_partial_action_results_distinguish_completed_work_from_an_uncertain_failed_step(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    answer = await use(rig, "sim_act", {"steps": [{"tap": "e2"}, {"tap": "e999"}, {"tap": "e3"}]})
+    assert answer["isError"] is True
+    assert answer["structuredContent"] == {
+        "completed_steps": 1,
+        "failed_step": 2,
+        "failed_step_may_have_run": True,
+        "wait_met": None,
+    }
+    assert len(rig.idb.engine.hid_events) == 2, "only the first tap landed; the third step never ran"
+    waited = await use(rig, "sim_act", {"steps": [{"pause": 0}], "wait": {"for": "General"}})
+    assert waited["structuredContent"]["wait_met"] is True
+    assert waited["structuredContent"]["completed_steps"] == 1
+    timed_out = await use(
+        rig,
+        "sim_act",
+        {"steps": [{"pause": 0}], "wait": {"for": "not on this screen", "timeout_ms": 100}},
+        actions=AgentActions(rig.manager, rig.config),
+    )
+    assert timed_out["isError"] is True
+    assert timed_out["structuredContent"]["wait_met"] is False
+    assert timed_out["structuredContent"]["completed_steps"] == 1
+
+
+def test_advertised_action_examples_pass_the_actual_parsers() -> None:
+    from simtrail.core.actions import check_steps
+    from simtrail.perception.wait import parse_wait
+    from simtrail.tools.schemas import SCHEMAS
+
+    props = SCHEMAS["sim_act"][1]["properties"]
+    for steps in props["steps"]["examples"]:
+        assert check_steps(steps)
+    for wait in props["wait"]["examples"]:
+        assert parse_wait(wait)
+
+
+async def test_a_snapshot_lists_at_most_the_lines_asked_for_within_what_its_scope_lists(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    whole = said(await use(rig, "sim_snapshot", {"mode": "full"})).splitlines()
+    first = said(await use(rig, "sim_snapshot", {"mode": "full", "max_elements": 2})).splitlines()
+    listed = [line for line in whole if line.startswith(("e", "["))]
+    assert first[1:3] == whole[1:3] and first[3] == f"… {len(listed) - 2} more not shown"
+    rig.config.set(snapshot_max_elements=20)
+    assert said(await use(rig, "sim_snapshot", {"mode": "full", "max_elements": 400})) == said(
+        await use(rig, "sim_snapshot", {"mode": "full"})
+    ), "never more than the scope lists"
+    for wrong in (0, 401, 2.5, "2", True):
+        assert await use(rig, "sim_snapshot", {"max_elements": wrong}) == text(
+            "max_elements must be a whole number from 1 to 400", error=True
+        )
+    rule = BY_KEY["snapshot_max_elements"].rule
+    assert isinstance(rule, Whole) and MAX_ELEMENTS[1] == rule.high
+
+
+async def test_an_act_whose_wait_is_not_met_is_an_error_and_allow_stale_is_true_or_false(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    met = await use(rig, "sim_act", {"steps": [{"pause": 0}], "wait": {"for": "General"}, "snapshot": "none"})
+    assert met["isError"] is False
+    # Before, a wait not met answered as if all went well: one that gave up (`core.actions`), or one not made.
+    wait = {"for": {"exactly": "Gen"}}
+    unmet = await use(rig, "sim_act", {"steps": [{"pause": 0}], "wait": wait, "snapshot": "none"})
+    assert unmet["isError"] is True and said(unmet).endswith('"for" does not take "exactly"; it takes "text", "exact", '
+                                                              '"regex", "case"')  # fmt: skip
+    refused = await use(rig, "sim_act", {"steps": [{"tap": "e2"}], "allow_stale": 1})
+    assert refused == text("allow_stale is true or false", error=True)
+    allowed = await use(rig, "sim_act", {"steps": [{"tap": "e2"}], "allow_stale": True, "snapshot": "none"})
+    assert said(allowed) == 'ok tap e2 "General" (201,319) +0ms' and not allowed["isError"]
+
+
+# -- apps ------------------------------------------------------------------------------------------------------------
+
+
+async def test_apps_are_launched_and_quit_under_a_caption_viewers_show(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.xcrun.on("simctl", "launch", out="com.acme.Notes: 81234\n")
+    instance = await rig.up()
+    events = instance.events.subscribe()
+    launch = {"action": "launch", "bundle_id": "com.acme.Notes", "args": ["-UI"]}
+    assert said(await use(rig, "sim_app", launch)) == "launched com.acme.Notes (pid 81234)"
+    assert ("simctl", "launch", made(1), "com.acme.Notes", "-UI") in rig.argv()
+    intent = events.get_nowait()
+    assert intent["gesture"]["kind"] == "app" and intent["caption"] == "launch com.acme.Notes"
+    rig.xcrun.on("simctl", "launch", out="launched\n")
+    assert said(await use(rig, "sim_app", {"action": "launch", "bundle_id": "com.acme.Notes"})) == (
+        "launched com.acme.Notes"
+    )
+    assert said(await use(rig, "sim_app", {"action": "terminate", "bundle_id": "com.acme.Notes"})) == (
+        "terminated com.acme.Notes"
+    )
+    rig.xcrun.on("simctl", "launch", rc=1, err="FBSOpenApplicationServiceErrorDomain: not installed")
+    failed = await use(rig, "sim_app", {"action": "launch", "bundle_id": "com.acme.Notes"})
+    assert failed["isError"] is True and "not installed" in said(failed)
+
+
+async def test_an_app_already_running_or_not_running_is_said_so_and_relaunch_starts_it_fresh(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.xcrun.on("simctl", "launch", out="com.acme.Notes: 81234\n")
+    await rig.up()
+    launch = {"action": "launch", "bundle_id": "com.acme.Notes"}
+    assert said(await use(rig, "sim_app", launch)) == "launched com.acme.Notes (pid 81234)"
+    # simctl brings a running app to the front and answers with the pid it already had: nothing started again.
+    assert said(await use(rig, "sim_app", launch)) == (
+        "com.acme.Notes was already running (pid 81234) and is in front again; relaunch: true starts it fresh"
+    )
+    rig.xcrun.on("simctl", "launch", out="com.acme.Notes: 81300\n")
+    assert said(await use(rig, "sim_app", {**launch, "relaunch": True})) == "relaunched com.acme.Notes (pid 81300)"
+    assert ("simctl", "launch", "--terminate-running-process", made(1), "com.acme.Notes") in rig.argv()
+    assert said(await use(rig, "sim_app", {"action": "terminate", "bundle_id": "com.acme.Notes"})) == (
+        "terminated com.acme.Notes"
+    )
+    # Quit, it is not "already running" if it comes back with the same pid.
+    rig.xcrun.on("simctl", "launch", out="com.acme.Notes: 81300\n")
+    assert said(await use(rig, "sim_app", launch)) == "launched com.acme.Notes (pid 81300)"
+    rig.xcrun.on("simctl", "terminate", rc=3, err="found nothing to terminate")
+    assert said(await use(rig, "sim_app", {"action": "terminate", "bundle_id": "com.example.NotesProbe"})) == (
+        "com.example.NotesProbe was not running"
+    )
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        ({"action": "launch", "bundle_id": "com.acme.Notes", "relaunch": "yes"}, "relaunch is true or false"),
+        ({"action": "launch", "bundle_id": "-rm -rf"}, "bundle_id must be an app's id"),
+        ({"action": "launch", "bundle_id": "com.acme.Notes", "args": "-UI"}, "args must be a list"),
+        ({"action": "launch", "bundle_id": "com.acme.Notes", "args": ["ok", 3]}, "args must be a list"),
+        ({"action": "open_url", "url": "file:///etc/hosts"}, "file: URLs are not opened on the device"),
+        ({"action": "open_url", "url": "JavaScript:alert(1)"}, "JavaScript: URLs are not opened"),
+        ({"action": "open_url", "url": "prefs:root=General"}, "prefs: URLs are not opened"),
+        ({"action": "open_url", "url": "App-Prefs:root=General"}, "App-Prefs: URLs are not opened"),
+        ({"action": "open_url", "url": "no scheme here"}, "url must be a URL with a scheme"),
+        ({"action": "open_url", "url": "https://" + "a" * 2000}, "url must be a URL with a scheme"),
+        ({"action": "uninstall"}, "action is one of launch, terminate, install, open_url, logs"),
+        ({"action": "logs", "since_s": 0}, "since_s must be a whole number from 1 to 300"),
+        ({"action": "logs", "lines": 999}, "lines must be a whole number from 1 to 200"),
+        ({"action": "logs", "filter": "x" * 201}, "filter is text of at most 200 characters"),
+    ],
+)
+async def test_what_an_app_call_may_name_is_checked_first(
+    tmp_path: Path, arguments: dict[str, Any], message: str
+) -> None:
+    rig = DeviceRig(tmp_path)
+    answer = await use(rig, "sim_app", arguments)
+    assert answer["isError"] is True and message in said(answer)
+
+
+async def test_a_url_with_a_scheme_the_device_may_open_is_opened(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    assert said(await use(rig, "sim_app", {"action": "open_url", "url": "notes://new?title=Trip"})) == (
+        "opened notes://new?title=Trip"
+    )
+    assert ("simctl", "openurl", made(1), "notes://new?title=Trip") in rig.argv()
+
+
+def _app(parent: Path, name: str = "Notes.app") -> Path:
+    app = folder(parent / name)
+    (app / "Info.plist").write_text("<plist/>")
+    return app
+
+
+async def test_only_a_built_app_inside_an_allowed_folder_is_installed(tmp_path: Path) -> None:
+    project = folder(tmp_path / "project")
+    rig = DeviceRig(project)
+    allowed = folder(project / "Build")
+    app = _app(allowed)
+    stray = _app(folder(tmp_path / "elsewhere"), "Stray.app")
+    (allowed / "Link.app").symlink_to(stray)
+    folder(allowed / "Plain.app")
+    roots = (project,)
+    installed = await use(rig, "sim_app", {"action": "install", "path": str(app)}, roots=roots)
+    assert said(installed) == "installed Notes.app"
+    assert ("simctl", "install", made(1), str(app.resolve())) in rig.argv()
+    for path, message in (
+        (str(stray), f"only an app built inside {project} can be installed"),
+        (str(allowed / "Link.app"), "only an app built inside"),
+        (str(allowed / "Plain.app"), "is not a built .app"),
+        (str(allowed), "is not a built .app"),
+        ("Build/Notes.app", "path must be the absolute path of a built .app"),
+        (None, "path must be the absolute path"),
+    ):
+        answer = await use(rig, "sim_app", {"action": "install", "path": path}, roots=roots)
+        assert answer["isError"] is True and message in said(answer), path
+    nowhere = await use(rig, "sim_app", {"action": "install", "path": str(app)})
+    assert said(nowhere) == "only an app built inside no folder here can be installed"
+
+
+async def test_each_app_action_needs_what_it_does_not_only_launching(tmp_path: Path) -> None:
+    only_launch = frozenset(
+        {Capability.LIFECYCLE, Capability.APP_LAUNCH, Capability.SCREENSHOT, Capability.STREAM_JPEG}
+    )
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", capabilities=only_launch))
+    rig.xcrun.on("simctl", "spawn", out="Timestamp               Ty Process[PID:TID]\n")
+    for arguments, needs in (
+        ({"action": "logs"}, "logs"),
+        ({"action": "open_url", "url": "notes://new"}, "open_url"),
+        ({"action": "install", "path": str(tmp_path / "Notes.app")}, "app_install"),
+    ):
+        refused = await use(rig, "sim_app", arguments, roots=(tmp_path,))
+        assert refused["isError"] and said(refused).startswith(f"sim_app {arguments['action']} needs {needs}, ")
+    assert not (await use(rig, "sim_app", {"action": "terminate", "bundle_id": "com.acme.Notes"})).get("isError")
+
+
+async def test_logs_are_read_for_an_app_or_for_errors_filtered_and_cut_to_the_last_lines(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    log = (
+        "Timestamp               Ty Process[PID:TID]\n"
+        "2026-09-15 10:00:01.000 E  Notes[81234:1] save failed\n"
+        "\n"
+        "2026-09-15 10:00:02.000 I  Notes[81234:1] saved draft\n"
+        "2026-09-15 10:00:03.000 E  Notes[81234:1] save failed again\n"
+    )
+    rig.xcrun.on("simctl", "spawn", out=log)
+    answer = await use(
+        rig,
+        "sim_app",
+        {"action": "logs", "bundle_id": "com.acme.Notes", "filter": "FAILED", "lines": 1, "since_s": 30},
+    )
+    assert said(answer) == "2026-09-15 10:00:03.000 E  Notes[81234:1] save failed again"
+    spawn = [args for args in rig.argv() if args[1] == "spawn"][-1]
+    assert spawn[spawn.index("--last") + 1] == "30s"
+    assert spawn[-1] == 'subsystem == "com.acme.Notes" OR process == "Notes"'
+    everything = await use(rig, "sim_app", {"action": "logs"})
+    assert len(said(everything).splitlines()) == 3
+    assert [args for args in rig.argv() if args[1] == "spawn"][-1][-1] == "messageType == error OR messageType == fault"
+    rig.xcrun.on("simctl", "spawn", out="Timestamp               Ty Process[PID:TID]\n")
+    assert said(await use(rig, "sim_app", {"action": "logs"})) == "no log lines in the last 60s"
+
+
+async def test_an_apps_log_on_a_simulator_is_read_by_the_executable_its_bundle_runs(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    bundle = folder(tmp_path / "Data" / "August.app")
+    rig.xcrun.on("simctl", "get_app_container", out=f"{bundle}\n")
+    asked = {"action": "logs", "bundle_id": "com.august.iossapp"}
+
+    async def predicate() -> str:
+        await use(rig, "sim_app", asked)
+        return [args for args in rig.argv() if args[1] == "spawn"][-1][-1]
+
+    assert await predicate() == ('subsystem == "com.august.iossapp" OR process == "August" OR process == "iossapp"'), (
+        "with no Info.plist, the bundle's name"
+    )
+    (bundle / "Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": "AugustApp"}))
+    assert await predicate() == ('subsystem == "com.august.iossapp" OR process == "AugustApp" OR process == "iossapp"')
+    (bundle / "Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": 'Odd"Name'}))
+    assert await predicate() == 'subsystem == "com.august.iossapp" OR process == "iossapp"'
+    rig.xcrun.on("simctl", "get_app_container", rc=1, err="simctl failed")
+    assert await predicate() == 'subsystem == "com.august.iossapp" OR process == "iossapp"'
+
+
+async def test_a_device_brought_up_for_no_tool_is_not_checked_against_one(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", capabilities=frozenset({Capability.SCREENSHOT})))
+    instance = await ready_device(context(rig))
+    assert instance.state == "ready"
+
+
+async def test_an_agent_lists_the_devices_it_could_use_and_switches_to_one_its_viewers_following(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=FakeConnector("phone", kinds=frozenset({"physical"})))
+    await use(rig, "sim_device", {"action": "boot"})
+    lines = said(await use(rig, "sim_device", {"action": "list"})).splitlines()
+    here = next(line for line in lines if made(1) in line)
+    assert here.startswith("simulator · Simtrail · alpha · tp-1 · iOS 26.5") and here.endswith("in use here")
+    assert f"real device · Test iPhone · iOS 26.3 · Connected · usb · udid {PHONE_UDID}" in lines
+    running = rig.manager.instance(CALLER.scope)
+    assert running is not None
+    closed, close = closer_log()
+    running.sockets[close] = CALLER.scope.id
+    chose = said(await use(rig, "sim_device", {"action": "choose", "udid": PHONE_UDID}))
+    assert chose.startswith("now using Test iPhone · iOS 26.3 · ready · usb")
+    assert [code for code, _ in closed] == [CLOSE_RESTARTING], "whoever watched follows to the new device"
+    phone = rig.manager.instance(CALLER.scope)
+    assert phone is not None and phone.udid == PHONE_UDID
+    assert said(await use(rig, "sim_device", {"action": "choose", "udid": PHONE_UDID})).startswith("already using")
+    phone.state, phone.reason = "failed", "its session could not be started"
+    again = said(await use(rig, "sim_device", {"action": "choose", "udid": PHONE_UDID}))
+    assert again.startswith("now using Test iPhone · iOS 26.3 · ready"), "a failed device is started afresh"
+    phone = rig.manager.instance(CALLER.scope)
+    assert phone is not None and phone.state == "ready"
+    phone.busy = "a test run"
+    busy = await use(rig, "sim_device", {"action": "choose", "udid": made(1)})
+    assert busy == text("the device is busy: a test run", error=True)
+    phone.busy = None
+    assert said(await use(rig, "sim_device", {"action": "choose", "udid": made(1)})).startswith("now using Simtrail")
+
+
+async def test_an_agent_is_refused_a_real_device_the_settings_keep_for_a_person_and_one_that_is_not_there(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=FakeConnector("phone", kinds=frozenset({"physical"})))
+    rig.config.set(real_devices_agents_choose=False)
+    refused = await use(rig, "sim_device", {"action": "choose", "udid": PHONE_UDID})
+    assert refused == text(rig.copy.agents_may_not_choose(), error=True)
+    assert said(await use(rig, "sim_device", {"action": "list"})).endswith(rig.copy.agents_may_not_choose())
+    assert rig.manager.instance(CALLER.scope) is None
+    rig.config.set(real_devices_agents_choose=True)
+    missing = await use(rig, "sim_device", {"action": "choose", "udid": "00008110-00000000000BEEF0"})
+    assert missing == text(rig.copy.no_such_device("physical"), error=True)
+    assert rig.phones is not None
+    rig.phones.blocked[PHONE_UDID] = "Not connected"
+    unplugged = await use(rig, "sim_device", {"action": "choose", "udid": PHONE_UDID})
+    assert unplugged == text(rig.copy.not_usable("Test iPhone", "Not connected"), error=True)
+    assert rig.manager.instance(CALLER.scope) is None, "the project keeps what it had"
+    rig.phones.blocked[PHONE_UDID] = ""
+    assert "(it is not ready)" in said(await use(rig, "sim_device", {"action": "choose", "udid": PHONE_UDID}))
+    # What last kept WebDriverAgent from driving it is said too, rather than only that it is not connected.
+    ended = rig.copy.wda_ended("Authentication canceled. Canceled by user.", "/logs/wda.log", PHONE_UDID)
+    assert rig.phone is not None
+    rig.phone.trouble[PHONE_UDID] = f"{ended} (at 18:26:04)"
+    rig.phones.blocked[PHONE_UDID] = "Not connected"
+    unplugged = await use(rig, "sim_device", {"action": "choose", "udid": PHONE_UDID})
+    last = f"{ended} (at 18:26:04)"
+    assert unplugged == text(rig.copy.not_usable_after("Test iPhone", "Not connected", last), error=True)
+    assert "a passcode prompt on the device was cancelled" in said(unplugged)
+    listed = said(await use(rig, "sim_device", {"action": "list"}))
+    assert f"udid {PHONE_UDID} · cannot be used now · last error: {ended} (at 18:26:04)" in listed
+    del rig.phone.trouble[PHONE_UDID]
+    del rig.phones.blocked[PHONE_UDID]
+    assert await use(rig, "sim_device", {"action": "choose"}) == text(
+        "choose needs the udid of a device sim_device list shows", error=True
+    )
+    rig.config.set(enabled=False)
+    off = await use(rig, "sim_device", {"action": "list"})
+    assert off["isError"] is True and "off" in said(off)
+    empty = DeviceRig(tmp_path / "empty", phones=FakePhoneBackend({}))
+    empty.devices = {"devices": {}}
+    assert said(await use(empty, "sim_device", {"action": "list"})) == "No device is available here."
+
+
+async def test_device_info_names_a_picked_real_device_a_device_and_its_destination_is_ios(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=FakeConnector("phone", kinds=frozenset({"physical"})))
+    await rig.manager.choose(CALLER.scope, PHONE_UDID)
+    assert said(await use(rig, "sim_device", {})) == f"{NO_SESSION}\n{VERSION_LINE}"
+    booted = said(await use(rig, "sim_device", {"action": "boot"}))
+    assert booted.startswith("Test iPhone · iOS 26.3 · ready · usb · 402x874pt @3x")
+    assert booted.endswith(f"-destination 'platform=iOS,id={PHONE_UDID}'")
+
+
+async def test_a_real_device_webdriveragent_cannot_drive_says_why_in_its_info_and_in_each_touch_refused(
+    tmp_path: Path,
+) -> None:
+    cable = "It cannot be touched or read yet: WebDriverAgent is reached only over the device's cable: plug it in."
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}), session_capabilities=VIEW_ONLY, note=cable)
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
+    await rig.manager.choose(CALLER.scope, PHONE_UDID)
+    booted = said(await use(rig, "sim_device", {"action": "boot"}))
+    assert booted.endswith(f"-destination 'platform=iOS,id={PHONE_UDID}'\nnote: {cable}")
+    assert said(await use(rig, "sim_device", {})) == f"{booted}\n{VERSION_LINE}"
+    refused = await use(rig, "sim_act", {"steps": [{"tap": [100, 200]}]})
+    assert refused == text(rig.copy.not_driven("sim_act", cable), error=True)
+    assert said(refused).startswith(f"sim_act cannot touch or read this device now. {cable} Once that is put right")
+    unread = said(await use(rig, "sim_snapshot", {}))
+    assert unread.startswith("sim_snapshot cannot touch or read this device now.")
+    assert "WebDriverAgent is not driving it. Once" in rig.copy.not_driven("sim_act", None)
+    rig.config.set(wda_enabled=False)
+    assert await use(rig, "sim_act", {"steps": [{"tap": [100, 200]}]}) == text(rig.copy.wda_off(), error=True)
+
+
+async def test_health_says_whether_the_device_can_be_seen_read_and_touched_now_each_asked_of_it(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    assert said(await use(rig, "sim_device", {"action": "health"})).splitlines() == [
+        "verdict: ready to drive",
+        "device: Simtrail · alpha · tp-1 · ready",
+        "screen: yes, live",
+        "reading: yes, its elements (idb), read now",
+        "touch: yes",
+        "text_reader: not available: text is read from pixels only on a Mac",
+        "note: none",
+        "last_error: none",
+    ]
+    instance = rig.manager.instance(CALLER.scope)
+    assert instance is not None and instance.session is not None
+    assert rig.idb.engine.screenshots[-1][:2] == (64, 50), "a small screenshot, taken now"
+    rig.idb.engine.screenshot_errors.append(ConnectorError("the screen stopped coming"))
+
+    async def silent() -> str | None:
+        return rig.copy.wda_silent()
+
+    instance.session.answers = silent
+    lines = said(await use(rig, "sim_device", {"action": "health"})).splitlines()
+    assert lines[0] == "verdict: not ready to drive: tell the person what stands in the way"
+    assert lines[2:5] == [
+        "screen: no -- the screen stopped coming",
+        "reading: yes, its elements (idb), read now",
+        f"touch: no -- {rig.copy.wda_silent()}",
+    ]
+    # The screen is read now, not taken from what was set up: one that fails, or does not answer in time, says so.
+    rig.idb.engine.accessibility_errors.append(ConnectorError("accessibility stopped answering"))
+    lines = said(await use(rig, "sim_device", {"action": "health"})).splitlines()
+    assert lines[3] == "reading: no -- accessibility stopped answering"
+
+    async def hung() -> dict[str, Any]:
+        await asyncio.sleep(3600)
+        raise AssertionError("never answers")
+
+    instance.session.reader = Hung(hung)
+    with no_wait_for():
+        lines = said(await use(rig, "sim_device", {"action": "health"})).splitlines()
+    assert lines[3] == f"reading: no -- it did not answer within {HEALTH_READ_S:g} seconds"
+
+
+async def test_health_of_a_device_that_cannot_be_touched_says_why_or_that_it_cannot(tmp_path: Path) -> None:
+    cable = "It cannot be touched or read yet: WebDriverAgent is reached only over the device's cable: plug it in."
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}), session_capabilities=VIEW_ONLY, note=cable)
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
+    await rig.manager.choose(CALLER.scope, PHONE_UDID)
+    pixels = AgentActions(rig.manager, rig.config, pixels=OcrReaders(FakeTextRecognizer(), supported=True))
+    lines = said(await use(rig, "sim_device", {"action": "health"}, actions=pixels)).splitlines()
+    assert lines[0].startswith("verdict: not ready to drive") and lines[1] == "device: Test iPhone · ready · usb"
+    assert lines[2:] == [
+        "screen: yes, by screenshot",
+        "reading: only the text in its pixels, read now",
+        f"touch: no -- {cable}",
+        "text_reader: ready",
+        f"note: {cable}",
+        "last_error: none",
+    ]
+    rig.config.set(wda_enabled=False)
+    off = said(await use(rig, "sim_device", {"action": "health"})).splitlines()
+    assert off[3:5] == ["reading: no", f"touch: no -- {rig.copy.wda_off()}"]
+    instance = rig.manager.instance(CALLER.scope)
+    assert instance is not None
+    rig.config.set(wda_enabled=True)
+    instance.fallback_reason = None
+    assert "\ntouch: no\n" in said(await use(rig, "sim_device", {"action": "health"}))
+
+
+async def test_a_real_device_s_appearance_change_says_it_brought_back_the_app_it_sent_to_the_background(
+    tmp_path: Path,
+) -> None:
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}))
+    phones = FakePhoneBackend()
+    rig = DeviceRig(tmp_path, phones=phones, phone=phone)
+    await rig.manager.choose(CALLER.scope, PHONE_UDID)
+    instance = await rig.up()
+    assert instance.session is not None
+    answers = ["com.example.notes", "com.apple.springboard"]
+
+    async def front() -> str | None:
+        return answers.pop(0) if len(answers) > 1 else answers[0]
+
+    instance.session.front_app = front
+    changed = said(await use(rig, "sim_device", {"action": "appearance", "mode": "dark"}))
+    assert changed == (
+        "appearance dark\ncom.example.notes went to the background with the change, and was brought back to the front"
+    )
+    assert phones.control_for.calls[-1] == ("launch", PHONE_UDID, "com.example.notes", (), False)
+    assert said(await use(rig, "sim_device", {"action": "appearance", "mode": "light"})) == "appearance light"
+
+
+async def test_a_device_still_coming_up_after_the_wait_says_what_it_waits_for(tmp_path: Path) -> None:
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}), hold=True)
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
+    await rig.manager.choose(CALLER.scope, PHONE_UDID)
+    phone.starting[PHONE_UDID] = rig.copy.wda_starting(45, 180)
+    refused = said(await use(rig, "sim_device", {"action": "boot"}))
+    assert refused == (
+        f"the device is still booting after {round(READY_WAIT_S)}s: {rig.copy.wda_starting(45, 180)}; call again "
+        "shortly"
+    ), "what it waits for, and for how long it may"
+    del phone.starting[PHONE_UDID]
+    quiet = said(await use(rig, "sim_device", {"action": "boot"}))
+    assert quiet == f"the device is still booting after {round(READY_WAIT_S)}s; call again shortly"
+    assert phone.release is not None
+    phone.release.set()
+
+
+async def test_a_call_waits_while_webdriveragent_starts_within_its_time_and_a_little_more(tmp_path: Path) -> None:
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}), hold=True)
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
+    await rig.manager.choose(CALLER.scope, PHONE_UDID)
+    phone.left_to_start[PHONE_UDID] = 100.0
+
+    async def passing(seconds: float) -> None:
+        phone.left_to_start[PHONE_UDID] = max(0.0, phone.left_to_start[PHONE_UDID] - seconds)
+
+    refused = said(await use(rig, "sim_device", {"action": "boot"}, sleep=passing))
+    waited = round(100 + STARTING_MARGIN_S)
+    assert refused == f"the device is still booting after {waited}s; call again shortly", "its time, and a little more"
+    phone.left_to_start[PHONE_UDID] = 10_000.0
+    capped = said(await use(rig, "sim_device", {"action": "boot"}))
+    assert capped == f"the device is still booting after {round(STARTING_WAIT_MAX_S)}s; call again shortly"
+    phone.left_to_start[PHONE_UDID] = 0.0
+    spent = said(await use(rig, "sim_device", {"action": "boot"}))
+    assert spent == f"the device is still booting after {round(READY_WAIT_S)}s; call again shortly"
+    phone.left_to_start[PHONE_UDID] = 100.0
+    slept: list[float] = []
+
+    async def started(seconds: float) -> None:
+        slept.append(seconds)
+        if sum(slept) == 60:
+            assert phone.release is not None
+            phone.release.set()
+        await asyncio.sleep(0)
+
+    booted = await use(rig, "sim_device", {"action": "boot"}, sleep=started)
+    assert booted["isError"] is False and READY_WAIT_S < sum(slept) < 100, "ready while it waited longer"
+
+
+async def test_health_shows_the_screen_note_and_the_last_error_even_when_touch_works(tmp_path: Path) -> None:
+    phone = FakeConnector("phone", kinds=frozenset({"physical"}))
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
+    await rig.manager.choose(CALLER.scope, PHONE_UDID)
+    camera = "macOS has not let simtrail-helper use the Camera"
+    phone.helper_error = camera
+    phone.trouble[PHONE_UDID] = "WebDriverAgent ended on the device (exit 1) (at 18:26:04)"
+    lines = said(await use(rig, "sim_device", {"action": "health"})).splitlines()
+    assert lines[4] == "touch: yes", "touch works"
+    assert lines[6:] == [
+        f"note: Its screen's helper said: {camera}",
+        "last_error: WebDriverAgent ended on the device (exit 1) (at 18:26:04)",
+    ]
+    assert said(await use(rig, "sim_device", {})).endswith(f"note: Its screen's helper said: {camera}\n{VERSION_LINE}")
+    del phone.trouble[PHONE_UDID]
+    assert said(await use(rig, "sim_device", {"action": "health"})).endswith(f"\nlast_error: {camera}")
+
+
+class Hung:
+    """A screen reader that never answers."""
+
+    def __init__(self, read: Any) -> None:
+        self.accessibility = read
+
+
+@contextlib.contextmanager
+def no_wait_for() -> Iterator[None]:
+    """`asyncio.wait_for` as a deadline that has already passed: what it waits for is cancelled at once."""
+    real = asyncio.wait_for
+
+    async def expired(awaitable: Any, timeout: float | None) -> Any:
+        return await real(awaitable, 0)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(asyncio, "wait_for", expired)
+        yield
+
+
+async def test_a_real_device_s_restart_starts_its_session_over_and_never_restarts_or_shuts_the_device_down(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=FakeConnector("phone", kinds=frozenset({"physical"})))
+    assert rig.phones is not None and rig.phone is not None
+    await rig.manager.choose(CALLER.scope, PHONE_UDID)
+    # Nothing connected yet: a restart opens the session, and says that is all it did.
+    opened = said(await use(rig, "sim_device", {"action": "restart"}))
+    assert opened.startswith(f"connected: a session was opened, and {NOT_RESTARTED} · Test iPhone · iOS 26.3 · ready")
+    first = rig.manager.instance(CALLER.scope)
+    assert first is not None
+    closed, close = closer_log()
+    rig.manager.attach(first, close)
+    again = said(await use(rig, "sim_device", {"action": "restart"}))
+    assert again.startswith(f"reconnected: its session was started over, and {NOT_RESTARTED} · Test iPhone")
+    assert rig.manager.instance(CALLER.scope) is first and first.state == "ready", "the same device, still driven"
+    assert closed == [], "whoever watches keeps watching"
+    assert (rig.phone.attached, rig.phone.closed) == ([PHONE_UDID, PHONE_UDID], [PHONE_UDID])
+    assert rig.phones.prepared == [PHONE_UDID] and rig.phones.released == [], "nothing was asked of the device"
+    first.busy = "running tests (b1)"
+    assert await use(rig, "sim_device", {"action": "restart"}) == text(
+        "the device is busy: running tests (b1)", error=True
+    )
+    first.busy = None
+
+
+async def test_a_real_device_unplugged_before_its_restart_is_refused_and_never_replaced_by_a_simulator(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=FakeConnector("phone", kinds=frozenset({"physical"})))
+    assert rig.phones is not None and rig.phone is not None
+    await rig.manager.choose(CALLER.scope, PHONE_UDID)
+    await use(rig, "sim_device", {"action": "boot"})
+    unplugged = "Test iPhone is not connected: plug it in and unlock it"
+    rig.phone.fail = ConnectorUnavailable(unplugged, 409)
+    del rig.phones.phones[PHONE_UDID]
+    refused = await use(rig, "sim_device", {"action": "restart"})
+    assert refused == text(f"could not reconnect to the device: {unplugged}", error=True)
+    failed = rig.manager.instance(CALLER.scope)
+    assert failed is not None and (failed.state, failed.reason) == ("failed", unplugged)
+    booting = await use(rig, "sim_device", {"action": "boot"})
+    assert booting == text(f"{PHONE_UDID} is not connected: plug it in or pick a simulator", error=True)
+    assert rig.manager.kind(CALLER.scope) == "physical", "the scope keeps its device"
+    assert rig.idb.attached == [] and not any(argv[:2] == ("simctl", "boot") for argv in rig.argv())
+    assert rig.phones.released == [(PHONE_UDID, False)], "let go of, never shut down"
+
+
+async def test_health_of_a_device_whose_tree_is_still_being_built_reads_its_pixels_and_is_ready(tmp_path: Path) -> None:
+    """A snapshot reads the screen's pixels while the element tree cannot be read now -- WebDriverAgent still building
+    one -- and so does health: it said "not ready to drive" of a phone that read and touched fine."""
+    rig = DeviceRig(tmp_path)
+    pixels = AgentActions(rig.manager, rig.config, pixels=OcrReaders(FakeTextRecognizer(), supported=True))
+    await use(rig, "sim_device", {"action": "info"}, actions=pixels)
+    rig.idb.engine.accessibility_errors.append(ConnectorError("the element tree is still being built on the device"))
+    lines = said(await use(rig, "sim_device", {"action": "health"}, actions=pixels)).splitlines()
+    assert lines[0] == "verdict: ready to drive"
+    assert (
+        lines[3]
+        == "reading: yes, only the text in its pixels for now -- the element tree is still being built on the device"
+    )
+
+
+async def test_mac_selection_windows_restart_and_stop_are_app_scoped(tmp_path: Path) -> None:
+    from unittest.mock import AsyncMock
+
+    from simtrail.core.mac_backend import MacBackend
+    from simtrail.platform.macos import MacApp
+    from simtrail.testing.macos import FakeMacOS
+
+    app = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
+    fake = FakeMacOS(app)
+    connector = FakeConnector("mac-app", kinds=frozenset({"mac"}))
+    rig = DeviceRig(tmp_path, native=connector)
+    rig.manager.backends["mac"] = MacBackend(fake.mac)
+    rig.config.set(mac_agents_choose=False)
+    assert "agents may not choose macOS apps" in said(
+        await use(rig, "sim_device", {"action": "choose", "udid": app.id})
+    )
+    rig.config.set(mac_agents_choose=True)
+    assert "now using Sample" in said(await use(rig, "sim_device", {"action": "choose", "udid": app.id}))
+    instance = rig.manager.instance(CALLER.scope)
+    assert instance is not None and instance.session is not None
+    assert "no app window selection" in said(await use(rig, "sim_device", {"action": "windows"}))
+    windows = AsyncMock()
+    windows.windows.return_value = {
+        "window_id": 7,
+        "windows": [{"id": 7, "title": "Main"}, {"id": 8, "title": "Sheet"}],
+    }
+    instance.session.window_control = windows
+    assert said(await use(rig, "sim_device", {"action": "windows"})) == "7: Main (selected)\n8: Sheet"
+    assert "window needs" in said(await use(rig, "sim_device", {"action": "window", "window": True}))
+    instance.busy = "recording"
+    assert "busy: recording" in said(await use(rig, "sim_device", {"action": "window", "window": 8}))
+    instance.busy = None
+    assert "selected app window" in said(await use(rig, "sim_device", {"action": "window", "window": 8}))
+    windows.select_window.assert_awaited_once_with(8)
+    assert "restarted" in said(await use(rig, "sim_device", {"action": "restart"}))
+    assert fake.signals == [(101, 15)]
+    assert "the app is shut down" in said(await use(rig, "sim_device", {"action": "stop", "shutdown": True}))
+    assert fake.signals == [(101, 15), (777, 15)]
+    assert "No macOS app session" in said(await use(rig, "sim_device", {"action": "info"}))
+
+
+async def test_mac_app_lifecycle_replaces_the_process_bound_session(tmp_path: Path) -> None:
+    from simtrail.core.mac_backend import MacBackend
+    from simtrail.platform.macos import MacApp
+    from simtrail.testing.macos import FakeMacOS
+
+    app = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
+    fake = FakeMacOS(app)
+    connector = FakeConnector("mac-app", kinds=frozenset({"mac"}))
+    rig = DeviceRig(tmp_path, native=connector)
+    rig.manager.backends["mac"] = MacBackend(fake.mac)
+    await use(rig, "sim_device", {"action": "choose", "udid": app.id})
+    original = rig.manager.instance(CALLER.scope)
+    assert "signed macOS apps are left unchanged" in said(
+        await use(rig, "sim_app", {"action": "info", "bundle_id": app.bundle_id})
+    )
+    assert "terminated" in said(await use(rig, "sim_app", {"action": "terminate", "bundle_id": app.bundle_id}))
+    assert rig.manager.instance(CALLER.scope) is None
+    assert connector.closed == [app.id]
+    assert "launched" in said(await use(rig, "sim_app", {"action": "launch", "bundle_id": app.bundle_id}))
+    current = rig.manager.instance(CALLER.scope)
+    assert current is not None and current is not original and current.session is not None
+    assert said(await use(rig, "sim_app", {"action": "launch", "bundle_id": app.bundle_id})) == (
+        "dev.example.Sample was already running (pid 777); relaunch: true starts it fresh"
+    )
+    closed = len(connector.closed)
+    assert "relaunched" in said(
+        await use(rig, "sim_app", {"action": "launch", "bundle_id": app.bundle_id, "relaunch": True})
+    )
+    assert rig.manager.instance(CALLER.scope) is not current
+    assert len(connector.closed) == closed + 1
+    assert fake.signals == [(101, 15), (777, 15)]
+
+
+def test_mac_install_accepts_native_and_ipad_bundles_with_the_same_root_rules(tmp_path: Path) -> None:
+    from simtrail.tools.app import installable
+    from simtrail.tools.results import ToolRefused
+
+    app = folder(tmp_path / "Native.app")
+    folder(app / "Contents").joinpath("Info.plist").write_text("<plist/>")
+    assert installable(str(app), (tmp_path,), "mac") == app.resolve()
+    ipad = _app(tmp_path, "Tablet.app")
+    assert installable(str(ipad), (tmp_path,), "mac") == ipad.resolve()
+    with pytest.raises(ToolRefused, match="only an app built inside"):
+        installable(str(app), (), "mac")
+    with pytest.raises(ToolRefused, match=r"not a built \.app"):
+        installable(str(app), (tmp_path,), "simulator")

@@ -1,0 +1,103 @@
+# Architecture
+
+```mermaid
+flowchart LR
+  subgraph clients[Clients]
+    agent[MCP client]
+    browser[Viewer: tab, iframe, web component]
+  end
+  subgraph host[Daemon, or a host application]
+    relay[MCP relay] --> agentRoutes[Agent routes]
+    browser -- HTTP --> httpRoutes[Person routes]
+    browser -- WebSocket --> socketRoutes[Screen socket]
+    agentRoutes & httpRoutes & socketRoutes --> runtime[Runtime]
+    runtime --> manager[Device manager] & tools[Tool registry] & builds[Build runner]
+    manager --> connectors[Connectors] --> companion[native helper / idb_companion / simctl / mcpbridge]
+    tools --> actions[Agent actions] --> perception[Perception]
+  end
+  agent -- stdio --> relay
+  companion --> device[(Simulator)]
+```
+
+## The parts
+
+| Package | Does |
+|---|---|
+| `scope`, `seams`, `host_copy` | What devices are grouped by, the few things a host decides, and the words it uses |
+| `config` | Every setting once (`schema`), and the TOML file, environment and writer a standalone install reads |
+| `storage`, `platform` | Private folders and device claims; the only modules that run `xcrun`, `simctl` and processes |
+| `connectors` | The capability model, the registry, the `native`, `idb`, `simctl` and `mcpbridge` connectors, and `app`, which finds the apps sharing their view hierarchy and reads it |
+| `perception` | The element tree, text read from pixels (`vision` runs the Swift reader), snapshots, diffs, waits, settling, and the token estimate |
+| `core` | Devices and their lifetime, frames, events, tickets, a person's input, agent actions, and `Runtime` |
+| `tools`, `build` | The agent tools, and building and testing |
+| `server` | Router factories, security middleware, log redaction, the viewer's pages |
+| `daemon` | The standalone app: tokens -- a host token per application sharing it -- codes, leases, policy, lifecycle |
+| `mcp` | The standard-library relay and `simtrail mcp` |
+| `doctor`, `cli` | The checks, and the command line |
+| `api` | The only surface a host imports; `hosting` is how a host shares the daemon instead of embedding |
+| `testing` | The fakes, the device rig and the guards, shipped for hosts' tests |
+
+The native helper (`helper/`) is a Swift package: `HelperCore`, the wire protocol and every decision that needs no
+simulator, unit-tested to the same bar; `HelperPlatform`, which reaches the simulator's framebuffer, input and
+accessibility through CoreSimulator and SimulatorKit; and the `simtrail-helper` program that serves one device on a
+unix socket.
+
+The app SDK (`Package.swift` at the top, `sdk/swift/`) is the Swift package **SimtrailKit** an app under
+development links: in a Debug build on the simulator it serves the app's own view hierarchy on 127.0.0.1 to
+Simtrail, which merges it into snapshots. Its wire format is `protocol/app-sdk/v1`, apart from the screen
+protocol; see [The app SDK](app-sdk.md).
+
+The viewer (`viewer/`) is TypeScript: a `createViewer` function, a transport interface, and the `<simtrail>` element
+built on them; its standalone page is built into the Python package.
+
+## Seams
+
+`core/runtime.py` is the one composition root. Everything a host decides comes in through a protocol in `seams.py` --
+`ConfigSource`, `StateStore`, `Policy`, `Authenticator`, `UsageProbe`, `DeviceMemory` -- and every message's wording
+through `HostCopy`. The standalone daemon is just one set of implementations: TOML settings, Application Support
+folders, a policy from settings, tokens, and leases renewed by `simtrail mcp`.
+
+## Flows
+
+**A person watching.** The viewer's transport starts the scope's device (`POST`), getting its status and a one-shot
+ticket; opens the screen socket with it; exchanges hellos to pick an encoding; then draws binary frames and applies
+status events, and sends whitelisted input. A view of its own device (`?device=` on the page, `use` on the transport)
+asks the same routes with `?udid=`: `DeviceManager.ensure` brings that device up beside the scope's own and the ticket
+is minted on it, and `consume_ticket` finds it among the scope's devices. A person's pick (`PUT /device`) replaces the
+scope's own device as a restart, so the views following it come back on the new one, and a view of its own device --
+asking with its UDID -- comes back to that one.
+
+**An agent acting.** The relay hands `tools/call` to the agent routes; the authenticator names the caller and its scope;
+`Runtime.call` checks the scope may use tools now, tells the device's event bus the agent is working -- when the call
+starts, every ten seconds while it runs, and when it ends -- and the tool registry runs the tool. `sim_act` announces each
+gesture on the same bus -- which every screen socket forwards, so viewers draw the cursor -- waits the cursor lead while
+someone watches, plays it through the connector, waits, and answers with a snapshot diff. The cursor rests where the
+agent last acted while it works, and for `agent.cursor_linger_s` after. A snapshot that read the screen's pixels tells
+the same bus what it read while `perception.ocr_overlay` is on, and the bus is told to clear it before the screen
+changes.
+
+**Several agents in one scope.** Each agent connection -- one token, one `Caller.key` -- is bound to a device of its
+own in the runtime (`core.selections`): the one it chose, else the one its first call was given, the scope's own --
+or, under `device.agent_default = "free"`, a simulator nobody uses while another agent works on the scope's own.
+`Runtime.call` passes that device to the tool (`ToolContext.udid`), so `DeviceManager.ensure` brings it up beside the
+scope's default rather than in its place, and the scope's default -- what its viewer shows, what `DeviceMemory`
+remembers -- moves only when a person picks a device, or an agent does while it is alone in the scope or asks with
+`default: true`. Before the tool runs, the runtime asks who else works on that device: under `device.exclusive` a call
+that would change it is refused up front while another live agent works on it or drove it in the last two minutes,
+and any other call's answer starts with who does. A token revoked forgets its binding, and a device no live agent
+works on and that is no scope's default is not held for the scope's leases, so it idles out like any other.
+`device.selection = "scope"` binds nobody: every agent of a scope shares its device.
+
+**A setting changing.** The writer edits `config.toml`, the daemon is told to reload, and `Runtime.reconcile` ends what
+is now off and moves devices whose connector changed -- before the command returns.
+
+## Rules the checks keep
+
+- **Containment**: `xcrun`, `simctl`, `xcodebuild`, `xcresulttool`, `idb_companion`, `simtrail-helper`, `swiftc`,
+  `swift` and `git` are named only
+  by the modules that run them (`scripts/check_containment.py`).
+- **Host-neutral**: no host application's vocabulary anywhere (`scripts/check_host_neutral.py`).
+- **One protocol source**: `protocol/v1` generates the Python and TypeScript types; contract tests validate every
+  message the server builds.
+- **Generated references**: tools, configuration, CLI, protocol constants and compatibility pages come from the code.
+- **Tests never touch a real simulator**, and every file keeps 98% coverage or more.

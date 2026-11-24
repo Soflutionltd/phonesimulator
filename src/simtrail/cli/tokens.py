@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: Apache-2.0
+"""``simtrail token``: make, list and revoke the daemon's scoped tokens.
+
+The command reads the token file directly -- it runs as the person who installed Simtrail -- and the daemon reads it
+on every request, so a revoked token stops working at once. A new token is printed once, on stdout, and never again.
+
+A ``host`` token is for an application sharing the daemon: ``--scope 'notes:*'`` gives it the scopes whose ids start
+``notes:``, and ``--root`` the folders its agents may reach. Revoking it revokes every token it made.
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+from typing import Any
+
+from simtrail.cli.context import CliContext
+from simtrail.daemon.tokens import KINDS
+
+
+def register(commands: Any) -> None:
+    command = commands.add_parser("token", help="make, list or revoke the daemon's scoped tokens")
+    actions = command.add_subparsers(dest="action", metavar="ACTION", required=True)
+    making = actions.add_parser("create", help="make a token; it is printed only this once")
+    making.add_argument("--kind", choices=KINDS, required=True)
+    making.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help="a scope id, a namespace such as notes:*, or * for all; repeatable",
+    )
+    making.add_argument("--label", default="", help="what the token is for")
+    making.add_argument(
+        "--root", action="append", default=[], help="a folder an agent or host token may reach; repeatable"
+    )
+    actions.add_parser("list", help="list the scoped tokens")
+    revoking = actions.add_parser("revoke", help="stop accepting a token")
+    revoking.add_argument("id")
+    command.set_defaults(handler=run)
+
+
+def run(args: argparse.Namespace, ctx: CliContext) -> int:
+    store = ctx.tokens()
+    if args.action == "create":
+        roots = [str(Path(root).expanduser().resolve()) for root in args.root]
+        record, token = store.create(args.kind, args.scope, label=args.label, roots=roots)
+        ctx.say(token)
+        ctx.complain(f"made {record.kind} token {record.id} for {', '.join(record.scopes)}; it is shown only this once")
+        return 0
+    if args.action == "list":
+        records = store.records()
+        if not records:
+            ctx.say("no scoped tokens")
+        for record in records:
+            label = f"  {record.label}" if record.label else ""
+            maker = f"  (made by host {record.host})" if record.host else ""
+            ctx.say(f"{record.id}  {record.kind}  {', '.join(record.scopes)}{label}{maker}")
+        return 0
+    made = [record.id for record in store.records() if record.host == args.id]
+    if store.revoke(args.id):
+        also = f", and the tokens it made: {', '.join(made)}" if made else ""
+        ctx.say(f"revoked {args.id}{also}")
+        return 0
+    ctx.complain(f"there is no token {args.id}")
+    return 1

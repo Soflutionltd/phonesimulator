@@ -1,0 +1,244 @@
+# The app SDK
+
+A screen whose controls say nothing to accessibility reads badly to an agent: an icon-only button has no name, a card
+with a tap gesture is only its text, a control drawn by hand is not there at all. **SimtrailKit** is a small Swift
+package an app under development links so Simtrail reads the app's own UIKit and SwiftUI views instead, and snapshots
+name and add what accessibility left out.
+
+It is optional and never required: nothing changes for an app without it. It does anything only in a **Debug build on
+the iOS Simulator**; in a Release build, on a device, in an Xcode preview or an app extension, every call does nothing
+and none of its workings are compiled in.
+
+## Add it
+
+In Xcode, **File → Add Package Dependencies…**, enter `https://github.com/Soflutionltd/simtrail`, and add the
+**SimtrailKit** library to your app target. In a `Package.swift`:
+
+```swift
+.package(url: "https://github.com/Soflutionltd/simtrail", from: "3.9.0"),
+// and in your app target's dependencies:
+.product(name: "SimtrailKit", package: "simtrail"),
+```
+
+The package is at the top of this repository; Simtrail's Python daemon and native helper are not part of it. It needs
+iOS 16 or later and Swift 6.
+
+## Start it
+
+Call `Simtrail.start()` once, early -- in your `App`'s `init`, or `application(_:didFinishLaunchingWithOptions:)`:
+
+```swift
+import SimtrailKit
+import SwiftUI
+
+@main
+struct NotesApp: App {
+    init() {
+        Simtrail.start()
+    }
+
+    var body: some Scene {
+        WindowGroup { ContentView() }
+    }
+}
+```
+
+That is all Simtrail needs: the next snapshot of the app reads its views. The viewer shows a **`Notes · SDK`** chip
+beside the device's name while it does, `simtrail doctor` has an **app hierarchy** check, and
+`simtrail app hierarchy` prints what the app in front shares. [examples/app-sdk](../examples/app-sdk/) is a small app
+that uses every part of it.
+
+## What Simtrail reads
+
+The app walks its windows from the front, the key window first, on the main thread when Simtrail asks, and answers
+with the views that show:
+
+- **What each view is**, in a snapshot's words: a `UIButton` is a button, a `UISwitch` a switch with its `1` or `0`, a
+  `UISegmentedControl` segments with the selected one, a cell a cell. A view of the app's own is read by its
+  accessibility traits, then by a tap gesture it has -- which makes it something to tap -- and otherwise holds others.
+- **What each says**: its accessibility label, else its title or text, else the text of the labels inside it, its
+  image's name (`trash`, an asset's name), its accessibility identifier, and for a control of the app's own its type's
+  name (`RatingControl` is "Rating control").
+- **Only what can be seen**: hidden and transparent views, views clipped away, and what a presented view controller or
+  an `accessibilityViewIsModal` view hides are left out. An alert, sheet, full-screen cover or popover in front is said
+  as the modal, and where the keyboard is.
+- **No secrets**: a secure field's text is never read, and `redactValues` leaves every value out.
+
+A snapshot merges it with the accessibility tree the connector reads, as it does [Xcode's
+hierarchy](connectors.md#merging-xcodes-hierarchy): accessibility's tree is kept whole, and the app's **adds** what it
+does not say in the same place, and **names** what it found with no label -- `connectors.app.name_unlabeled`. A named
+element keeps its place and its source, so a tap lands where it did; its ref changes once, as a renamed element's does.
+Measured on the sample app's UIKit form (iPhone 17 Pro, iOS 26.5, idb): the fields read `field "Title"` rather than
+`field ="Title"`, and the snapshot gained the icon segments with their value, the stepper, the hand-drawn rating control
+as `slider "Rating" ="3 of 5"`, the card with a tap gesture as a button an agent then tapped, and the tab bar.
+
+## Name views yourself
+
+SwiftUI views that are not UIKit underneath -- most of them -- are not in the walk, and some views are best named by
+the person who wrote them. Tag a SwiftUI view with **`.simtrail`**:
+
+```swift
+Button { showSettings() } label: { Image(systemName: "gearshape") }
+    .simtrail("Settings")
+
+Toggle("", isOn: $notifications).labelsHidden()
+    .simtrail(kind: .switch, name: "Notifications", identifier: "notifications")
+
+PromoCard()
+    .onTapGesture { open() }
+    .simtrail(kind: .button, name: "Play daily mix")
+```
+
+A tag puts an invisible view behind the tagged one, in its exact place -- in a sheet, a list row or a cell alike. The
+name a tag gives is the developer's own, so it names what is in its place even when accessibility already calls it
+something else: the button above reads `button "Settings"`, not `button "gearshape"`. A tag with a kind is added where
+nothing is. Outside a Debug build on the simulator `.simtrail` returns the view unchanged.
+
+For a UIKit view of your own, **register a describer**:
+
+```swift
+struct RatingControlDescriber: ViewDescribing {
+    func describe(_ view: UIView) -> ViewDescription? {
+        guard let rating = view as? RatingControl else { return nil }
+        return ViewDescription(kind: .slider, label: "Rating", value: "\(rating.value) of 5")
+    }
+}
+
+Simtrail.register(describer: RatingControlDescriber())
+```
+
+Describers are asked before Simtrail's own reading, in the order registered; `nil` leaves a view to the rest, and
+`ViewDescription.hidden` leaves it, and everything inside it, out.
+
+## SwiftUI's debug data
+
+SwiftUI keeps debug data of its own views, which tells which have a tap gesture and which images they show. SimtrailKit
+can read it, **opt-in and on iOS 26 only**:
+
+```swift
+Simtrail.start(Simtrail.Options(swiftUIDebugData: true))
+```
+
+It is SwiftUI's undocumented debugging aid, and it costs. On iOS 26.5 the sample app's first read held the main thread
+for about five seconds, so the SDK reads it once a second after starting; later reads took 135 to 165 ms each, against
+1 to 30 ms for the walk alone, so raise `connectors.app.timeout_ms` to 1000 while it is on. Reading it stops the app on
+iOS 27, so the SDK refuses there and the answer says so. `start` must run before any SwiftUI view is built -- the
+`App`'s `init` -- or SwiftUI records nothing. SwiftUI lays each view out in its own space, not the screen's; the SDK
+places a view only where the UIKit views SwiftUI placed pin that space down, and leaves out the rest rather than guess.
+With it on, the sample app's card with an `onTapGesture` read as `button "Daily mix"`, and an agent's tap on it
+counted.
+
+## Destructive buttons
+
+A button styled destructive is the clearest sign an app gives that a tap destroys something, and only the app can say
+it: accessibility reads a destructive alert button as any other, with the same traits as the alert's Cancel. The SDK
+marks a node `destructive` (a trait) where it can tell, and [observe mode](screen-understanding.md#acting-sim_act)
+then refuses a tap on the element in its place whatever it says -- "Yes", "Continue", a word in another language --
+unless the call confirms it:
+
+- **An alert or an action sheet**: each `UIAlertAction` styled `.destructive`. SwiftUI's `.alert` and
+  `.confirmationDialog` are alert controllers too, so a `Button(role: .destructive)` in one is marked as well. UIKit
+  draws each action as a private view that says nothing of its style, so what in the alert says a destructive
+  action's title is marked: the action's button while accessibility is in use, as it is while Simtrail reads the
+  screen, and its title's text while it is not. Two actions with the same title are both marked if either is
+  destructive, and so is an alert's title or message that says exactly a destructive action's title.
+- **A SwiftUI `Button(role: .destructive)` drawn in place**, only while the SDK reads
+  [SwiftUI's debug data](#swiftuis-debug-data) -- opt-in, iOS 26 only -- and only where it can place that view.
+  Measured on iOS 26.5, the debug data says a role for the button style's configuration a button is drawn with.
+
+Not marked: a menu's destructive item (`UIMenu`, SwiftUI's `Menu`) and a row's destructive swipe action
+(`UIContextualAction`, `.swipeActions`), whose styles are kept by private views only while they show; observe mode
+still refuses them by what they say, and a sideways swipe on any row.
+
+## Options
+
+| Option | Default | What it does |
+|---|---|---|
+| `port` | `0` | The port to listen on, on 127.0.0.1 only; `0` lets the system pick one each launch |
+| `maxNodes` | `3000` | The most views an answer holds; Simtrail may ask for fewer, and a larger answer says it was cut short |
+| `redactValues` | `false` | Leaves every value out, for screens with data you would rather not hand an agent |
+| `swiftUIDebugData` | `false` | Also reads SwiftUI's debug data, on iOS 26 only |
+
+`Simtrail.stop()` stops answering, and `Simtrail.isRunning` says whether it does.
+
+## Settings
+
+In the settings panel's **Connectors** tab, per project or for every project:
+
+| Setting | Default | |
+|---|---|---|
+| `connectors.app.merge` | on | Whether snapshots read the hierarchy an app in front shares at all |
+| `connectors.app.name_unlabeled` | on | Whether it names what accessibility found without a label, and what `.simtrail` named, or only adds |
+| `connectors.app.timeout_ms` | 500 | How long a snapshot waits for the app, before going on without it |
+| `connectors.app.max_nodes` | 3000 | The most views read |
+
+See [the configuration reference](reference/configuration.md#connectorsappmerge).
+
+## How Simtrail finds the app, and who else can
+
+When it starts, the app listens on `127.0.0.1` on a port of its own, makes a new random 32-byte secret, and writes a
+**listing** -- its bundle identifier, process, port and secret -- to the simulator's data folder, at
+`Library/Caches/Simtrail/apps/<bundle id>.json`, readable by the Mac user only (0600), or to the app's own caches when
+that folder cannot be written. It rewrites the listing as it comes to the front or leaves it, and removes it when it
+stops. A snapshot reads the listings of the device's apps, trusting one only when it is a regular file owned by the
+Mac user, readable by nobody else, for this device and a process still running, and asks the app in front for its
+hierarchy with the secret in an `Authorization` header.
+
+The app answers only a request with the secret, checked before anything else and never logged; it refuses one from a web
+page (an `Origin` header) or addressed to another host, answers only a small `GET` of `/v1/hierarchy`, two at a time,
+and while the app is not in front answers 409 without reading anything. What it answers is the app's view hierarchy, which an agent
+driving the simulator could already see on screen. `make sdk-release-check` builds the sample app for Release and fails
+if the build holds any of it. The wire format is [protocol/app-sdk/v1](../protocol/README.md#app-sdk-protocol-version-1),
+versioned apart from Simtrail's screen protocol. See [Security](security.md#apps-that-share-their-hierarchy).
+
+## Limits
+
+- A **Debug build**: the SDK compiles its workings only where `DEBUG` is defined, as it is for a package built in
+  Xcode's Debug configuration. A configuration of your own that SwiftPM builds for release leaves them out.
+- **The iOS Simulator**, iOS 16 or later. A device, Mac Catalyst and app extensions are not read.
+- **SwiftUI** is read through its UIKit views, `.simtrail` tags and, opt-in on iOS 26, its debug data. A view none of
+  these reach reads as accessibility reads it.
+- **One app**, the one in front. An app suspended in the debugger does not answer; the snapshot goes on without it,
+  and says so while the app is in front.
+
+## Developing it
+
+The package's tests run on an iOS simulator, and the sample app's hosted tests reach what a unit test cannot -- a real
+application's scenes and a presentation:
+
+```sh
+make sdk-lint sdk-test sdk-app-test sdk-release-check        # with SDK_DEVELOPER_DIR and SDK_DESTINATION
+make sdk-coverage SDK_DESTINATION="platform=iOS Simulator,name=iPhone 17"   # every source file at 98%, on iOS 26
+```
+
+`SDK_DEVELOPER_DIR` picks the Xcode -- never `xcode-select` -- and `SDK_DESTINATION` the simulator. CI runs the tests on
+its own Xcode; the coverage gate runs on iOS 26, where every path, SwiftUI's debug data's included, can be reached.
+
+
+## macOS
+
+SimtrailKit supports native AppKit and SwiftUI apps on macOS 14 or later. Add the local or Git Swift package, link
+its `SimtrailKit` product, then start it early in your app delegate or SwiftUI `App.init`:
+
+```swift
+import SimtrailKit
+
+// On the main actor, before constructing the app's windows:
+Simtrail.start()
+```
+
+The public API is a no-op in Release, previews and extensions. The AppKit walker reads only this process's views and
+public accessibility selectors. `.simtrail(...)` tags work in macOS SwiftUI views; optional `swiftUIDebugData: true`
+is limited to macOS 26. Text and menu actions execute in the app, without activation or global events.
+
+Sandboxed Debug apps need `com.apple.security.network.server` for loopback listening. Listings use the app home's
+`Library/Application Support/Simtrail/apps`, including the sandbox container home, and the existing owner/mode/PID
+trust checks. Capture remains the helper's ScreenCaptureKit responsibility, so the app itself needs no Screen
+Recording permission for the SDK.
+
+Run `make sdk-mac-coverage sdk-mac-release-check` for the macOS SDK gates, alongside the existing iOS SDK gates.
+The [native sample](../examples/mac-app-sdk/README.md) includes both UI frameworks and an Xcode unit-test scheme.
+Catalyst and Designed for iPad apps use the per-process AX adapter; the native AppKit SDK is not compiled into their
+UIKit device target. For Tauri and custom Chromium hosts, see the [Debug web bridge](../sdk/web/README.md); for CEF
+hosts, the [Debug CEF host adapter](../sdk/cef/README.md).
+The complete input and window limits are in [macOS apps](macos.md).

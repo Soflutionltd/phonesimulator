@@ -1,0 +1,1139 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Building and testing a scope's app: which project, one run per scope, answers from the result bundle, and ends."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import signal
+import time
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from simtrail.build import runner, xcodebuild
+from simtrail.build.xcodebuild import (
+    Build,
+    BuildRefused,
+    BuildRunner,
+    Project,
+    changed,
+    find_project,
+    host_apps,
+    project_team,
+    signing,
+    source_paths,
+)
+from simtrail.testing.fakes import BOOTED_UDID, PHONE_UDID, FakeProcess, FakeXcrun, MemoryStateStore, fixture
+from simtrail.testing.rig import scope
+
+SCOPE = scope("topic-1", "ws")
+SECOND_UDID = "00000000-0000-0000-0000-000000000002"
+APP = Path("/Users/dev/probe-out/dd/Build/Products/Debug-iphonesimulator/NotesProbe.app")
+BUNDLE = "com.example.probe.notes"
+
+
+class Rig:
+    def __init__(self, tmp_path: Path) -> None:
+        self.folder = tmp_path / "NotesProbe"
+        (self.folder / "NotesProbe.xcodeproj").mkdir(parents=True)
+        self.state = MemoryStateStore(tmp_path)
+        self.xcrun = (
+            FakeXcrun()
+            .on("xcodebuild", "-list", out=fixture("xcodebuild-list.json"))
+            .on("xcodebuild", "-showBuildSettings", out=fixture("xcodebuild-settings.json"))
+            .on("xcresulttool", "get", "build-results", out=fixture("xcresult-build-ok.json"))
+            .on("xcresulttool", "get", "test-results", "summary", out=fixture("xcresult-test-summary.json"))
+            .on("xcresulttool", "get", "test-results", "tests", out=fixture("xcresult-test-tests.json"))
+        )
+        self.started: list[tuple[tuple[str, ...], dict[str, Any]]] = []
+        self.processes: list[FakeProcess] = []
+        self.signals: list[tuple[int, int]] = []
+        self.start_error: OSError | None = None
+        self.obeys = True
+        #: The source line a run reads as it starts, and each folder it was read for; "" says nothing.
+        self.source = ""
+        self.sourced: list[Path] = []
+        self.runner = BuildRunner(
+            self.state,
+            xcrun=self.xcrun,
+            start=self.start,
+            clock=lambda: 100.0,
+            wall=lambda: 0.0,
+            signal_group=self.signal,
+            stop_grace_s=0.01,
+            source=self.read_source,
+        )
+
+    async def read_source(self, folder: Path) -> str:
+        self.sourced.append(folder)
+        return self.source
+
+    async def start(self, *args: str, log_path: Path, developer_dir: str = "", cwd: Path | None = None) -> FakeProcess:
+        if self.start_error is not None:
+            raise self.start_error
+        self.started.append((args, {"log_path": log_path, "developer_dir": developer_dir, "cwd": cwd}))
+        process = FakeProcess(4000 + len(self.processes))
+        self.processes.append(process)
+        return process
+
+    def signal(self, pid: int, sig: int) -> None:
+        self.signals.append((pid, sig))
+        if self.obeys:
+            next(process for process in self.processes if process.pid == pid).finish(-sig)
+
+    async def begin(self, kind: str = "build", **options: Any) -> Build:
+        return await self.runner.start(
+            options.pop("scope", SCOPE),
+            kind=kind,
+            folder=self.folder,
+            udid=options.pop("udid", BOOTED_UDID),
+            developer_dir="/Applications/Xcode.app",
+            configuration=options.pop("configuration", "Debug"),
+            timeout_s=options.pop("timeout_s", 60),
+            **options,
+        )
+
+
+@pytest.fixture
+def rig(tmp_path: Path) -> Rig:
+    return Rig(tmp_path)
+
+
+# -- which project ---------------------------------------------------------------------------------------------------
+
+
+def test_the_one_project_in_a_folder_is_found_and_a_workspace_wins_over_the_project_inside_it(tmp_path: Path) -> None:
+    (tmp_path / "App.xcodeproj").mkdir()
+    (tmp_path / "App.xcodeproj.txt").touch()
+    assert find_project(tmp_path).args == ("-project", str(tmp_path / "App.xcodeproj"))
+    (tmp_path / "App.xcworkspace").mkdir()
+    assert find_project(tmp_path).args == ("-workspace", str(tmp_path / "App.xcworkspace"))
+    assert xcodebuild.DERIVED_DATA.name == "DerivedData"
+
+
+def test_a_folder_with_none_or_several_asks_for_one_by_name(tmp_path: Path) -> None:
+    with pytest.raises(BuildRefused, match="there is no Xcode project or workspace in"):
+        find_project(tmp_path)
+    (tmp_path / "One.xcodeproj").mkdir()
+    (tmp_path / "Two.xcodeproj").mkdir()
+    with pytest.raises(BuildRefused, match=r"several; name one: One\.xcodeproj, Two\.xcodeproj"):
+        find_project(tmp_path)
+    assert find_project(tmp_path, project="Two.xcodeproj").path == tmp_path / "Two.xcodeproj"
+
+
+def test_a_named_project_must_be_one_and_must_be_inside_the_folder(tmp_path: Path) -> None:
+    folder = tmp_path / "repo"
+    (folder / "App.xcodeproj").mkdir(parents=True)
+    (tmp_path / "Other.xcworkspace").mkdir()
+    with pytest.raises(BuildRefused, match="not both"):
+        find_project(folder, project="App.xcodeproj", workspace="App.xcworkspace")
+    with pytest.raises(BuildRefused, match=r"App\.xcworkspace is not an Xcode workspace in .*; it has App\.xcodeproj"):
+        find_project(folder, workspace="App.xcworkspace")
+    with pytest.raises(BuildRefused, match=r"Gone\.xcodeproj is not an Xcode project in .*; it has none"):
+        find_project(tmp_path / "empty", project="Gone.xcodeproj")
+    with pytest.raises(BuildRefused, match=r"App\.xcodeproj is not an Xcode workspace"):
+        find_project(folder, workspace="App.xcodeproj")
+    with pytest.raises(BuildRefused, match="must be inside"):
+        find_project(folder, workspace="../Other.xcworkspace")
+
+
+@pytest.mark.parametrize("named", [3, "App\x00.xcodeproj", "A" * 501 + ".xcodeproj"])
+def test_a_project_named_as_anything_but_a_short_name_is_refused(tmp_path: Path, named: object) -> None:
+    with pytest.raises(BuildRefused, match="project is the name of an Xcode project in"):
+        find_project(tmp_path, project=named)
+
+
+def test_a_project_whose_schemes_cannot_be_looked_through_still_answers_how_its_file_stands(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "App.xcodeproj").mkdir()
+    (tmp_path / "App.xcodeproj" / "project.pbxproj").write_text("// project")
+    project = find_project(tmp_path)
+
+    def refuse(self: Path, *args: object, **kwargs: object) -> None:
+        raise OSError("Operation not permitted")
+
+    monkeypatch.setattr(Path, "rglob", refuse)
+    stamps = changed(project)
+    assert len(stamps) == 2 and stamps[0] > 0 and stamps[1] == 0
+
+
+def test_a_workspace_changes_with_the_projects_it_names_and_the_xcconfig_files_beside_it(tmp_path: Path) -> None:
+    # A workspace was stamped by its own folder only, so a bundle id changed in its project installed the old app.
+    workspace = tmp_path / "App.xcworkspace"
+    workspace.mkdir()
+    (workspace / "contents.xcworkspacedata").write_text(
+        '<Workspace version = "1.0">\n   <FileRef location = "group:App.xcodeproj"></FileRef>\n'
+        '   <FileRef location = "group:Pods/Pods.xcodeproj"></FileRef>\n</Workspace>\n'
+    )
+    app = tmp_path / "App.xcodeproj"
+    app.mkdir()
+    (app / "project.pbxproj").write_text("// app")
+    (tmp_path / "Pods" / "Pods.xcodeproj").mkdir(parents=True)
+    project = find_project(tmp_path)
+    assert project.path == workspace
+
+    def touch(path: Path, ns: int) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x")
+        os.utime(path, ns=(ns, ns))
+
+    stamps = [changed(project)]
+    touch(app / "project.pbxproj", 10)
+    stamps.append(changed(project))
+    touch(app / "xcshareddata" / "xcschemes" / "App-Dev.xcscheme", 20)
+    stamps.append(changed(project))
+    touch(tmp_path / "Config" / "Base.xcconfig", 30)
+    stamps.append(changed(project))
+    assert len(set(stamps)) == 4
+    # Build output and hidden folders are not where build settings come from.
+    for skipped in ("build", "DerivedData", "node_modules", ".git"):
+        touch(tmp_path / skipped / "Ignored.xcconfig", 40)
+    assert changed(project) == stamps[-1]
+    # A workspace whose contents cannot be read still answers how it stands.
+    (workspace / "contents.xcworkspacedata").unlink()
+    assert changed(project)[1] == 0
+
+
+# -- a build ---------------------------------------------------------------------------------------------------------
+
+
+async def test_a_build_runs_xcodebuild_for_the_scopes_device_and_answers_what_it_built_then_what_after_did(
+    rig: Rig,
+) -> None:
+    seen = []
+
+    async def after(build: Build) -> list[str]:
+        seen.append((build.app, build.bundle_id))
+        return ["installed NotesProbe.app", f"launched {BUNDLE}"]
+
+    build = await rig.begin(after=after)
+    assert rig.runner.running(SCOPE.id) is build and build.id == "b1"
+    bundle = rig.state.builds_dir(SCOPE) / build.bundle.name
+    assert build.bundle == bundle and bundle.name.endswith("-b1.xcresult") and build.log == bundle.with_suffix(".log")
+    ((args, options),) = rig.started
+    assert args == (
+        "xcodebuild",
+        "-project",
+        str(rig.folder / "NotesProbe.xcodeproj"),
+        "-scheme",
+        "NotesProbe",
+        "-configuration",
+        "Debug",
+        "-destination",
+        f"platform=iOS Simulator,id={BOOTED_UDID}",
+        "-derivedDataPath",
+        str(rig.state.derived_data(SCOPE)),
+        "-resultBundlePath",
+        str(bundle),
+        "build",
+    )
+    assert options == {"log_path": build.log, "developer_dir": "/Applications/Xcode.app", "cwd": rig.folder}
+    rig.processes[0].finish(0)
+    answer = await rig.runner.result(SCOPE.id, "b1", wait_s=5)
+    assert answer.splitlines() == [
+        "build ok · NotesProbe (Debug) · 6.9s · 0 errors, 0 warnings",
+        "installed NotesProbe.app",
+        f"launched {BUNDLE}",
+        f"log {build.log}",
+    ]
+    assert seen == [(APP, BUNDLE)] and build.state == "succeeded"
+    assert rig.runner.running(SCOPE.id) is None
+    settings_call = next(call for call in rig.xcrun.calls if call.args[1] == "-showBuildSettings")
+    assert settings_call.cwd == str(rig.folder) and settings_call.developer_dir == "/Applications/Xcode.app"
+
+
+async def test_an_unchanged_project_is_not_asked_for_its_schemes_or_its_app_again(rig: Rig, tmp_path: Path) -> None:
+    products = tmp_path / "Products"
+    (products / "NotesProbe.app").mkdir(parents=True)
+    settings = [
+        {
+            "buildSettings": {
+                "WRAPPER_NAME": "NotesProbe.app",
+                "TARGET_BUILD_DIR": str(products),
+                "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE,
+            }
+        }
+    ]
+    rig.xcrun.on("xcodebuild", "-showBuildSettings", out=json.dumps(settings))
+
+    async def after(build: Build) -> list[str]:
+        return [f"app {build.app} {build.bundle_id}"]
+
+    def asked() -> tuple[int, int]:
+        return (
+            sum(call.args[1] == "-list" for call in rig.xcrun.calls),
+            sum(call.args[1] == "-showBuildSettings" for call in rig.xcrun.calls),
+        )
+
+    async def built() -> str:
+        build = await rig.begin(after=after)
+        rig.processes[-1].finish(0)
+        return (await rig.runner.result(SCOPE.id, build.id, wait_s=5)).splitlines()[1]
+
+    said = f"app {products / 'NotesProbe.app'} {BUNDLE}"
+    assert [await built(), await built()] == [said, said]
+    assert asked() == (1, 1)
+    # An edit to the project -- its file, or a scheme a level or two down -- asks both again.
+    (rig.folder / "NotesProbe.xcodeproj" / "project.pbxproj").write_text("// changed")
+    assert await built() == said and asked() == (2, 2)
+    schemes = rig.folder / "NotesProbe.xcodeproj" / "xcuserdata" / "me.xcuserdatad" / "xcschemes"
+    schemes.mkdir(parents=True)
+    (schemes / "NotesProbe.xcscheme").write_text("<Scheme/>")
+    assert await built() == said and asked() == (3, 3)
+    # An app no longer where the settings said is looked for again.
+    (products / "NotesProbe.app").rmdir()
+    await built()
+    assert asked() == (3, 4)
+
+
+async def test_a_build_still_going_answers_with_its_id_and_a_later_call_picks_it_up(rig: Rig) -> None:
+    await rig.begin()
+    assert (
+        await rig.runner.result(SCOPE.id, "b1", wait_s=0) == "build b1 still running (0s) · call again with build_id b1"
+    )
+    with pytest.raises(BuildRefused, match="build b1 is still running here"):
+        await rig.begin()
+    with pytest.raises(BuildRefused, match="there is no build 'b1'"):
+        await rig.runner.result("another-scope", "b1", wait_s=0)
+    rig.processes[0].finish(0)
+    assert (await rig.runner.result(SCOPE.id, "b1", wait_s=5)).startswith("build ok · NotesProbe (Debug)")
+    with pytest.raises(BuildRefused, match=r"there is no build 'b9'; recent runs here are b1$"):
+        await rig.runner.result(SCOPE.id, "b9", wait_s=0)
+    with pytest.raises(BuildRefused, match="there is no build 7; leave build_id out to start a run"):
+        await rig.runner.result("another-scope", 7, wait_s=0)
+
+
+async def test_a_broken_build_lists_its_errors_and_neither_reads_settings_nor_launches(rig: Rig) -> None:
+    rig.xcrun.on("xcresulttool", "get", "build-results", out=fixture("xcresult-build-broken.json"))
+
+    async def after(build: Build) -> list[str]:  # pragma: no cover - a failed build never launches
+        raise AssertionError("launched a broken build")
+
+    build = await rig.begin(after=after)
+    rig.processes[0].finish(65)
+    lines = (await rig.runner.result(SCOPE.id, build.id, wait_s=5)).splitlines()
+    assert lines[:2] == [
+        "build FAILED · NotesProbe (Debug) · 1.5s · 1 error, 0 warnings",
+        "error /Users/dev/NotesProbe/Sources/NotesApp.swift:39:19 Cannot convert value of type 'String' to "
+        "specified type 'Int'",
+    ]
+    assert build.state == "failed" and build.app is None
+    assert not any(call.args[1] == "-showBuildSettings" for call in rig.xcrun.calls)
+
+
+async def test_a_build_that_left_no_result_bundle_points_at_its_log(rig: Rig) -> None:
+    rig.xcrun.on("xcresulttool", "get", "build-results", rc=1, err="error: no such bundle")
+    build = await rig.begin()
+    rig.processes[0].finish(70)
+    assert (await rig.runner.result(SCOPE.id, build.id, wait_s=5)).splitlines() == [
+        "build b1 ended without a result to read (NotesProbe (Debug)); the log says why",
+        f"log {build.log}",
+    ]
+    assert build.state == "failed"
+
+
+async def test_an_app_the_settings_do_not_name_is_not_launched_and_a_refused_launch_is_said(rig: Rig) -> None:
+    rig.xcrun.on(
+        "xcodebuild",
+        "-showBuildSettings",
+        out='[{"buildSettings": {"WRAPPER_NAME": "Kit.framework", "TARGET_BUILD_DIR": "/x"}}, "odd", {}]',
+    )
+
+    async def after(build: Build) -> list[str]:
+        assert build.app is None and build.bundle_id is None
+        raise BuildRefused("the build made no app to install")
+
+    build = await rig.begin(after=after)
+    rig.processes[0].finish(0)
+    assert (await rig.runner.result(SCOPE.id, build.id, wait_s=5)).splitlines()[1] == (
+        "not launched: the build made no app to install"
+    )
+    rig.xcrun.on("xcodebuild", "-showBuildSettings", out='{"not": "a list"}')
+    second = await rig.begin()
+    rig.processes[1].finish(0)
+    await rig.runner.result(SCOPE.id, second.id, wait_s=5)
+    assert second.app is None and second.id == "b2"
+
+
+# -- schemes, names and refusals -------------------------------------------------------------------------------------
+
+
+async def test_a_scheme_is_the_only_one_or_the_one_named_and_otherwise_asked_for(rig: Rig) -> None:
+    rig.xcrun.on("xcodebuild", "-list", out='{"workspace": {"name": "App", "schemes": ["App", "AppKit", 3]}}')
+    with pytest.raises(BuildRefused, match="several schemes; name one: App, AppKit"):
+        await rig.begin()
+    with pytest.raises(BuildRefused, match="has no scheme Widget; it has App, AppKit"):
+        await rig.begin(scheme="Widget")
+    build = await rig.begin(scheme="AppKit")
+    assert build.scheme == "AppKit" and build.label == "AppKit (Debug)"
+    rig.processes[0].finish(0)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    # Schemes change with the project: an edit to it is what makes the listing worth asking for again.
+    (rig.folder / "NotesProbe.xcodeproj" / "project.pbxproj").write_text("// the schemes went away")
+    rig.xcrun.on("xcodebuild", "-list", out='{"project": {"schemes": []}}')
+    with pytest.raises(BuildRefused, match=r"has no schemes to build: make one in Xcode .* tick Shared"):
+        await rig.begin()
+    with pytest.raises(BuildRefused, match="has no scheme App; it has none"):
+        await rig.begin(scheme="App")
+
+
+async def test_a_named_test_plan_reaches_xcodebuild_and_a_wrong_one_answers_with_the_plans_there_are(
+    rig: Rig,
+) -> None:
+    """Both `-showTestPlans` answers are what Xcode 26.6 really printed (`xcodebuild-test-plans*.json`)."""
+    rig.xcrun.on("xcodebuild", "-showTestPlans", out=fixture("xcodebuild-test-plans.json"))
+    build = await rig.begin("test", test_plan="Everything")
+    assert build.test_plan == "Everything" and build.label == "NotesProbe (Debug) · Everything"
+    argv = rig.started[-1][0]
+    assert argv[argv.index("-testPlan") + 1] == "Everything"
+    # Asked for the scheme's plans, by name, as JSON.
+    listing = next(args for args in rig.xcrun.argv() if "-showTestPlans" in args)
+    assert listing[listing.index("-scheme") + 1] == "NotesProbe" and "-json" in listing
+    rig.processes[-1].finish(0)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    with pytest.raises(BuildRefused, match="has no test plan Smoke; it has UnitsOnly, Everything"):
+        await rig.begin("test", test_plan="Smoke")
+    with pytest.raises(
+        BuildRefused, match=r"test_plan must be a name as Xcode shows it, .*; it is one of UnitsOnly, Everything"
+    ):
+        await rig.begin("test", test_plan=" Units")
+
+
+async def test_a_scheme_with_no_test_plans_says_to_leave_the_argument_out(rig: Rig) -> None:
+    rig.xcrun.on("xcodebuild", "-showTestPlans", out=fixture("xcodebuild-test-plans-none.json"))
+    with pytest.raises(BuildRefused, match="NotesProbe has no test plans; it runs the tests its scheme names"):
+        await rig.begin("test", test_plan="UnitsOnly")
+    # Naming none is the behaviour there has always been: Xcode runs the scheme's default, and nothing is asked.
+    asked = len([args for args in rig.xcrun.argv() if "-showTestPlans" in args])
+    build = await rig.begin("test")
+    assert build.test_plan == "" and "-testPlan" not in rig.started[-1][0]
+    assert len([args for args in rig.xcrun.argv() if "-showTestPlans" in args]) == asked
+
+
+async def test_asking_for_retries_is_what_makes_a_flaky_test_findable(rig: Rig) -> None:
+    """Without these flags xcodebuild runs each test once, the bundle has no repetitions, and `xcresult.py`'s flaky
+    reporting could never fire -- so the two belong in one change."""
+    build = await rig.begin("test", retries=2)
+    argv = rig.started[-1][0]
+    assert "-retry-tests-on-failure" in argv
+    # `-test-iterations` counts the first run, so two retries is three iterations.
+    assert argv[argv.index("-test-iterations") + 1] == "3"
+    rig.processes[-1].finish(0)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    # None asked for: nothing about retrying reaches xcodebuild, and a run behaves as it always has.
+    await rig.begin("test")
+    assert "-retry-tests-on-failure" not in rig.started[-1][0]
+
+
+async def test_a_build_cannot_be_retried_because_there_is_nothing_to_retry(rig: Rig) -> None:
+    with pytest.raises(BuildRefused, match="only a test run can be retried"):
+        await rig.begin("build", retries=1)
+    assert rig.started == []
+
+
+async def test_a_build_is_not_a_place_to_name_a_test_plan(rig: Rig) -> None:
+    with pytest.raises(BuildRefused, match="name one on a test run, not a build"):
+        await rig.begin("build", test_plan="UnitsOnly")
+    assert rig.started == []
+
+
+async def test_the_plans_are_asked_for_once_until_the_project_changes(rig: Rig) -> None:
+    rig.xcrun.on("xcodebuild", "-showTestPlans", out=fixture("xcodebuild-test-plans.json"))
+
+    async def run() -> None:
+        build = await rig.begin("test", test_plan="UnitsOnly")
+        rig.processes[-1].finish(0)
+        await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+
+    await run()
+    await run()
+    assert len([args for args in rig.xcrun.argv() if "-showTestPlans" in args]) == 1
+    (rig.folder / "NotesProbe.xcodeproj" / "project.pbxproj").write_text("// a plan was added")
+    await run()
+    assert len([args for args in rig.xcrun.argv() if "-showTestPlans" in args]) == 2
+
+
+async def test_a_scheme_whose_plans_cannot_be_listed_is_refused_with_what_xcodebuild_said(rig: Rig) -> None:
+    rig.xcrun.on("xcodebuild", "-showTestPlans", rc=74, err="xcodebuild: error: The scheme is damaged")
+    with pytest.raises(BuildRefused, match="could not list the test plans of NotesProbe: xcodebuild: error:"):
+        await rig.begin("test", test_plan="UnitsOnly")
+    assert rig.started == []
+
+
+async def test_every_name_a_refusal_lists_is_one_a_call_may_give(rig: Rig) -> None:
+    """What `xcodebuild -list` printed for a project with a scheme named `Probe (Staging)` (Xcode 26.6 and 27.0 alike).
+
+    The names a refusal offers used to be checked against a narrower pattern than Xcode's, so an agent told to use
+    `Probe (Staging)` was refused for it, and could only guess again.
+    """
+    rig.xcrun.on("xcodebuild", "-list", out=fixture("xcodebuild-list-names.json"))
+    with pytest.raises(BuildRefused, match=r"several schemes; name one: (.+)$") as several:
+        await rig.begin()
+    with pytest.raises(BuildRefused, match=r"no build configuration Beta; it has (.+) \(name one") as configuration:
+        await rig.begin(scheme="Probe", configuration="Beta")
+    schemes = several.value.args[0].split("name one: ")[1].split(", ")
+    configurations = configuration.value.args[0].split("it has ")[1].split(" (")[0].split(", ")
+    assert "Probe (Staging)" in schemes and configurations == ["Debug", "Release", "Staging"]
+    for scheme in schemes:
+        for chosen in configurations:
+            build = await rig.begin(scheme=scheme, configuration=chosen)
+            assert rig.started[-1][0][3:7] == ("-scheme", scheme, "-configuration", chosen)
+            rig.processes[-1].finish(0)
+            await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+
+
+async def test_a_workspace_lists_no_configurations_so_the_name_is_left_to_xcodebuild(rig: Rig) -> None:
+    rig.xcrun.on("xcodebuild", "-list", out='{"workspace": {"name": "App", "schemes": ["App"]}}')
+    build = await rig.begin(configuration="Beta (Internal)")
+    assert build.configuration == "Beta (Internal)"
+
+
+def shared_scheme(container: Path, name: str, text: str = "") -> None:
+    place = container / "xcshareddata" / "xcschemes" / f"{name}.xcscheme"
+    place.parent.mkdir(parents=True, exist_ok=True)
+    place.write_text(text or fixture("xcscheme-staging.xcscheme"), encoding="utf-8")
+
+
+async def test_a_run_naming_no_configuration_builds_the_one_its_schemes_action_does_as_xcode_does(rig: Rig) -> None:
+    """A scheme whose Run action builds Staging, which gives the app a bundle id of its own: building Debug instead
+    installed a second app beside the one the person uses."""
+    rig.xcrun.on("xcodebuild", "-list", out=fixture("xcodebuild-list-names.json"))
+    shared_scheme(rig.folder / "NotesProbe.xcodeproj", "Probe (Staging)")
+    build = await rig.begin(scheme="Probe (Staging)", configuration=None)
+    assert rig.started[-1][0][3:7] == ("-scheme", "Probe (Staging)", "-configuration", "Staging")
+    assert build.label == "Probe (Staging) (Staging, its scheme's)"
+    rig.processes[-1].finish(0)
+    answer = await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    assert answer.startswith("build ok · Probe (Staging) (Staging, its scheme's) · ")
+    settings_call = next(call for call in rig.xcrun.calls if call.args[1] == "-showBuildSettings")
+    assert settings_call.args[settings_call.args.index("-configuration") + 1] == "Staging"
+    # Its tests build with what its Test action names.
+    test = await rig.begin("test", scheme="Probe (Staging)", configuration=None)
+    assert test.configuration == "Debug" and test.configuration_from_scheme and "its scheme's" in test.label
+
+
+async def test_a_configuration_the_call_or_the_settings_name_wins_over_the_schemes(rig: Rig) -> None:
+    rig.xcrun.on("xcodebuild", "-list", out=fixture("xcodebuild-list-names.json"))
+    shared_scheme(rig.folder / "NotesProbe.xcodeproj", "Probe (Staging)")
+    build = await rig.begin(scheme="Probe (Staging)", configuration="Release")
+    assert build.configuration == "Release" and not build.configuration_from_scheme
+    assert build.label == "Probe (Staging) (Release)"
+
+
+async def test_a_scheme_with_no_file_to_say_builds_debug(rig: Rig) -> None:
+    build = await rig.begin(configuration=None)
+    assert build.configuration == "Debug" and build.label == "NotesProbe (Debug)"
+    rig.processes[-1].finish(0)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    shared_scheme(rig.folder / "NotesProbe.xcodeproj", "NotesProbe", "<Scheme><LaunchAction/></Scheme>")
+    assert (await rig.begin(configuration=None)).label == "NotesProbe (Debug)"
+
+
+async def test_a_configuration_a_scheme_names_and_the_project_has_not_is_refused_naming_the_scheme(rig: Rig) -> None:
+    shared_scheme(rig.folder / "NotesProbe.xcodeproj", "NotesProbe")
+    with pytest.raises(
+        BuildRefused,
+        match=r"NotesProbe\.xcodeproj has no build configuration Staging, which the scheme NotesProbe builds with; it "
+        r"has Debug, Release \(name one with configuration, or change build.configuration\)",
+    ):
+        await rig.begin(configuration=None)
+    assert rig.started == []
+
+
+async def test_a_workspaces_scheme_may_be_its_own_or_one_of_its_projects(rig: Rig) -> None:
+    workspace = rig.folder / "NotesProbe.xcworkspace"
+    workspace.mkdir()
+    (workspace / "contents.xcworkspacedata").write_text(
+        '<Workspace version = "1.0"><FileRef location = "group:NotesProbe.xcodeproj"></FileRef></Workspace>'
+    )
+    rig.xcrun.on("xcodebuild", "-list", out='{"workspace": {"name": "NotesProbe", "schemes": ["NotesProbe"]}}')
+    shared_scheme(rig.folder / "NotesProbe.xcodeproj", "NotesProbe")
+    build = await rig.begin(configuration=None)
+    assert build.project.flag == "-workspace" and build.configuration == "Staging"
+    rig.processes[-1].finish(0)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    shared_scheme(workspace, "NotesProbe", '<Scheme><LaunchAction buildConfiguration = "Beta"/></Scheme>')
+    assert (await rig.begin(configuration=None)).configuration == "Beta"
+
+
+async def test_xcrun_that_is_missing_points_at_the_doctor(rig: Rig) -> None:
+    rig.xcrun.on("xcodebuild", "-list", rc=127, err="Xcode command-line tools are not installed (no xcrun)")
+    with pytest.raises(BuildRefused, match=r"not installed \(no xcrun\) Run `simtrail doctor` to see why\."):
+        await rig.begin()
+
+
+async def test_a_project_xcodebuild_cannot_list_is_refused_with_what_it_said(rig: Rig) -> None:
+    rig.xcrun.on("xcodebuild", "-list", rc=74, err="xcodebuild: error: The project is damaged")
+    with pytest.raises(BuildRefused, match=r"could not list NotesProbe\.xcodeproj: xcodebuild: error: The project is"):
+        await rig.begin()
+    with pytest.raises(BuildRefused, match=r"damaged$"):
+        await rig.begin()
+    rig.xcrun.on("xcodebuild", "-list", out="User defaults from command line:\nnot json")
+    with pytest.raises(BuildRefused, match="could not list"):
+        await rig.begin()
+    rig.xcrun.on("xcodebuild", "-list", out='["odd"]')
+    with pytest.raises(BuildRefused, match="has no schemes to build"):
+        await rig.begin()
+    assert rig.started == []
+
+
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"kind": "archive"}, "a run is one of build, test"),
+        ({"configuration": "-derivedDataPath"}, r"configuration must be a name as Xcode shows it, .*Debug, Release"),
+        ({"configuration": "Debug\n"}, "configuration must be a name as Xcode shows it"),
+        ({"configuration": "Debug; rm -rf"}, "has no build configuration Debug; rm -rf; it has Debug, Release"),
+        ({"scheme": "-destination"}, "scheme must be a name as Xcode shows it, .*; it is one of NotesProbe"),
+        ({"scheme": ""}, "scheme must be a name"),
+        ({"only_testing": "AppTests"}, "only_testing is a list"),
+        ({"skip_testing": ["AppTests/x\n"]}, "skip_testing is a list"),
+        ({"skip_testing": [" AppTests"]}, "skip_testing is a list of at most 50 tests as a failure names them"),
+        ({"only_testing": ["A" * 301]}, "only_testing is a list"),
+        ({"only_testing": ["T"] * 51}, "only_testing is a list of at most 50"),
+    ],
+)
+async def test_what_would_reach_xcodebuild_as_anything_but_a_name_is_refused(
+    rig: Rig, options: dict[str, Any], message: str
+) -> None:
+    kind = options.pop("kind", "test")
+    with pytest.raises(BuildRefused, match=message):
+        await rig.begin(kind, **options)
+    assert rig.started == []
+
+
+async def test_xcodebuild_that_cannot_start_is_refused_and_leaves_the_scope_free(rig: Rig) -> None:
+    rig.start_error = FileNotFoundError("Xcode command-line tools are not installed (no xcrun)")
+    with pytest.raises(
+        BuildRefused, match=r"could not be started: Xcode command-line tools .*\. Run `simtrail doctor` to see why\."
+    ):
+        await rig.begin()
+    assert rig.runner.running(SCOPE.id) is None
+
+
+# -- which source ----------------------------------------------------------------------------------------------------
+
+SOURCE = "source /Users/dev/NotesProbe-login · feature/login @ 1a2b3c4 (dirty)"
+
+
+async def test_a_build_names_the_source_it_built_in_its_answer_and_at_the_head_of_its_log(rig: Rig) -> None:
+    rig.source = SOURCE
+
+    async def after(build: Build) -> list[str]:
+        return ["installed NotesProbe.app", f"launched {BUNDLE}"]
+
+    build = await rig.begin(after=after)
+    assert rig.sourced == [rig.folder] and build.source == SOURCE
+    assert build.log.read_text(encoding="utf-8") == f"{SOURCE}\n"
+    rig.processes[0].finish(0)
+    assert (await rig.runner.result(SCOPE.id, build.id, wait_s=5)).splitlines() == [
+        "build ok · NotesProbe (Debug) · 6.9s · 0 errors, 0 warnings",
+        "installed NotesProbe.app",
+        f"launched {BUNDLE}",
+        SOURCE,
+        f"log {build.log}",
+    ]
+
+
+async def test_a_test_run_a_failed_build_and_a_run_that_was_ended_name_their_source_too(rig: Rig) -> None:
+    rig.source = SOURCE
+    tests = await rig.begin("test")
+    rig.processes[0].finish(65)
+    assert (await rig.runner.result(SCOPE.id, tests.id, wait_s=5)).splitlines()[-2:] == [SOURCE, f"log {tests.log}"]
+    rig.xcrun.on("xcresulttool", "get", "build-results", out=fixture("xcresult-build-broken.json"))
+    broken = await rig.begin()
+    rig.processes[1].finish(65)
+    assert (await rig.runner.result(SCOPE.id, broken.id, wait_s=5)).splitlines()[-2:] == [SOURCE, f"log {broken.log}"]
+    stopped = await rig.begin(timeout_s=0.01)
+    assert (await rig.runner.result(SCOPE.id, stopped.id, wait_s=5)).splitlines()[-2:] == [
+        SOURCE,
+        f"log {stopped.log}",
+    ]
+    cancelled = await rig.begin()
+    await asyncio.sleep(0)
+    await rig.runner.cancel(SCOPE.id)
+    assert await rig.runner.result(SCOPE.id, cancelled.id, wait_s=0) == (
+        f"build {cancelled.id} was cancelled\n{SOURCE}\nlog {cancelled.log}"
+    )
+
+
+async def test_a_log_that_cannot_be_headed_does_not_stop_the_build(rig: Rig) -> None:
+    rig.source = SOURCE
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(0.0))
+    # The log's name is taken by a folder, so the line cannot be written there.
+    (rig.state.builds_dir(SCOPE) / f"{stamp}-b1.log").mkdir(parents=True)
+    build = await rig.begin()
+    assert build.log.is_dir() and len(rig.started) == 1 and build.source == SOURCE
+
+
+# -- a test run ------------------------------------------------------------------------------------------------------
+
+
+async def test_a_test_run_passes_its_selection_on_and_answers_with_its_failures(rig: Rig) -> None:
+    build = await rig.begin(
+        "test", only_testing=["NotesProbeTests/NotesTests"], skip_testing=["NotesProbeUITests"], after=None
+    )
+    args = rig.started[0][0]
+    assert args[-3:] == ("-only-testing:NotesProbeTests/NotesTests", "-skip-testing:NotesProbeUITests", "test")
+    (rig.folder / "NotesProbeTests").mkdir()
+    (rig.folder / "NotesProbeTests" / "NotesTests.swift").touch()
+    rig.processes[0].finish(65)
+    lines = (await rig.runner.result(SCOPE.id, build.id, wait_s=5)).splitlines()
+    assert lines[0] == "test FAILED · NotesProbe (Debug) · 2 passed, 1 failed, 0 skipped · 34.3s"
+    assert lines[1].startswith(
+        "fail NotesProbeTests/NotesTests/testDeliberatelyFails NotesProbeTests/NotesTests.swift:10 XCTAssertEqual"
+    )
+    assert build.state == "failed"
+
+
+def test_a_failures_file_is_found_in_the_project_only_when_one_file_has_its_name(tmp_path: Path) -> None:
+    for path in (
+        "Tests/Suites/ParsingTests.swift",
+        "Tests/TripTests.swift",
+        "Widget/TripTests.swift",
+        "DerivedData/Build/ParsingTests.swift",
+        ".build/checkouts/ParsingTests.swift",
+    ):
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / path).touch()
+    names = ["ParsingTests.swift", "TripTests.swift", "Gone.swift", "Tests/TripTests.swift", ""]
+    assert source_paths(tmp_path, names) == {"ParsingTests.swift": "Tests/Suites/ParsingTests.swift"}
+
+
+def test_a_run_with_no_bare_names_does_not_look_through_the_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refuse(*args: object) -> None:  # pragma: no cover - the point is that it is not called
+        raise AssertionError("walked the project")
+
+    monkeypatch.setattr(os, "walk", refuse)
+    assert source_paths(tmp_path, []) == {} and source_paths(tmp_path, ["Tests/A.swift"]) == {}
+
+
+async def test_a_test_run_whose_tests_did_not_build_answers_with_the_compile_errors(rig: Rig) -> None:
+    rig.xcrun.on("xcresulttool", "get", "test-results", "summary", out=fixture("xcresult-test-summary-unbuilt.json"))
+    rig.xcrun.on("xcresulttool", "get", "build-results", out=fixture("xcresult-build-results-unbuilt.json"))
+    build = await rig.begin("test")
+    rig.processes[-1].finish(65)
+    lines = (await rig.runner.result(SCOPE.id, build.id, wait_s=5)).splitlines()
+    assert lines[0].startswith("test FAILED · NotesProbe (Debug) · the tests did not build · ")
+    assert lines[1] == (
+        "error /Users/dev/Probe/Broken/BrokenTests.swift:5:49 Cannot convert value of type 'String' to specified type "
+        "'Int'"
+    )
+    assert build.state == "failed" and not any("tests" in args for args in rig.xcrun.argv())
+    # No test ran and nothing failed to build -- a scheme with no tests: the run is answered as a run.
+    rig.xcrun.on("xcresulttool", "get", "build-results", out=fixture("xcresult-build-ok.json"))
+    second = await rig.begin("test")
+    rig.processes[-1].finish(0)
+    lines = (await rig.runner.result(SCOPE.id, second.id, wait_s=5)).splitlines()
+    assert lines[0].startswith("test FAILED · NotesProbe (Debug) · 0 passed, 0 failed, 0 skipped")
+    rig.xcrun.on("xcresulttool", "get", "build-results", rc=1)
+    third = await rig.begin("test")
+    rig.processes[-1].finish(0)
+    assert (await rig.runner.result(SCOPE.id, third.id, wait_s=5)).startswith("test FAILED · NotesProbe (Debug) · 0")
+
+
+async def test_a_test_run_leaves_xcodes_diagnostics_out_unless_the_settings_ask_and_a_build_never_names_them(
+    rig: Rig,
+) -> None:
+    async def argv(kind: str, **options: Any) -> tuple[str, ...]:
+        build = await rig.begin(kind, **options)
+        rig.processes[-1].finish(0)
+        await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+        return tuple(rig.started[-1][0])
+
+    tests = await argv("test")
+    assert tests[tests.index("-collect-test-diagnostics") + 1] == "never"
+    asked = await argv("test", test_diagnostics=True)
+    assert asked[asked.index("-collect-test-diagnostics") + 1] == "on-failure"
+    assert "-collect-test-diagnostics" not in await argv("build")
+
+
+async def test_a_build_lists_its_warnings_only_when_asked(rig: Rig) -> None:
+    warned = '{"status": "succeeded", "warningCount": 1, "warnings": [{"message": "unused variable \'x\'"}]}'
+    rig.xcrun.on("xcresulttool", "get", "build-results", out=warned)
+    for warnings, said in ((False, []), (True, ["warning unused variable 'x'"])):
+        build = await rig.begin(warnings=warnings)
+        rig.processes[-1].finish(0)
+        lines = (await rig.runner.result(SCOPE.id, build.id, wait_s=5)).splitlines()
+        assert lines[0] == "build ok · NotesProbe (Debug) · 0 errors, 1 warning" and lines[1:-1] == said
+
+
+async def test_a_test_run_without_a_report_says_so_and_one_without_its_tree_still_counts(rig: Rig) -> None:
+    rig.xcrun.on("xcresulttool", "get", "test-results", "summary", rc=1)
+    build = await rig.begin("test")
+    rig.processes[0].finish(65)
+    assert (await rig.runner.result(SCOPE.id, build.id, wait_s=5)).startswith("test b1 ended without a result to read")
+    rig.xcrun.on("xcresulttool", "get", "test-results", "summary", out='{"result": "Passed", "passedTests": 3}')
+    rig.xcrun.on("xcresulttool", "get", "test-results", "tests", rc=1)
+    second = await rig.begin("test")
+    rig.processes[1].finish(0)
+    assert (await rig.runner.result(SCOPE.id, second.id, wait_s=5)).splitlines()[0] == (
+        "test ok · NotesProbe (Debug) · 3 passed, 0 failed, 0 skipped"
+    )
+    assert second.state == "succeeded"
+
+
+# -- the app tests run in --------------------------------------------------------------------------------------------
+
+STAGING = "com.example.probe.notes.staging"
+
+
+def test_the_apps_tests_run_in_are_a_unit_tests_test_host_and_a_ui_tests_target_and_a_logic_test_has_none() -> None:
+    assert host_apps(json.loads(fixture("xcodebuild-settings-test.json"))) == [
+        ("NotesProbeTests", "NotesProbe", STAGING),
+        ("NotesProbeUITests", "NotesProbe", STAGING),
+    ]
+    elsewhere = {"WRAPPER_NAME": "A.xctest", "TEST_HOST": "/Products/Other.app/Other", "TEST_TARGET_NAME": "Gone"}
+    nameless = {"WRAPPER_NAME": "B.xctest", "TEST_HOST": "/Products/Plain.app/Plain"}
+    settings = [
+        {"target": "Plain", "buildSettings": {"WRAPPER_NAME": "Plain.app", "TARGET_BUILD_DIR": "/Products"}},
+        {"target": "A", "buildSettings": elsewhere},
+        {"target": "B", "buildSettings": nameless},
+        {"buildSettings": "odd"},
+        "odd",
+    ]
+    assert host_apps(settings) == [] and host_apps({"not": "a list"}) == []
+
+
+class HostSettings:
+    """A rig whose test settings name the fixture's hosts, in Staging."""
+
+    def __init__(self, rig: Rig) -> None:
+        self.rig = rig
+        rig.xcrun.on("xcodebuild", "-showBuildSettings", "test", out=fixture("xcodebuild-settings-test.json"))
+
+    def asked(self) -> list[tuple[str, ...]]:
+        return [call.args for call in self.rig.xcrun.calls if call.args[1:3] == ("-showBuildSettings", "test")]
+
+
+async def test_a_test_run_held_to_another_app_than_its_tests_run_in_is_not_started_and_both_are_named(
+    rig: Rig,
+) -> None:
+    hosts = HostSettings(rig)
+    with pytest.raises(BuildRefused) as refused:
+        await rig.begin("test", expected_bundle_id=BUNDLE)
+    assert str(refused.value) == (
+        f"NotesProbe (Debug) runs NotesProbeTests in NotesProbe, which is {STAGING}, not {BUNDLE}, the app "
+        "build.expected_bundle_id names, so the tests were not run and nothing was installed: name the configuration "
+        f"that builds {BUNDLE} with configuration, or change build.expected_bundle_id"
+    )
+    assert rig.started == [] and rig.runner.running(SCOPE.id) is None
+    (asked,) = hosts.asked()
+    assert asked[asked.index("-configuration") + 1] == "Debug"
+    assert asked[asked.index("-destination") + 1] == f"platform=iOS Simulator,id={BOOTED_UDID}"
+    call = next(call for call in rig.xcrun.calls if call.args == asked)
+    assert call.cwd == str(rig.folder) and call.developer_dir == "/Applications/Xcode.app"
+    # The tests of a target hosted by no app, or with the hosted ones skipped, install nothing of the project's.
+    hosted = ["NotesProbeTests", "NotesProbeUITests"]
+    for selection in ({"only_testing": ["NotesModelTests"]}, {"skip_testing": hosted}):
+        build = await rig.begin("test", expected_bundle_id=BUNDLE, **selection)
+        rig.processes[-1].finish(0)
+        await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    with pytest.raises(BuildRefused, match="runs NotesProbeUITests in NotesProbe"):
+        await rig.begin("test", expected_bundle_id=BUNDLE, only_testing=["NotesProbeUITests/LoginTests/testLogin"])
+    assert len(rig.started) == 2 and len(hosts.asked()) == 1, "kept while the project is unchanged"
+
+
+async def test_a_test_run_in_the_expected_app_starts_and_one_held_to_nothing_reads_no_settings(rig: Rig) -> None:
+    hosts = HostSettings(rig)
+    build = await rig.begin("test")
+    assert hosts.asked() == [] and len(rig.started) == 1
+    rig.processes[-1].finish(0)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    build = await rig.begin("test", expected_bundle_id=STAGING)
+    assert len(hosts.asked()) == 1 and len(rig.started) == 2
+    rig.processes[-1].finish(0)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    # A build is held to the setting once built, by what installs it (`provider`), not here.
+    build = await rig.begin("build", expected_bundle_id=BUNDLE)
+    assert len(hosts.asked()) == 1 and len(rig.started) == 3
+
+
+async def test_a_target_the_runs_test_plan_turns_off_is_not_held_to_the_expected_app(rig: Rig) -> None:
+    """`-showBuildSettings test` lists the targets a plan turns off too, and answers for the scheme's default plan
+    whichever is named (measured on Xcode 26.6), so the plan is read from its file."""
+    hosts = HostSettings(rig)
+    rig.xcrun.on("xcodebuild", "-showTestPlans", out=fixture("xcodebuild-test-plans.json"))
+    shared_scheme(rig.folder / "NotesProbe.xcodeproj", "NotesProbe", fixture("xcscheme-test-plans.xcscheme"))
+    (rig.folder / "UnitsOnly.xctestplan").write_text(fixture("xctestplan-units-only.xctestplan"), encoding="utf-8")
+    (rig.folder / "Everything.xctestplan").write_text(fixture("xctestplan-everything.xctestplan"), encoding="utf-8")
+    # The default plan turns the UI tests off: with the unit tests skipped, no test runs in an app, so the run goes.
+    build = await rig.begin("test", expected_bundle_id=BUNDLE, skip_testing=["NotesProbeTests"])
+    rig.processes[-1].finish(0)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    assert len(rig.started) == 1 and len(hosts.asked()) == 1
+    # Named on the command line, a target the plan turns off is checked all the same.
+    with pytest.raises(BuildRefused, match="runs NotesProbeUITests in NotesProbe"):
+        await rig.begin("test", expected_bundle_id=BUNDLE, only_testing=["NotesProbeUITests"])
+    with pytest.raises(BuildRefused, match="runs NotesProbeUITests in NotesProbe"):
+        await rig.begin("test", expected_bundle_id=BUNDLE, test_plan="Everything", skip_testing=["NotesProbeTests"])
+    # A plan that cannot be read is no reason to run: every target is checked, as before.
+    (rig.folder / "UnitsOnly.xctestplan").write_text("{", encoding="utf-8")
+    with pytest.raises(BuildRefused, match="runs NotesProbeUITests in NotesProbe"):
+        await rig.begin("test", expected_bundle_id=BUNDLE, skip_testing=["NotesProbeTests"])
+    assert len(rig.started) == 1
+
+
+async def test_a_test_run_whose_hosts_cannot_be_read_is_not_started(rig: Rig) -> None:
+    rig.xcrun.on("xcodebuild", "-showBuildSettings", "test", rc=65, err="Scheme NotesProbe is not configured to test")
+    with pytest.raises(BuildRefused, match=r"^xcodebuild could not say which app NotesProbe's tests run in, for build"):
+        await rig.begin("test", expected_bundle_id=BUNDLE)
+    assert rig.started == []
+
+
+# -- ending a run ----------------------------------------------------------------------------------------------------
+
+
+async def test_a_run_past_its_timeout_is_ended_with_its_process_group(rig: Rig) -> None:
+    build = await rig.begin(timeout_s=0.01)
+    answer = await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    assert answer == (
+        "build b1 was stopped after 0s, the longest a run may take here (build.timeout_minutes, `simtrail config`)"
+        f"\nlog {build.log}"
+    )
+    assert rig.signals == [(4000, signal.SIGTERM)] and build.state == "timed_out"
+    assert rig.runner.running(SCOPE.id) is None
+
+
+async def test_a_run_that_ignores_term_is_killed(rig: Rig) -> None:
+    rig.obeys = False
+    build = await rig.begin(timeout_s=0.01)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    assert rig.signals == [(4000, signal.SIGTERM), (4000, signal.SIGKILL)]
+
+
+async def test_cancelling_ends_the_scopes_run_and_a_scope_with_none_has_nothing_to_cancel(rig: Rig) -> None:
+    assert await rig.runner.cancel(SCOPE.id) is False
+    build = await rig.begin()
+    await asyncio.sleep(0)
+    assert await rig.runner.cancel(SCOPE.id) is True
+    assert build.state == "cancelled" and rig.signals == [(4000, signal.SIGTERM)]
+    assert await rig.runner.result(SCOPE.id, build.id, wait_s=0) == f"build b1 was cancelled\nlog {build.log}"
+    assert rig.runner.running(SCOPE.id) is None
+
+
+async def test_cancelling_while_launching_does_not_signal_a_build_that_already_ended(rig: Rig) -> None:
+    launching = asyncio.Event()
+
+    async def after(build: Build) -> list[str]:
+        launching.set()
+        await asyncio.Event().wait()
+        return []  # pragma: no cover - cancelled first
+
+    await rig.begin(after=after)
+    rig.processes[0].finish(0)
+    await launching.wait()
+    await rig.runner.shutdown()
+    assert rig.signals == [] and rig.runner.running(SCOPE.id) is None
+
+
+async def test_switching_a_group_off_ends_its_runs_and_no_other_groups(rig: Rig) -> None:
+    mine = await rig.begin()
+    theirs = await rig.begin(scope=scope("topic-9", "other"))
+    await asyncio.sleep(0)
+    assert await rig.runner.cancel_group("ws") == 1
+    assert mine.state == "cancelled" and theirs.state == "running"
+    assert await rig.runner.cancel_group("ws") == 0
+    await rig.runner.shutdown()
+    assert theirs.state == "cancelled"
+
+
+async def test_runs_in_two_derived_data_folders_go_side_by_side_but_never_two_in_one_or_on_one_device(
+    rig: Rig, tmp_path: Path
+) -> None:
+    main, feature = tmp_path / "DerivedData" / "demo-main", tmp_path / "DerivedData" / "demo-feature-x"
+    first = await rig.begin(derived=main)
+    second = await rig.begin(derived=feature, udid=SECOND_UDID)
+    assert {build.id for build in rig.runner.runs()} == {first.id, second.id}
+    assert [first.lane, second.lane] == [main, feature]
+    assert ("-derivedDataPath", str(feature)) == rig.started[1][0][9:11]
+    with pytest.raises(BuildRefused, match=r"^build b1 is still running here; wait for it with build_id b1$"):
+        await rig.begin(derived=main, udid="00000000-0000-0000-0000-000000000003")
+    elsewhere = tmp_path / "DerivedData" / "demo-feature-y"
+    with pytest.raises(BuildRefused) as refused:
+        await rig.begin(derived=elsewhere, udid=SECOND_UDID)
+    assert str(refused.value) == (
+        f"build b2 of {rig.folder} is still running on this device; wait for it with build_id b2"
+    )
+    assert rig.runner.running(SCOPE.id) is first and len(rig.started) == 2
+    # Another scope's run for the same device is that scope's to answer for.
+    theirs = await rig.begin(scope=scope("topic-9", "ws"), derived=elsewhere, udid=SECOND_UDID)
+    await asyncio.sleep(0)
+    assert await rig.runner.cancel(SCOPE.id) is True
+    assert first.state == second.state == "cancelled" and theirs.state == "running"
+    await rig.runner.shutdown()
+
+
+async def test_a_run_held_up_by_another_checkouts_in_the_scopes_one_folder_says_how_they_go_side_by_side(
+    rig: Rig, tmp_path: Path
+) -> None:
+    await rig.begin()
+    other = tmp_path / "demo-feature-x"
+    with pytest.raises(BuildRefused) as refused:
+        await rig.runner.start(SCOPE, kind="build", folder=other, udid=SECOND_UDID, developer_dir="", timeout_s=60)
+    assert str(refused.value) == (
+        "build b1 is still running here; wait for it with build_id b1; a build of another checkout runs beside it "
+        'with build.derived_data = "checkout"'
+    )
+    await rig.runner.shutdown()
+
+
+async def test_a_scope_keeps_only_its_last_finished_runs_readable(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(runner, "KEEP_FINISHED", 2)
+    ids: list[str] = []
+    for _ in range(5):
+        build = await rig.begin()
+        rig.processes[-1].finish(0)
+        assert build.task is not None
+        await build.task
+        ids.append(build.id)
+    with pytest.raises(BuildRefused, match="there is no build"):
+        await rig.runner.result(SCOPE.id, ids[0], 0)
+    assert await rig.runner.result(SCOPE.id, ids[3], 0) and await rig.runner.result(SCOPE.id, ids[4], 0)
+
+
+async def test_a_real_device_is_built_for_as_one_signed_by_the_team_and_its_app_kept_apart(
+    rig: Rig, tmp_path: Path
+) -> None:
+    products = tmp_path / "Products"
+    (products / "NotesProbe.app").mkdir(parents=True)
+    built = {"WRAPPER_NAME": "NotesProbe.app", "TARGET_BUILD_DIR": str(products), "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE}
+    rig.xcrun.on("xcodebuild", "-showBuildSettings", out=json.dumps([{"buildSettings": built}]))
+
+    async def on_phone(team: str) -> Build:
+        build = await rig.runner.start(
+            SCOPE,
+            kind="build",
+            folder=rig.folder,
+            udid=PHONE_UDID,
+            developer_dir="/Applications/Xcode.app",
+            configuration="Debug",
+            timeout_s=60,
+            team=team,
+            after=lambda built: asyncio.sleep(0, result=[]),
+        )
+        rig.processes[-1].finish(0)
+        await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+        return build
+
+    signed = await on_phone("9Q48L5C2K5")
+    args = rig.started[-1][0]
+    assert args[args.index("-destination") + 1] == f"platform=iOS,id={PHONE_UDID}"
+    assert args[-3:] == ("-allowProvisioningUpdates", "DEVELOPMENT_TEAM=9Q48L5C2K5", "build") and signed.signing
+    unsigned = await on_phone("")
+    assert unsigned.signing == ("-allowProvisioningUpdates",)
+    assert rig.started[-1][0][-2:] == (*unsigned.signing, "build"), "the project's own team, and leave to register"
+    settings = [call.args for call in rig.xcrun.calls if call.args[1] == "-showBuildSettings"]
+    assert f"platform=iOS,id={PHONE_UDID}" in settings[0]
+    await rig.begin()
+    rig.processes[-1].finish(0)
+    await rig.runner.result(SCOPE.id, "b3", wait_s=5)
+    assert sum(call.args[1] == "-showBuildSettings" for call in rig.xcrun.calls) == 2, "a simulator's app is its own"
+    assert signing(BOOTED_UDID, "9Q48L5C2K5") == () and signing(PHONE_UDID, "") == ("-allowProvisioningUpdates",)
+    (rig.folder / "NotesProbe.xcodeproj" / "project.pbxproj").write_text("DEVELOPMENT_TEAM = OWNTEAM001;\n")
+    own = await on_phone("9Q48L5C2K5")
+    assert own.signing == ("-allowProvisioningUpdates",), "a project's own team signs its builds"
+
+
+def test_a_project_s_team_is_the_one_its_settings_name_most(tmp_path: Path) -> None:
+    app = tmp_path / "App.xcodeproj"
+    app.mkdir()
+    (app / "project.pbxproj").write_text(
+        'DEVELOPMENT_TEAM = TEAMAAAAA1;\n"DEVELOPMENT_TEAM[sdk=iphoneos*]" = TEAMBBBBB2;\n'
+        'DEVELOPMENT_TEAM = TEAMBBBBB2;\nDEVELOPMENT_TEAM = "";\nDEVELOPMENT_TEAM = $(TEAM);\n'
+    )
+    assert project_team(Project("-project", app)) == "TEAMBBBBB2"
+    configs = tmp_path / "Configs"
+    configs.mkdir()
+    (configs / "Base.xcconfig").write_text("DEVELOPMENT_TEAM = TEAMCCCCC3\n" * 3)
+    assert project_team(Project("-project", app)) == "TEAMCCCCC3", "an .xcconfig beside the project counts"
+    empty = tmp_path / "empty"
+    (empty / "Bare.xcodeproj").mkdir(parents=True)
+    assert project_team(Project("-project", empty / "Bare.xcodeproj")) is None, "no project file, no team"
+    workspace = tmp_path / "App.xcworkspace"
+    workspace.mkdir()
+    (workspace / "contents.xcworkspacedata").write_text('<FileRef location = "group:App.xcodeproj"></FileRef>')
+    assert project_team(Project("-workspace", workspace)) == "TEAMCCCCC3"
+    lone = tmp_path / "lone"
+    (lone / "Lone.xcworkspace").mkdir(parents=True)
+    assert project_team(Project("-workspace", lone / "Lone.xcworkspace")) is None, "a workspace naming nothing"
+
+
+@pytest.mark.parametrize("catalyst", [False, True])
+async def test_mac_builds_use_the_host_destination_and_preserve_signed_products(rig: Rig, catalyst: bool):
+    from simtrail.platform.identifiers import mac_id
+
+    build = await rig.runner.start(
+        SCOPE,
+        kind="build",
+        folder=rig.folder,
+        udid=mac_id(BUNDLE),
+        device_kind="mac",
+        developer_dir="",
+        configuration="Debug",
+        timeout_s=60,
+        catalyst=catalyst,
+    )
+    args = rig.started[-1][0]
+    assert args[args.index("-destination") + 1] == (
+        "platform=macOS,variant=Mac Catalyst" if catalyst else "platform=macOS"
+    )
+    rig.processes[-1].finish(0)
+    await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+    assert build.app == APP
+    path, note = await rig.runner.stamped(build)
+    assert path == APP and "signing and sandbox entitlements are preserved" in note
+
+
+@pytest.mark.parametrize(
+    "product", [None, "com.apple.product-type.bundle.ui-testing", "com.apple.product-type.bundle.unit-test"]
+)
+@pytest.mark.parametrize("hosted", [False, True])
+async def test_mac_test_schemes_must_prove_they_run_only_unit_tests(rig: Rig, product: str | None, hosted: bool):
+    from simtrail.platform.identifiers import mac_id
+
+    settings = (
+        []
+        if product is None
+        else [
+            {
+                "target": "Tests",
+                "buildSettings": {
+                    "WRAPPER_NAME": "Tests.xctest",
+                    "PRODUCT_TYPE": product,
+                    "TEST_HOST": "/tmp/Sample.app/Contents/MacOS/Sample" if hosted else "",
+                },
+            }
+        ]
+    )
+    rig.xcrun.on("xcodebuild", "-showBuildSettings", out=json.dumps(settings))
+    options = dict(
+        kind="test",
+        folder=rig.folder,
+        udid=mac_id(BUNDLE),
+        device_kind="mac",
+        developer_dir="",
+        configuration="Debug",
+        timeout_s=60,
+    )
+    if product != "com.apple.product-type.bundle.unit-test" or hosted:
+        with pytest.raises(BuildRefused, match="real pointer"):
+            await rig.runner.start(SCOPE, **options)
+        assert not rig.started
+    else:
+        build = await rig.runner.start(SCOPE, **options)
+        rig.processes[-1].finish(0)
+        await rig.runner.result(SCOPE.id, build.id, wait_s=5)
+        assert build.state == "failed"  # The shared xcresult fixture contains a failing unit test.
+
+
+async def test_catalyst_is_not_silently_applied_to_an_ios_device(rig: Rig):
+    with pytest.raises(BuildRefused, match="only for a macOS"):
+        await rig.begin(catalyst=True)
+    assert not rig.started

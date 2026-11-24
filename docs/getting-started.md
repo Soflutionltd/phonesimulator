@@ -1,0 +1,96 @@
+# Getting started
+
+From nothing to an AI agent tapping through an app while you watch.
+
+![The viewer in a browser tab: the device's screen live, with its name, state and controls above it](media/viewer.png)
+
+## What you need
+
+- An Apple Silicon Mac with Xcode 26 or later and an iOS runtime installed.
+- [uv](https://docs.astral.sh/uv/), or Homebrew.
+
+That is all: Simtrail touches the screen and reads it with its own [native helper](connectors.md#native), which
+comes in the package.
+
+## 1. Install and check the Mac
+
+```sh
+uv tool install git+https://github.com/Soflutionltd/simtrail    # or: brew install soflutionltd/tap/simtrail
+simtrail doctor
+```
+
+The doctor checks Xcode, its Simulator frameworks and runtimes, the native helper and the desktop session, then opens
+Settings on a simulator and taps General to prove input reaches the device. Every problem it finds comes with a fix.
+See [the doctor](doctor.md).
+
+## 2. Give your agent the tools
+
+In Claude Code:
+
+```
+/plugin marketplace add Soflutionltd/simtrail
+/plugin install simtrail@simtrail
+```
+
+Or, for any client, run `simtrail mcp` as a stdio MCP server; see [clients](clients/other-mcp.md).
+
+## 3. Watch
+
+In your app's folder:
+
+```sh
+simtrail open
+```
+
+A browser tab opens on your project's simulator. You can tap, scroll, type and press Home in it at any time.
+
+## 4. Ask
+
+> Open Settings → General → About and tell me which iOS version this simulator runs. Use sim_snapshot rather than
+> screenshots.
+
+Each gesture the agent makes shows in the tab as a cursor that reaches the spot just before the touch lands, a ring
+pulsing once where a tap lands. Its label says what the agent is doing -- Tapping “General”, Reading the screen,
+Waiting for “About”, Building -- and the pill above the screen says it with the agent's name. Between gestures the cursor
+stays where it last acted, and once the agent's call has ended a few seconds its label says Thinking…. Only after a real
+break -- 30 seconds with no tool call at all (`agent.cursor_park_after_s`), and never while one runs -- does it move
+out of the way to the screen's bottom-right corner, labelled Idle, and it comes back from there for the next action. It leaves a minute after the agent's
+last tool call (`agent.cursor_linger_s`). It is drawn by the tab, over the screen, so it never appears in the agent's
+screenshots.
+
+## What just happened
+
+- `simtrail mcp` started Simtrail's daemon on `127.0.0.1:7466` (it was not running), and gave the agent a token for
+  **this folder's scope** -- `project-<folder name>-<short hash>` -- and this folder as the only place it may build
+  and install from.
+- The first tool call created a simulator for the scope, named `Simtrail · project-<folder name>-<short hash>` (the scope's id), booted it and attached
+  Simtrail's native helper to it. A second project gets a device of its own, so agents never tap on each other's apps.
+- `simtrail open` asked the daemon for a one-shot code and opened the viewer with it; the code was spent for a
+  viewer token that lives only in that tab.
+- A device nobody watches, no agent holds and nothing builds on is stopped after 15 minutes.
+
+## Stopping
+
+`simtrail stop`, in the project's folder, ends its session on the device: the viewer closes and the companion that
+drove the device stops. The simulator keeps running; `--shutdown` shuts it down too. An agent does the same with
+`sim_device stop`, `shutdown: true` for the shutdown. Either way only this project is stopped -- another project's
+device and agent are left alone -- and a real iPhone or iPad is never shut down or powered off. A simulator another
+project shares (`device.mode = "shared"`) is not shut down from under it: `simtrail stop --shutdown` refuses and
+names the projects using it, and `--force` shuts it down for them too.
+
+When other projects still hold the device -- or this one held none -- `simtrail stop` names them, and the device.
+`simtrail stop --device <udid>` lets that device go for every project using it, says which projects and agents
+held it, and leaves the device running.
+
+`simtrail stop --daemon` stops the daemon too, once it serves no other project; it names those it still serves, and
+`--force` stops it anyway. An agent's MCP client still connected answers its next tool call that Simtrail was
+stopped, and the call after that starts the daemon again, as its first call did; reconnecting the MCP server does the
+same. A simulator shut down from Simulator.app has its session ended by Simtrail as soon as a viewer's stream of it
+fails, and otherwise within a minute.
+
+## Next
+
+- [Screen understanding](screen-understanding.md): how agents read the screen cheaply.
+- [Configuration](reference/configuration.md): every setting, such as `simtrail config set stream.fps 60`;
+  `--scope "$(simtrail config scope)"` sets it for this folder's project only.
+- [Embedding](embedding/iframe.md): the viewer in your own pages.

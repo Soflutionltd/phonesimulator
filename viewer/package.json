@@ -1,0 +1,48 @@
+{
+  "name": "@soflution/simtrail",
+  "version": "3.9.0",
+  "description": "The Simtrail viewer: a live iOS Simulator, iPhone, Android or macOS app screen, a person's touches and keys, and an agent's cursor, as a web component or a function.",
+  "license": "Apache-2.0",
+  "author": "Soflution Ltd",
+  "homepage": "https://github.com/Soflutionltd/simtrail#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Soflutionltd/simtrail.git",
+    "directory": "viewer"
+  },
+  "bugs": "https://github.com/Soflutionltd/simtrail/issues",
+  "keywords": ["ios-simulator", "simulator", "screen-mirroring", "web-component", "mcp", "agent-cursor"],
+  "type": "module",
+  "files": ["dist"],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build:lib && npm run build:standalone",
+    "build:lib": "vite build && tsc -p tsconfig.build.json",
+    "build:standalone": "vite build --config vite.standalone.config.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^5.0.2",
+    "eslint": "^10.11.0",
+    "jsdom": "^30.1.1",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
+  }
+}

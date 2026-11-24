@@ -1,0 +1,274 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Which folder a build runs in: inside the build folder, or the same folder of another checkout of its repository --
+and nowhere a folder only claims to be one."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from simtrail.build import checkouts
+from simtrail.build.checkouts import POINTER_MAX, Checkout, build_folder_for, checkout_of
+from simtrail.testing.checkouts import linked_worktree, main_checkout, separate_main_checkout
+
+
+def layout(tmp_path: Path) -> tuple[Path, Path]:
+    """A repository whose app is in ``ios/``, and a worktree of it beside it."""
+    tmp_path = tmp_path.resolve()
+    repo = main_checkout(tmp_path / "repo")
+    worktree = linked_worktree(repo, tmp_path / "repo-feature")
+    for top in (repo, worktree):
+        (top / "ios" / "Sub").mkdir(parents=True)
+        (top / "docs").mkdir()
+    return repo, worktree
+
+
+def test_a_checkout_is_known_by_its_git_folder_or_a_worktree_its_repository_names_back(tmp_path: Path) -> None:
+    repo, worktree = layout(tmp_path)
+    assert checkout_of(repo / "ios" / "Sub") == Checkout(repo, repo / ".git")
+    assert checkout_of(worktree / "ios") == Checkout(worktree, repo / ".git")
+    assert checkout_of(tmp_path / "elsewhere") is None
+
+
+def test_the_same_folder_of_another_checkout_is_built_and_only_that(tmp_path: Path) -> None:
+    repo, worktree = layout(tmp_path)
+    home = repo / "ios"
+    # Where the agent works: anywhere in the worktree builds its ios folder.
+    for asked in (worktree, worktree / "docs", worktree / "ios" / "Sub"):
+        assert build_folder_for(asked, home, exact=False) == worktree / "ios"
+    # A folder it names: kept inside the worktree's ios folder, taken there from above it, refused beside it.
+    assert build_folder_for(worktree / "ios" / "Sub", home, exact=True) == worktree / "ios" / "Sub"
+    assert build_folder_for(worktree, home, exact=True) == worktree / "ios"
+    assert build_folder_for(worktree / "docs", home, exact=True) is None
+    # And back: a build folder in the worktree reaches the main checkout's.
+    assert build_folder_for(repo, worktree / "ios", exact=False) == repo / "ios"
+
+
+def test_in_its_own_checkout_a_build_stays_in_the_build_folder_or_inside_it(tmp_path: Path) -> None:
+    repo, _ = layout(tmp_path)
+    home = repo / "ios"
+    assert build_folder_for(repo / "ios" / "Sub", home, exact=True) == repo / "ios" / "Sub"
+    assert build_folder_for(repo / "ios" / "Sub", home, exact=False) == home
+    assert build_folder_for(repo, home, exact=True) == home
+    assert build_folder_for(repo / "docs", home, exact=False) == home
+    assert build_folder_for(repo / "docs", home, exact=True) is None
+
+
+def test_a_worktree_inside_the_build_folder_is_a_checkout_of_its_own(tmp_path: Path) -> None:
+    repo = main_checkout(tmp_path.resolve() / "repo")
+    nested = linked_worktree(repo, repo / ".worktrees" / "fix", name="fix")
+    assert build_folder_for(nested / "Sources", repo, exact=False) == nested
+    assert build_folder_for(nested / "Sources", repo, exact=True) == nested / "Sources"
+
+
+def test_outside_any_repository_only_the_build_folder_and_what_is_inside_it_build(tmp_path: Path) -> None:
+    home = (tmp_path / "app").resolve()
+    (home / "Sub").mkdir(parents=True)
+    assert build_folder_for(home / "Sub", home, exact=True) == home / "Sub"
+    assert build_folder_for(home / "Sub", home, exact=False) == home
+    # A client working above the build folder still builds it; a folder named above it does not.
+    assert build_folder_for(tmp_path, home, exact=False) == home
+    assert build_folder_for(tmp_path, home, exact=True) is None
+    assert build_folder_for(tmp_path / "other", home, exact=False) is None
+
+
+def test_another_repository_is_not_built_even_inside_the_build_folder_it_stays_where_it_was(tmp_path: Path) -> None:
+    repo, _ = layout(tmp_path)
+    other = main_checkout(tmp_path.resolve() / "other")
+    assert build_folder_for(other, repo, exact=False) is None
+    assert build_folder_for(other, repo, exact=True) is None
+    vendored = main_checkout(repo / "Vendor" / "Lib")
+    assert build_folder_for(vendored, repo, exact=True) == vendored
+    assert build_folder_for(vendored, repo, exact=False) == repo
+
+
+def test_a_folder_that_only_claims_to_be_a_worktree_is_not_one(tmp_path: Path) -> None:
+    repo, worktree = layout(tmp_path)
+    home = repo / "ios"
+    base = tmp_path.resolve()
+    # A copy of the worktree's .git file: the repository names the worktree back, not the copy.
+    copied = base / "copied"
+    copied.mkdir()
+    (copied / ".git").write_text((worktree / ".git").read_text())
+    # A link to the worktree's .git file, or to the repository's own git folder.
+    linked = base / "linked"
+    linked.mkdir()
+    (linked / ".git").symlink_to(worktree / ".git")
+    disguised = base / "disguised"
+    disguised.mkdir()
+    (disguised / ".git").symlink_to(repo / ".git")
+    for forged in (copied, linked, disguised):
+        assert checkout_of(forged) is None
+        assert build_folder_for(forged, home, exact=False) is None
+        assert build_folder_for(forged, home, exact=True) is None
+
+
+def test_a_git_file_that_is_not_a_worktrees_is_no_checkout(tmp_path: Path) -> None:
+    repo = main_checkout(tmp_path.resolve() / "repo")
+    folder = tmp_path.resolve() / "odd"
+    folder.mkdir()
+    pointer = folder / ".git"
+    module = repo / ".git" / "modules" / "odd"
+    module.mkdir(parents=True)
+    (module / "gitdir").write_text(f"{pointer}\n")
+    (module / "commondir").write_text("../..\n")
+    for said in (
+        "ref: refs/heads/main\n",
+        "gitdir: " + "x" * POINTER_MAX,
+        f"gitdir: {repo / '.git' / 'worktrees' / 'missing'}\n",
+        f"gitdir: {module}\n",
+    ):
+        pointer.write_text(said)
+        assert checkout_of(folder) is None, said
+    pointer.write_bytes(b"gitdir: \xff\n")
+    assert checkout_of(folder) is None
+    pointer.write_text("")
+    assert checkout_of(folder) is None
+
+
+def test_a_link_that_leads_nowhere_or_a_path_that_cannot_be_read_is_passed_over(tmp_path: Path) -> None:
+    repo = main_checkout(tmp_path.resolve() / "repo")
+    inner = repo / "inner"
+    inner.mkdir()
+    (inner / ".git").symlink_to(tmp_path / "gone")
+    assert checkout_of(inner) == Checkout(repo, repo / ".git")
+    assert checkouts._kind(Path("/no\x00where")) is None
+
+
+def separate_layout(tmp_path: Path, *, named_back: bool = False) -> tuple[Path, Path, Path]:
+    """A main checkout made with ``--separate-git-dir``, its git folder elsewhere, and a worktree of it."""
+    base = tmp_path.resolve()
+    git_dir = base / "store" / "repo.git"
+    repo = separate_main_checkout(base / "repo", git_dir, named_back=named_back)
+    worktree = linked_worktree(repo, base / "repo-feature")
+    for top in (repo, worktree):
+        (top / "ios").mkdir()
+    return repo, worktree, git_dir
+
+
+def test_a_main_checkout_whose_git_folder_is_elsewhere_builds_its_worktrees(tmp_path: Path) -> None:
+    repo, worktree, git_dir = separate_layout(tmp_path)
+    home = repo / "ios"
+    assert checkouts.home_checkout(home) == Checkout(repo, git_dir)
+    assert checkout_of(worktree / "ios") == Checkout(worktree, git_dir)
+    assert build_folder_for(worktree, home, exact=False) == worktree / "ios"
+    assert build_folder_for(worktree, home, exact=True) == worktree / "ios"
+    assert build_folder_for(repo, home, exact=False) == home
+    assert build_folder_for(repo / "ios", home, exact=True) == home
+
+
+def test_a_git_file_naming_a_repositorys_git_folder_is_trusted_only_as_the_build_folders_own(tmp_path: Path) -> None:
+    repo, worktree, _ = separate_layout(tmp_path)
+    home = repo / "ios"
+    # Nothing names a separate-git-dir checkout back, so a copy of its .git file is no checkout of it.
+    copied = tmp_path.resolve() / "copied"
+    (copied / "ios").mkdir(parents=True)
+    (copied / ".git").write_text((repo / ".git").read_text())
+    assert checkout_of(copied) is None
+    assert build_folder_for(copied, home, exact=False) is None
+    assert build_folder_for(copied / "ios", home, exact=True) is None
+    # A worktree still has to be named back by the repository.
+    forged = tmp_path.resolve() / "forged"
+    forged.mkdir()
+    (forged / ".git").write_text((worktree / ".git").read_text())
+    assert build_folder_for(forged, home, exact=False) is None
+    # Nor is the main checkout known from one of its worktrees: its git folder does not say where it is (git's own
+    # `worktree list` names the git folder as the main worktree), unless `core.worktree` names it back.
+    assert build_folder_for(repo, worktree / "ios", exact=False) is None
+    assert checkouts.main_of(Checkout(worktree, _)) is None
+
+
+def test_from_a_worktree_the_main_checkout_its_git_folder_names_back_builds_and_a_copy_still_does_not(
+    tmp_path: Path,
+) -> None:
+    """A session started in a worktree of a ``--separate-git-dir`` checkout could not reach the main checkout: the
+    git folder named none. ``git config core.worktree "$PWD"`` run in it names it back, as git itself then reads."""
+    repo, worktree, git_dir = separate_layout(tmp_path, named_back=True)
+    home = worktree / "ios"
+    assert checkout_of(repo / "ios") == Checkout(repo, git_dir)
+    assert build_folder_for(repo, home, exact=False) == repo / "ios"
+    assert build_folder_for(repo / "ios", home, exact=True) == repo / "ios"
+    assert checkouts.main_of(Checkout(worktree, git_dir)) == Checkout(repo, git_dir)
+    copied = tmp_path.resolve() / "copied"
+    (copied / "ios").mkdir(parents=True)
+    (copied / ".git").write_text((repo / ".git").read_text())
+    assert checkout_of(copied) is None
+    assert build_folder_for(copied, home, exact=False) is None
+    # Relative to the git folder, as git reads it.
+    (git_dir / "config").write_text('[core]\n\tbare = false\n\tworktree = "../../repo"\n')
+    assert build_folder_for(repo, home, exact=False) == repo / "ios"
+    (git_dir / "config").write_text(f"[core]\n\tworktree = {copied}\n")
+    assert build_folder_for(repo, home, exact=False) is None
+    assert build_folder_for(copied, home, exact=False) == copied / "ios", "named back, as a worktree's would be"
+
+
+def core(tmp_path: Path, text: str | bytes) -> dict[str, str] | None:
+    git_dir = tmp_path / "repo.git"
+    git_dir.mkdir(exist_ok=True)
+    (git_dir / "config").write_bytes(text.encode() if isinstance(text, str) else text)
+    return checkouts._core(git_dir)
+
+
+def test_a_git_folders_config_is_read_as_git_writes_it(tmp_path: Path) -> None:
+    # What `git config core.worktree '/a b/c#d;e"f\g '` wrote (git 2.50).
+    assert core(tmp_path, '[core]\n\tworktree = "/a b/c#d;e\\"f\\\\g "\n') == {"worktree": '/a b/c#d;e"f\\g '}
+    assert core(tmp_path, "[core]\n\tWorkTree = /a b  # where\n\tbare\n") == {"worktree": "/a b", "bare": "true"}
+    assert core(tmp_path, '[Core] worktree = /one\n[core "x"]\n\tworktree = /two\n[remote "o"]\n\tworktree = /3') == {
+        "worktree": "/one"
+    }
+    assert core(tmp_path, "; a comment\n\n[core]\n# another\n\tworktree = /one\n\tworktree = /two\n") == {
+        "worktree": "/two"
+    }
+    assert core(tmp_path, '[core]\n\tworktree = /a\\tb\\n"  x "; c\n') == {"worktree": "/a\tb\n  x "}
+    assert core(tmp_path, "[core]\n\tworktree =\n") == {"worktree": ""}
+    assert checkouts._named_back(tmp_path / "repo.git") is None
+
+
+def test_a_config_git_would_not_read_or_that_is_too_big_names_nothing(tmp_path: Path) -> None:
+    for text in (
+        "[core]\n\tworktree = /a \\\n\t/b\n",
+        "[core]\n\tworktree = /a\\qb\n",
+        '[core]\n\tworktree = "/a\n',
+        "[core]\n\t=/a\n",
+        "[core\n",
+        b"[core]\n\tworktree = \xff\n",
+        "[core]\n\tworktree = " + "x" * checkouts.CONFIG_MAX,
+    ):
+        assert core(tmp_path, text) is None, text
+    assert checkouts._core(tmp_path / "missing") is None
+
+
+def test_a_bare_repository_says_so_and_a_main_checkouts_does_not(tmp_path: Path) -> None:
+    assert core(tmp_path, "[core]\n\tbare = true\n") is not None and checkouts.is_bare(tmp_path / "repo.git")
+    core(tmp_path, "[core]\n\tbare = false\n")
+    assert not checkouts.is_bare(tmp_path / "repo.git")
+    assert not checkouts.is_bare(tmp_path / "missing")
+
+
+def test_the_main_checkout_of_a_separate_git_folder_is_itself_or_the_one_it_names_back(tmp_path: Path) -> None:
+    repo, worktree, git_dir = separate_layout(tmp_path)
+    assert checkouts.main_of(Checkout(repo, git_dir)) == Checkout(repo, git_dir)
+    assert checkouts.main_of(Checkout(worktree, git_dir)) is None
+    plain, _ = layout(tmp_path / "plain")
+    assert checkouts.main_of(Checkout(plain, plain / ".git")) == Checkout(plain, plain / ".git")
+
+
+def test_a_git_file_that_names_no_repositorys_own_git_folder_is_no_build_folder_checkout(tmp_path: Path) -> None:
+    base = tmp_path.resolve()
+    _, worktree, git_dir = separate_layout(tmp_path)
+    home = base / "odd"
+    home.mkdir()
+    pointer = home / ".git"
+    for said in (
+        "ref: refs/heads/main\n",
+        f"gitdir: {base / 'missing'}\n",
+        f"gitdir: {base / 'store'}\n",
+        f"gitdir: {git_dir / 'worktrees' / worktree.name}\n",
+    ):
+        pointer.write_text(said)
+        assert checkouts.home_checkout(home) is None, said
+    pointer.unlink()
+    assert checkouts.home_checkout(home) is None
+    plain = main_checkout(base / "plain")
+    (plain / "Sub").mkdir()
+    (plain / "Sub" / ".git").symlink_to(plain / ".git")
+    assert checkouts.home_checkout(plain / "Sub") is None

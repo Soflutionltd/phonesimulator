@@ -1,0 +1,711 @@
+# SPDX-License-Identifier: Apache-2.0
+"""The relay an MCP client runs: every tool call handed to a loopback Simtrail server, credentials from the
+environment, and every failure a result the client can read."""
+
+from __future__ import annotations
+
+import ast
+import io
+import json
+import sys
+import time
+import urllib.error
+import urllib.request
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from simtrail.mcp import relay
+from simtrail.mcp.relay import direct_opener, main, relay_command
+
+ENV = {
+    "SIMTRAIL_URL": "http://127.0.0.1:7466/api/v1/agent/",
+    "SIMTRAIL_TOKEN": "secret-token",
+    "SIMTRAIL_SCOPE": "tp-1",
+}
+FLAGS = [
+    "--header",
+    "X-Simtrail-Token=SIMTRAIL_TOKEN",
+    "--header",
+    "X-Simtrail-Scope=SIMTRAIL_SCOPE",
+    "--client-header",
+    "X-Simtrail-Client",
+]
+MANIFEST = {"tools": [{"name": "sim_snapshot", "inputSchema": {"type": "object"}}], "instructions": "look first"}
+DONE = {"content": [{"type": "text", "text": 'ok tap e2 "General" (201,319)'}], "isError": False}
+
+
+class Response:
+    def __init__(self, body: bytes) -> None:
+        self.body = body
+
+    def read(self) -> bytes:
+        return self.body
+
+    def __enter__(self) -> Response:
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+
+class Opener:
+    """Answers each request in turn: an object as JSON, bytes as they are, an exception by raising it."""
+
+    def __init__(self, *answers: Any) -> None:
+        self.answers = list(answers)
+        self.requests: list[tuple[urllib.request.Request, float]] = []
+
+    def __call__(self, request: urllib.request.Request, timeout: float) -> Response:
+        self.requests.append((request, timeout))
+        answer = self.answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return Response(answer if isinstance(answer, bytes) else json.dumps(answer).encode())
+
+
+def refused(body: bytes, code: int = 403) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError("http://127.0.0.1:7466/api/v1/agent/call", code, "Forbidden", {}, io.BytesIO(body))  # type: ignore[arg-type]
+
+
+def run(messages: list[Any], opener: Opener, *, env: dict[str, str] = ENV, flags: list[str] = FLAGS) -> list[Any]:
+    lines = "".join(message if isinstance(message, str) else json.dumps(message) + "\n" for message in messages)
+    stdout = io.StringIO()
+    assert main(flags, env=env, stdin=io.StringIO(lines), stdout=stdout, opener=opener) == 0
+    return [json.loads(line) for line in stdout.getvalue().splitlines()]
+
+
+def test_a_client_lists_the_servers_tools_as_they_are_now_and_every_call_goes_to_the_server_as_that_client() -> None:
+    opener = Opener(MANIFEST, MANIFEST, DONE, MANIFEST)
+    initialize = {"protocolVersion": "2025-03-26", "clientInfo": {"name": "  claude-code \n"}}
+    replies = run(
+        [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": initialize},
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            "\n",
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+            {"jsonrpc": "2.0", "id": 3, "method": "ping"},
+            {
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {"name": "sim_act", "arguments": {"steps": []}},
+            },
+        ],
+        opener,
+    )
+    assert replies[0] == {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+            "protocolVersion": "2025-03-26",
+            "capabilities": {"tools": {"listChanged": True}},
+            "serverInfo": {"name": "simtrail", "version": "1"},
+            "instructions": "look first",
+        },
+    }
+    assert replies[1:] == [
+        {"jsonrpc": "2.0", "id": 2, "result": {"tools": MANIFEST["tools"]}},
+        {"jsonrpc": "2.0", "id": 3, "result": {}},
+        {"jsonrpc": "2.0", "id": 4, "result": DONE},
+    ]
+    (_, _), (listed, list_timeout), (called, call_timeout), (checked, _) = opener.requests
+    assert checked.full_url == listed.full_url
+    assert listed.full_url == "http://127.0.0.1:7466/api/v1/agent/manifest" and listed.get_method() == "GET"
+    assert listed.get_header("X-simtrail-token") == "secret-token" and listed.get_header("X-simtrail-scope") == "tp-1"
+    assert listed.get_header("X-simtrail-client") == "claude-code" and list_timeout == relay.MANIFEST_TIMEOUT_S
+    assert called.full_url == "http://127.0.0.1:7466/api/v1/agent/call" and called.get_method() == "POST"
+    assert json.loads(called.data) == {"name": "sim_act", "arguments": {"steps": []}}  # type: ignore[arg-type]
+    assert call_timeout == relay.CALL_TIMEOUT_S
+
+
+def test_a_host_mounts_it_under_its_own_paths_and_names_it_its_own_way() -> None:
+    opener = Opener(MANIFEST)
+    flags = ["--url-env", "HOST_URL", "--server-name", "host-simulator", "--manifest-path", "/simulator/manifest"]
+    replies = run(
+        [{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"clientInfo": {"name": 7}}}],
+        opener,
+        env={"HOST_URL": "http://localhost:8080/api/hooks/"},
+        flags=flags,
+    )
+    assert replies[0]["result"]["serverInfo"]["name"] == "host-simulator"
+    ((request, _),) = opener.requests
+    assert request.full_url == "http://localhost:8080/api/hooks/simulator/manifest"
+    assert request.get_header("X-simtrail-client") is None
+
+
+def test_what_is_not_a_request_it_knows_is_answered_as_json_rpc_says() -> None:
+    replies = run(
+        [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": "not an object"},
+            {"jsonrpc": "2.0", "id": 2, "method": "resources/list"},
+            "{not json\n",
+            "[1, 2]\n",
+            {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "sim_snapshot"}},
+        ],
+        Opener(MANIFEST, DONE),
+    )
+    assert replies[0]["result"]["protocolVersion"] == relay.PROTOCOL_VERSION
+    assert replies[1] == {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "error": {"code": -32601, "message": "method not found: resources/list"},
+    }
+    assert replies[2] == {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "not JSON"}}
+    assert replies[3] == {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "not a request"}}
+    assert replies[4]["result"] == DONE
+
+
+@pytest.mark.parametrize(
+    ("env", "problem"),
+    [
+        ({}, "No Simtrail server was given (SIMTRAIL_URL is not set)"),
+        ({**ENV, "SIMTRAIL_TOKEN": ""}, "SIMTRAIL_TOKEN is not set, so these tools cannot be used here."),
+        (
+            {**ENV, "SIMTRAIL_URL": "https://sim.example/api/v1/agent"},
+            "https://sim.example/api/v1/agent is not a loopback URL",
+        ),
+    ],
+)
+def test_a_client_without_a_usable_server_has_no_tools_and_is_told_why(env: dict[str, str], problem: str) -> None:
+    opener = Opener()
+    replies = run(
+        [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize"},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+            {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "sim_snapshot"}},
+        ],
+        opener,
+        env=env,
+    )
+    assert replies[0]["result"]["instructions"].startswith(problem)
+    assert replies[1]["error"]["message"].startswith(problem)
+    assert replies[2]["result"]["isError"] is True and replies[2]["result"]["content"][0]["text"].startswith(problem)
+    assert opener.requests == []
+
+
+def test_a_refusal_or_an_unreachable_server_is_a_result_and_a_failed_list_is_asked_again() -> None:
+    opener = Opener(
+        refused(b'{"detail": "this token is not for that scope"}'),
+        urllib.error.URLError("connection refused"),
+        MANIFEST,
+        refused(b"<html>no</html>"),
+        MANIFEST,
+        refused(b'{"ok": false, "error": "cross-origin request refused"}'),
+        MANIFEST,
+        urllib.error.URLError("timed out"),
+        MANIFEST,
+        b"[1]",
+        MANIFEST,
+    )
+    replies = run(
+        [
+            {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            {"jsonrpc": "2.0", "id": 2, "method": "initialize"},
+            {"jsonrpc": "2.0", "id": 3, "method": "tools/list"},
+            *({"jsonrpc": "2.0", "id": n, "method": "tools/call", "params": {"name": "sim_act"}} for n in range(4, 8)),
+        ],
+        opener,
+    )
+    assert replies[0]["error"]["code"] == -32603
+    assert "refused" in replies[0]["error"]["message"]
+    assert "could not be reached: <urlopen error connection refused>" in replies[1]["result"]["instructions"]
+    assert replies[2]["result"] == {"tools": MANIFEST["tools"]}
+    assert [reply["result"]["content"][0]["text"] for reply in replies[3:]] == [
+        "The Simtrail server refused the call: HTTP 403",
+        "The Simtrail server refused the call: cross-origin request refused",
+        "The Simtrail server could not be reached: <urlopen error timed out>",
+        "The Simtrail server could not be reached: the Simtrail server answered with something that is not an object",
+    ]
+    assert all(reply["result"]["isError"] for reply in replies[3:])
+
+
+def test_a_call_that_finds_nothing_listening_asks_to_bring_the_server_back_and_is_sent_once_more() -> None:
+    nobody = urllib.error.URLError(ConnectionRefusedError(61, "Connection refused"))
+    opener = Opener(
+        nobody,
+        DONE,
+        nobody,
+        ConnectionRefusedError(61, "Connection refused"),
+        nobody,
+        urllib.error.URLError("timed out"),
+        urllib.error.URLError(ConnectionResetError(54, "Connection reset by peer")),
+    )
+    revived: list[str | None] = []
+    answers: list[str | None] = [None, None, "Simtrail was stopped on purpose.", None]
+
+    def revive() -> str | None:
+        revived.append(answers[0])
+        return answers.pop(0)
+
+    calls = [{"jsonrpc": "2.0", "id": n, "method": "tools/call", "params": {"name": "sim_act"}} for n in range(1, 6)]
+    stdout = io.StringIO()
+    lines = "".join(json.dumps(message) + "\n" for message in calls)
+    assert main(FLAGS, env=ENV, stdin=io.StringIO(lines), stdout=stdout, opener=opener, revive=revive) == 0
+    replies = [json.loads(line)["result"] for line in stdout.getvalue().splitlines()]
+    assert replies[0] == DONE, "brought back, the call is sent again and answered"
+    assert [reply["content"][0]["text"] for reply in replies[1:]] == [
+        "The Simtrail server could not be reached: [Errno 61] Connection refused",
+        "Simtrail was stopped on purpose.",
+        "The Simtrail server could not be reached: <urlopen error timed out>",
+        "The Simtrail server could not be reached: <urlopen error [Errno 54] Connection reset by peer>",
+    ]
+    assert revived == [None, None, "Simtrail was stopped on purpose."], "one the server may have had is not resent"
+    assert len(opener.requests) == 7 and opener.answers == []
+
+
+def test_a_refused_manifest_says_what_the_server_said() -> None:
+    replies = run(
+        [{"jsonrpc": "2.0", "id": 1, "method": "initialize"}],
+        Opener(refused(b'{"detail": "this token is not an agent\'s"}')),
+    )
+    assert (
+        replies[0]["result"]["instructions"] == "The Simtrail server refused this client: this token is not an agent's"
+    )
+
+
+def test_the_relay_opens_the_loopback_url_with_no_proxy_whatever_the_environment_says(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, Any] = {}
+
+    class Built:
+        def open(self, request: object, timeout: float) -> str:
+            seen["opened"] = (request, timeout)
+            return "response"
+
+    def build_opener(*handlers: object) -> Built:
+        seen["handlers"] = handlers
+        return Built()
+
+    monkeypatch.setenv("http_proxy", "http://proxy.example:3128")
+    monkeypatch.setattr(relay.urllib.request, "build_opener", build_opener)
+    opener = direct_opener()
+    (handler,) = seen["handlers"]
+    assert isinstance(handler, urllib.request.ProxyHandler) and handler.proxies == {}
+    assert opener("request", 5.0) == "response" and seen["opened"] == ("request", 5.0)  # type: ignore[arg-type]
+
+
+def test_main_reads_the_real_streams_and_environment_and_refuses_a_malformed_header(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    stdout = io.StringIO()
+    monkeypatch.setattr(relay.sys, "stdin", io.StringIO('{"jsonrpc": "2.0", "id": 1, "method": "ping"}\n'))
+    monkeypatch.setattr(relay.sys, "stdout", stdout)
+    assert main(["--url", "http://127.0.0.1:7466/api/v1/agent"]) == 0
+    assert json.loads(stdout.getvalue()) == {"jsonrpc": "2.0", "id": 1, "result": {}}
+    for spec in ("no-equals", "=TOKEN", "Name="):
+        with pytest.raises(SystemExit):
+            main(["--header", spec], env=ENV, stdin=io.StringIO(""), stdout=io.StringIO())
+    assert "a header is NAME=ENVVAR" in capsys.readouterr().err
+
+
+def test_a_host_gets_the_command_line_that_runs_the_relay_isolated_with_its_secrets_in_the_environment() -> None:
+    argv = relay_command(
+        python="/usr/bin/python3",
+        url_env="HOST_URL",
+        headers={"X-Session-Key": "HOST_KEY", "X-Hook-Token": "HOST_TOKEN"},
+        client_header="X-Client",
+        server_name="host-simulator",
+        manifest_path="/simulator/manifest",
+        call_path="/simulator/call",
+    )
+    assert argv[:3] == ["/usr/bin/python3", "-I", str(Path(relay.__file__).resolve())]
+    assert argv[3:] == [
+        "--url-env", "HOST_URL", "--server-name", "host-simulator", "--manifest-path", "/simulator/manifest",
+        "--call-path", "/simulator/call", "--header", "X-Session-Key=HOST_KEY", "--header", "X-Hook-Token=HOST_TOKEN",
+        "--client-header", "X-Client",
+    ]  # fmt: skip
+    assert relay_command()[3:] == [
+        "--url-env", "SIMTRAIL_URL", "--server-name", "simtrail",
+        "--manifest-path", "manifest", "--call-path", "call",
+    ]  # fmt: skip
+    assert relay.is_loopback("http://[::1]:7466/x") and not relay.is_loopback("file:///tmp/x")
+
+
+def test_the_relay_uses_only_the_standard_library() -> None:
+    tree = ast.parse(Path(relay.__file__).read_text(encoding="utf-8"))
+    imported = {
+        alias.name.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names
+    }
+    imported |= {
+        node.module.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module
+    }
+    assert imported - {"__future__"} <= set(sys.stdlib_module_names)
+
+
+def test_the_client_hears_when_the_tools_it_was_given_change_and_only_then() -> None:
+    reduced = {"tools": [], "instructions": "The iOS Simulator is off for this project."}
+    opener = Opener(
+        MANIFEST,
+        DONE,
+        MANIFEST,
+        DONE,
+        reduced,
+        DONE,
+        reduced,
+        DONE,
+        urllib.error.URLError("gone"),
+        DONE,
+        {"tools": [7], "instructions": "odd"},
+    )
+    calls = (
+        {"jsonrpc": "2.0", "id": n, "method": "tools/call", "params": {"name": "sim_snapshot"}} for n in range(2, 7)
+    )
+    replies = run([{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, *calls], opener)
+    assert [reply.get("id", reply.get("method")) for reply in replies] == [
+        1, 2, 3, "notifications/tools/list_changed", 4, 5, 6,
+    ]  # fmt: skip
+
+
+ROOTS_FLAGS = [*FLAGS, "--roots-header", "X-Simtrail-Roots"]
+OFFERS_ROOTS = {"capabilities": {"roots": {"listChanged": True}}, "clientInfo": {"name": "claude-code"}}
+INITIALIZED = {"jsonrpc": "2.0", "method": "notifications/initialized"}
+
+
+def build_call(n: int) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": n, "method": "tools/call", "params": {"name": "sim_build_run"}}
+
+
+def roots(n: int, *paths: str) -> dict[str, Any]:
+    """The client's answer to the relay's `n`th request for its roots."""
+    return {
+        "jsonrpc": "2.0",
+        "id": f"simtrail-roots-{n}",
+        "result": {"roots": [{"uri": f"file://{p}"} for p in paths]},
+    }
+
+
+def asked(n: int) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": f"simtrail-roots-{n}", "method": "roots/list"}
+
+
+def sent_roots(opener: Opener) -> list[str | None]:
+    """The roots each call to the server said the client works in."""
+    return [
+        request.get_header("X-simtrail-roots") for request, _ in opener.requests if request.full_url.endswith("/call")
+    ]
+
+
+def test_a_client_offering_its_roots_is_asked_for_them_and_each_call_says_where_it_works() -> None:
+    opener = Opener(MANIFEST, DONE, DONE)
+    worktree = {"uri": "file:///Users/dev/My%20App-feature", "name": "worktree"}
+    replies = run(
+        [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": OFFERS_ROOTS},
+            INITIALIZED,
+            roots(1, "/Users/dev/My App"),
+            build_call(2),
+            {
+                "jsonrpc": "2.0",
+                "id": "simtrail-roots-2",
+                "result": {
+                    "roots": [
+                        worktree,
+                        {"uri": "file://localhost/Users/dev/Shared"},
+                        worktree,
+                        {"uri": "https://example.com/repo"},
+                        {"uri": "file://server/share"},
+                        {"uri": "file:relative"},
+                        {"uri": 7},
+                        "not a root",
+                    ]
+                },
+            },
+            {"jsonrpc": "2.0", "method": "notifications/roots/list_changed"},
+            # An answer to an older request, to one this relay never made, or an error, changes nothing.
+            roots(1),
+            {"jsonrpc": "2.0", "id": 99, "result": {}},
+            build_call(3),
+            roots(3),
+            {"jsonrpc": "2.0", "id": "simtrail-roots-4", "error": {"code": -1, "message": "no roots"}},
+        ],
+        opener,
+        flags=ROOTS_FLAGS,
+    )
+    assert replies == [
+        replies[0],
+        asked(1),
+        asked(2),
+        {"jsonrpc": "2.0", "id": 2, "result": DONE},
+        asked(3),
+        asked(4),
+        {"jsonrpc": "2.0", "id": 3, "result": DONE},
+    ]
+    assert sent_roots(opener) == ["/Users/dev/My%20App-feature,/Users/dev/Shared"] * 2
+
+
+def test_a_client_that_moves_into_a_worktree_without_saying_so_has_its_next_build_run_there() -> None:
+    # Claude Code's EnterWorktree changes what roots/list answers, and sends no notifications/roots/list_changed.
+    opener = Opener(MANIFEST, DONE, DONE)
+    replies = run(
+        [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": OFFERS_ROOTS},
+            INITIALIZED,
+            roots(1, "/work/app"),
+            build_call(2),
+            roots(2, "/work/app"),
+            build_call(3),
+            roots(3, "/work/app/.claude/worktrees/feature", "/work/app"),
+        ],
+        opener,
+        flags=ROOTS_FLAGS,
+    )
+    assert [reply.get("id") for reply in replies] == [
+        1,
+        *(f"simtrail-roots-{n}" for n in (1, 2)),
+        2,
+        "simtrail-roots-3",
+        3,
+    ]
+    assert sent_roots(opener) == ["/work/app", "/work/app/.claude/worktrees/feature,/work/app"]
+
+
+def test_calls_that_come_while_one_waits_for_the_roots_wait_with_it_and_other_requests_are_answered_meanwhile() -> None:
+    opener = Opener(MANIFEST, DONE, DONE)
+    replies = run(
+        [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": OFFERS_ROOTS},
+            build_call(2),
+            build_call(3),
+            {"jsonrpc": "2.0", "id": 4, "method": "ping"},
+            roots(1, "/work/wt"),
+        ],
+        opener,
+        flags=ROOTS_FLAGS,
+    )
+    assert [reply.get("id") for reply in replies] == [1, "simtrail-roots-1", 4, 2, 3]
+    assert sent_roots(opener) == ["/work/wt", "/work/wt"]
+
+
+class Client:
+    """A client's end of stdio: each line of its script in turn, where a number waits until the relay has written that
+    many lines -- as a client waits for an answer -- before it goes on, and hangs up at the end."""
+
+    def __init__(self, script: list[Any], stdout: io.StringIO) -> None:
+        self.script = script
+        self.stdout = stdout
+
+    def __iter__(self) -> Iterator[str]:
+        for step in self.script:
+            if isinstance(step, int):
+                deadline = time.monotonic() + 5.0
+                while self.stdout.getvalue().count("\n") < step and time.monotonic() < deadline:
+                    time.sleep(0.002)
+            else:
+                yield json.dumps(step) + "\n"
+
+
+def serve(script: list[Any], opener: Opener, *, wait_s: float) -> list[Any]:
+    stdout = io.StringIO()
+    upstream = relay.upstream_for(relay.parser().parse_args(ROOTS_FLAGS), ENV, opener)
+    relay.serve(Client(script, stdout), stdout, relay.Relay(upstream), wait_s=wait_s)  # type: ignore[arg-type]
+    return [json.loads(line) for line in stdout.getvalue().splitlines()]
+
+
+def test_a_call_waits_briefly_for_roots_and_a_client_that_kept_it_waiting_is_not_asked_before_calls_again() -> None:
+    opener = Opener(MANIFEST, DONE, DONE)
+    started = time.monotonic()
+    replies = serve(
+        [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": OFFERS_ROOTS},
+            INITIALIZED,
+            roots(1, "/work/app"),
+            build_call(2),
+            # The client never answers simtrail-roots-2: the call goes with the roots last heard.
+            4,
+            build_call(3),
+        ],
+        opener,
+        wait_s=0.05,
+    )
+    assert time.monotonic() - started < 5.0
+    assert [reply.get("id") for reply in replies] == [1, "simtrail-roots-1", "simtrail-roots-2", 2, 3]
+    assert sent_roots(opener) == ["/work/app", "/work/app"]
+
+
+def test_a_call_still_waiting_for_roots_when_the_client_hangs_up_is_not_made() -> None:
+    opener = Opener(MANIFEST)
+    replies = serve(
+        [{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": OFFERS_ROOTS}, build_call(2)],
+        opener,
+        wait_s=60.0,
+    )
+    assert [reply.get("id") for reply in replies] == [1, "simtrail-roots-1"]
+    assert sent_roots(opener) == []
+
+
+def test_roots_are_asked_for_only_from_a_client_that_offers_them_by_a_relay_that_passes_them_on() -> None:
+    plain = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"capabilities": {"roots": True}}}
+    assert run([plain, INITIALIZED, build_call(2)], Opener(MANIFEST, DONE), flags=ROOTS_FLAGS)[1:] == [
+        {"jsonrpc": "2.0", "id": 2, "result": DONE}
+    ]
+    offering = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": OFFERS_ROOTS}
+    assert run([offering, INITIALIZED, build_call(2)], Opener(MANIFEST, DONE))[1:] == [
+        {"jsonrpc": "2.0", "id": 2, "result": DONE}
+    ]
+    assert run([{"jsonrpc": "2.0", "method": "notifications/cancelled"}], Opener(), flags=ROOTS_FLAGS) == []
+    # A relay with no server to call fails the call there and then, with nothing to wait for.
+    failed = run([offering, build_call(2)], Opener(), env={}, flags=ROOTS_FLAGS)
+    assert [reply.get("id") for reply in failed] == [1, 2] and failed[1]["result"]["isError"] is True
+
+
+def test_at_most_a_few_short_local_roots_are_passed_on() -> None:
+    many = [{"uri": f"file:///work/{n}"} for n in range(relay.ROOTS_MAX + 2)]
+    assert relay.root_paths({"roots": many}) == [f"/work/{n}" for n in range(relay.ROOTS_MAX)]
+    long = "/" + "x" * relay.ROOT_PATH_MAX
+    assert relay.root_paths({"roots": [{"uri": f"file://{long}"}, {"uri": "file:///a%00b"}]}) == []
+    assert relay.root_paths({"roots": "none"}) == relay.root_paths(None) == []
+    assert relay.encode_roots(["/a b/ü,c", "/d"]) == "/a%20b/%C3%BC%2Cc,/d"
+    assert relay_command(roots_header="X-Roots")[-2:] == ["--roots-header", "X-Roots"]
+
+
+def test_a_failed_tool_list_gave_the_client_none_so_the_next_call_that_finds_tools_says_they_changed() -> None:
+    opener = Opener(refused(b'{"detail": "not yet"}'), DONE, MANIFEST, DONE, MANIFEST)
+    calls = ({"jsonrpc": "2.0", "id": n, "method": "tools/call", "params": {"name": "sim_snapshot"}} for n in (2, 3))
+    replies = run([{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, *calls], opener)
+    assert replies[0]["error"]["code"] == -32603
+    assert "refused" in replies[0]["error"]["message"]
+    assert [reply.get("id", reply.get("method")) for reply in replies] == [
+        1, 2, "notifications/tools/list_changed", 3,
+    ], "told once, when the tools came back"  # fmt: skip
+
+
+def test_the_relay_says_which_version_it_relays_for() -> None:
+    initialize = {"jsonrpc": "2.0", "id": 1, "method": "initialize"}
+    (said,) = run([initialize], Opener(MANIFEST), flags=[*FLAGS, "--server-version", "2.3.0"])
+    assert said["result"]["serverInfo"] == {"name": "simtrail", "version": "2.3.0"}
+    (plain,) = run([initialize], Opener(MANIFEST))
+    assert plain["result"]["serverInfo"]["version"] == relay.DEFAULT_SERVER_VERSION
+    argv = relay_command(server_version="2.3.0")
+    assert argv[3:9] == ["--url-env", "SIMTRAIL_URL", "--server-name", "simtrail", "--server-version", "2.3.0"]
+    assert "--server-version" not in relay_command(server_version="")
+
+
+@pytest.mark.parametrize("field", ["description", "inputSchema", "outputSchema"])
+def test_changed_tool_definitions_invalidate_cached_tools_without_renaming_them(field: str) -> None:
+    changed = {"tools": [{**MANIFEST["tools"][0], field: "new" if field == "description" else {"type": "object"}}]}
+    if field == "inputSchema":
+        changed["tools"][0][field] = {"type": "object", "properties": {"mode": {"type": "string"}}}
+    replies = run(
+        [{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, build_call(2), build_call(3)],
+        Opener(MANIFEST, DONE, changed, DONE, changed),
+    )
+    assert sum(item.get("method") == "notifications/tools/list_changed" for item in replies) == 1
+
+
+def test_a_legitimately_empty_manifest_is_not_a_discovery_failure() -> None:
+    replies = run([{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}], Opener({"tools": []}))
+    assert replies[0]["result"] == {"tools": []}
+
+
+class Slow(Opener):
+    """Answers as `Opener` does, a call only after `seconds`."""
+
+    def __init__(self, seconds: float, *answers: Any) -> None:
+        super().__init__(*answers)
+        self.seconds = seconds
+
+    def __call__(self, request: urllib.request.Request, timeout: float) -> Response:
+        if request.full_url.endswith("/call"):
+            time.sleep(self.seconds)
+        return super().__call__(request, timeout)
+
+
+def test_a_long_call_the_client_asked_to_hear_about_says_it_is_still_running_until_it_is_answered() -> None:
+    args = relay.parser().parse_args(FLAGS)
+    opener = Slow(0.35, DONE, DONE)
+    stdout = io.StringIO()
+    asked = {"name": "sim_act", "arguments": {}, "_meta": {"progressToken": "tok-1"}}
+    script = [
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": asked},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "sim_act"}},
+    ]
+    lines = io.StringIO("".join(json.dumps(message) + "\n" for message in script))
+    relay.serve(lines, stdout, relay.Relay(relay.upstream_for(args, ENV, opener), progress_s=0.05))
+    said = [json.loads(line) for line in stdout.getvalue().splitlines()]
+    answered = next(index for index, message in enumerate(said) if message.get("id") == 1)
+    progress = [message for message in said if message.get("method") == "notifications/progress"]
+    assert progress and all(said.index(message) < answered for message in progress), "never after its answer"
+    assert [message["params"]["progress"] for message in progress] == list(range(1, len(progress) + 1))
+    assert {message["params"]["progressToken"] for message in progress} == {"tok-1"}
+    assert progress[0]["params"]["message"] == "sim_act is still running (0.05 s)"
+    assert said[answered + 1 :] == [{"jsonrpc": "2.0", "id": 2, "result": DONE}], "a call that did not ask hears none"
+
+
+def test_only_a_token_a_client_can_have_sent_asks_for_progress() -> None:
+    assert relay.progress_token({"_meta": {"progressToken": 7}}) == 7
+    assert relay.progress_token({"_meta": {"progressToken": "abc"}}) == "abc"
+    assert relay.progress_token({"_meta": {"progressToken": True}}) is None
+    assert relay.progress_token({"_meta": "tok"}) is None and relay.progress_token({}) is None
+    heard: list[dict[str, Any]] = []
+    with relay.Progress(3, None, heard.append, every_s=0.01):
+        time.sleep(0.05)
+    assert heard and heard[0]["params"]["message"].startswith("the call is still running")
+
+
+LOOPBACK_TLS = Path(__file__).parent / "fixtures" / "loopback-tls.pem"
+
+
+@pytest.fixture
+def https_server() -> Iterator[str]:
+    """A loopback HTTPS server with a certificate no system store holds, answering the manifest."""
+    import http.server
+    import ssl
+    import threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            body = json.dumps(MANIFEST).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_: object) -> None:
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.load_cert_chain(LOOPBACK_TLS)
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"https://127.0.0.1:{server.server_address[1]}/agent"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def _tools(url: str, env: dict[str, str], *flags: str) -> dict[str, Any]:
+    stdout = io.StringIO()
+    request = {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
+    main(["--url", url, *flags], env=env, stdin=io.StringIO(json.dumps(request) + "\n"), stdout=stdout)
+    reply: dict[str, Any] = json.loads(stdout.getvalue().splitlines()[0])
+    return reply
+
+
+def test_a_host_serving_https_with_its_own_certificate_is_trusted_by_that_certificate_alone(https_server: str) -> None:
+    pem = LOOPBACK_TLS.read_text(encoding="utf-8")
+    certificate = pem[pem.index("-----BEGIN CERTIFICATE-----") : pem.index("-----END CERTIFICATE-----") + 25]
+    trusted = _tools(https_server, {"HOST_CA": certificate}, "--ca-env", "HOST_CA")
+    assert [tool["name"] for tool in trusted["result"]["tools"]] == ["sim_snapshot"]
+    # Without it the system's roots are asked, and they do not hold it: verification is never switched off.
+    untrusted = _tools(https_server, {})
+    assert "error" in untrusted or untrusted["result"]["tools"] == []
+    assert "certificate" in json.dumps(untrusted).lower()
+    # An empty variable is the system's roots too; a certificate that cannot be read says so and calls nothing.
+    assert "certificate" in json.dumps(_tools(https_server, {"HOST_CA": ""}, "--ca-env", "HOST_CA")).lower()
+    unreadable = _tools(https_server, {"HOST_CA": "not a certificate"}, "--ca-env", "HOST_CA")
+    assert "The certificate in HOST_CA cannot be read" in json.dumps(unreadable)
+
+
+def test_a_host_names_the_variable_its_certificate_is_in_and_never_the_certificate_itself() -> None:
+    argv = relay_command(url_env="HOST_URL", ca_env="HOST_CA")
+    assert argv[-2:] == ["--ca-env", "HOST_CA"] and "BEGIN CERTIFICATE" not in " ".join(argv)
+    assert "--ca-env" not in relay_command()

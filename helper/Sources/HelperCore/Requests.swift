@@ -1,0 +1,159 @@
+// SPDX-License-Identifier: Apache-2.0
+import Foundation
+
+/// What Simtrail asks the helper, read from a request frame's JSON: ``{"op": "screenshot", "max_width": 900, ...}``.
+public enum Request: Equatable, Sendable {
+    /// Who the helper is and what it reached: its versions, the device's screen, and how input reaches it.
+    case hello
+    case mac(MacAction)
+    /// The device's screen.
+    case describe
+    /// A JPEG of the screen or part of it.
+    case screenshot(ScreenshotRequest)
+    /// The screen's accessibility document.
+    case accessibility
+    /// Input events, played in order before the answer.
+    case hid([HIDEvent])
+    /// The screen as H.264, one chunk an access unit, until the connection closes.
+    case stream(StreamSettings)
+    /// Turn the device, as Simulator.app's Device › Rotate does, so an app that can turns its interface this way.
+    case rotate(InterfaceOrientation)
+    /// What accessibility hit-tests at points of the screen, in its portrait points.
+    case elementsAt([ScreenPoint])
+    /// An agent event for the overlay drawn over a macOS app's window.
+    case overlay(OverlayEvent)
+
+    /// Whether answering it waits for the answer before the next request on its connection is read: input must stay in
+    /// the order it was sent, and a hello is quick.
+    public var inOrder: Bool {
+        switch self {
+        case .hid, .hello, .rotate, .mac, .overlay: return true
+        case .describe, .screenshot, .accessibility, .stream, .elementsAt: return false
+        }
+    }
+
+    public static func decode(_ json: Data) throws -> Request {
+        let raw: Raw
+        do {
+            raw = try JSONDecoder().decode(Raw.self, from: json.isEmpty ? Data("{}".utf8) : json)
+        } catch {
+            throw HelperFailure("a request that is not one: \(error)", status: 400)
+        }
+        switch raw.op {
+        case "mac":
+            guard let action = raw.action else { throw HelperFailure("mac needs an action", status: 400) }
+            try action.validate()
+            return .mac(action)
+        case "overlay":
+            guard let event = raw.event else { throw HelperFailure("overlay needs an event", status: 400) }
+            return .overlay(event)
+        case "hello": return .hello
+        case "describe": return .describe
+        case "accessibility": return .accessibility
+        case "screenshot":
+            return .screenshot(ScreenshotRequest(maxWidth: raw.maxWidth ?? Int.max, quality: raw.quality ?? 75, crop: raw.crop))
+        case "hid":
+            return .hid(raw.events ?? [])
+        case "stream":
+            guard let fps = raw.fps, let scale = raw.scale, let keyFrameS = raw.keyFrameS, let bitrate = raw.bitrate else {
+                throw HelperFailure("a stream needs fps, scale, key_frame_s and bitrate", status: 400)
+            }
+            return .stream(StreamSettings(fps: fps, scale: scale, keyFrameS: keyFrameS, bitrate: bitrate))
+        case "rotate":
+            guard let name = raw.orientation, let orientation = InterfaceOrientation(rawValue: name) else {
+                let names = InterfaceOrientation.allCases.map(\.rawValue).joined(separator: ", ")
+                throw HelperFailure("a rotate needs an orientation: one of \(names)", status: 400)
+            }
+            return .rotate(orientation)
+        case "at":
+            let points = raw.points ?? []
+            guard (1...ScreenPoint.most).contains(points.count), points.allSatisfy({ $0.count == 2 }) else {
+                throw HelperFailure("at takes 1 to \(ScreenPoint.most) points, each [x, y]", status: 400)
+            }
+            return .elementsAt(points.map { ScreenPoint(x: $0[0], y: $0[1]) })
+        default:
+            throw HelperFailure("not a request this helper knows: \(raw.op ?? "none")", status: 400)
+        }
+    }
+
+    private struct Raw: Decodable {
+        let op: String?
+        let action: MacAction?
+        let maxWidth: Int?
+        let quality: Int?
+        let crop: Crop?
+        let events: [HIDEvent]?
+        let fps: Int?
+        let scale: Double?
+        let keyFrameS: Double?
+        let bitrate: Int?
+        let orientation: String?
+        let points: [[Double]]?
+        let event: OverlayEvent?
+
+        enum CodingKeys: String, CodingKey {
+            case op, action, maxWidth = "max_width", quality, crop, events, fps, scale, keyFrameS = "key_frame_s", bitrate, orientation,
+                points, event
+        }
+    }
+}
+
+/// A point of the screen, in its portrait points.
+public struct ScreenPoint: Equatable, Sendable {
+    /// The most points one request asks about: a tap asks two.
+    public static let most = 8
+
+    public let x: Double
+    public let y: Double
+
+    public init(x: Double, y: Double) {
+        self.x = x
+        self.y = y
+    }
+}
+
+/// The answer to a hello.
+public struct Hello: Equatable, Sendable, Encodable {
+    public let wire: Int
+    public let version: String
+    public let coreSimulator: String?
+    /// The transport input goes through, or nil when input cannot reach the device.
+    public let hid: String?
+    /// Why a part of the device cannot be reached; empty when all of it can.
+    public let reasons: [String]
+    public let screen: ScreenGeometry
+    /// The capture device a real device's screen is read from, so Simtrail asks for it by its id next time; nil for
+    /// a simulator.
+    public let source: String?
+
+    public init(coreSimulator: String?, hid: String?, reasons: [String], screen: ScreenGeometry, source: String? = nil) {
+        wire = Wire.version
+        version = HelperVersion.current
+        self.coreSimulator = coreSimulator
+        self.hid = hid
+        self.reasons = reasons
+        self.screen = screen
+        self.source = source
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case wire, version, coreSimulator = "core_simulator", hid, reasons, screen, source
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(wire, forKey: .wire)
+        try container.encode(version, forKey: .version)
+        try container.encode(coreSimulator, forKey: .coreSimulator)
+        try container.encode(hid, forKey: .hid)
+        try container.encode(reasons, forKey: .reasons)
+        try container.encode(screen, forKey: .screen)
+        try container.encode(source, forKey: .source)
+    }
+}
+
+/// The size a JPEG came out at.
+struct ImageSize: Encodable {
+    let width: Int
+    let height: Int
+}

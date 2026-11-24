@@ -1,0 +1,434 @@
+// SPDX-License-Identifier: Apache-2.0
+import Foundation
+
+/// A touch that landed while a device was recorded: when, seconds after the first frame; what; where, each point a
+/// fraction of the screen's width and height; for how long; and whose.
+public struct RecordedTouch: Equatable, Sendable, Codable {
+    public let t: Double
+    public let kind: String
+    public let points: [[Double]]
+    public let duration: Double
+    public let by: String
+
+    public init(t: Double, kind: String, points: [[Double]], duration: Double, by: String) {
+        self.t = t
+        self.kind = kind
+        self.points = points
+        self.duration = duration
+        self.by = by
+    }
+}
+
+/// What Simtrail asks to be rendered: a recording, the touches to draw on it, and the files to write.
+public struct RenderJob: Equatable, Sendable, Codable {
+    public enum InputKind: String, Sendable, Codable {
+        /// A movie the device's own tool wrote.
+        case movie
+        /// Simtrail's own frame file (`FrameFile`).
+        case frames
+    }
+
+    public let input: String
+    public let inputKind: InputKind
+    public let touches: [RecordedTouch]
+    public let mp4: String?
+    public let gif: String?
+    public let codec: String
+    public let speed: Double
+    public let gifFps: Int
+    public let gifWidth: Int
+    /// How wide the MP4 is drawn; 0, or a job from a Simtrail that did not say, keeps the recording's own width.
+    public let mp4Width: Int
+    /// How many bits the MP4 spends on its size; a job that does not say is `high`, as every MP4 was before.
+    public let mp4Quality: MovieQuality
+    /// How long the recording ran by the clock, in seconds: a still screen sends its last picture long before the
+    /// recording stops. 0, or a job from a Simtrail that did not say, is as long as its pictures run.
+    public let durationS: Double
+    /// Frames a second in the MP4; a job from a Simtrail that did not say is 30, as every MP4 was before.
+    public let mp4Fps: Int
+    /// The part of the screen kept, as fractions of the recording's picture; nil, or a job that did not say, keeps all.
+    public let crop: RecordingCrop?
+
+    public static let speeds = 0.25...8.0
+    public static let gifFpsRange = 1...30
+    public static let gifWidthRange = 64...2000
+    public static let mp4WidthRange = 0...4000
+    public static let mp4FpsRange = 1...120
+    /// What an MP4's rate is when the job does not say.
+    public static let defaultMp4Fps = 30
+    /// Up to a day: longer than any recording Simtrail lets run.
+    public static let durationRange = 0.0...86_400
+
+    enum CodingKeys: String, CodingKey {
+        case input, inputKind = "input_kind", touches, mp4, gif, codec, speed, gifFps = "gif_fps", gifWidth = "gif_width"
+        case mp4Width = "mp4_width", mp4Quality = "mp4_quality", durationS = "duration_s", mp4Fps = "mp4_fps", crop
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        input = try values.decode(String.self, forKey: .input)
+        inputKind = try values.decode(InputKind.self, forKey: .inputKind)
+        touches = try values.decode([RecordedTouch].self, forKey: .touches)
+        mp4 = try values.decodeIfPresent(String.self, forKey: .mp4)
+        gif = try values.decodeIfPresent(String.self, forKey: .gif)
+        codec = try values.decode(String.self, forKey: .codec)
+        speed = try values.decode(Double.self, forKey: .speed)
+        gifFps = try values.decode(Int.self, forKey: .gifFps)
+        gifWidth = try values.decode(Int.self, forKey: .gifWidth)
+        mp4Width = try values.decodeIfPresent(Int.self, forKey: .mp4Width) ?? 0
+        mp4Quality = try values.decodeIfPresent(MovieQuality.self, forKey: .mp4Quality) ?? .high
+        durationS = try values.decodeIfPresent(Double.self, forKey: .durationS) ?? 0
+        mp4Fps = try values.decodeIfPresent(Int.self, forKey: .mp4Fps) ?? Self.defaultMp4Fps
+        crop = try values.decodeIfPresent(RecordingCrop.self, forKey: .crop)
+    }
+
+    /// The size of the part of a `width` by `height` picture the job keeps, in pixels: all of it without a crop.
+    public func kept(width: Int, height: Int) -> (width: Int, height: Int) {
+        guard let crop else { return (width, height) }
+        let rect = crop.pixels(width: width, height: height)
+        return (max(1, Int(rect.width.rounded())), max(1, Int(rect.height.rounded())))
+    }
+
+    /// The width the MP4 is drawn no wider than, or nil for the recording's own.
+    public var movieWidth: Int? { mp4Width > 0 ? mp4Width : nil }
+
+    /// How long the recording runs, in seconds: as long as it ran by the clock, or as its pictures run when they run
+    /// longer -- never cut short at the last picture a still screen sent.
+    public func length(of pictures: Double) -> Double {
+        max(pictures.isFinite ? pictures : 0, durationS)
+    }
+
+    /// The frames a file of this job is made of, at `fps` a second, for a recording whose pictures run `pictures`
+    /// seconds.
+    public func ticks(pictures: Double, fps: Int) -> Ticks {
+        Ticks.make(duration: length(of: pictures), speed: speed, fps: fps)
+    }
+
+    /// A job read from Simtrail's JSON, refused when it asks for something that cannot be made.
+    public static func read(_ data: Data) throws -> RenderJob {
+        let job: RenderJob
+        do {
+            job = try JSONDecoder().decode(RenderJob.self, from: data)
+        } catch {
+            throw HelperFailure("not a render job: \(error)", status: 400)
+        }
+        guard job.mp4 != nil || job.gif != nil else { throw HelperFailure("a render job names no file to write", status: 400) }
+        guard ["h264", "hevc"].contains(job.codec) else { throw HelperFailure("not a codec: \(job.codec)", status: 400) }
+        guard speeds.contains(job.speed) else { throw HelperFailure("speed must be 0.25 to 8", status: 400) }
+        guard gifFpsRange.contains(job.gifFps) else { throw HelperFailure("gif_fps must be 1 to 30", status: 400) }
+        guard gifWidthRange.contains(job.gifWidth) else { throw HelperFailure("gif_width must be 64 to 2000", status: 400) }
+        guard mp4WidthRange.contains(job.mp4Width) else { throw HelperFailure("mp4_width must be 0 to 4000", status: 400) }
+        guard durationRange.contains(job.durationS) else { throw HelperFailure("duration_s must be 0 to 86400", status: 400) }
+        guard mp4FpsRange.contains(job.mp4Fps) else { throw HelperFailure("mp4_fps must be 1 to 120", status: 400) }
+        if let crop = job.crop, !crop.isWithinPicture {
+            throw HelperFailure("crop must be a part of the picture: x and y from 0, width and height above 0, within 1", status: 400)
+        }
+        return job
+    }
+}
+
+/// The part of a recording's picture a rendered file keeps: where it begins and how big it is, each a fraction of the
+/// picture's width or height, measured from its top left.
+public struct RecordingCrop: Equatable, Sendable, Codable {
+    public let x: Double
+    public let y: Double
+    public let width: Double
+    public let height: Double
+
+    public init(x: Double, y: Double, width: Double, height: Double) {
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+    }
+
+    /// How far past the picture's edge a crop may reach, for rounding on Simtrail's side.
+    static let slack = 1e-6
+
+    var isWithinPicture: Bool {
+        [x, y, width, height].allSatisfy(\.isFinite) && x >= 0 && y >= 0 && width > 0 && height > 0
+            && x + width <= 1 + Self.slack && y + height <= 1 + Self.slack
+    }
+
+    /// The crop in a `width` by `height` picture's pixels, from its top left, no further than its edges.
+    public func pixels(width: Int, height: Int) -> (x: Double, y: Double, width: Double, height: Double) {
+        let w = Double(width), h = Double(height)
+        let left = min(x, 1) * w, top = min(y, 1) * h
+        return (left, top, min(self.width * w, w - left), min(self.height * h, h - top))
+    }
+}
+
+/// How fast a recording's pictures came: how many there were, the most that came within any one second, and the
+/// longest wait between two. A screen that does not change sends none, so the busiest second is what says how fast its
+/// source could send them while something moved.
+public struct CaptureRate: Equatable, Sendable, Encodable {
+    public let pictures: Int
+    public let busiestFps: Int
+    public let longestGapS: Double
+
+    enum CodingKeys: String, CodingKey {
+        case pictures, busiestFps = "busiest_fps", longestGapS = "longest_gap_s"
+    }
+
+    public init(pictures: Int, busiestFps: Int, longestGapS: Double) {
+        self.pictures = pictures
+        self.busiestFps = busiestFps
+        self.longestGapS = longestGapS
+    }
+
+    /// The rate of pictures taken at these times, in seconds, in the order they came.
+    public static func of(_ times: [Double]) -> CaptureRate {
+        var busiest = 0
+        var first = 0
+        var gap = 0.0
+        for (index, time) in times.enumerated() {
+            // Within a second, not a second apart: two pictures 1/60 s apart sixty times over are 60 a second.
+            while time - times[first] >= 1 - 1e-6 { first += 1 }
+            busiest = max(busiest, index - first + 1)
+            if index > 0 { gap = max(gap, time - times[index - 1]) }
+        }
+        return CaptureRate(pictures: times.count, busiestFps: busiest, longestGapS: (gap * 1000).rounded() / 1000)
+    }
+}
+
+/// How many bits an MP4 may spend on each of its pixels every second: the same picture quality at any size, so a movie
+/// drawn smaller is smaller in proportion. The encoder spends less where a screen holds still. `high` is what every MP4
+/// was rendered at before there was a choice; `low` keeps a phone's text legible 450 wide.
+public enum MovieQuality: String, Sendable, Codable, CaseIterable {
+    case low, medium, high
+
+    /// The fewest bits a second any MP4 is given, so a small one still reads.
+    public static let lowestBitrate = 100_000
+
+    public var bitsPerPixel: Double {
+        switch self {
+        case .low: 0.3
+        case .medium: 1
+        case .high: 4
+        }
+    }
+
+    /// The average bits a second asked of the encoder for an MP4 of this size.
+    public func bitrate(width: Int, height: Int) -> Int {
+        max(Self.lowestBitrate, Int((Double(width * height) * bitsPerPixel).rounded()))
+    }
+}
+
+/// A file a render wrote.
+public struct RenderedFile: Equatable, Sendable, Encodable {
+    public let path: String
+    public let format: String
+    public let width: Int
+    public let height: Int
+    public let durationS: Double
+    /// How fast the recording's pictures came, when the renderer counted them.
+    public let source: CaptureRate?
+
+    public init(path: String, format: String, width: Int, height: Int, durationS: Double, source: CaptureRate? = nil) {
+        self.path = path
+        self.format = format
+        self.width = width
+        self.height = height
+        self.durationS = durationS
+        self.source = source
+    }
+
+    /// This file, saying how fast the pictures it was made of came.
+    public func counted(_ rate: CaptureRate) -> RenderedFile {
+        RenderedFile(path: path, format: format, width: width, height: height, durationS: durationS, source: rate)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case path, format, width, height, durationS = "duration_s", source
+    }
+}
+
+public struct RenderReport: Equatable, Sendable, Encodable {
+    public let files: [RenderedFile]
+
+    public init(files: [RenderedFile]) {
+        self.files = files
+    }
+}
+
+/// Simtrail's frame file: the frames a screen streamed while it was recorded, each with its time.
+///
+/// `SMRF` and a version byte, then per frame: its kind (1 an H.264 access unit, 2 a JPEG), its time in seconds after
+/// the recording began as a big-endian double, its length as a big-endian 32-bit count, and its bytes.
+public enum FrameFile {
+    public static let magic = Data("SMRF".utf8) + Data([1])
+    public static let headerSize = 13
+    public static let largestFrame = 64 << 20
+
+    public enum Kind: UInt8, Sendable {
+        case h264 = 1
+        case jpeg = 2
+    }
+
+    public struct Frame: Equatable, Sendable {
+        public let kind: Kind
+        public let time: Double
+        public let data: Data
+    }
+
+    /// The frames a file holds, read a frame at a time by `read(count)`, which answers fewer bytes only at the end.
+    public struct Reader {
+        let read: (Int) throws -> Data
+
+        public init(read: @escaping (Int) throws -> Data) throws {
+            self.read = read
+            guard try read(FrameFile.magic.count) == FrameFile.magic else {
+                throw HelperFailure("not a Simtrail frame file, or one of a newer version")
+            }
+        }
+
+        /// The next frame, or nil at the end of the file.
+        public mutating func next() throws -> Frame? {
+            let header = try read(FrameFile.headerSize)
+            if header.isEmpty { return nil }
+            guard header.count == FrameFile.headerSize else { throw HelperFailure("a frame file ends inside a frame") }
+            let bytes = [UInt8](header)
+            guard let kind = Kind(rawValue: bytes[0]) else { throw HelperFailure("a frame of an unknown kind \(bytes[0])") }
+            let time = Double(bitPattern: bytes[1..<9].reduce(UInt64(0)) { ($0 << 8) | UInt64($1) })
+            let length = Int(bytes[9..<13].reduce(UInt32(0)) { ($0 << 8) | UInt32($1) })
+            guard time.isFinite, time >= 0, length > 0, length <= FrameFile.largestFrame else {
+                throw HelperFailure("a frame file has a frame of \(length) bytes at \(time)s")
+            }
+            let data = try read(length)
+            guard data.count == length else { throw HelperFailure("a frame file ends inside a frame") }
+            return Frame(kind: kind, time: time, data: data)
+        }
+    }
+}
+
+/// When each frame of a rendered file is taken from a recording: a steady rate in the file's own time, each frame the
+/// recording's picture at that moment -- the one shown last before it -- so a still screen still shows its touches, and
+/// a recording sped up plays shorter.
+public struct Ticks: Equatable, Sendable {
+    /// Seconds into the rendered file, and seconds into the recording, of each frame.
+    public let times: [(output: Double, source: Double)]
+    public let fps: Int
+
+    public static func == (a: Ticks, b: Ticks) -> Bool {
+        a.fps == b.fps && a.times.elementsEqual(b.times) { $0.output == $1.output && $0.source == $1.source }
+    }
+
+    /// The frames of a recording `duration` seconds long, played `speed` times as fast, at `fps` a second.
+    public static func make(duration: Double, speed: Double, fps: Int) -> Ticks {
+        guard duration > 0, speed > 0, fps > 0 else { return Ticks(times: [(0, 0)], fps: max(fps, 1)) }
+        let length = duration / speed
+        let count = max(1, Int((length * Double(fps)).rounded(.up)))
+        return Ticks(times: (0..<count).map { index in
+            let output = Double(index) / Double(fps)
+            return (output, min(duration, output * speed))
+        }, fps: fps)
+    }
+
+    /// How long the rendered file plays.
+    public var length: Double { Double(times.count) / Double(fps) }
+}
+
+/// Moves a recording's pictures on to a moment: keeps the last one shown by then, reading ahead one picture. Past the
+/// last picture it keeps showing that one, so a recording that ran on after its screen stopped changing still shows it
+/// to the end.
+public struct Playhead<Picture> {
+    public private(set) var shown: Picture?
+    /// When each picture read so far was taken, in the order read: how fast they came (`CaptureRate`).
+    public private(set) var times: [Double] = []
+    private var ahead: (time: Double, picture: Picture)?
+    private var ended = false
+
+    public init() {}
+
+    /// The picture shown at `time`: the last one `next` gave whose time is not after it, or the first one, before any.
+    public mutating func advance(to time: Double, next: () throws -> (time: Double, picture: Picture)?) rethrows -> Picture? {
+        while !ended {
+            if ahead == nil {
+                ahead = try next()
+                guard let read = ahead else { ended = true; break }
+                times.append(read.time)
+            }
+            guard let upcoming = ahead, upcoming.time <= time || shown == nil else { break }
+            shown = upcoming.picture
+            ahead = nil
+        }
+        return shown
+    }
+}
+
+/// The size a rendered file is drawn at: the recording's own, no wider than `width`, both sides even as H.264 wants.
+public func renderedSize(sourceWidth: Int, sourceHeight: Int, width: Int?) -> (width: Int, height: Int) {
+    guard sourceWidth > 0, sourceHeight > 0 else { return (2, 2) }
+    let wide = min(sourceWidth, width ?? sourceWidth)
+    let high = Double(sourceHeight) * Double(wide) / Double(sourceWidth)
+    return (EncoderPlan.even(Double(wide)), EncoderPlan.even(high))
+}
+
+/// What is drawn over a frame to show a touch: a ring where a finger is or has just been, and the path a moving one
+/// has taken. Positions are fractions of the frame's width and height, measured from its top left.
+public struct TouchMark: Equatable, Sendable {
+    public enum Shape: Equatable, Sendable {
+        case ring(x: Double, y: Double, radius: Double)
+        case trail([[Double]])
+    }
+
+    public let shape: Shape
+    /// How opaque it is, 0 to 1: a touch fades once it lifts.
+    public let alpha: Double
+    public let byAgent: Bool
+}
+
+/// Which marks show at a moment of a recording.
+public enum TouchMarks {
+    /// How long a lifted touch takes to fade.
+    public static let fade = 0.35
+    /// How long the shortest touch shows, so a tap is seen at all.
+    public static let shortest = 0.15
+    /// A ring's radius, as a fraction of the frame's width; a long press grows it by half.
+    public static let radius = 0.045
+
+    public static func at(_ time: Double, _ touches: [RecordedTouch]) -> [TouchMark] {
+        touches.flatMap { marks(of: $0, at: time) }
+    }
+
+    static func marks(of touch: RecordedTouch, at time: Double) -> [TouchMark] {
+        let points = touch.points.filter { $0.count == 2 }
+        guard let first = points.first else { return [] }
+        let held = max(touch.duration, shortest)
+        let since = time - touch.t
+        guard since >= 0, since <= held + fade else { return [] }
+        let alpha = since <= held ? 1 : max(0, 1 - (since - held) / fade)
+        let agent = touch.by == "agent"
+        guard points.count > 1 else {
+            let grow = touch.kind == "long_press" ? 1 + 0.5 * min(1, since / held) : 1
+            return [TouchMark(shape: .ring(x: first[0], y: first[1], radius: radius * grow), alpha: alpha, byAgent: agent)]
+        }
+        let travelled = min(1, since / held)
+        let (path, finger) = along(points, travelled)
+        return [
+            TouchMark(shape: .trail(path), alpha: alpha * 0.8, byAgent: agent),
+            TouchMark(shape: .ring(x: finger[0], y: finger[1], radius: radius), alpha: alpha, byAgent: agent),
+        ]
+    }
+
+    /// The part of a path a finger has covered at a fraction of the way along it, and where the finger is.
+    static func along(_ points: [[Double]], _ fraction: Double) -> ([[Double]], [Double]) {
+        let legs = zip(points, points.dropFirst()).map { hypot($1[0] - $0[0], $1[1] - $0[1]) }
+        let total = legs.reduce(0, +)
+        guard total > 0 else { return ([points[0]], points[0]) }
+        var left = total * fraction
+        var path = [points[0]]
+        for (index, leg) in legs.enumerated() {
+            let (from, to) = (points[index], points[index + 1])
+            if left <= leg {
+                let part = leg > 0 ? left / leg : 0
+                let finger = [from[0] + (to[0] - from[0]) * part, from[1] + (to[1] - from[1]) * part]
+                path.append(finger)
+                return (path, finger)
+            }
+            left -= leg
+            path.append(to)
+        }
+        return (path, points[points.count - 1])
+    }
+}

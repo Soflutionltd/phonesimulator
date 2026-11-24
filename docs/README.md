@@ -1,0 +1,65 @@
+# Simtrail documentation
+
+## Start
+
+- [Getting started](getting-started.md) -- from nothing to an agent tapping through an app, in a few minutes
+- [Installation](installation.md) -- requirements, installing and updating, where files live
+- [Troubleshooting](troubleshooting.md) and [the doctor](doctor.md)
+
+## Use it from a client
+
+- [Claude Code in a terminal](clients/claude-code-cli.md)
+- [OpenAI Codex](clients/codex.md)
+- [Cursor](clients/cursor.md)
+- [Any other MCP client](clients/other-mcp.md)
+- [Agent skills](clients/skills.md) -- workflows, portable installation and updates
+
+## Use it with a real device or Android, and record
+
+- [Real devices](real-devices.md) -- a cabled iPhone or iPad: its live screen, apps and logs, and WebDriverAgent for
+  touch, typing and the element tree
+- [Android](android.md) -- Android emulators and phones: adb, scrcpy's live screen, and Gradle builds and tests
+- [Recording](recording.md) -- a screen as an MP4 or a GIF, with each touch drawn, and a demo in a pull request
+
+## Change its settings
+
+- [The settings panel](settings.md) -- every setting from the viewer, and a code at the terminal for the ones a page
+  cannot change alone
+
+## Put the viewer in your own app
+
+- [An iframe](embedding/iframe.md)
+- [The `<simtrail>` web component and the viewer library](embedding/web-component.md)
+- [A Python host application](embedding/python-fastapi.md)
+- [Several applications sharing the daemon](embedding/shared-daemon.md) -- a host token per application, each
+  reaching only its own scopes and devices
+
+## How it works
+
+- [Screen understanding](screen-understanding.md) -- snapshots, refs, diffs, waits, and what each costs
+- [Performance measurements](performance.md) -- dated tool latency and response-cost results, raw samples and limits
+- [Connectors](connectors.md) -- how Simtrail reaches a device, and what each can do
+- [The app SDK](app-sdk.md) -- an app under development shares its own UIKit and SwiftUI views, so screens
+  without accessibility labels read well
+- [Security](security.md) -- the threat model and what keeps the daemon to itself
+- [Architecture](architecture.md) -- the parts, the seams and the rules between them
+- [Compatibility](compatibility.md) -- where Simtrail is expected to work, and where it was checked
+- [Stability](stability.md) -- what the tools, the protocol and the embedding API promise not to break
+- [Comparison](comparison.md) -- other tools in this space, factually
+
+## Reference
+
+- [Agent tools](reference/tools.md)
+- [Configuration](reference/configuration.md)
+- [Command line](reference/cli.md)
+- [Screen protocol](reference/protocol.md)
+
+## Contribute
+
+- [Contributing](../CONTRIBUTING.md) and [the guide for AI coding agents](../AGENTS.md)
+- [Writing a connector](contributing/connector-guide.md)
+- [Validating agent skills](contributing/skill-validation.md)
+- [Roadmap](roadmap.md)
+
+The reference pages and the compatibility table are generated from the code (`make generate`); edit their sources, not
+the pages.
