@@ -513,3 +513,13 @@ def test_a_tool_is_called_as_the_agent_its_token_is_for_and_its_result_answered_
     daemon.answers[("POST", "/api/v1/agent/call")] = ["no", "result"]
     with pytest.raises(DaemonUnavailable, match="answered sim_login with no result"):
         client.call_tool("agent-token", "sim_login", {})
+
+
+def test_sigterm_is_left_as_it_was_when_no_token_could_be_made() -> None:
+    before = signal.getsignal(signal.SIGTERM)
+    daemon = FakeDaemon()
+    daemon.refuse_tokens = b'{"detail": "no"}'
+    client = DaemonClient(URL, ADMIN, opener=daemon)
+    with pytest.raises(DaemonUnavailable):
+        run(Scope.named("tp-1"), [], client=client, start_daemon=lambda: None, stdin=io.StringIO(""))
+    assert signal.getsignal(signal.SIGTERM) is before

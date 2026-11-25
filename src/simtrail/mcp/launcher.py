@@ -540,23 +540,28 @@ def run(
         ensure_daemon(client, start_daemon, retire=retire_daemon, locate=locate_daemon)
     if home is not None:
         adopt_main_device(client, scope, home)
+    # From before its token is made, SIGTERM ends the server through the `finally` that revokes it.
+    stack = contextlib.ExitStack()
+    stack.enter_context(terminated_as_exit())
     token_label = f"simtrail mcp (pid {os.getpid()})"
-    token_id, token = client.mint_agent_token(scope.id, [str(root) for root in roots], token_label)
+    try:
+        token_id, token = client.mint_agent_token(scope.id, [str(root) for root in roots], token_label)
+    except BaseException:
+        stack.close()
+        raise
     lease = LeaseKeeper(client, token, every_s=every_s)
     keeper = threading.Thread(target=lease.run, name="simtrail-lease", daemon=True)
     keeper.start()
-    environment = os.environ if env is None else env
-    named = session_label(label, environment)
-    relay_env = {
-        **environment,
-        URL_ENV: client.url + AGENT_PATH,
-        TOKEN_ENV: token,
-        SCOPE_ENV: scope.id,
-        **({LABEL_ENV: named} if named else {}),
-    }
-    stack = contextlib.ExitStack()
     try:
-        stack.enter_context(terminated_as_exit())
+        environment = os.environ if env is None else env
+        named = session_label(label, environment)
+        relay_env = {
+            **environment,
+            URL_ENV: client.url + AGENT_PATH,
+            TOKEN_ENV: token,
+            SCOPE_ENV: scope.id,
+            **({LABEL_ENV: named} if named else {}),
+        }
         revive = reviver(client, start_daemon, run_dir, locate_daemon)
         locate = follower(client, locate_daemon) if locate_daemon is not None else None
         return relay.main(
@@ -570,8 +575,8 @@ def run(
             on_call=lease.called,
         )
     finally:
-        stack.close()
         lease.stop()
         keeper.join(timeout=REQUEST_TIMEOUT_S)
         # Revoking the token lets go of its lease too, so the device can idle out without waiting for it to lapse.
         client.revoke(token_id)
+        stack.close()

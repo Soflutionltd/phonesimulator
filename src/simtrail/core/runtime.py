@@ -507,7 +507,8 @@ class Runtime:
         another scope with a call under way or one within `HOLD_S`. Agents of one scope share its devices -- two
         sessions of a project, its CLI and its MCP server -- and one at a time drives them (`core.drivers`); an agent
         quiet for longer, or whose process is gone without saying so, passes the device over by itself."""
-        if occupant.scope.id == caller.scope.id:
+        if self.manager.family(occupant.scope.id) == self.manager.family(caller.scope.id):
+            # One scope -- or a git worktree and its main checkout, given its device (`DeviceManager.inherit`).
             return False
         return occupant.calls > 0 or self.selections.quiet_s(occupant) < HOLD_S
 

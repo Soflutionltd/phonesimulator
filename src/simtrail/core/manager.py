@@ -210,6 +210,8 @@ class DeviceManager:
         self._sleep = sleep
         self._instances: dict[str, DeviceInstance] = {}
         self._scopes: dict[str, str] = {}
+        #: A scope given another's device (`inherit`) -> that other scope: one project, for who shares its devices.
+        self._families: dict[str, str] = {}
         self._lock = asyncio.Lock()
         #: Each device's own lock, by UDID, given to every instance of it (`DeviceInstance.session_lock`).
         self._session_locks: dict[str, asyncio.Lock] = {}
@@ -257,13 +259,21 @@ class DeviceManager:
         than a new one being created for it at its first call. Answers the UDID it was given, or None when it already
         had one, the other has none, or one device is shared by the whole group anyway (``device.mode = "shared"``)."""
         config = self._config.get(scope)
-        if config.device_mode == "shared" or self.default_udid(scope) is not None:
+        if config.device_mode == "shared":
             return None
-        udid = self.default_udid(source)
-        if udid is None:
+        udid, own = self.default_udid(source), self.default_udid(scope)
+        if udid is not None and own in (None, udid):
+            # Given it now, or earlier and still on it: the two are one project, whose agents share its devices.
+            self._families[scope.id] = self.family(source.id)
+        if own is not None or udid is None:
             return None
         self.directory.memory.choose(scope, False, udid)
         return udid
+
+    def family(self, scope_id: str) -> str:
+        """The scope whose device a scope was given (`inherit`), else the scope itself: what makes two scopes -- a git
+        worktree and its main checkout -- one project, for who shares its devices."""
+        return self._families.get(scope_id, scope_id)
 
     def is_current(self, instance: DeviceInstance) -> bool:
         """Whether its device still runs as this instance, rather than it having been ended since."""

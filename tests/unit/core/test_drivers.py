@@ -381,3 +381,18 @@ async def test_a_flow_played_through_the_runtime_is_held_as_sim_act_is_and_kept_
     refused = await runtime.call(OTHER, "sim_flow", {"action": "run", "name": "tap", "snapshot": "none"})
     assert refused["isError"] is True and "is held by Claude Code · checkout" in said(refused)
     assert (await runtime.call(OTHER, "sim_flow", {"action": "list"}))["isError"] is False, "listing changes nothing"
+
+
+async def test_a_worktree_given_its_main_checkouts_device_shares_it_as_one_project(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    runtime = runtime_over(rig)
+    await runtime.call(ELSEWHERE, "sim_snapshot", {})
+    theirs = rig.manager.instance(ELSEWHERE.scope)
+    assert theirs is not None
+    assert rig.manager.inherit(A.scope, ELSEWHERE.scope) == theirs.udid
+    assert rig.manager.family(A.scope.id) == rig.manager.family(ELSEWHERE.scope.id) == ELSEWHERE.scope.id
+    rig.clock.now += 5
+    shared = await runtime.call(A, "sim_app", LAUNCH)
+    assert shared["isError"] is False, "a worktree and its main checkout are one project"
+    assert rig.manager.inherit(A.scope, ELSEWHERE.scope) is None, "given once; known as one project still"
+    assert rig.manager.family(A.scope.id) == ELSEWHERE.scope.id
