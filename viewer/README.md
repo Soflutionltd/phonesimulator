@@ -22,6 +22,8 @@ view.setActive(true)
 ```
 
 - H.264 through WebCodecs where the page can decode it, JPEG otherwise.
+- The device drawn in its own frame -- iPhone, iPad, Android -- at any zoom, with a floating toolbar, Edit, Device and
+  View menus, the iOS Simulator's shortcuts, screenshots, and light and dark themes.
 - Touch, drag, scroll, typing, hardware buttons and appearance; a view-only mirror when the connector cannot touch.
 - The agent's gestures drawn by the viewer's own cursor just before they land.
 - The text read from the screen's pixels outlined over it, and what a box reads when pointed at.
