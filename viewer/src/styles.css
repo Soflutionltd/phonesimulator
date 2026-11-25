@@ -2,21 +2,84 @@
 /* The Simtrail viewer. A host themes it with --simtrail-* custom properties, which pass into a shadow root by
    inheritance; every one has a default. The device keeps its shape inside the stage, and what an agent does is drawn
    over it -- never with the machine's own pointer. */
+/* The viewer's own colours, light and dark: the system's unless the viewer is told one (data-theme). A host's
+   --simtrail-* properties win over both. */
+.smv,
+.smv[data-theme="dark"] {
+  --smv-t-accent: #0a84ff;
+  --smv-t-surface: #1c1c1e;
+  --smv-t-surface-sunken: #111113;
+  --smv-t-raised: #2c2c2e;
+  --smv-t-border: rgb(255 255 255 / 0.12);
+  --smv-t-text: #f5f5f7;
+  --smv-t-text-muted: #a1a1a6;
+  --smv-t-success: #30d158;
+  --smv-t-warning: #ffd60a;
+  --smv-t-danger: #ff453a;
+  --smv-t-screen-text: #bf5af2;
+  --smv-t-device: #000000;
+  --smv-t-device-edge: #4a4a4e;
+  --smv-t-shadow: rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+.smv[data-theme="light"] {
+  --smv-t-accent: #0066d6;
+  --smv-t-surface: #ffffff;
+  --smv-t-surface-sunken: #f2f2f7;
+  --smv-t-raised: #ffffff;
+  --smv-t-border: rgb(0 0 0 / 0.12);
+  --smv-t-text: #1d1d1f;
+  --smv-t-text-muted: #5f5f64;
+  --smv-t-success: #1f7a37;
+  --smv-t-warning: #9a4a00;
+  --smv-t-danger: #c9001a;
+  --smv-t-screen-text: #8944ab;
+  --smv-t-device: #000000;
+  --smv-t-device-edge: #9c9ca1;
+  --smv-t-shadow: rgb(0 0 0 / 0.16);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  .smv:not([data-theme]) {
+    --smv-t-accent: #0066d6;
+    --smv-t-surface: #ffffff;
+    --smv-t-surface-sunken: #f2f2f7;
+    --smv-t-raised: #ffffff;
+    --smv-t-border: rgb(0 0 0 / 0.12);
+    --smv-t-text: #1d1d1f;
+    --smv-t-text-muted: #5f5f64;
+    --smv-t-success: #1f7a37;
+    --smv-t-warning: #9a4a00;
+    --smv-t-danger: #c9001a;
+    --smv-t-screen-text: #8944ab;
+    --smv-t-device: #000000;
+    --smv-t-device-edge: #9c9ca1;
+    --smv-t-shadow: rgb(0 0 0 / 0.16);
+    color-scheme: light;
+  }
+}
+
 :host,
 .smv {
-  --smv-accent: var(--simtrail-accent, #0a84ff);
+  --smv-accent: var(--simtrail-accent, var(--smv-t-accent, #0a84ff));
   --smv-on-accent: var(--simtrail-on-accent, #ffffff);
   --smv-cursor: var(--simtrail-cursor, var(--smv-accent));
   --smv-cursor-text: var(--simtrail-cursor-text, var(--smv-on-accent));
-  --smv-surface: var(--simtrail-surface, #1c1c1e);
-  --smv-surface-sunken: var(--simtrail-surface-sunken, #111113);
-  --smv-border: var(--simtrail-border, rgb(255 255 255 / 0.12));
-  --smv-text: var(--simtrail-text, #f5f5f7);
-  --smv-text-muted: var(--simtrail-text-muted, #a1a1a6);
-  --smv-success: var(--simtrail-success, #30d158);
-  --smv-warning: var(--simtrail-warning, #ffd60a);
-  --smv-danger: var(--simtrail-danger, #ff453a);
-  --smv-screen-text: var(--simtrail-screen-text, #bf5af2);
+  --smv-surface: var(--simtrail-surface, var(--smv-t-surface, #1c1c1e));
+  --smv-surface-sunken: var(--simtrail-surface-sunken, var(--smv-t-surface-sunken, #111113));
+  --smv-raised: var(--simtrail-raised, var(--smv-t-raised, #2c2c2e));
+  --smv-border: var(--simtrail-border, var(--smv-t-border, rgb(255 255 255 / 0.12)));
+  --smv-text: var(--simtrail-text, var(--smv-t-text, #f5f5f7));
+  --smv-text-muted: var(--simtrail-text-muted, var(--smv-t-text-muted, #a1a1a6));
+  --smv-success: var(--simtrail-success, var(--smv-t-success, #30d158));
+  --smv-warning: var(--simtrail-warning, var(--smv-t-warning, #ffd60a));
+  --smv-danger: var(--simtrail-danger, var(--smv-t-danger, #ff453a));
+  --smv-screen-text: var(--simtrail-screen-text, var(--smv-t-screen-text, #bf5af2));
+  --smv-device: var(--simtrail-device, var(--smv-t-device, #000000));
+  --smv-device-edge: var(--simtrail-device-edge, var(--smv-t-device-edge, #4a4a4e));
+  --smv-shadow: var(--smv-t-shadow, rgb(0 0 0 / 0.5));
   --smv-radius: var(--simtrail-radius, 8px);
   --smv-radius-full: var(--simtrail-radius-full, 999px);
   --smv-space-1: var(--simtrail-space-1, 2px);
@@ -45,37 +108,163 @@
   background: var(--smv-surface);
   font-family: var(--smv-font);
   font-size: var(--smv-font-size);
+  container-type: inline-size;
+}
+
+.smv ::selection {
+  color: var(--smv-on-accent);
+  background: var(--smv-accent);
+}
+
+.smv button:focus-visible,
+.smv a:focus-visible {
+  outline: 2px solid var(--smv-accent);
+  outline-offset: 1px;
+}
+
+.smv-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .smv [hidden] {
   display: none !important;
 }
 
+/* The bar: the device and how it stands, the menus, the zoom, and the view's own controls. Wide, one line; narrow,
+   the device and the view's controls above, the menus and the zoom below. */
 .smv-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--smv-space-2);
-  min-height: 32px;
-  padding: var(--smv-space-1) var(--smv-space-3);
+  gap: var(--smv-space-2) var(--smv-space-3);
+  min-height: 40px;
+  padding: var(--smv-space-2) var(--smv-space-3);
   border-bottom: 1px solid var(--smv-border);
-  /* A viewer narrower than its controls -- a phone's -- gives the name its room first, then scrolls the bar sideways:
-     each button keeps its whole square rather than being squeezed to its icon's width. */
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
+  background: var(--smv-surface);
 }
 
-.smv-bar::-webkit-scrollbar {
+.smv-bar-device,
+.smv-menus,
+.smv-zoom,
+.smv-window {
+  display: flex;
+  align-items: center;
+  gap: var(--smv-space-1);
+  min-width: 0;
+}
+
+.smv-bar-device {
+  flex: 0 1 auto;
+  gap: var(--smv-space-3);
+}
+
+.smv-menus {
+  flex: none;
+}
+
+.smv-zoom,
+.smv-window {
+  flex: none;
+}
+
+.smv-select {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--smv-space-2);
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--smv-space-3) 0 var(--smv-space-4);
+  border: 0;
+  border-radius: var(--smv-radius);
+  color: var(--smv-text);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.smv-select:hover:not(:disabled),
+.smv-select[aria-expanded="true"] {
+  background: var(--smv-surface-sunken);
+}
+
+.smv-select:disabled {
+  cursor: default;
+}
+
+.smv-select:disabled .smv-chevron {
   display: none;
 }
 
+.smv-chevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--smv-text-muted);
+}
+
+.smv-chevron svg {
+  width: 14px;
+  height: 14px;
+}
+
 .smv-name {
-  /* Shortened before the bar scrolls, but never to nothing: a few letters still say which device this is. */
+  /* Shortened before anything else gives way, but never to nothing: a few letters still say which device this is. */
   min-width: 4em;
   overflow: hidden;
-  font-weight: 500;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.smv-menu {
+  height: 28px;
+  padding: 0 var(--smv-space-4);
+  border: 0;
+  border-radius: var(--smv-radius);
+  color: var(--smv-text);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.smv-menu:hover,
+.smv-menu[aria-expanded="true"] {
+  background: var(--smv-surface-sunken);
+}
+
+.smv-zoom-level {
+  min-width: 3.2em;
+  color: var(--smv-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.smv-icon.smv-actual {
+  width: auto;
+  padding: 0 var(--smv-space-3);
+  font: inherit;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+
+@container (max-width: 639px) {
+  .smv-bar-device { order: 1; flex: 1 1 0; }
+  .smv-window { order: 2; }
+  /* A line of its own, so the menus and the zoom start the second. */
+  .smv-bar .smv-spacer { order: 3; flex-basis: 100%; height: 0; }
+  .smv-menus { order: 4; }
+  .smv-zoom { order: 5; margin-left: auto; }
+}
+
+@container (max-width: 459px) {
+  .smv-zoom-level,
+  .smv-icon.smv-actual {
+    display: none;
+  }
 }
 
 .smv-state,
@@ -174,10 +363,15 @@ button.smv-mode {
   cursor: pointer;
 }
 
-.smv-icon:hover,
+.smv-icon:hover:not(:disabled),
 .smv-icon[aria-pressed="true"] {
   color: var(--smv-text);
   background: var(--smv-surface-sunken);
+}
+
+.smv-icon:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .smv-icon svg {
@@ -204,6 +398,94 @@ button.smv-mode {
   background: var(--smv-surface-sunken);
 }
 
+/* The room the device is drawn in: centred while it fits, scrolled when it is zoomed larger. Its padding -- room for
+   the toolbar below -- is set with the device's layout (device-view.ts). */
+.smv-viewport {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* The device: every part placed in CSS pixels by device-view.ts, from device-frame.ts's geometry. */
+.smv-device {
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: 100%;
+  margin: auto;
+}
+
+/* No screen to show: no device either, only what the stage says about it. */
+.smv-device:has(.smv-canvas[hidden]) {
+  visibility: hidden;
+}
+
+/* The body: the glass around the screen, ringed by the metal band, with a soft shadow under it. */
+.smv-body {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--smv-device-edge);
+  background: var(--smv-device);
+  box-shadow: 0 1px 2px var(--smv-shadow), 0 16px 40px -12px var(--smv-shadow);
+}
+
+.smv-side,
+.smv-home-button {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+}
+
+.smv-side {
+  border-radius: 2px;
+  background: var(--smv-device-edge);
+}
+
+button.smv-side {
+  cursor: pointer;
+}
+
+button.smv-side:hover {
+  background: color-mix(in srgb, var(--smv-device-edge) 70%, var(--smv-text));
+}
+
+.smv-home-button {
+  border: 2px solid var(--smv-device-edge);
+  border-radius: 50%;
+  background: var(--smv-device);
+}
+
+button.smv-home-button {
+  cursor: pointer;
+}
+
+button.smv-home-button:hover {
+  border-color: color-mix(in srgb, var(--smv-device-edge) 60%, var(--smv-text));
+}
+
+.smv-screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+/* What sits over the top of the screen: the Dynamic Island, the notch, a camera hole. Touches pass through it. */
+.smv-cutout {
+  position: absolute;
+  z-index: 1;
+  background: #000;
+  pointer-events: none;
+}
+
+.smv-cutout[data-kind="notch"] {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
 /* A finger on the screen is a touch on the device, not a scroll of the page around it. */
 .smv-canvas {
   display: block;
@@ -215,11 +497,70 @@ button.smv-mode {
   cursor: default;
 }
 
+.smv-screen:has(.smv-canvas:focus-visible) {
+  outline: 2px solid var(--smv-accent);
+  outline-offset: 3px;
+}
+
 .smv-overlay {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
+}
+
+/* The toolbar floating under the device. */
+.smv-tools {
+  position: absolute;
+  bottom: var(--smv-space-5);
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--smv-space-1);
+  max-width: calc(100% - 2 * var(--smv-space-4));
+  padding: var(--smv-space-2);
+  overflow-x: auto;
+  border: 1px solid var(--smv-border);
+  border-radius: 12px;
+  background: var(--smv-raised);
+  box-shadow: 0 1px 2px var(--smv-shadow), 0 8px 24px -8px var(--smv-shadow);
+  transform: translateX(-50%);
+  scrollbar-width: none;
+}
+
+.smv-tools .smv-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.smv-tools .smv-icon.smv-size {
+  width: auto;
+}
+
+.smv-tools .smv-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.smv-tools:not(:has(.smv-press:not([hidden]))) .smv-tools-gap {
+  display: none;
+}
+
+.smv-tools-gap {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 var(--smv-space-2);
+  background: var(--smv-border);
+}
+
+/* Narrow: the volume buttons stay on the device's edge and in the Device menu, not in the toolbar. */
+@container (max-width: 459px) {
+  .smv-tools [data-smv="volume_up"],
+  .smv-tools [data-smv="volume_down"] {
+    display: none;
+  }
 }
 
 .smv-badge {
@@ -250,7 +591,7 @@ button.smv-mode {
 }
 
 /* The pointer's chip is decorative. Keep the activity readable to assistive technology in the badge. */
-.smv-overlay:has(.ac:not([hidden]) .ac-pointer:not([hidden])) ~ .smv-badge .smv-agent-activity {
+.smv-stage:has(.smv-overlay .ac:not([hidden]) .ac-pointer:not([hidden])) .smv-badge .smv-agent-activity {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -285,7 +626,37 @@ button.smv-mode {
   padding: var(--smv-space-2);
   border: 1px solid var(--smv-border);
   border-radius: var(--smv-radius);
-  background: var(--smv-surface);
+  background: var(--smv-raised);
+  box-shadow: 0 1px 2px var(--smv-shadow), 0 12px 32px -8px var(--smv-shadow);
+}
+
+/* Opened from the bar -- the device picker and the menus -- under their titles; from the toolbar, above it. */
+.smv-picker[data-smv-picker],
+.smv-menu-panel {
+  right: auto;
+  left: var(--smv-space-2);
+}
+
+.smv-picker[data-smv-display],
+.smv-picker[data-smv-record-size] {
+  top: auto;
+  right: auto;
+  bottom: 64px;
+  left: 50%;
+  max-height: calc(100% - 72px);
+  transform: translateX(-50%);
+}
+
+.smv-menu-panel hr {
+  margin: var(--smv-space-2) var(--smv-space-3);
+  border: 0;
+  border-top: 1px solid var(--smv-border);
+}
+
+.smv-menu-panel kbd {
+  color: var(--smv-text-muted);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .smv-picker button {
@@ -343,7 +714,7 @@ button.smv-mode {
 .smv-note {
   position: absolute;
   right: var(--smv-space-4);
-  bottom: var(--smv-space-4);
+  bottom: 64px;
   left: var(--smv-space-4);
   z-index: 2;
   display: flex;
@@ -877,4 +1248,39 @@ button.smv-mode {
   .smv .ac-pointer.is-failed, .smv .tx { animation: none; }
   /* A ring shows where a tap landed and fades, without growing. */
   .smv .ac-ripple, .smv .ac-hold { animation-name: smv-ring-still; }
+}
+
+/* -- The menus (menu-bar.ts): a tick column before each row, the shortcut after it. */
+.smv-menu-panel {
+  min-width: 15rem;
+}
+
+.smv-picker.smv-menu-panel button {
+  position: relative;
+  align-items: baseline;
+  padding-left: calc(var(--smv-space-4) + 16px);
+}
+
+.smv-picker.smv-menu-panel button[aria-checked="true"] {
+  background: none;
+}
+
+.smv-picker.smv-menu-panel button:hover {
+  background: var(--smv-surface-sunken);
+}
+
+.smv-picker.smv-menu-panel button[role="menuitemcheckbox"][aria-checked="true"]::after {
+  content: none;
+}
+
+.smv-menu-panel button[aria-checked="true"]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(var(--smv-space-4) + 3px);
+  width: 4px;
+  height: 8px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-65%) rotate(45deg);
 }

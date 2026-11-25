@@ -6,6 +6,7 @@
 
 export type IconName = 'home' | 'lock' | 'moon' | 'sun' | 'devices' | 'undock' | 'dock' | 'page' | 'power' | 'close'
   | 'pointer' | 'settings' | 'record' | 'square' | 'contrast' | 'back' | 'app_switch' | 'volume_up' | 'volume_down'
+  | 'camera' | 'plus' | 'minus' | 'fit' | 'chevron'
 
 /** Draws an icon as markup. */
 export type IconRenderer = (name: IconName) => string
@@ -14,7 +15,8 @@ type Shape = [tag: 'path' | 'rect' | 'circle', attributes: Record<string, string
 
 /** Each icon's shapes, as Lucide 0.460 draws them: circle, lock, moon, sun, smartphone, picture-in-picture-2, panel-right,
  * external-link, power, x, mouse-pointer-2, settings, circle-dot, square, contrast -- and, for an Android device's
- * buttons, arrow-left, copy, volume-2 and volume-1. */
+ * buttons, arrow-left, copy, volume-2 and volume-1 -- and, for screenshots and zoom, camera, plus, minus, scan and
+ * chevron-down. */
 const SHAPES: Record<IconName, Shape[]> = {
   home: [['circle', { cx: '12', cy: '12', r: '10' }]],
   lock: [
@@ -68,6 +70,17 @@ const SHAPES: Record<IconName, Shape[]> = {
     ['path', { d: 'M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z' }],
     ['path', { d: 'M16 9a5 5 0 0 1 0 6' }], ['path', { d: 'M19.364 18.364a9 9 0 0 0 0-12.728' }],
   ],
+  camera: [
+    ['path', { d: 'M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z' }],
+    ['circle', { cx: '12', cy: '13', r: '3' }],
+  ],
+  plus: [['path', { d: 'M5 12h14' }], ['path', { d: 'M12 5v14' }]],
+  minus: [['path', { d: 'M5 12h14' }]],
+  fit: [
+    ['path', { d: 'M3 7V5a2 2 0 0 1 2-2h2' }], ['path', { d: 'M17 3h2a2 2 0 0 1 2 2v2' }],
+    ['path', { d: 'M21 17v2a2 2 0 0 1-2 2h-2' }], ['path', { d: 'M7 21H5a2 2 0 0 1-2-2v-2' }],
+  ],
+  chevron: [['path', { d: 'm6 9 6 6 6-6' }]],
   volume_down: [['path', { d: 'M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z' }], ['path', { d: 'M16 9a5 5 0 0 1 0 6' }]],
 }
 

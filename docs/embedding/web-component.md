@@ -89,15 +89,41 @@ The daemon must allow the page's origin, for its API and its screen socket:
 allowed_origins = ["https://my-app.example"]
 ```
 
+## What a person sees
+
+The device is drawn in a frame of its own -- an iPhone's body with its Dynamic Island or notch and side buttons, an
+iPad's, an Android phone's with its camera hole, or a macOS app's window alone -- drawn in CSS, never from a picture of
+the device. The screen inside it keeps the device's exact shape, so a click is a touch on the same point of the device
+at any zoom. The buttons on the frame's edges press the device's own buttons where it has them and its connector can
+press them.
+
+- **The bar**: the device picker (its name and runtime), the Edit, Device and View menus, the zoom (zoom out, the
+  scale shown, zoom in, fit to the window, actual size), then settings, docking, letting the device go and closing.
+  Narrower than 640px, the menus and the zoom take a second line.
+- **The toolbar** floating under the device: its buttons (Home, Lock, and an Android device's Back, Recents and
+  volume), a screenshot, recording and its size, the appearance, and the Display menu.
+- **The menus** list only what can be done now. Edit: save or copy a screenshot. Device: the device's buttons, the
+  appearance, Display, recording, choosing a device, settings, letting it go. View: the zoom, showing the device's
+  frame, and the viewer's theme (the system's, light or dark).
+- **Shortcuts**, as the iOS Simulator has them, anywhere in the viewer: Shift-Command-H Home, Command-L Lock,
+  Shift-Command-A the appearance, Command-S save a screenshot, Control-Command-C copy it, Command-plus and
+  Command-minus zoom, Command-0 fit, Command-1 actual size, Command-comma settings. A macOS app gets Command-keys
+  itself.
+- A screenshot is the screen's last picture at the device's own pixels, as a PNG, taken by the viewer: it needs
+  nothing of the server.
+- The theme and whether the frame is drawn are kept in the browser (`localStorage`) for next time; nothing else is.
+
 ## Theming
 
-Custom properties pass into the shadow root. Each has a default.
+Custom properties pass into the shadow root. Each has a default, for the viewer's light and dark themes alike.
 
 | Property | Styles |
 |---|---|
 | `--simtrail-accent`, `--simtrail-on-accent` | Active controls, and text on them |
 | `--simtrail-cursor`, `--simtrail-cursor-text` | The agent's pointer, its label, its rings and the pill that names it, and text on them; the accent when unset. A scope's `agent.cursor_color` wins over both, with white or near-black text chosen to read on it |
 | `--simtrail-surface`, `--simtrail-surface-sunken`, `--simtrail-border` | The bar, the stage behind the screen, and edges |
+| `--simtrail-raised` | The toolbar and the menus over the stage |
+| `--simtrail-device`, `--simtrail-device-edge` | The device's body, and its band and buttons |
 | `--simtrail-text`, `--simtrail-text-muted` | Text |
 | `--simtrail-success`, `--simtrail-warning`, `--simtrail-danger` | The device's state |
 | `--simtrail-screen-text` | The boxes around text read from the screen's pixels, while `perception.ocr_overlay` is on |
@@ -105,7 +131,8 @@ Custom properties pass into the shadow root. Each has a default.
 | `--simtrail-space-1` to `--simtrail-space-7` | Spacing, 2px to 24px |
 | `--simtrail-font`, `--simtrail-font-size` | Type |
 
-For anything more, style its parts: `simtrail::part(bar)`, `::part(stage)` and `::part(screen)`.
+For anything more, style its parts: `simtrail::part(bar)`, `::part(stage)` and `::part(screen)`, and -- since the
+device's frame -- `::part(device)` and `::part(toolbar)`.
 
 ## The function
 
@@ -136,6 +163,8 @@ view.setActive(true)
 | `frames` | Told about each picture of the screen -- `received()`, `decoded(ms)`, `drawn()`, `dropped(count)`, each optional -- to measure how smoothly it draws; nothing of the picture itself is passed |
 | `device` | One of the scope's devices, by UDID, to show instead of its own, told to the transport's `use`; it follows the scope's own when absent, or with a transport that has no `use` |
 | `onDevice(udid)` | Told when a person picks what the view shows: a UDID, or `null` to follow the scope's own again -- to keep it in a page's address |
+| `theme` | `system`, `light` or `dark`: the viewer's own colours; what a person last picked when absent, else the system's |
+| `deviceFrame` | Whether the device's body is drawn around its screen; what a person last picked when absent, else drawn |
 
 | Handle | Does |
 |---|---|
