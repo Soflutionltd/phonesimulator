@@ -83,8 +83,9 @@ or, under `device.agent_default = "free"`, a simulator nobody uses while another
 scope's default rather than in its place, and the scope's default -- what its viewer shows, what `DeviceMemory`
 remembers -- moves only when a person picks a device, or an agent does while it is alone in the scope or asks with
 `default: true`. Before the tool runs, the runtime asks who else works on that device: under `device.exclusive` a call
-that would change it is refused up front while another live agent works on it or drove it in the last two minutes,
-and any other call's answer starts with who does. A token revoked forgets its binding, and a device no live agent
+that would change it is refused up front while another agent drove it in the last two minutes, or an agent of
+another scope working on it called in that time -- agents of one scope share its devices -- and any other call's
+answer starts with who does. A token revoked forgets its binding, and a device no live agent
 works on and that is no scope's default is not held for the scope's leases, so it idles out like any other.
 `device.selection = "scope"` binds nobody: every agent of a scope shares its device.
 

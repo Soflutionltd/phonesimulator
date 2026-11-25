@@ -129,9 +129,12 @@ but each `simtrail mcp` is its own agent connection, and each works on **a devic
 - With `device.agent_default = "free"`, an agent that has chosen nothing is given a simulator nobody uses while another
   agent works on the project's own, rather than sharing it. Only a simulator or an emulator already on this Mac is
   given -- none is created -- and each one booted takes 2-3 GB of memory (`device.max_booted`, 2, bounds how many run).
-- Before an agent acts on a device another live agent works on, it is told: a call that would change it -- a tap, a
-  launch, a build, a recording, a choose -- is refused up front (`device.exclusive = "all"`, the default) unless it
-  says `steal: true`, and any other call starts its answer with a note such as
+- Before an agent acts on a device another live agent works on, it is told. Agents of one project -- two sessions, the
+  CLI and an MCP server -- share its devices, one driving at a time: a call that would change a device another agent
+  changed within 2 minutes is refused (`device.exclusive = "all"`, the default) unless it says `steal: true`. An agent
+  of another project working on the device keeps it the same way while it has called within 2 minutes; quiet for
+  longer -- or gone without saying so -- it passes the device over by itself. Any other call starts its answer with a
+  note such as
   `note: Claude Code #3fa2 works on this device (last call 40 s ago); sim_device list shows free ones`. `sim_device
   list` marks the agent's own device `in use here`, the project's own, and each one another agent works on.
 - `sim_record stop` stops only a recording the agent started itself, unless it says `steal: true`.
@@ -144,8 +147,10 @@ but each `simtrail mcp` is its own agent connection, and each works on **a devic
 - `sim_test` may send its tests to another of the project's devices with `destination` once the agent working on it
   has gone quiet; while that agent is live, the answer names it.
 
-A live agent is one with a call under way, or one made within `device.agent_idle_minutes` (30); its connection ending
-forgets it at once. Each agent is named by its client and a label: `--label` or `SIMTRAIL_AGENT_LABEL` when its
+A live agent is one with a call under way, or one made within `device.agent_idle_minutes` (30): it is named to the
+others and its device kept from idling out. Its connection ending -- stdin closed, SIGINT or SIGTERM -- forgets it at
+once, and so do `simtrail stop`, `simtrail stop --device` and `simtrail token revoke` for the devices and tokens they
+name. Each agent is named by its client and a label: `--label` or `SIMTRAIL_AGENT_LABEL` when its
 session was started with one, else four hex digits of its connection's token -- `Claude Code · ticket-123`,
 `Claude Code #3fa2`. While other agents work in the project too, `sim_device info` says what the asking agent is called
 and who else works on its device. A session started with `--root` builds in its own first `--root`, not in another

@@ -172,6 +172,20 @@ class Selections:
         self._told[pair] = now
         return True
 
+    def release(self, *, udid: str | None = None, scope_id: str | None = None) -> list[str]:
+        """A person let a device go -- ``simtrail stop`` -- for every scope (`udid`), or a scope's session ended
+        (`scope_id`, on `udid` alone when given): the agents working there work on no device until their next call that
+        needs one, so none keeps it from another. Answers their keys."""
+        released = []
+        for agent in self._agents.values():
+            if agent.udid is None or (udid is not None and agent.udid != udid):
+                continue
+            if scope_id is not None and agent.scope.id != scope_id:
+                continue
+            agent.udid, agent.chosen = None, False
+            released.append(agent.key)
+        return released
+
     def forget(self, key: str) -> Agent | None:
         """Forget an agent whose connection ended -- its token revoked -- and what it was told: its device is no longer
         held for it. Answers what was known of it."""

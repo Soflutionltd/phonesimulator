@@ -150,6 +150,9 @@ def create_http_router(runtime: RuntimeSource, auth: Authenticator, *, scope_par
         instance = current.manager.instance(scope, udid) if current is not None else None
         here = current is not None and instance is not None and current.manager.runs_here(instance)
         stopped = current is not None and await current.manager.stop(scope, shutdown_device=shutdown, udid=udid)
+        if stopped and current is not None:
+            # Its agents let the device go too: none keeps it from another until it calls again.
+            current.selections.release(scope_id=scope.id, udid=instance.udid if instance is not None else None)
         kind = instance.kind if instance is not None else None
         return ok({"stopped": stopped, "shut_down": stopped and shutdown and here, "kind": kind})
 

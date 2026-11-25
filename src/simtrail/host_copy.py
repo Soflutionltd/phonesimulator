@@ -409,11 +409,12 @@ class HostCopy:
         )
 
     def device_bound(self, device: str, title: str, quiet_s: int) -> str:
-        """Why a call that would change a device is refused: another live agent works on it (``device.exclusive``),
-        and last called `quiet_s` ago."""
+        """Why a call that would change a device is refused: an agent of another scope works on it and called within
+        the last two minutes (``device.exclusive``), `quiet_s` ago."""
         return (
-            f"{device} is in use by {title} (its last call {quiet_s} s ago); sim_device list shows the devices nobody "
-            f"uses, and choose takes one -- or pass steal: true to take this one (device.exclusive, {self.settings})."
+            f"{device} is in use by {title}, of another project (its last call {quiet_s} s ago); sim_device list "
+            f"shows the devices nobody uses, and choose takes one -- or pass steal: true to take this one, or call "
+            f"again once it has been left alone for 2 minutes (device.exclusive, {self.settings})."
         )
 
     def also_drove(self, title: str, seconds: int) -> str:

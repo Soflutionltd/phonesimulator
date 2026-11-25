@@ -2,7 +2,8 @@
 """``simtrail token``: make, list and revoke the daemon's scoped tokens.
 
 The command reads the token file directly -- it runs as the person who installed Simtrail -- and the daemon reads it
-on every request, so a revoked token stops working at once. A new token is printed once, on stdout, and never again.
+on every request, so a revoked token stops working at once. A token is revoked through the daemon while it runs, so
+what its agent held is let go with it. A new token is printed once, on stdout, and never again.
 
 A ``host`` token is for an application sharing the daemon: ``--scope 'notes:*'`` gives it the scopes whose ids start
 ``notes:``, and ``--root`` the folders its agents may reach. Revoking it revokes every token it made.
@@ -57,9 +58,18 @@ def run(args: argparse.Namespace, ctx: CliContext) -> int:
             ctx.say(f"{record.id}  {record.kind}  {', '.join(record.scopes)}{label}{maker}")
         return 0
     made = [record.id for record in store.records() if record.host == args.id]
-    if store.revoke(args.id):
+    if revoke(args.id, ctx):
         also = f", and the tokens it made: {', '.join(made)}" if made else ""
         ctx.say(f"revoked {args.id}{also}")
         return 0
     ctx.complain(f"there is no token {args.id}")
     return 1
+
+
+def revoke(token_id: str, ctx: CliContext) -> bool:
+    """Revoke a token through the daemon when it runs, so the devices its agent worked on and drove are let go at once
+    -- else in the token file, which a daemon started later reads. Whether there was such a token."""
+    client = ctx.client()
+    if client.healthy():
+        return bool(client.admin("DELETE", f"/api/v1/admin/tokens/{token_id}").get("revoked"))
+    return ctx.tokens().revoke(token_id)

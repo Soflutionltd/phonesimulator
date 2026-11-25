@@ -370,8 +370,12 @@ async def test_revoking_a_token_lets_go_of_its_leases_at_once_and_a_host_s_of_th
         )
         hosted = made.json()["data"]
         await http.post("/api/v1/agent/lease", headers=bearer(hosted["token"]))
+        working = Caller(Scope.named("notes:1"), key=hosted["id"], title="Claude Code")
+        here.daemon.runtime.selections.begin(working)
+        here.daemon.runtime.selections.bind(working, BOOTED_UDID)
         gone = await http.delete(f"/api/v1/host/tokens/{hosted['id']}", headers=bearer(again["token"]))
         assert gone.json()["data"] == {"revoked": True} and not here.daemon.leases.held("notes:1")
+        assert here.daemon.runtime.selections.on(BOOTED_UDID) == [], "the device its agent worked on is let go too"
         refused = await http.delete(f"/api/v1/host/tokens/{hosted['id']}", headers=bearer(again["token"]))
         assert refused.json()["data"] == {"revoked": False}
 
@@ -387,6 +391,9 @@ async def test_the_admin_lets_a_device_go_for_every_scope_and_is_told_who_held_i
         agent = await here.token(http, "agent", "tp-1", label="simtrail mcp (pid 4242)")
         await http.post("/api/v1/agent/lease", headers=bearer(agent))
         here.daemon.leases.renew("tp-1", "unknown-token")
+        working = Caller(Scope.named("tp-2"), key="agent-elsewhere", title="Codex")
+        here.daemon.runtime.selections.begin(working)
+        here.daemon.runtime.selections.bind(working, instance.udid)
         assert detail(await http.delete(f"/api/v1/admin/devices/{instance.udid}")) == (401, AUTHENTICATION_REQUIRED)
         let_go = await http.delete(f"/api/v1/admin/devices/{instance.udid}", headers=here.admin)
     assert let_go.json()["data"] == {
@@ -396,6 +403,7 @@ async def test_the_admin_lets_a_device_go_for_every_scope_and_is_told_who_held_i
     }
     assert here.daemon.runtime.manager.instance(TP1) is None and instance.state == "stopped"
     assert ("simctl", "shutdown", instance.udid) not in here.rig.argv(), "the device keeps running"
+    assert here.daemon.runtime.selections.on(instance.udid) == [], "no agent keeps it from another any more"
 
 
 async def test_the_admin_sees_which_scopes_the_daemon_serves_a_device_an_agent_or_a_build(tmp_path: Path) -> None:

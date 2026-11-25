@@ -45,7 +45,7 @@ from simtrail.core.backends import PhysicalBackend, SimulatorBackend
 from simtrail.core.device_changes import ChangeJournal
 from simtrail.core.device_logs import DeviceLogBook
 from simtrail.core.devices import DeviceDirectory
-from simtrail.core.drivers import Drivers, Held, changes_device, exclusive
+from simtrail.core.drivers import HOLD_S, Drivers, Held, changes_device, exclusive
 from simtrail.core.flows import FlowStore, flows_folder
 from simtrail.core.instance import DeviceInstance
 from simtrail.core.mac_backend import MacBackend
@@ -54,7 +54,7 @@ from simtrail.core.reaper import Reaper
 from simtrail.core.recordings import Recordings
 from simtrail.core.render import HelperRenderer
 from simtrail.core.screen_relay import ScreenRelay, ScreenSocket
-from simtrail.core.selections import Selections
+from simtrail.core.selections import Agent, Selections
 from simtrail.core.signing import SigningTeams
 from simtrail.core.touch import ScrcpyTouchSetup, TouchSetups
 from simtrail.host_copy import HostCopy
@@ -497,6 +497,15 @@ class Runtime:
         mode = self.config.get(running.owner if running is not None else caller.scope).device_exclusive
         return exclusive(mode, real=self._real(udid))
 
+    def _keeps(self, caller: Caller, occupant: Agent) -> bool:
+        """Whether another agent working on a device keeps it from this one under ``device.exclusive``: an agent of
+        another scope with a call under way or one within `HOLD_S`. Agents of one scope share its devices -- two
+        sessions of a project, its CLI and its MCP server -- and one at a time drives them (`core.drivers`); an agent
+        quiet for longer, or whose process is gone without saying so, passes the device over by itself."""
+        if occupant.scope.id == caller.scope.id:
+            return False
+        return occupant.calls > 0 or self.selections.quiet_s(occupant) < HOLD_S
+
     def _acting(self, caller: Caller, *, changing: bool, steal: bool, per_agent: bool, quiet: bool) -> list[str]:
         """Who else works on the device this call acts on: refused with `Held` when the call would change it and one
         agent at a time drives it, else what to tell the agent first -- unless the call is `quiet`, a listing that says
@@ -512,7 +521,7 @@ class Runtime:
         if per_agent and not (instance is not None and self.drivers.drives(caller, instance)):
             occupant = self.selections.occupant(caller, udid)
         if occupant is not None and holder is None:
-            if changing and self._exclusive(caller, udid) and not steal:
+            if changing and self._exclusive(caller, udid) and not steal and self._keeps(caller, occupant):
                 device = instance.name if instance is not None else "this device"
                 raise Held(self.copy.device_bound(device, occupant.title, self.selections.quiet_s(occupant)))
             if not quiet and self.selections.tell(caller, occupant):
@@ -536,8 +545,10 @@ class Runtime:
         if self._exclusive(caller, chosen) and not steal:
             if holder is not None and running is not None:
                 raise self.drivers.held(holder, running)
-            name = running.name if running is not None else "this device"
-            raise Held(self.copy.device_bound(name, working[0].title, self.selections.quiet_s(working[0])))
+            keeping = [agent for agent in working if self._keeps(caller, agent)]
+            if keeping:
+                name = running.name if running is not None else "this device"
+                raise Held(self.copy.device_bound(name, keeping[0].title, self.selections.quiet_s(keeping[0])))
         if holder is not None and running is not None:
             return [self.drivers.take(caller, running, exclusive=False, steal=True)]
         return [self.copy.works_on(working[0].title, self.selections.quiet_s(working[0]))]

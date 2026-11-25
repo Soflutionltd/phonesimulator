@@ -359,6 +359,8 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         running, and say which scopes used it and which agents held each."""
         admin(request)
         held = await daemon.runtime.manager.let_go(udid)
+        # The agents working on it let it go too, or the next one to call would still be told it is in use.
+        daemon.runtime.selections.release(udid=udid)
         holders = daemon.leases.holders()
         return ok(
             {
@@ -450,7 +452,7 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         revoked = daemon.tokens.revoke(token_id, host=host(request))
         if revoked:
             daemon.leases.release_holder(token_id)
-            daemon.runtime.drivers.let_go(token_id, daemon.runtime.manager.instances())
+            daemon.runtime.let_go(token_id)
         return ok({"revoked": revoked})
 
     return app

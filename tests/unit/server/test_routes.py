@@ -134,8 +134,12 @@ async def test_a_person_sees_the_scopes_status_starts_its_device_and_stops_it(tm
         again = site.runtime.manager.instance(scope())
         assert again is not None and again.task is not None
         await again.task
+        working = Caller(scope(), key="agent-a", title="Claude Code")
+        site.runtime.selections.begin(working)
+        site.runtime.selections.bind(working, again.udid)
         let_go = await http.delete("/api/v1/scopes/tp-1")
     assert let_go.json() == {"ok": True, "data": {"stopped": True, "shut_down": False, "kind": "simulator"}}
+    assert site.runtime.selections.of(working) is None, "its agents let the device go with it"
     assert site.rig.argv().count(("simctl", "shutdown", instance.udid)) == 1
 
 

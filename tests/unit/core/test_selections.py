@@ -81,3 +81,16 @@ def test_a_person_moving_the_scopes_device_moves_the_agents_on_the_old_one() -> 
     selections.follow("tp-1", X, Y)
     assert selections.of(A) == Y and selections.of(B) == Y and selections.of(ELSEWHERE) == X
     assert [agent.chosen for agent in selections.on(Y)] == [False, True]
+
+
+def test_a_device_let_go_or_a_scope_stopped_releases_the_agents_working_there() -> None:
+    selections = Selections(clock=ManualClock())
+    for caller, udid in ((A, X), (B, Y), (ELSEWHERE, X)):
+        selections.begin(caller)
+        selections.bind(caller, udid)
+    assert selections.release(scope_id="tp-1", udid=Y) == ["agent-b"], "a scope's session on one device"
+    assert selections.of(B) is None and selections.of(A) == X
+    assert selections.release(udid=X) == ["agent-a", "agent-c"], "a device let go for every scope"
+    assert selections.on(X) == [] and selections.release(scope_id="tp-2") == []
+    selections.bind(A, Y)
+    assert selections.release(scope_id="tp-2") == [] and selections.release(scope_id="tp-1") == ["agent-a"]

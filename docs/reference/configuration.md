@@ -463,7 +463,7 @@ The device an agent that has chosen none is given, under `device.selection = "ag
 
 ### `device.exclusive`
 
-Whether one agent at a time drives a device: another agent's call that would change it -- a tap, an app launched, a build, a recording, `sim_device choose` -- is refused while the agent that last changed it has acted within 2 minutes, or while another live agent works on it, unless that call says `steal: true`; after 2 quiet minutes it passes over by itself. On every device (`all`), on a real device only, an iPhone, iPad or Android phone (`real_devices`), or never (`off`). Where it is not refused, an agent is told first that another works on the device.
+Whether one agent at a time drives a device: another agent's call that would change it -- a tap, an app launched, a build, a recording, `sim_device choose` -- is refused while the agent that last changed it has acted within 2 minutes, or while an agent of another scope working on it has, unless that call says `steal: true`; after 2 quiet minutes it passes over by itself. Agents of one scope share its devices, one at a time. On every device (`all`), on a real device only, an iPhone, iPad or Android phone (`real_devices`), or never (`off`). Where it is not refused, an agent is told first that another works on the device.
 
 - Default: `all`
 - Allowed: one of `real_devices`, `all`, `off`

@@ -33,11 +33,12 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import signal
 import threading
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import IO, Any
 from urllib.parse import quote
@@ -450,6 +451,25 @@ def relay_argv(*, labelled: bool = False) -> list[str]:
     ]
 
 
+@contextlib.contextmanager
+def terminated_as_exit() -> Iterator[None]:
+    """While serving, SIGTERM -- what a proxy or ``kill`` sends to end a server -- ends it as closing stdin does, so its
+    token is revoked and the devices it held are let go at once rather than kept for a dead process. Only the main
+    thread can set a handler; elsewhere nothing changes."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+
+    def leave(_signum: int, _frame: object) -> None:
+        raise SystemExit(0)
+
+    previous = signal.signal(signal.SIGTERM, leave)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
+
 def run(
     scope: Scope,
     roots: Sequence[Path],
@@ -486,7 +506,9 @@ def run(
         SCOPE_ENV: scope.id,
         **({LABEL_ENV: named} if named else {}),
     }
+    stack = contextlib.ExitStack()
     try:
+        stack.enter_context(terminated_as_exit())
         revive = reviver(client, start_daemon, run_dir, locate_daemon)
         locate = follower(client, locate_daemon) if locate_daemon is not None else None
         return relay.main(
@@ -500,6 +522,7 @@ def run(
             on_call=lease.called,
         )
     finally:
+        stack.close()
         lease.stop()
         keeper.join(timeout=REQUEST_TIMEOUT_S)
         # Revoking the token lets go of its lease too, so the device can idle out without waiting for it to lapse.

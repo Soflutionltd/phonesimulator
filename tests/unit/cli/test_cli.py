@@ -496,6 +496,7 @@ def test_a_running_daemon_applies_a_changed_setting_before_the_command_returns(t
 
 def test_tokens_are_made_once_listed_and_revoked(tmp_path: Path) -> None:
     here = Terminal(tmp_path)
+    here.daemon.up = False
     assert here("token", "list") == 0 and here.said() == ["no scoped tokens"]
     assert here("token", "create", "--kind", "agent", "--scope", "demo", "--label", "ci", "--root", "~/Notes") == 0
     token = here.said()[-1]
@@ -518,6 +519,18 @@ def test_tokens_are_made_once_listed_and_revoked(tmp_path: Path) -> None:
     ]
     assert here("token", "revoke", host.id) == 0
     assert here.said()[-1] == f"revoked {host.id}, and the tokens it made: {made.id}"
+
+
+def test_a_token_is_revoked_through_the_running_daemon_so_what_its_agent_held_is_let_go(tmp_path: Path) -> None:
+    here = Terminal(tmp_path)
+    here.daemon.admin = here.ctx.tokens().admin_token
+    record, _ = here.ctx.tokens().create("agent", ["demo"], label="simtrail mcp (pid 4242)")
+    gone = f"/api/v1/admin/tokens/{record.id}"
+    here.daemon.answers[("DELETE", gone)] = {"revoked": True}
+    assert here("token", "revoke", record.id) == 0 and here.said()[-1] == f"revoked {record.id}"
+    assert here.daemon.made("DELETE", gone) == [None], "the daemon revoked it, and let go of what it held"
+    here.daemon.answers[("DELETE", gone)] = {"revoked": False}
+    assert here("token", "revoke", record.id) == 1 and f"there is no token {record.id}" in here.err.getvalue()
 
 
 def test_the_daemons_address_comes_from_its_file_or_else_the_settings(tmp_path: Path) -> None:

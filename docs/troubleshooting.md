@@ -251,7 +251,14 @@ made none for `device.agent_idle_minutes` (30), or that exited or crashed, lets 
 again. Raise either, or set `device.shutdown_on_idle` to `false` to leave idle devices booted.
 
 `simtrail stop` names the scopes still holding a device, and `simtrail stop --device <udid>` lets it go for all of
-them at once.
+them at once, the agents working on it included.
+
+## A device is "in use by" another session
+
+Sessions of one project share its devices: a call is refused only while another session changed the device within
+the last 2 minutes, and goes through after. A session of another project keeps a device it called on within 2
+minutes; once quiet that long it passes it over by itself. `steal: true` takes it at once, and `simtrail token revoke
+<id>` -- the ids are in `simtrail token list` -- ends a stale session for good.
 
 ## WebDriverAgent did not come back after it was killed
 

@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import signal
 import threading
 import urllib.error
 import urllib.parse
@@ -452,3 +454,25 @@ def test_a_sessions_label_reaches_the_daemon_in_a_header_from_the_relays_environ
     assert labelled[:2] == ["--header", "X-Simtrail-Label=SIMTRAIL_AGENT_LABEL"]
     assert not any("ticket" in part for part in labelled), "the label itself is never in argv"
     assert launcher.session_label("x" * 500, {}) == "x" * launcher.LABEL_MAX
+
+
+def test_sigterm_while_serving_ends_the_server_as_closing_stdin_does_and_puts_the_old_handler_back() -> None:
+    before = signal.getsignal(signal.SIGTERM)
+    with pytest.raises(SystemExit) as ended, launcher.terminated_as_exit():
+        os.kill(os.getpid(), signal.SIGTERM)
+    assert ended.value.code == 0, "so the finally that revokes its token runs"
+    assert signal.getsignal(signal.SIGTERM) is before
+
+
+def test_off_the_main_thread_sigterm_is_left_as_it_was() -> None:
+    before = signal.getsignal(signal.SIGTERM)
+    seen: list[object] = []
+
+    def serve() -> None:
+        with launcher.terminated_as_exit():
+            seen.append(signal.getsignal(signal.SIGTERM))
+
+    thread = threading.Thread(target=serve)
+    thread.start()
+    thread.join()
+    assert seen == [before]

@@ -72,6 +72,10 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Changed
 
+- Agents of one project share its devices, one driving at a time: two sessions, the CLI and an MCP server are no
+  longer refused one another's device for half an hour. An agent of another project keeps a device only while it has
+  called within 2 minutes, as `device.exclusive` always said; quiet longer, or gone without saying so, it passes the
+  device over by itself.
 - The viewer draws the device at its actual size by default, as Simulator.app's Point Accurate does: one point a CSS
   pixel, an iPhone 17 Pro 402 by 874. In a window too small it is drawn just small enough to fit, and the scale says
   so (`67% · fitted`). Command-1 is actual size, Command-0 fit to the window, and the zoom a person picks is kept in
@@ -87,6 +91,10 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Fixed
 
+- `simtrail stop`, `simtrail stop --device`, `simtrail token revoke` and a host revoking a token let go of the devices
+  the agents concerned worked on, which kept refusing other agents until those went quiet for 30 minutes.
+- `simtrail mcp` ended with SIGTERM -- as a proxy or `kill` ends it -- revokes its token as on a normal exit, rather
+  than holding its device for a process that is gone.
 - The viewer's bar stays on one line from 640 px wide: the settings and release buttons no longer drop to a second
   line alone; the device's name is shortened first.
 - Scrolling with the wheel or trackpad over a simulator driven by the native helper scrolls it again. The scroll was

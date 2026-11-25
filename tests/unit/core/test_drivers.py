@@ -220,32 +220,73 @@ A = Caller(scope("tp-1"), key="agent-a", title="Claude Code #aaaa")
 B = Caller(scope("tp-1"), key="agent-b", title="Claude Code · ticket-123")
 
 
-async def test_every_device_is_exclusive_by_default_and_an_agent_is_refused_up_front_on_one_another_works_on(
-    tmp_path: Path,
-) -> None:
+#: An agent of another scope: another project, another checkout.
+ELSEWHERE = Caller(scope("tp-2"), key="agent-c", title="Codex · elsewhere")
+
+
+async def test_agents_of_one_scope_share_its_device_and_drive_it_one_at_a_time(tmp_path: Path) -> None:
     rig = DeviceRig(tmp_path)
     runtime = runtime_over(rig)
     assert rig.config.get(A.scope).device_exclusive == "all"
     await runtime.call(B, "sim_snapshot", {})
-    rig.clock.now += HOLD_S + 30
-    taps = len(rig.idb.engine.hid_events)
-    refused = await runtime.call(A, "sim_act", TAP)
+    rig.clock.now += 5
+    shared = await runtime.call(A, "sim_act", TAP)
+    assert shared["isError"] is False and said(shared) == (
+        "note: Claude Code · ticket-123 works on this device (last call 5 s ago); sim_device list shows free ones\n"
+        "ok tap (10,10) +0ms"
+    ), "a session of the same project is told, never refused"
+    held = await runtime.call(B, "sim_act", TAP)
+    assert "is held by Claude Code #aaaa since" in said(held), "the one that drove it holds it for two minutes"
+    rig.clock.now += HOLD_S
+    assert (await runtime.call(B, "sim_act", TAP))["isError"] is False, "then it passes over by itself"
+
+
+async def test_an_agent_of_another_scope_is_refused_up_front_while_it_called_within_two_minutes(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    runtime = runtime_over(rig)
+    other = fixture_udid("iPhone 17e")
+    runtime.selections.begin(ELSEWHERE)
+    runtime.selections.bind(ELSEWHERE, other)
+    runtime.selections.end(ELSEWHERE)
+    rig.clock.now += 30
+    runtime.selections.begin(A)
+    runtime.selections.bind(A, other)
+    runtime.selections.end(A)
+    refused = await runtime.call(A, "sim_app", LAUNCH)
     assert refused["isError"] is True and said(refused) == (
-        "Simtrail · alpha · tp-1 is in use by Claude Code · ticket-123 (its last call 150 s ago); sim_device list "
-        "shows the devices nobody uses, and choose takes one -- or pass steal: true to take this one "
-        "(device.exclusive, `simtrail config`)."
+        "this device is in use by Codex · elsewhere, of another project (its last call 30 s ago); sim_device list "
+        "shows the devices nobody uses, and choose takes one -- or pass steal: true to take this one, or call again "
+        "once it has been left alone for 2 minutes (device.exclusive, `simtrail config`)."
     )
-    assert len(rig.idb.engine.hid_events) == taps, "refused before anything was played"
-    instance = rig.manager.instance(A.scope)
-    assert instance is not None and instance.driver is None
     started = await runtime.call(A, "sim_record", {"action": "start"})
-    assert started["isError"] is True and "is in use by Claude Code · ticket-123" in said(started)
+    assert started["isError"] is True and "is in use by Codex · elsewhere" in said(started)
     looked = await runtime.call(A, "sim_screenshot", {})
     assert looked["isError"] is False, "looking is never refused"
-    stolen = await runtime.call(A, "sim_act", {**TAP, "steal": True})
-    assert stolen["isError"] is False and said(stolen) == "ok tap (10,10) +0ms"
-    held = await runtime.call(B, "sim_act", TAP)
-    assert "is held by Claude Code #aaaa since" in said(held), "the agent that stole it holds it for two minutes"
+    assert looked["content"][0]["text"].startswith("note: Codex · elsewhere works on this device"), "it is told"
+    stolen = await runtime.call(A, "sim_app", {**LAUNCH, "steal": True})
+    assert stolen["isError"] is False and said(stolen) == "launched com.example.Notes"
+
+
+async def test_an_agent_of_another_scope_quiet_for_two_minutes_passes_the_device_over_by_itself(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    runtime = runtime_over(rig)
+    other = fixture_udid("iPhone 17e")
+    runtime.selections.begin(ELSEWHERE)
+    runtime.selections.bind(ELSEWHERE, other)
+    runtime.selections.end(ELSEWHERE)
+    rig.clock.now += 1
+    runtime.selections.begin(A)
+    runtime.selections.bind(A, other)
+    runtime.selections.end(A)
+    rig.clock.now += HOLD_S
+    passed = await runtime.call(A, "sim_app", LAUNCH)
+    assert passed["isError"] is False and said(passed).startswith(
+        "note: Codex · elsewhere works on this device (last call 121 s ago)"
+    ), "a session gone quiet -- or whose process died without saying so -- no longer keeps it"
 
 
 async def test_an_agent_is_refused_choosing_a_device_another_works_on_or_drives_unless_it_steals(
@@ -253,30 +294,36 @@ async def test_an_agent_is_refused_choosing_a_device_another_works_on_or_drives_
 ) -> None:
     rig = DeviceRig(tmp_path)
     runtime = runtime_over(rig)
-    await runtime.call(B, "sim_act", TAP)
-    theirs = rig.manager.instance(B.scope)
+    await runtime.call(ELSEWHERE, "sim_act", TAP)
+    theirs = rig.manager.instance(ELSEWHERE.scope)
     assert theirs is not None
     other = fixture_udid("iPhone 17e")
     await runtime.call(A, "sim_device", {"action": "choose", "udid": other})
     refused = await runtime.call(A, "sim_device", {"action": "choose", "udid": theirs.udid})
     assert refused["isError"] is True and said(refused).startswith(
-        f"{theirs.name} is held by Claude Code · ticket-123 since"
-    ), "B drove it within two minutes"
+        f"{theirs.name} is held by Codex · elsewhere since"
+    ), "it drove it within two minutes"
     rig.clock.now += HOLD_S
+    await runtime.call(ELSEWHERE, "sim_snapshot", {})
+    rig.clock.now += 10
     unheld = await runtime.call(A, "sim_device", {"action": "choose", "udid": theirs.udid})
-    assert said(unheld).startswith(f"{theirs.name} is in use by Claude Code · ticket-123"), "B still works on it"
+    assert said(unheld).startswith(f"{theirs.name} is in use by Codex · elsewhere, of another project"), (
+        "it still works on it"
+    )
     stolen = await runtime.call(A, "sim_device", {"action": "choose", "udid": theirs.udid, "steal": True})
     assert stolen["isError"] is False and said(stolen).startswith(
-        "note: Claude Code · ticket-123 works on this device (last call 120 s ago); sim_device list shows free ones\n"
-        "now using "
+        "note: Codex · elsewhere works on this device (last call 10 s ago); sim_device list shows free ones\nnow using "
     )
-    assert runtime.selections.of(A) == theirs.udid and rig.manager.is_current(theirs)
+    assert runtime.selections.of(A) == theirs.udid
+    rig.clock.now += HOLD_S
+    calm = await runtime.call(B, "sim_device", {"action": "choose", "udid": theirs.udid})
+    assert calm["isError"] is False, "quiet for two minutes, it no longer keeps the device from anyone"
     rig.clock.now += 1
-    await runtime.call(B, "sim_act", TAP)
+    await runtime.call(ELSEWHERE, "sim_act", TAP)
     driven = await runtime.call(A, "sim_device", {"action": "choose", "udid": other, "steal": True})
     assert driven["isError"] is False
     back = await runtime.call(A, "sim_device", {"action": "choose", "udid": theirs.udid, "steal": True})
-    assert said(back).startswith("note: Claude Code · ticket-123 also drove this device 0 s ago\n")
+    assert said(back).startswith("note: Codex · elsewhere also drove this device 0 s ago\n")
     assert await runtime.call(A, "sim_device", {"action": "choose"}) == {
         "content": [{"type": "text", "text": "choose needs the udid of a device sim_device list shows"}],
         "isError": True,
@@ -319,23 +366,6 @@ async def test_a_device_one_agent_stops_keeps_running_for_another_working_on_it(
     )
     assert rig.manager.is_current(instance) and runtime.selections.of(A) is None
     assert ("simctl", "shutdown", instance.udid) not in rig.argv()
-
-
-async def test_a_call_on_a_device_that_is_not_running_yet_is_refused_for_the_agent_working_on_it(
-    tmp_path: Path,
-) -> None:
-    rig = DeviceRig(tmp_path)
-    runtime = runtime_over(rig)
-    other = fixture_udid("iPhone 17e")
-    runtime.selections.begin(B)
-    runtime.selections.bind(B, other)
-    runtime.selections.end(B)
-    rig.clock.now += 1
-    runtime.selections.begin(A)
-    runtime.selections.bind(A, other)
-    runtime.selections.end(A)
-    refused = await runtime.call(A, "sim_app", LAUNCH)
-    assert said(refused).startswith("this device is in use by Claude Code · ticket-123"), "nothing runs to name"
 
 
 async def test_a_flow_played_through_the_runtime_is_held_as_sim_act_is_and_kept_beside_the_builds(
