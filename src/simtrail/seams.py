@@ -83,7 +83,8 @@ class DeviceMemory(Protocol):
         ...
 
     def created(self, scope: Scope) -> set[str]:
-        """The UDIDs of devices Simtrail created for this scope's host, which it may delete when asked."""
+        """The UDIDs of devices Simtrail created for this scope's host. Only these are ever deleted, and only under a
+        memory that can also list and forget them (`core.devices.CreatedDevices`)."""
         ...
 
     def choose(self, scope: Scope, shared: bool, udid: str) -> None:

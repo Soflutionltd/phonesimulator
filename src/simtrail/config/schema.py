@@ -583,6 +583,12 @@ SETTINGS: tuple[Setting, ...] = (
             "call holds it again."),
     Setting("shutdown_on_idle", "device.shutdown_on_idle", True, Flag(),
             "Whether stopping an idle device also shuts it down, when Simtrail booted or created it."),
+    Setting("delete_created", "device.delete_created", "empty", Choice(("empty", "idle", "never")),
+            "What becomes of a simulator Simtrail created for a scope -- each takes 1.5-3.5 GB on disk -- once it is "
+            "stopped as idle and shut down. `empty` deletes it when it holds no app anybody installed, `idle` deletes "
+            "it whatever it holds, `never` keeps it. A simulator a person picked, a real device or an Android "
+            "emulator is never deleted, nor one another scope still uses, nor any while `device.shutdown_on_idle` is "
+            "off. The scope's next call creates a fresh one. `simtrail devices prune` deletes those already left."),
     Setting("device_typing", "device.typing", "auto", Choice(("auto", "keys", "paste")),
             "How text reaches the device. `auto` types it as key presses when every character is on a US keyboard "
             "and the Mac's keyboard layout is US or ABC, and pastes it otherwise; `keys` types whatever has keys, "

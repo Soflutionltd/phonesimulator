@@ -6,11 +6,16 @@ Every simulator in Xcode's default device set has a folder of its own, ``~/Libra
 says there where it listens (`connectors.app`). Simtrail only uses the default set, so the folder is worked out rather
 than asked of simctl, which would cost a program run on every snapshot.
 
+What a person installed on a simulator is kept in its folder too, under ``data/Containers/Bundle/Application``; the
+system's own apps come with the runtime and are not there. So whether a simulator holds an app of anybody's can be read
+while it is shut down, which simctl cannot answer (`user_apps`).
+
 ``SIMTRAIL_SIMULATOR_DEVICES_DIR`` moves the devices folder, which is how tests keep away from the Mac's real one.
 """
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -32,3 +37,29 @@ def device_data_dir(udid: str, *, env: Mapping[str, str], home: Path | None = No
     if not is_udid(udid):
         raise ValueError(f"not a simulator device id: {udid!r}")
     return devices_dir(env, home) / udid / "data"
+
+
+def device_dir(udid: str, *, env: Mapping[str, str], home: Path | None = None) -> Path:
+    """A simulator's own folder, its data and its settings. Anything but a device id is refused."""
+    return device_data_dir(udid, env=env, home=home).parent
+
+
+def user_apps(udid: str, *, env: Mapping[str, str], home: Path | None = None) -> list[str] | None:
+    """The apps installed on a simulator -- by anybody, not the system's own -- by their bundle's name, sorted. None
+    when it cannot be told: the simulator has no folder here -- another device set's, or one already gone."""
+    folder = device_dir(udid, env=env, home=home)
+    if not folder.is_dir():
+        return None
+    return sorted(app.name for app in (folder / "data" / "Containers" / "Bundle" / "Application").glob("*/*.app"))
+
+
+def folder_size(udid: str, *, env: Mapping[str, str], home: Path | None = None) -> int:
+    """How many bytes a simulator's folder holds -- what deleting it frees -- not following links; 0 without one."""
+    total = 0
+    for root, _, files in os.walk(device_dir(udid, env=env, home=home)):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(root, name)).st_size
+            except OSError:
+                continue
+    return total

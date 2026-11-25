@@ -253,6 +253,17 @@ again. Raise either, or set `device.shutdown_on_idle` to `false` to leave idle d
 `simtrail stop` names the scopes still holding a device, and `simtrail stop --device <udid>` lets it go for all of
 them at once, the agents working on it included.
 
+## Simulators Simtrail created pile up, or one went away
+
+A project with no device gets a blank simulator named `Simtrail · <project>`, which takes 1.5 to 3.5 GB on disk. Once
+it is stopped as idle and shut down, Simtrail deletes it when it holds no app anybody installed
+(`device.delete_created = "empty"`, the default); the project's next call creates a fresh one. Set it to `"idle"` to
+delete it whatever it holds, or `"never"` to keep it. A simulator you picked, a real device or an Android emulator is
+never deleted, nor one another project still uses, nor any while `device.shutdown_on_idle` is `false`.
+
+For those already left, `simtrail devices prune` deletes every simulator Simtrail created that nothing runs and that
+holds no app, and says how much space it freed; `--all` deletes those with apps too, and `--dry-run` only lists them.
+
 ## A device is "in use by" another session
 
 Sessions of one project share its devices: a call is refused only while another session changed the device within

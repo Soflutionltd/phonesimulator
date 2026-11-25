@@ -40,6 +40,7 @@ class SimConfig:
     idle_minutes: int
     agent_idle_minutes: int
     shutdown_on_idle: bool
+    delete_created: Literal["empty", "idle", "never"]
     device_typing: Literal["auto", "keys", "paste"]
     restore_changes: Literal["real_devices", "all", "off"]
     device_selection: Literal["agent", "scope"]

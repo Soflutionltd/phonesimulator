@@ -12,7 +12,8 @@ backend's `DeviceControl`.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Collection, Sequence
+import os
+from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Protocol
 
 from simtrail.config.model import SimConfig
@@ -103,9 +104,17 @@ class SimulatorBackend:
 
     kind: DeviceKind = "simulator"
 
-    def __init__(self, simctl_for: Callable[[str], Simctl], directory: DeviceDirectory) -> None:
+    def __init__(
+        self,
+        simctl_for: Callable[[str], Simctl],
+        directory: DeviceDirectory,
+        *,
+        env: Mapping[str, str] | None = None,
+    ) -> None:
         self.simctl_for = simctl_for
         self.directory = directory
+        #: Where the simulators' folders are (`platform.device_data`): what tells whether one holds an app.
+        self.env: Mapping[str, str] = os.environ if env is None else env
 
     def runs_here(self, device: Placed) -> bool:
         return True

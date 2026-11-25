@@ -11,6 +11,16 @@ All notable changes to Simtrail are documented here. The format follows
 - `simtrail helper sign --identity "<identity>"`: sign the helper with a code-signing identity of yours -- a Developer
   ID -- kept in Simtrail's state folder, so every later install signs with it whoever installs it, and no certificate
   is made.
+- `device.delete_created`: a simulator Simtrail created for a project is deleted once the reaper stops it as idle and
+  shuts it down -- when it holds no app anybody installed (`empty`, the default), whatever it holds (`idle`), or never
+  (`never`) -- and forgotten, so the project's next call creates a fresh one. A simulator a person picked, a real
+  device, an Android emulator, one another project still remembers, and any while `device.shutdown_on_idle` is off are
+  never deleted; a deletion that fails is logged and the device kept.
+- `simtrail devices prune [--all] [--dry-run]`: delete the simulators Simtrail created that nothing runs and that hold
+  no app (every one nothing runs with `--all`), naming each and the space freed -- through the daemon while it runs,
+  else directly.
+- `JsonDeviceMemory.all_created`, `holders` and `forget_created`: what lets Simtrail delete the simulators it made. A
+  host's own `DeviceMemory` without them keeps every device, as before.
 
 ### Fixed
 

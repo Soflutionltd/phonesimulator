@@ -10,6 +10,7 @@ import asyncio
 import hashlib
 import io
 import logging
+import os
 import urllib.error
 import urllib.request
 from collections.abc import Awaitable, Callable
@@ -49,12 +50,13 @@ from simtrail.daemon.passes import ViewerSessions
 from simtrail.daemon.pauses import PAUSE_MAX_S
 from simtrail.daemon.tokens import TokenStore
 from simtrail.mcp.launcher import SCOPE_ENV, TOKEN_ENV, URL_ENV
+from simtrail.platform.device_data import devices_dir
 from simtrail.protocol import CLOSE_FORBIDDEN, PROTOCOL_VERSION, SERVER
 from simtrail.scope import STANDALONE_GROUP, Scope
 from simtrail.seams import Caller, Refused
 from simtrail.server.log_redaction import CredentialFilter
 from simtrail.testing.asgi import HOST, AsgiSocket
-from simtrail.testing.fakes import BOOTED_UDID, no_wait
+from simtrail.testing.fakes import BOOTED_UDID, fixture_udid, no_wait
 from simtrail.testing.rig import DeviceRig
 from simtrail.tools.device import VERSION_LINE
 
@@ -404,6 +406,51 @@ async def test_the_admin_lets_a_device_go_for_every_scope_and_is_told_who_held_i
     assert here.daemon.runtime.manager.instance(TP1) is None and instance.state == "stopped"
     assert ("simctl", "shutdown", instance.udid) not in here.rig.argv(), "the device keeps running"
     assert here.daemon.runtime.selections.on(instance.udid) == [], "no agent keeps it from another any more"
+
+
+class ForgetsNothing:
+    """A host's own `DeviceMemory`, which remembers nothing and cannot list what Simtrail made."""
+
+    def assigned(self, scope: Scope, shared: bool) -> str | None:
+        return None
+
+    def created(self, scope: Scope) -> set[str]:
+        return set()
+
+    def choose(self, scope: Scope, shared: bool, udid: str) -> None:
+        return None
+
+    def forget(self, scope: Scope, shared: bool) -> str | None:
+        return None
+
+    def remember_created(self, scope: Scope, shared: bool, udid: str) -> None:
+        return None
+
+
+async def test_the_admin_prunes_the_simulators_simtrail_made_that_nobody_runs(tmp_path: Path) -> None:
+    here = site(tmp_path)
+    left = fixture_udid("iPhone 17 Pro Max")
+    here.rig.memory.remember_created(Scope.named("tp-2"), False, left)
+    (devices_dir(os.environ) / left / "data").mkdir(parents=True)
+    prune = "/api/v1/admin/devices/prune"
+    async with here.http() as http:
+        await here.started(http)
+        running = here.daemon.runtime.manager.instance(TP1)
+        assert running is not None
+        assert detail(await http.post(prune, json={})) == (401, AUTHENTICATION_REQUIRED)
+        dry = (await http.post(prune, headers=here.admin, json={"dry_run": True})).json()["data"]
+        assert dry["dry_run"] is True
+        assert sorted((found["udid"], found["deleted"], found["kept"]) for found in dry["devices"]) == sorted(
+            [(running.udid, False, "Simtrail is running it"), (left, False, None)]
+        )
+        done = (await http.post(prune, headers=here.admin, json={})).json()["data"]
+        assert [found["udid"] for found in done["devices"] if found["deleted"]] == [left]
+        assert ("simctl", "delete", left) in here.rig.argv()
+        here.rig.xcrun.on("simctl", "list", "devices", rc=1, err="CoreSimulator is broken")
+        assert detail(await http.post(prune, headers=here.admin, json={}))[0] == 502
+        here.daemon.runtime.manager.directory.memory = ForgetsNothing()
+        refused = await http.post(prune, headers=here.admin, json={})
+    assert detail(refused) == (409, "this host's device memory cannot list the simulators Simtrail made")
 
 
 async def test_the_admin_gives_a_scope_with_no_device_yet_another_scopes(tmp_path: Path) -> None:

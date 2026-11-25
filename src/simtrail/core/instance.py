@@ -94,7 +94,7 @@ class DeviceInstance:
     developer_dir: str
     #: The ids of the scopes using this device: one, or a whole group's in ``shared`` mode.
     scopes: set[str]
-    #: Whether Simtrail made the device (and so may delete it when a person asks).
+    #: Whether Simtrail made the device (and so may delete it once nobody needs it, `core.cleanup`).
     created: bool
     #: The connector that drives the device.
     connector: str

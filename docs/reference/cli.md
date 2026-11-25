@@ -26,6 +26,7 @@ Every command answers `--help`. A refusal a person can act on -- a setting, a sc
 | `simtrail devices` | List this Mac's simulators, real devices and Android devices, or choose one |
 | `simtrail devices list` | List the devices a project could use (the default) |
 | `simtrail devices choose` | Use this device for a project from now on |
+| `simtrail devices prune` | Delete the simulators Simtrail made that nothing runs and that hold no app |
 | `simtrail device` | Change how a project's device looks, or where it believes it is |
 | `simtrail device appearance` | Light or dark |
 | `simtrail device status-bar` | A demo status bar, or the device's own |
@@ -241,6 +242,15 @@ Use this device for a project from now on.
 |---|---|
 | `UDID` |  |
 | `--scope SCOPE` | for this scope, instead of this folder's project |
+
+## `simtrail devices prune`
+
+Delete the simulators Simtrail made that nothing runs and that hold no app.
+
+| Argument | Meaning |
+|---|---|
+| `--all` | delete those that hold apps too |
+| `--dry-run` | say what would be deleted, deleting nothing |
 
 ## `simtrail device`
 

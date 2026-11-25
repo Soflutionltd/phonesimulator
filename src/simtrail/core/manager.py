@@ -43,7 +43,10 @@ What keeps it contained:
   answering with the dead one;
 * **only what it booted or made is shut down**: ending a device a person had booted leaves it running, a device
   Simtrail made is shut down even after a restart forgot booting it, a real device is never shut down, whoever
-  asks -- restarting one starts its session over (`reconnect`) -- and nothing is ever deleted here;
+  asks -- restarting one starts its session over (`reconnect`);
+* **only what it made is deleted**: a simulator Simtrail made, ended as idle and shut down, is deleted as
+  ``device.delete_created`` allows -- unless another scope still remembers it as its own -- and forgotten, so the
+  scope's next call makes a fresh one (`core.cleanup`); nothing else is ever deleted;
 * **``auto`` keeps going**: a connector ``auto`` chose that cannot reach the device -- a native helper that starts but
   cannot send input -- gives way to the next that can be used (`Selection.candidates`), saying why; one that stops
   later is replaced the same way, by a connector that can do everything it could;
@@ -77,15 +80,17 @@ from simtrail.connectors.registry import Selection
 from simtrail.core.availability import Availability, Verdict
 from simtrail.core.backends import BOOT_TIMEOUT_S as BOOT_TIMEOUT_S
 from simtrail.core.backends import DeviceBackend, SimulatorBackend
+from simtrail.core.cleanup import Pruned, delete, prune
 from simtrail.core.control import DeviceControl
 from simtrail.core.device_changes import ChangeJournal, Changes, FrontApp, Left, undo
-from simtrail.core.devices import DeviceDirectory, DeviceRef, NoDevice
+from simtrail.core.devices import CreatedDevices, DeviceDirectory, DeviceRef, NoDevice, memory_keys
 from simtrail.core.frames import FrameHub, StreamSettings
 from simtrail.core.instance import FAILED, READY, STALLED, STOPPED, Closer, DeviceInstance
 from simtrail.core.signing import SigningTeams
 from simtrail.core.status import scope_status
 from simtrail.host_copy import HostCopy
 from simtrail.perception.orientation import Orientation
+from simtrail.platform.device_data import user_apps
 from simtrail.platform.errors import DeviceControlError
 from simtrail.platform.identifiers import kind_of
 from simtrail.platform.keyboard import KeyboardCheck, mac_keyboard_is_us
@@ -1286,13 +1291,61 @@ class DeviceManager:
                     instance.last_used = now
                     continue
                 if now - instance.last_used >= verdict.config.idle_minutes * 60:
-                    await self._end(instance, shutdown=verdict.config.shutdown_on_idle and instance.may_shut_down)
+                    shutdown = verdict.config.shutdown_on_idle and instance.may_shut_down
+                    await self._end(instance, shutdown=shutdown)
                     ended.append(instance.udid)
+                    if shutdown:
+                        await self._delete_idle(instance, verdict.config)
         for instance in withdrawn:
             # One whose session is being started over is not waited for: the reaper runs again in a minute.
             if not instance.session_lock.locked():
                 await self._view_only(instance)
         return ended
+
+    async def _delete_idle(self, instance: DeviceInstance, config: SimConfig) -> bool:
+        """Delete a simulator Simtrail made, just ended as idle and shut down, as ``device.delete_created`` allows:
+        ``empty``, when it holds no app anybody installed; ``idle``, whatever it holds. One another scope still
+        remembers as its own is kept, and so is every device under a memory that cannot forget one. Answers whether it
+        was deleted."""
+        if config.delete_created == "never" or not instance.created or instance.kind != "simulator":
+            return False
+        memory, backend = self.directory.memory, self.backends.get("simulator")
+        if not isinstance(memory, CreatedDevices) or not isinstance(backend, SimulatorBackend):
+            return False
+        own = {key for member in instance.members.values() for key in memory_keys(member)}
+        others = memory.holders(instance.udid) - own
+        if others:
+            logger.info("kept the simulator %s Simtrail made: %s still use it", instance.name,
+                        ", ".join(sorted(others)))  # fmt: skip
+            return False
+        if config.delete_created == "empty":
+            apps = user_apps(instance.udid, env=backend.env)
+            if apps is None or apps:
+                logger.info("kept the simulator %s Simtrail made: %s", instance.name,
+                            "its folder was not found" if apps is None else f"it holds {', '.join(apps)}")  # fmt: skip
+                return False
+        if await delete(backend.simctl_for(instance.developer_dir), memory, instance.udid) is not None:
+            return False
+        logger.info("deleted the simulator %s Simtrail made, idle (device.delete_created = %s)", instance.name,
+                    config.delete_created)  # fmt: skip
+        return True
+
+    async def prune(self, *, everything: bool, dry_run: bool) -> list[Pruned]:
+        """Delete the simulators Simtrail made that nothing runs and that hold no app -- or every one nothing runs,
+        with `everything` -- as ``simtrail devices prune`` asks (`core.cleanup.prune`). Refused under a memory that
+        cannot list and forget what Simtrail made."""
+        memory, backend = self.directory.memory, self.backends.get("simulator")
+        if not isinstance(memory, CreatedDevices) or not isinstance(backend, SimulatorBackend):
+            raise SimulatorUnavailable("this host's device memory cannot list the simulators Simtrail made")
+        async with self._lock:
+            return await prune(
+                backend.simctl_for(""),
+                memory,
+                running=set(self._instances),
+                everything=everything,
+                dry_run=dry_run,
+                env=backend.env,
+            )
 
     def _ended_by_itself(self, instance: DeviceInstance) -> None:
         """A real device whose session ended with no call asking for it: left so -- WebDriverAgent killed on it means

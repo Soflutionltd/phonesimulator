@@ -26,6 +26,7 @@ from simtrail import api
 from simtrail._version import __version__
 from simtrail.cli import app_command
 from simtrail.cli import context as context_module
+from simtrail.cli import devices as devices_command
 from simtrail.cli import login as login_command
 from simtrail.cli import record as record_command
 from simtrail.cli import stop as stop_command
@@ -34,6 +35,7 @@ from simtrail.cli.main import main, parser
 from simtrail.cli.version import connector_names
 from simtrail.connectors.mcpbridge.client import BridgeClient
 from simtrail.connectors.registry import ConnectorContext, ConnectorRegistry
+from simtrail.core.devices import JsonDeviceMemory
 from simtrail.core.recordings import STOP_WAIT_S
 from simtrail.core.runtime import Runtime
 from simtrail.daemon.lifecycle import DaemonInfo, info_path, mark_stopped, read_info, stopped_mark, write_info
@@ -382,6 +384,73 @@ def test_devices_lists_this_macs_simulators_and_chooses_one_for_a_project(tmp_pa
     empty = Terminal(tmp_path / "empty")
     nothing = "no iOS simulators, real devices or Android devices are available on this Mac"
     assert empty("devices") == 0 and empty.said() == [nothing]
+
+
+PRUNE = "/api/v1/admin/devices/prune"
+
+
+def test_devices_prune_asks_the_running_daemon_and_says_what_it_deleted_and_kept(tmp_path: Path) -> None:
+    here = Terminal(tmp_path)
+    here.daemon.answers[("POST", PRUNE)] = {
+        "dry_run": False,
+        "devices": [
+            {"udid": "U-1", "name": "Simtrail · a", "apps": [], "size": 2_150_000_000, "deleted": True, "kept": None,
+             "error": None},
+            {"udid": "U-2", "name": "Simtrail · b", "apps": ["Demo.app"], "size": 40_000_000, "deleted": False,
+             "kept": "it holds 1 app (--all deletes it too)", "error": None},
+            {"udid": "U-3", "name": "Simtrail · c", "apps": [], "size": 0, "deleted": False, "kept": None,
+             "error": "simctl delete: it would not go"},
+        ],
+    }  # fmt: skip
+    assert here("devices", "prune", "--all") == 1, "a deletion that failed is exit status 1"
+    assert here.daemon.made("POST", PRUNE) == [{"all": True, "dry_run": False}]
+    assert here.said() == [
+        "deleted Simtrail · a (U-1), 2.1 GB",
+        "kept Simtrail · b (U-2): it holds 1 app (--all deletes it too)",
+        "could not delete Simtrail · c (U-3): simctl delete: it would not go",
+        "deleted 1 simulator, freeing 2.1 GB",
+    ]
+    here.daemon.answers[("POST", PRUNE)] = {"dry_run": True, "devices": []}
+    assert here("devices", "prune", "--dry-run") == 0
+    assert here.said()[-1] == "no simulator Simtrail made is left: nothing to delete"
+    assert devices_command.size_text(40_000_000) == "40 MB"
+    other = Terminal(tmp_path / "other")
+    other.daemon.admin = None
+    assert other("devices", "prune") == 1
+    assert "is not your Simtrail daemon" in other.err.getvalue() and other.daemon.made("POST", PRUNE) == []
+
+
+def test_devices_prune_with_no_daemon_reads_the_memory_here_and_never_starts_one(tmp_path: Path) -> None:
+    here = Terminal(tmp_path)
+    here.daemon.up = False
+    root = tmp_path / "devices"
+    here.env[DEVICES_DIR_ENV] = str(root)
+    memory = JsonDeviceMemory(here.ctx.state.devices_file())
+    empty, full = "00000001-0000-4000-8000-000000000000", "00000002-0000-4000-8000-000000000000"
+    memory.remember_created(Scope.named("a"), False, empty)
+    memory.remember_created(Scope.named("b"), False, full)
+    (root / empty / "data").mkdir(parents=True)
+    (root / empty / "device.plist").write_bytes(b"x" * 300_000_000)
+    (root / full / "data" / "Containers" / "Bundle" / "Application" / "B" / "Demo.app").mkdir(parents=True)
+    listing = {"devices": {"iOS 26.5": [
+        {"udid": empty, "name": "Simtrail · a", "state": "Shutdown", "isAvailable": True},
+        {"udid": full, "name": "Simtrail · b", "state": "Shutdown", "isAvailable": True},
+    ]}}  # fmt: skip
+    xcrun = FakeXcrun().on("simctl", "list", "devices", "-j", out=json.dumps(listing))
+    here.ctx.xcrun = xcrun
+    assert here("devices", "prune", "--dry-run") == 0
+    assert here.said() == [
+        f"would delete Simtrail · a ({empty}), 0.3 GB",
+        f"kept Simtrail · b ({full}): it holds 1 app (--all deletes it too)",
+        "would delete 1 simulator, which would free 0.3 GB",
+    ]
+    assert memory.all_created() == {empty, full} and here.spawned == []
+    assert here("devices", "prune", "--all") == 0
+    assert [args[2] for args in xcrun.argv() if args[1] == "delete"] == [empty, full]
+    assert here.said()[-1] == "deleted 2 simulators, freeing 0.3 GB" and memory.all_created() == set()
+    here.ctx.xcrun = FakeXcrun().on("simctl", "list", "devices", "-j", rc=1, err="simctl failed")
+    assert here("devices", "prune") == 1
+    assert "simctl failed" in here.err.getvalue().splitlines()[-1]
 
 
 def test_a_refusal_from_the_daemon_is_one_line_and_exit_status_one(tmp_path: Path) -> None:

@@ -13,6 +13,7 @@
     /api/v1/admin/settings-confirmations       confirmed, with their codes (`daemon.confirmations`), and which
     /api/v1/admin/in-use                       scopes it serves now, and one device let go for every scope
     /api/v1/admin/devices/{udid}
+    /api/v1/admin/devices/prune                the simulators Simtrail made and nobody needs, deleted (`core.cleanup`)
     /api/v1/host[/tokens]                      a host token's own record, and the tokens it makes for its namespaces
     /viewer/{scope}, /embed/{scope}            the viewer's pages (`server.pages`)
 
@@ -38,6 +39,7 @@ from pydantic import BaseModel, Field
 
 from simtrail._version import __version__
 from simtrail.connectors.registry import ConnectorRegistry
+from simtrail.core.manager import SimulatorUnavailable
 from simtrail.core.runtime import Runtime
 from simtrail.daemon import health
 from simtrail.daemon.auth import TokenAuthenticator
@@ -48,6 +50,7 @@ from simtrail.daemon.pauses import PAUSE_MAX_S, Pauses
 from simtrail.daemon.policy import ConfigPolicy
 from simtrail.daemon.tokens import TokenRecord, TokenRefused, TokenStore
 from simtrail.host_copy import HostCopy
+from simtrail.platform.errors import DeviceControlError
 from simtrail.platform.passwords import Credentials
 from simtrail.platform.xcrun import XcrunRunner, run_xcrun
 from simtrail.protocol import PROTOCOL_VERSION, SERVER
@@ -108,6 +111,13 @@ class HostTokenRequest(BaseModel):
 
 class ExchangeRequest(BaseModel):
     code: str = Field(min_length=1, max_length=128)
+
+
+class PruneRequest(BaseModel):
+    #: Delete those that hold apps too, rather than only the empty ones.
+    all: bool = False
+    #: Say what would be deleted, deleting nothing.
+    dry_run: bool = False
 
 
 class PauseRequest(BaseModel):
@@ -387,6 +397,19 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
                 ],
             }
         )
+
+    @app.post(ADMIN + "/devices/prune")
+    async def prune(body: PruneRequest, request: Request) -> dict[str, Any]:
+        """Delete the simulators Simtrail made that nothing runs and that hold no app -- every one nothing runs, with
+        ``all`` -- forgetting each (``simtrail devices prune``); ``dry_run`` only says which. Answers each one found."""
+        admin(request)
+        try:
+            found = await daemon.runtime.manager.prune(everything=body.all, dry_run=body.dry_run)
+        except SimulatorUnavailable as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+        except DeviceControlError as exc:
+            raise HTTPException(502, str(exc)) from exc
+        return ok({"devices": [entry.as_json() for entry in found], "dry_run": body.dry_run})
 
     def agent_label(token_id: str) -> str:
         """How an agent holding a lease is named: its token's label -- ``simtrail mcp (pid 4242)`` -- or its id."""

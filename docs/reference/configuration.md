@@ -48,6 +48,7 @@ max_booted = 2
 idle_minutes = 15
 agent_idle_minutes = 30
 shutdown_on_idle = true
+delete_created = "empty"
 typing = "auto"
 restore_changes = "real_devices"
 selection = "agent"
@@ -416,6 +417,17 @@ Whether stopping an idle device also shuts it down, when Simtrail booted or crea
 - Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
 - Environment: `SIMTRAIL_DEVICE_SHUTDOWN_ON_IDLE`
 - Key in a host's flat settings: `shutdown_on_idle`
+
+### `device.delete_created`
+
+What becomes of a simulator Simtrail created for a scope -- each takes 1.5-3.5 GB on disk -- once it is stopped as idle and shut down. `empty` deletes it when it holds no app anybody installed, `idle` deletes it whatever it holds, `never` keeps it. A simulator a person picked, a real device or an Android emulator is never deleted, nor one another scope still uses, nor any while `device.shutdown_on_idle` is off. The scope's next call creates a fresh one. `simtrail devices prune` deletes those already left.
+
+- Default: `empty`
+- Allowed: one of `empty`, `idle`, `never`
+- Takes effect: at once
+- Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
+- Environment: `SIMTRAIL_DEVICE_DELETE_CREATED`
+- Key in a host's flat settings: `delete_created`
 
 ### `device.typing`
 

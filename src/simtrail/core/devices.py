@@ -7,8 +7,10 @@ standalone install, `JsonDeviceMemory`, a private file in Simtrail's state folde
 after a restart, and a device a person picks stays picked.
 
 A remembered device that no longer exists -- deleted in Xcode, its runtime removed -- is replaced the next time the
-scope asks. A device Simtrail made is listed as made, and is deleted only when a person asks for that: switching the
-simulator off touches nothing on disk.
+scope asks. A device Simtrail made is listed as made. Only such a device is ever deleted: by the reaper once it has
+ended it as idle, as ``device.delete_created`` allows, or by ``simtrail devices prune``. Either needs a memory that can
+list and forget what Simtrail made (`CreatedDevices`), as `JsonDeviceMemory` can; a host's own memory without that keeps
+every device.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from simtrail.config.model import SimConfig
 from simtrail.host_copy import HostCopy
@@ -43,7 +45,7 @@ class DeviceRef:
     udid: str
     name: str
     runtime: str
-    #: Whether Simtrail made it (and so may delete it when a person asks).
+    #: Whether Simtrail made it (and so may delete it once nobody needs it).
     created: bool
     kind: DeviceKind = "simulator"
     #: How a real device reaches this Mac; None for a simulator.
@@ -69,6 +71,29 @@ def pick_device_type(runtime: Runtime, wanted: str) -> DeviceType | None:
     return next(iter(phones or runtime.device_types), None)
 
 
+def memory_keys(scope: Scope) -> frozenset[str]:
+    """What a scope's device is remembered under in `JsonDeviceMemory`: its own id, or its group's, when shared."""
+    return frozenset({scope.id, f"{SHARED_PREFIX}{scope.group}"})
+
+
+@runtime_checkable
+class CreatedDevices(Protocol):
+    """A `DeviceMemory` that can also say who remembers a device Simtrail made, and forget one deleted. Optional: a
+    memory without it never has a device deleted."""
+
+    def all_created(self) -> set[str]:
+        """The UDIDs of every device Simtrail made, whichever scope it was made for."""
+        ...
+
+    def holders(self, udid: str) -> set[str]:
+        """What remembers this device as its own: scopes' ids, and groups' as ``group:<group>``."""
+        ...
+
+    def forget_created(self, udid: str) -> None:
+        """Forget a device that was deleted: no longer made by Simtrail, nor anybody's."""
+        ...
+
+
 def device_name(prefix: str, scope: Scope, shared: bool) -> str:
     """What a device Simtrail makes is called in Xcode's list: the prefix, then the group it is shared by or the
     scope it is for."""
@@ -91,7 +116,7 @@ class JsonDeviceMemory:
     def _key(scope: Scope, shared: bool) -> str:
         return f"{SHARED_PREFIX}{scope.group}" if shared else scope.id
 
-    def _read(self, scope: Scope) -> dict[str, Any]:
+    def _read_all(self) -> dict[str, Any]:
         try:
             data = json.loads(self._file.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -103,36 +128,49 @@ class JsonDeviceMemory:
             "created": sorted({str(u) for u in created}) if isinstance(created, list) else [],
         }
 
-    def _write(self, scope: Scope, data: dict[str, Any]) -> None:
+    def _write_all(self, data: dict[str, Any]) -> None:
         folder = self._ensure(self._file.parent)
         temporary = folder / f".{self._file.name}.{os.getpid()}.tmp"
         temporary.write_text(json.dumps(data, indent=1, sort_keys=True), encoding="utf-8")
         os.replace(temporary, self._file)
 
     def assigned(self, scope: Scope, shared: bool) -> str | None:
-        found: str | None = self._read(scope)["scopes"].get(self._key(scope, shared))
+        found: str | None = self._read_all()["scopes"].get(self._key(scope, shared))
         return found
 
     def created(self, scope: Scope) -> set[str]:
-        return set(self._read(scope)["created"])
+        return set(self._read_all()["created"])
 
     def choose(self, scope: Scope, shared: bool, udid: str) -> None:
-        data = self._read(scope)
+        data = self._read_all()
         data["scopes"][self._key(scope, shared)] = udid
-        self._write(scope, data)
+        self._write_all(data)
 
     def forget(self, scope: Scope, shared: bool) -> str | None:
-        data = self._read(scope)
+        data = self._read_all()
         udid: str | None = data["scopes"].pop(self._key(scope, shared), None)
         if udid is not None:
-            self._write(scope, data)
+            self._write_all(data)
         return udid
 
     def remember_created(self, scope: Scope, shared: bool, udid: str) -> None:
-        data = self._read(scope)
+        data = self._read_all()
         data["scopes"][self._key(scope, shared)] = udid
         data["created"] = sorted({*data["created"], udid})
-        self._write(scope, data)
+        self._write_all(data)
+
+    def all_created(self) -> set[str]:
+        return set(self._read_all()["created"])
+
+    def holders(self, udid: str) -> set[str]:
+        return {key for key, held in self._read_all()["scopes"].items() if held == udid}
+
+    def forget_created(self, udid: str) -> None:
+        data = self._read_all()
+        scopes = {key: held for key, held in data["scopes"].items() if held != udid}
+        created = [made for made in data["created"] if made != udid]
+        if scopes != data["scopes"] or created != data["created"]:
+            self._write_all({"scopes": scopes, "created": created})
 
 
 class DeviceDirectory:
