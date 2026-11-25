@@ -6,6 +6,14 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `sim_flow`: save a walkthrough under a name -- steps and waits exactly as `sim_act` takes them, or batches of them
+  -- and play it again in one call through `sim_act`'s own checks, observe mode and one-agent-at-a-time hold. Flows
+  are kept as JSON files in `<state>/flows/<project>/`, with what each ref named so another agent finds the element
+  again; long flows are played 20 steps a call; `{{variable}}` values are given to `run`, a missing one refuses the
+  run, and typing into a secure field must go through a variable so a secret is never kept.
+
 ## [3.9.0] - 2026-11-24
 
 First release of Simtrail by Soflution Ltd: drive iOS Simulators, real iPhones and iPads, Android emulators and

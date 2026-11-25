@@ -87,6 +87,7 @@ def test_every_tool_is_described_once_with_a_closed_schema_and_listed_whatever_t
         "sim_act",
         "sim_app",
         "sim_record",
+        "sim_flow",
         "sim_build_run",
         "sim_test",
     ]
@@ -97,7 +98,7 @@ def test_every_tool_is_described_once_with_a_closed_schema_and_listed_whatever_t
     assert next(t for t in listed["tools"] if t["name"] == "sim_act")["inputSchema"]["required"] == ["steps"]
     assert "sim_snapshot" in listed["instructions"] and "sim_build_run" in listed["instructions"]
     without = REGISTRY.manifest(dataclasses.replace(on, build_tools=False))
-    assert [tool["name"] for tool in without["tools"]] == names[:6]
+    assert [tool["name"] for tool in without["tools"]] == names[:7]
     assert "xcodebuild" in without["instructions"] and "sim_build_run" not in without["instructions"]
 
 

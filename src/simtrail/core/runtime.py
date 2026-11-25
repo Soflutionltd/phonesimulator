@@ -44,6 +44,7 @@ from simtrail.core.device_changes import ChangeJournal
 from simtrail.core.device_logs import DeviceLogBook
 from simtrail.core.devices import DeviceDirectory
 from simtrail.core.drivers import Drivers, Held, changes_device, exclusive
+from simtrail.core.flows import FlowStore, flows_folder
 from simtrail.core.instance import DeviceInstance
 from simtrail.core.mac_backend import MacBackend
 from simtrail.core.manager import DeviceManager, SimulatorUnavailable
@@ -76,10 +77,12 @@ from simtrail.tools.results import Result, text
 
 #: Where what each device still has changed is written down, in the host's run folder (`core.device_changes`).
 CHANGES_LEFT = "device-changes.json"
-#: The calls that never give an agent that has no device yet one: they list, say or choose devices, or recordings.
+#: The calls that never give an agent that has no device yet one: they list, say or choose devices, recordings or
+#: flows.
 UNSETTLED = frozenset(
     {("sim_device", "list"), ("sim_device", "info"), ("sim_device", "choose"), ("sim_record", "list")}
-    | {("sim_record", "status")}
+    | {("sim_record", "status"), ("sim_flow", "save"), ("sim_flow", "list"), ("sim_flow", "show")}
+    | {("sim_flow", "delete")}
 )
 
 
@@ -388,6 +391,7 @@ class Runtime:
             selections=self.selections,
             per_agent=config.device_selection == "agent",
             folders=self.folders,
+            flows=FlowStore(flows_folder(self.state)),
         )
 
     def _build_folder(self, caller: Caller) -> Path | None:

@@ -297,6 +297,9 @@ class _Memory:
     began: float = -math.inf
     allow_stale: bool = False
     ids: itertools.count[int] = field(default_factory=lambda: itertools.count(1))
+    #: Every element a ref of this agent's has named on this device, as it was last read: a ref is never given to
+    #: another element later (`perception.snapshot`), so a ref seen on an earlier screen still says what it was.
+    seen: dict[str, Element] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -639,6 +642,17 @@ class AgentActions:
     def _remembered(self, instance: DeviceInstance, caller: Caller) -> _Memory:
         return self._memory.setdefault((instance.udid, caller.key), _Memory())
 
+    def seen(self, instance: DeviceInstance, caller: Caller, ref: str) -> Element | None:
+        """The element a ref of this agent's named on this device, on the last screen it was on; None for a ref it
+        has never been given."""
+        memory = self._memory.get((instance.udid, caller.key))
+        return memory.seen.get(ref) if memory is not None else None
+
+    def last_look(self, instance: DeviceInstance, caller: Caller) -> Snapshot | None:
+        """This agent's last snapshot of the device, without reading it again; None before its first."""
+        memory = self._memory.get((instance.udid, caller.key))
+        return memory.snapshot if memory is not None else None
+
     async def read(self, instance: DeviceInstance, caller: Caller, max_elements: int) -> Snapshot:
         """The screen as it is now, kept as this agent's last look -- for a caller that acts on elements itself."""
         return await self._read(instance, caller, max_elements)
@@ -665,6 +679,7 @@ class AgentActions:
         memory.snapshot = build(
             tree, device=instance.runtime, screen=instance.screen, max_elements=max_elements, previous=memory.snapshot
         )
+        memory.seen.update((element.ref, element) for element in memory.snapshot.elements if element.ref is not None)
         memory.stale = memory.unseen = False
         # As the read began, not as it ended: a gesture that landed while it ran may not be in what it read.
         memory.read_at, memory.generation = read_at, generation

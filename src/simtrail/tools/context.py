@@ -30,6 +30,7 @@ from simtrail.config.model import SimConfig
 from simtrail.connectors.base import Capability, ReportsStarting, ReportsTrouble
 from simtrail.connectors.iphone.connector import DRIVEN
 from simtrail.core.actions import AgentActions
+from simtrail.core.flows import FlowStore
 from simtrail.core.instance import READY, STALLED, DeviceInstance
 from simtrail.core.manager import DeviceManager, SimulatorUnavailable
 from simtrail.core.recordings import Recordings
@@ -108,6 +109,8 @@ class ToolContext:
     per_agent: bool = False
     #: The folder each agent named for its builds, kept for its later calls; None where nothing is kept.
     folders: Folders | None = None
+    #: Each scope's saved flows (`sim_flow`); None where none are kept.
+    flows: FlowStore | None = None
 
     @property
     def scope(self) -> Scope:

@@ -76,6 +76,8 @@ def test_a_gesture_says_what_it_does_and_what_it_lands_on(kind: str, fields: dic
         ("sim_device", {"action": 3}, "Checking the device"),
         ("sim_record", {"action": "start"}, "Recording the screen"),
         ("sim_record", {"action": "stop"}, "Saving the recording"),
+        ("sim_flow", {"action": "run"}, "Playing a flow"),
+        ("sim_flow", {"action": "list"}, "Checking flows"),
         ("sim_unknown", {}, ""),
         (7, {}, ""),
     ],

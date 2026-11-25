@@ -134,6 +134,12 @@ started or shut down, and what Simtrail changes on it is put back. See [Android]
 or both, with each touch drawn where it landed and a 9:41 status bar, and `preset: "pr"` keeps one small enough for
 a pull request. See [Recording](docs/recording.md).
 
+**Replayable flows.** `sim_flow save` keeps a walkthrough under a name -- steps and waits exactly as `sim_act` takes
+them -- as a readable JSON file in the project's state folder, and `sim_flow run` plays it again in one call, by any
+agent: each ref is found again by what it named, long flows are split into calls of 20 steps, and `{{email}}`-style
+variables are given at run time. A step that types into a secure field must type a variable, so a password is never
+kept, and the answer says each value as its name.
+
 **Connectors.** Simtrail's own native helper gives full control with nothing to install; idb_companion still can,
 and the simctl connector mirrors the screen view-only when neither is there, and says why. `auto` uses the fastest that
 works and falls back when one fails. More connectors plug in through an entry point. See
@@ -213,7 +219,6 @@ the [command line](docs/reference/cli.md) and the [protocol](docs/reference/prot
 - **Sign-in through 1Password**: fill an app's login from the person's password manager, never showing the agent a
   password.
 - **Flutter end to end**: build, install and hot reload a Flutter app from the same tools.
-- **Replayable flows**: record a named walkthrough once, replay it in one call.
 - **Device matrix**: the same screen on several devices, in light and dark mode, in one call.
 
 How Simtrail relates to other tools is in [Comparison](docs/comparison.md).

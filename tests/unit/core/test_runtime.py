@@ -181,6 +181,7 @@ async def test_an_agent_is_offered_its_tools_only_while_the_simulator_and_its_ag
         "sim_act",
         "sim_app",
         "sim_record",
+        "sim_flow",
     ]
     said = await runtime.call(CALLER, "sim_device", {})
     assert said["content"][0]["text"] == f"No simulator is running here; sim_device boot starts one.\n{VERSION_LINE}"
@@ -213,7 +214,15 @@ async def test_a_view_only_mirror_lists_every_tool_and_refuses_a_touch_saying_wh
     tmp_path: Path,
 ) -> None:
     rig = DeviceRig(tmp_path, idb=FakeConnector("idb", available=False))
-    every = ["sim_device", "sim_snapshot", "sim_screenshot", "sim_act", "sim_app", "sim_record"]
+    every = [
+        "sim_device",
+        "sim_snapshot",
+        "sim_screenshot",
+        "sim_act",
+        "sim_app",
+        "sim_record",
+        "sim_flow",
+    ]
     runtime = runtime_over(rig)
     assert [tool["name"] for tool in (await runtime.manifest(CALLER.scope))["tools"]] == every
     rig.config.set(ocr_mode="off")

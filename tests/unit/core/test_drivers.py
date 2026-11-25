@@ -134,6 +134,7 @@ def test_which_calls_change_the_device_and_where_one_agent_drives_at_a_time() ->
     assert not changes_device("sim_app", {"action": "info"}) and not changes_device("sim_app", {"action": "logs"})
     assert not changes_device("sim_snapshot", {}) and not changes_device(None, {})
     assert not changes_device("sim_act", "tap"), "arguments that are no object are refused by the tool"
+    assert changes_device("sim_flow", {"action": "run"}) and not changes_device("sim_flow", {"action": "save"})
     assert exclusive("real_devices", real=True) and not exclusive("real_devices", real=False)
     assert exclusive("all", real=False) and not exclusive("off", real=True)
 
@@ -334,3 +335,18 @@ async def test_a_call_on_a_device_that_is_not_running_yet_is_refused_for_the_age
     runtime.selections.end(A)
     refused = await runtime.call(A, "sim_app", LAUNCH)
     assert said(refused).startswith("this device is in use by Claude Code · ticket-123"), "nothing runs to name"
+
+
+async def test_a_flow_played_through_the_runtime_is_held_as_sim_act_is_and_kept_beside_the_builds(
+    tmp_path: Path,
+) -> None:
+    rig = DeviceRig(tmp_path)
+    runtime = runtime_over(rig)
+    saved = await runtime.call(CALLER, "sim_flow", {"action": "save", "name": "tap", "steps": TAP["steps"]})
+    assert saved["isError"] is False and str(tmp_path / "state" / "flows" / "tp-1" / "tap.json") in said(saved)
+    assert rig.manager.instance(CALLER.scope) is None, "saving needs no device"
+    played = await runtime.call(CALLER, "sim_flow", {"action": "run", "name": "tap", "snapshot": "none"})
+    assert played["isError"] is False
+    refused = await runtime.call(OTHER, "sim_flow", {"action": "run", "name": "tap", "snapshot": "none"})
+    assert refused["isError"] is True and "is held by Claude Code · checkout" in said(refused)
+    assert (await runtime.call(OTHER, "sim_flow", {"action": "list"}))["isError"] is False, "listing changes nothing"

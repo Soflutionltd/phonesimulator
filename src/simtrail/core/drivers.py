@@ -4,6 +4,7 @@
 Two agents' taps interleaved on one phone spoil both their runs, and neither can tell. So each device remembers its
 driver (`instance.Driver`): the agent whose call last changed it -- `sim_act`; `sim_app` launching, quitting or
 installing an app or opening a URL; `sim_build_run` and `sim_test`; `sim_record` starting or stopping a recording;
+`sim_flow` playing a flow;
 and `sim_device` choosing, booting, restarting, stopping, turning or setting the device (`CHANGING`). Looking never
 does: a snapshot, a screenshot, `sim_device info`, `list` and `health` are answered whoever drives.
 
@@ -35,6 +36,7 @@ CHANGING: dict[str, frozenset[str] | None] = {
     "sim_build_run": None,
     "sim_test": None,
     "sim_record": frozenset({"start", "stop"}),
+    "sim_flow": frozenset({"run"}),
     "sim_device": frozenset(
         {
             "choose",

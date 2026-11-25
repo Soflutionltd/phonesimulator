@@ -23,7 +23,7 @@ from simtrail.build.xcodebuild import BuildRefused
 from simtrail.config.model import SimConfig
 from simtrail.core.actions import ActionError
 from simtrail.platform.errors import DeviceControlError
-from simtrail.tools import act, app, device, record, screenshot, snapshot
+from simtrail.tools import act, app, device, flow, record, screenshot, snapshot
 from simtrail.tools.context import Tool, ToolContext
 from simtrail.tools.results import SHUT_DOWN, Result, ToolRefused, text
 from simtrail.tools.schemas import LOOK_AND_ACT
@@ -47,7 +47,15 @@ class ToolProvider(Protocol):
 class DeviceToolProvider:
     """Looking at and touching the device, and its apps: always offered."""
 
-    tools: tuple[Tool, ...] = (device.TOOL, snapshot.TOOL, screenshot.TOOL, act.TOOL, app.TOOL, record.TOOL)
+    tools: tuple[Tool, ...] = (
+        device.TOOL,
+        snapshot.TOOL,
+        screenshot.TOOL,
+        act.TOOL,
+        app.TOOL,
+        record.TOOL,
+        flow.TOOL,
+    )
 
     def offered(self, config: SimConfig) -> bool:
         return True
