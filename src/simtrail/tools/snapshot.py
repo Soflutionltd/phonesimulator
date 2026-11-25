@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from simtrail.connectors.base import Capability
-from simtrail.tools.context import ToolContext, make_tool, ready_device
+from simtrail.tools.context import ToolContext, flag_arg, make_tool, ready_device
 from simtrail.tools.results import Result, ToolRefused, text
 
 #: The fewest and the most lines a call may ask for: the most is `agent.snapshot_max_elements`' own.
@@ -27,8 +27,10 @@ async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
     if mode not in ("diff", "full"):
         raise ToolRefused("mode is diff or full")
     max_elements = _max_elements(args, ctx.config.snapshot_max_elements)
+    keys = flag_arg(args.get("keys"), "keys")
     instance = await ready_device(ctx)
-    return text(await ctx.actions.snapshot(instance, ctx.caller, mode=mode, max_elements=max_elements))
+    said = await ctx.actions.snapshot(instance, ctx.caller, mode=mode, max_elements=max_elements, keys=keys)
+    return text(said)
 
 
 TOOL = make_tool("sim_snapshot", (Capability.ELEMENT_TREE,), run)

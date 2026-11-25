@@ -192,12 +192,17 @@ SCHEMAS: dict[str, tuple[str, dict[str, Any]]] = {
         "What is on screen as short lines -- one per button, field, text or heading, each with a ref (e4) and where a "
         'tap lands. A line ending "covered by tab bar" (or toolbar, navigation bar, status bar, bar, keyboard) is '
         "under it: a tap there would hit the bar, so scroll it into view first. Cheap: prefer it to a screenshot. mode "
-        "diff (default) gives only what changed since you last looked; full gives the whole screen. On a real device "
-        "a screen WebDriverAgent is slow to read -- a long list -- is read from its pixels instead, and the snapshot "
-        "says so.",
+        "diff (default) gives only what changed since you last looked; full gives the whole screen. The on-screen "
+        "keyboard is one line naming its keys' refs; keys: true lists each key. On a real device a screen "
+        "WebDriverAgent is slow to read -- a long list -- is read from its pixels instead, and the snapshot says so.",
         schema(
             {
                 "mode": {"type": "string", "enum": ["diff", "full"]},
+                "keys": {
+                    "type": "boolean",
+                    "description": "list each key of the on-screen keyboard, with its ref, rather than one line for "
+                    "the keyboard: only to tap a key yourself, as text is typed with sim_act type",
+                },
                 "max_elements": {
                     "type": "integer",
                     "minimum": 1,

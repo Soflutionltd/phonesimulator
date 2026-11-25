@@ -209,8 +209,11 @@ class Snapshot:
     #: What the screen's tree says is in front of the rest of it, as a line names each: ``tab bar``, ``keyboard``.
     covers: frozenset[str] = frozenset()
 
-    def text(self) -> str:
-        return "\n".join([self.header, *(element.line() for element in self.elements), *self.notes])
+    def text(self, *, keys: bool = False) -> str:
+        """The screen as lines. The on-screen keyboard's keys are one line (`keyboard_line`) unless `keys` lists each:
+        Simtrail types text itself, so an agent seldom touches a key, and three dozen of them cost more than the rest of
+        the screen. Their refs stay as they are, so a key named by its ref is touched all the same."""
+        return "\n".join([self.header, *element_lines(self.elements, keys=keys), *self.notes])
 
     def element(self, ref: str) -> Element | None:
         return next((element for element in self.elements if element.ref == ref), None)
@@ -439,12 +442,41 @@ def build(
     )
 
 
+def _is_key(element: Element) -> bool:
+    return element.key and element.ref is not None
+
+
+def keyboard_line(keys: Sequence[Element]) -> str:
+    """The on-screen keyboard as one line: its keys' refs and, in order, what each says."""
+    said = "|".join(key.label or "?" for key in keys)
+    count = f"{len(keys)} key" + ("s" if len(keys) != 1 else "")
+    return f"[keyboard {keys[0].ref}…{keys[-1].ref}: {count} {said}; sim_snapshot keys: true lists each]"
+
+
+def element_lines(elements: Sequence[Element], *, keys: bool = False) -> list[str]:
+    """Each element's line -- with each run of keyboard keys as one line, unless `keys`."""
+    said: list[str] = []
+    run: list[Element] = []
+    for element in elements:
+        if not keys and _is_key(element):
+            run.append(element)
+            continue
+        if run:
+            said.append(keyboard_line(run))
+            run = []
+        said.append(element.line())
+    if run:
+        said.append(keyboard_line(run))
+    return said
+
+
 def diff(previous: Snapshot, current: Snapshot) -> str:
-    """What changed between two snapshots -- or the whole new one, when most of the screen changed."""
+    """What changed between two snapshots -- or the whole new one, when most of the screen changed. The keyboard is one
+    line here too: said when it comes, goes or changes, never key by key."""
     if previous.digest == current.digest:
         return f"no change · #{current.digest[:4]}"
-    before = {element.ref: element for element in previous.elements if element.ref}
-    after = {element.ref: element for element in current.elements if element.ref}
+    before = {element.ref: element for element in previous.elements if element.ref and not _is_key(element)}
+    after = {element.ref: element for element in current.elements if element.ref and not _is_key(element)}
     context_before = [element.line() for element in previous.elements if not element.ref]
     context_after = [element.line() for element in current.elements if not element.ref]
     lines = [f"#{previous.digest[:4]} → #{current.digest[:4]}"]
@@ -457,6 +489,12 @@ def diff(previous: Snapshot, current: Snapshot) -> str:
         if ref in before and element.line() != before[ref].line()
     ]
     lines += [f"- {element.line()}" for ref, element in before.items() if ref not in after]
+    keys_before = [element for element in previous.elements if _is_key(element)]
+    keys_after = [element for element in current.elements if _is_key(element)]
+    if keys_after and [key.line() for key in keys_after] != [key.line() for key in keys_before]:
+        lines.append(f"+ {keyboard_line(keys_after)}")
+    elif keys_before and not keys_after:
+        lines.append("- [keyboard]")
     lines += list(current.notes)
     changes, whole = "\n".join(lines), current.text()
     return whole if len(changes) >= DIFF_SHARE * len(whole) else changes

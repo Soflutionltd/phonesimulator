@@ -17,9 +17,9 @@ from simtrail.testing.fakes import fixture
 SCREEN = Screen(1206, 2622, 402, 874, 3.0)
 
 
-def lines(name: str, max_elements: int = 120) -> list[str]:
+def lines(name: str, max_elements: int = 120, *, keys: bool = False) -> list[str]:
     tree = tree_from_document(document_from_hierarchy(fixture(f"mcpbridge-hierarchy-{name}.txt")), source="mcpbridge")
-    return build(tree, device="iOS 27.0", screen=SCREEN, max_elements=max_elements).text().splitlines()[1:]
+    return build(tree, device="iOS 27.0", screen=SCREEN, max_elements=max_elements).text(keys=keys).splitlines()[1:]
 
 
 def one(text: str) -> dict[str, Any]:
@@ -77,7 +77,10 @@ def test_what_the_keyboard_covers_is_left_out_and_the_field_being_typed_in_says_
     read = lines("keyboard")
     assert 'e9 field "Empty placeholder" (201,415) editing' in read
     assert not any("A long value" in line or "Favorite" in line for line in read)
-    assert 'e13 key "Q" (24,624)' in read
+    (keyboard,) = [line for line in read if line.startswith("[keyboard e13…")]
+    assert "keys Q|W|E|R|T|Y" in keyboard and keyboard.endswith("; sim_snapshot keys: true lists each]")
+    assert not any(line.startswith("e13 ") for line in read), "its keys are one line"
+    assert 'e13 key "Q" (24,624)' in lines("keyboard", keys=True), "listed one by one when asked"
 
 
 def test_app_icons_are_buttons_and_the_status_bar_and_widgets_are_read() -> None:

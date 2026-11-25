@@ -891,8 +891,11 @@ class AgentActions:
         moved = memory.generation != self._gestures.get(instance.udid, 0)
         return memory.unseen or moved or memory.read_at < memory.began - FRESH_S
 
-    async def snapshot(self, instance: DeviceInstance, caller: Caller, *, mode: str, max_elements: int) -> str:
-        """The screen as lines -- or, with ``mode="diff"``, what changed since this agent last looked."""
+    async def snapshot(
+        self, instance: DeviceInstance, caller: Caller, *, mode: str, max_elements: int, keys: bool = False
+    ) -> str:
+        """The screen as lines -- or, with ``mode="diff"``, what changed since this agent last looked. The keyboard's
+        keys are one line unless `keys` lists each (`Snapshot.text`)."""
         self._ready(instance)
         self._readable(instance, self._config.get(instance.owner))
         previous = self._remembered(instance, caller).snapshot
@@ -903,7 +906,10 @@ class AgentActions:
             ok = True
         finally:
             self._done(instance, event_id, ok)
-        said = diff(previous, current) if mode == "diff" and previous is not None else current.text()
+        if mode == "diff" and previous is not None and not keys:
+            said = diff(previous, current)
+        else:
+            said = current.text(keys=keys)
         # First, where an agent reading what it can act on cannot miss why it may not be able to.
         noted = _noted(instance)
         return f"{noted}\n{said}" if noted else said

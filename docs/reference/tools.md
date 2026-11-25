@@ -55,13 +55,14 @@ Offered always. Needs a connector that can do `lifecycle`.
 
 ## `sim_snapshot`
 
-What is on screen as short lines -- one per button, field, text or heading, each with a ref (e4) and where a tap lands. A line ending "covered by tab bar" (or toolbar, navigation bar, status bar, bar, keyboard) is under it: a tap there would hit the bar, so scroll it into view first. Cheap: prefer it to a screenshot. mode diff (default) gives only what changed since you last looked; full gives the whole screen. On a real device a screen WebDriverAgent is slow to read -- a long list -- is read from its pixels instead, and the snapshot says so.
+What is on screen as short lines -- one per button, field, text or heading, each with a ref (e4) and where a tap lands. A line ending "covered by tab bar" (or toolbar, navigation bar, status bar, bar, keyboard) is under it: a tap there would hit the bar, so scroll it into view first. Cheap: prefer it to a screenshot. mode diff (default) gives only what changed since you last looked; full gives the whole screen. The on-screen keyboard is one line naming its keys' refs; keys: true lists each key. On a real device a screen WebDriverAgent is slow to read -- a long list -- is read from its pixels instead, and the snapshot says so.
 
 Offered always. Needs a connector that can do `element_tree` -- or `screenshot`, reading the screen's pixels while `perception.ocr` is on.
 
 | Argument | Type | Allowed | Required |
 |---|---|---|---|
 | `mode` | string | `diff`, `full` | no |
+| `keys` | boolean | list each key of the on-screen keyboard, with its ref, rather than one line for the keyboard: only to tap a key yourself, as text is typed with sim_act type | no |
 | `max_elements` | integer | 1 to 400; list at most this many lines, in reading order, when the first few are all you need; the rest are counted, and the screen is read whole either way. Default and most: agent.snapshot_max_elements (120) | no |
 
 ## `sim_screenshot`

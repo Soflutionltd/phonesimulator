@@ -75,6 +75,10 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Changed
 
+- A snapshot says the on-screen keyboard in one line -- its keys' refs and what each says -- rather than a line for
+  each of its three dozen keys, which cost more than the rest of the screen: about 60% less text for a sign-in screen
+  with the keyboard up. A diff says the keyboard once when it comes, changes or goes. `sim_snapshot keys: true` lists
+  each key; a key's ref still taps it.
 - Agents of one project share its devices, one driving at a time: two sessions, the CLI and an MCP server are no
   longer refused one another's device for half an hour. An agent of another project keeps a device only while it has
   called within 2 minutes, as `device.exclusive` always said; quiet longer, or gone without saying so, it passes the

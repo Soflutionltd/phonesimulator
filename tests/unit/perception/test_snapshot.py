@@ -368,3 +368,38 @@ def test_recorded_mac_web_trees_keep_dom_targets_and_secure_values_redacted(engi
     assert named["secret"].value in (None, "")
     assert "Web sample" in result.text() and "Item" in result.text()
     assert named["notifications"].kind in ("switch", "checkbox")
+
+
+def _key(ref: str, label: str, x: float) -> Element:
+    return Element(ref, "key", label, None, x, 650.0, key=True)
+
+
+def _keyboard_screen(digest: str, *keys: Element) -> Snapshot:
+    field = Element("e1", "field", "Email", None, 201.0, 150.0, ("editing",))
+    return Snapshot("iOS 26.5 · Notes", (field, *keys), digest, {}, 9)
+
+
+def test_the_keyboard_is_one_line_naming_its_keys_unless_each_is_asked_for() -> None:
+    shown = _keyboard_screen("k1", _key("e2", "a", 24), _key("e3", "z", 64), _key("e4", "", 103))
+    assert shown.text().splitlines() == [
+        "iOS 26.5 · Notes",
+        'e1 field "Email" (201,150) editing',
+        "[keyboard e2…e4: 3 keys a|z|?; sim_snapshot keys: true lists each]",
+    ]
+    assert shown.text(keys=True).splitlines()[2:] == ['e2 key "a" (24,650)', 'e3 key "z" (64,650)', "e4 key (103,650)"]
+    after = Snapshot("x", (_key("e2", "a", 24), Element("e5", "button", "Next", None, 0, 0)), "k9", {}, 9)
+    assert after.text().splitlines()[1:] == ["[keyboard e2…e2: 1 key a; sim_snapshot keys: true lists each]",
+                                             'e5 button "Next" (0,0)']  # fmt: skip
+
+
+def test_a_diff_says_the_keyboard_once_when_it_comes_changes_or_goes_never_key_by_key() -> None:
+    bare = _keyboard_screen("k0")
+    typing = _keyboard_screen("k1", _key("e2", "a", 24), _key("e3", "z", 64))
+    numbers = _keyboard_screen("k2", _key("e2", "1", 24), _key("e3", "2", 64))
+    came = diff(bare, typing)
+    assert "+ [keyboard e2…e3: 2 keys a|z" in came and "+ e2 key" not in came
+    assert "+ [keyboard e2…e3: 2 keys 1|2" in diff(typing, numbers), "another layout is said"
+    gone = diff(typing, bare)
+    assert "- [keyboard]" in gone and "- e2 key" not in gone
+    same_keys = _keyboard_screen("k3", _key("e2", "a", 24), _key("e3", "z", 64))
+    assert "keyboard" not in diff(typing, same_keys), "a keyboard that did not change is not said again"
