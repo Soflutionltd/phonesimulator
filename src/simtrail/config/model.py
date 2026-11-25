@@ -112,6 +112,8 @@ class SimConfig:
     login_real_devices: bool
     build_tools: bool
     build_configuration: str
+    #: The flutter command a Flutter app is built with, or empty to find one.
+    flutter_path: str
     #: A bundle identifier, or empty for any.
     build_expected_bundle_id: str
     build_stamp_source: bool

@@ -31,6 +31,7 @@ installs, selects or changes anything; every problem comes with a fix.
 | `android devices` | The emulators running and the phones adb lists, and a phone still to allow this Mac to debug it |
 | `scrcpy` | While `android.scrcpy.enabled`, whether scrcpy's server is set up (Set up touch, or `simtrail android setup`), checked by its hash |
 | `android builds` | While `build.tools`, the JDK a Gradle build would run with |
+| `flutter` | The flutter command a [Flutter](flutter.md) app would be built with -- `build.flutter_path`, `PATH`, or where it is usually installed -- and its version; none found is fine unless `build.flutter_path` names one |
 | `device hub` | Whether Xcode 27's Device Hub is running, which can swallow input |
 | `desktop session` | A logged-in graphical session, which simulators need |
 | `accessibility` | Reported as not checked: reading it would show macOS's permission prompt |

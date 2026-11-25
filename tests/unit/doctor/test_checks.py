@@ -114,6 +114,7 @@ class Mac:
             vision=self.vision,
             clock=ManualClock(),
             helper_candidates=lambda: self.native_helpers,
+            flutter=lambda configured, env: None,
         )
         return dataclasses.replace(ctx, **changes)
 

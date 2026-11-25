@@ -36,6 +36,7 @@ CHANGING: dict[str, frozenset[str] | None] = {
     "sim_app": frozenset({"launch", "terminate", "install", "open_url"}),
     "sim_build_run": None,
     "sim_test": None,
+    "sim_flutter": frozenset({"run", "hot_reload", "hot_restart", "stop"}),
     "sim_record": frozenset({"start", "stop"}),
     "sim_flow": frozenset({"run"}),
     "sim_device": frozenset(

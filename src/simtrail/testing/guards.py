@@ -61,6 +61,8 @@ FORBIDDEN_PROGRAMS = frozenset(
         # Password managers' CLIs reveal real passwords: tests play them (`platform.passwords.Run`).
         "op",
         "bw",
+        # A Flutter app's builds, tests and runs: flutter drives xcodebuild, Gradle and the devices itself.
+        "flutter",
     }
 )
 

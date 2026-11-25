@@ -314,6 +314,7 @@ def test_each_path_setting_shows_a_path_of_its_own_kind() -> None:
         "android.java_home": "/Applications/Android Studio.app/Contents/jbr/Contents/Home",
         "login.onepassword_path": "/opt/homebrew/bin/op",
         "login.bitwarden_path": "/opt/homebrew/bin/bw",
+        "build.flutter_path": "/opt/homebrew/share/flutter/bin/flutter",
     }
 
 
@@ -342,6 +343,7 @@ def test_what_a_page_cannot_change_alone_and_what_only_the_daemon_has_are_decide
         "connectors.idb.companion_path",
         "device.developer_dir",
         "build.tools",
+        "build.flutter_path",
         "recording.folder",
         "real_devices.enabled",
         "real_devices.agents_choose",

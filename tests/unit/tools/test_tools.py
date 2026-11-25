@@ -91,6 +91,7 @@ def test_every_tool_is_described_once_with_a_closed_schema_and_listed_whatever_t
         "sim_matrix",
         "sim_build_run",
         "sim_test",
+        "sim_flutter",
         "sim_login",
     ]
     assert REGISTRY.names() == names

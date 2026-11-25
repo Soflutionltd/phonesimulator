@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from simtrail.build.flutter import FlutterToolchain
+from simtrail.build.flutter_run import FlutterSessions
 from simtrail.build.folders import Folders
 from simtrail.build.gradle import GradleToolchain
 from simtrail.build.xcodebuild import BuildRunner
@@ -129,6 +131,8 @@ class Runtime:
     selections: Selections = field(default_factory=Selections)
     #: The folder each agent named for its builds.
     folders: Folders = field(default_factory=Folders)
+    #: The Flutter apps `sim_flutter run` keeps running for agents.
+    flutter: FlutterSessions = field(default_factory=FlutterSessions)
 
     @classmethod
     def build(
@@ -261,6 +265,7 @@ class Runtime:
                     manager.reattach(instance.udid)
 
         android.jars.on_ready = scrcpy_ready
+        flutter = FlutterSessions()
         runtime = cls(
             config=config,
             state=state,
@@ -290,7 +295,9 @@ class Runtime:
                 xcrun=xcrun,
                 copy=copy,
                 others={"android": GradleToolchain(android.directory.serial, copy=copy)},
+                projects=(FlutterToolchain(flutter, android.directory.serial, xcrun=xcrun, copy=copy),),
             ),
+            flutter=flutter,
             reaper=Reaper(manager, sleep=sleep),
             sleep=sleep,
             drivers=Drivers(copy, clock=clock),
@@ -328,6 +335,7 @@ class Runtime:
         """Stop reaping, end every build, and let go of every device -- the devices themselves keep running."""
         await self.reaper.stop()
         await self.builds.shutdown()
+        await self.flutter.shutdown()
         await self.touch.shutdown()
         await self.manager.shutdown()
         await self.actions.close()
@@ -338,15 +346,23 @@ class Runtime:
         await self.stop_builds_not_allowed(group)
 
     async def stop_builds_not_allowed(self, group: str | None = None) -> None:
-        """End the builds a scope may not run now: its simulator or its build tools switched off, or the host no
-        longer allowing it commands."""
+        """End the builds a scope may not run now -- and the Flutter apps it keeps running: its simulator or its build
+        tools switched off, or the host no longer allowing it commands."""
         for run in self.builds.runs():
             scope = run.scope
             if group is not None and scope.group != group:
                 continue
-            allowed = self.config.get(scope).build_tools and self.policy.shells_allowed(scope)
-            if await self.manager.unavailable(scope) or not allowed:
+            if not await self._may_build(scope):
                 await self.builds.cancel(scope.id)
+        for session in self.flutter.sessions():
+            scope = session.scope
+            if (group is None or scope.group == group) and not await self._may_build(scope):
+                await self.flutter.stop(session)
+
+    async def _may_build(self, scope: Scope) -> bool:
+        """Whether a scope may build now: its device available, its build tools on, and commands allowed it."""
+        allowed = self.config.get(scope).build_tools and self.policy.shells_allowed(scope)
+        return allowed and not await self.manager.unavailable(scope)
 
     # -- agents -----------------------------------------------------------------------------------------------------
 
@@ -393,6 +409,7 @@ class Runtime:
             folders=self.folders,
             flows=FlowStore(flows_folder(self.state)),
             drivers=self.drivers,
+            flutter=self.flutter,
         )
 
     def _build_folder(self, caller: Caller) -> Path | None:
@@ -552,10 +569,11 @@ class Runtime:
 
     def let_go(self, key: str) -> list[str]:
         """An agent's connection ended -- its token revoked as its MCP server closes: the devices it drove pass over at
-        once, the device it worked on is no longer held for it, and the folder it named for its builds is forgotten.
-        Answers the udids it drove."""
+        once, the device it worked on is no longer held for it, the folder it named for its builds is forgotten, and
+        the Flutter apps it ran are stopped. Answers the udids it drove."""
         self.selections.forget(key)
         self.folders.forget(key)
+        self.flutter.let_go(key)
         return self.drivers.let_go(key, self.manager.instances())
 
     # -- viewers ----------------------------------------------------------------------------------------------------

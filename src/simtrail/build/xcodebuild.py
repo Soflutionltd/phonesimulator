@@ -53,6 +53,7 @@ from simtrail.build.runner import (
     BuildRefused,
     Place,
     Project,
+    ProjectToolchain,
     Request,
     Runner,
     Toolchain,
@@ -714,6 +715,7 @@ class BuildRunner(Runner):
         copy: HostCopy | None = None,
         source: SourceReader = read_source,
         others: Mapping[DeviceKind, Toolchain] | None = None,
+        projects: Sequence[ProjectToolchain] = (),
     ) -> None:
         xcode = XcodeToolchain(xcrun=xcrun, start=start, copy=copy)
         super().__init__(
@@ -725,4 +727,5 @@ class BuildRunner(Runner):
             stop_grace_s=stop_grace_s,
             copy=copy,
             source=source,
+            projects=projects,
         )

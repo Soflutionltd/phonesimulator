@@ -19,6 +19,8 @@
 - [Real devices](real-devices.md) -- a cabled iPhone or iPad: its live screen, apps and logs, and WebDriverAgent for
   touch, typing and the element tree
 - [Android](android.md) -- Android emulators and phones: adb, scrcpy's live screen, and Gradle builds and tests
+- [Flutter](flutter.md) -- a Flutter app built, tested and installed by the same tools, and kept running for hot
+  reload
 - [Recording](recording.md) -- a screen as an MP4 or a GIF, with each touch drawn, and a demo in a pull request
 - [Signing in](login.md) -- an app signed in from 1Password, Bitwarden or a program of yours, the agent never seeing
   the password

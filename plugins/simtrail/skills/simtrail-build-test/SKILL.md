@@ -1,6 +1,6 @@
 ---
 name: simtrail-build-test
-description: Build, install, launch or run automated iOS and Android project tests through Simtrail. Use for sim_build_run, sim_test, worktree builds, build/test failures and source verification; manual UI walkthroughs use the simulator skill.
+description: Build, install, launch or run automated iOS, Android and Flutter project tests through Simtrail. Use for sim_build_run, sim_test, sim_flutter hot reload, worktree builds, build/test failures and source verification; manual UI walkthroughs use the simulator skill.
 ---
 
 # Build the intended code
@@ -28,7 +28,7 @@ never use them to bypass a refusal.
    `folder` compares a source-stamped app. Without a stamp, report provenance unverified; matching commits with
    dirty files do not prove identical source contents.
 
-Read [build decisions](references/builds.md) for configuration, signing, destinations and Android. For an interactive
+Read [build decisions](references/builds.md) for configuration, signing, destinations, Android and Flutter. For an interactive
 smoke check, use the installed simulator skill or snapshot/action guidance.
 
 Report what built, where it ran, passed/failed/skipped/flaky tests, and installation/launch outcomes. Keep diagnostics

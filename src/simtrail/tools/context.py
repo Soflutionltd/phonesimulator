@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from simtrail.build.flutter_run import FlutterSessions
 from simtrail.build.folders import Folders
 from simtrail.build.xcodebuild import BuildRunner
 from simtrail.config.model import SimConfig
@@ -118,6 +119,8 @@ class ToolContext:
     drivers: Drivers | None = None
     #: What every answer is masked with -- a password `sim_login` typed reads ``••••`` in it; set by the registry.
     secrets: SecretMask | None = None
+    #: The Flutter apps `sim_flutter run` keeps running, by device; None where none are kept.
+    flutter: FlutterSessions | None = None
 
     @property
     def scope(self) -> Scope:

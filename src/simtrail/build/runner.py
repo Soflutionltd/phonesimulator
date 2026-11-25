@@ -2,7 +2,10 @@
 """Running a scope's builds and test runs, one at a time, whatever builds them.
 
 What builds a run is a `Toolchain`: xcodebuild for a simulator or an iPhone (`xcodebuild.XcodeToolchain`), Gradle for an
-Android device (`gradle.GradleToolchain`), chosen by the kind of device the run is for. A toolchain finds the project,
+Android device (`gradle.GradleToolchain`), chosen by the kind of device the run is for -- unless the folder built is a
+project a `ProjectToolchain` claims, such as a Flutter app (`flutter.FlutterToolchain`), which builds it for any kind
+of device it builds for. Only such a toolchain makes a ``run``: an app started and kept running for its agent
+(`flutter_run`). A toolchain finds the project,
 says which run a call asks for (`Toolchain.prepare`), starts it (`Toolchain.launch`) and reads its answer
 (`Toolchain.results`); everything around that is the same for each and is here:
 
@@ -23,7 +26,7 @@ import contextlib
 import itertools
 import signal
 import time
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -35,7 +38,7 @@ from simtrail.protocol import DeviceKind
 from simtrail.scope import Scope
 from simtrail.seams import StateStore
 
-KINDS = ("build", "test")
+KINDS = ("build", "test", "run")
 STOP_GRACE_S = 5.0
 TESTS_MAX = 50
 TEST_ID_MAX = 300
@@ -94,6 +97,17 @@ class Request:
     catalyst: bool = False
     #: The DerivedData folder the run builds in -- its checkout's (`derived`); None for the scope's own.
     derived: Path | None = None
+    #: The kind of device the run is for.
+    device_kind: DeviceKind = "simulator"
+    #: A Flutter project's: the flutter command ``build.flutter_path`` names, "" to find one; its flavor; the values
+    #: its Dart code reads with ``String.fromEnvironment``; and whether its tests are the integration tests, run on
+    #: the device.
+    flutter_path: str = ""
+    flavor: object = None
+    dart_defines: object = None
+    integration: bool = False
+    #: The agent connection that asked for the run: a ``run``'s app is stopped when it ends.
+    owner: str = ""
 
 
 @dataclass(frozen=True)
@@ -196,7 +210,7 @@ class Place:
 
 
 class Toolchain(Protocol):
-    """What builds a run for one kind of device."""
+    """What builds a run for one kind of device -- or, a `ProjectToolchain`, a kind of project."""
 
     #: How the answer names what builds: ``xcodebuild``, ``Gradle``.
     name: str
@@ -218,6 +232,18 @@ class Toolchain(Protocol):
         """The app to install for a build that succeeded, with the commit it was built from in it where it can be,
         and the line its answer says that with."""
         ...
+
+
+class ProjectToolchain(Toolchain, Protocol):
+    """What builds a kind of project, such as a Flutter app, whatever the device -- the folder says which."""
+
+    def claims(self, folder: Path) -> bool:
+        """Whether this folder holds a project this toolchain builds."""
+        ...
+
+
+#: What only a `ProjectToolchain` understands, and the project it is for.
+PROJECT_ONLY = ("flavor", "dart_defines", "integration")
 
 
 def _closing(build: Build) -> list[str]:
@@ -246,9 +272,11 @@ class Runner:
         stop_grace_s: float = STOP_GRACE_S,
         copy: HostCopy | None = None,
         source: SourceReader = read_source,
+        projects: Sequence[ProjectToolchain] = (),
     ) -> None:
         self._state = state
         self._toolchains = dict(toolchains)
+        self._projects = tuple(projects)
         self._source = source
         self._copy = copy or HostCopy()
         self._clock = clock
@@ -276,6 +304,10 @@ class Runner:
     def builds_for(self, device_kind: DeviceKind) -> Toolchain | None:
         """What builds for a kind of device; None when nothing here does."""
         return self._toolchains.get(device_kind)
+
+    def project_toolchain(self, folder: Path) -> ProjectToolchain | None:
+        """What builds the project in `folder` whatever the device, when a toolchain claims it; None otherwise."""
+        return next((toolchain for toolchain in self._projects if toolchain.claims(folder)), None)
 
     def toolchain(self, device_kind: DeviceKind) -> Toolchain:
         """What builds for a kind of device -- or why nothing here does."""
@@ -311,6 +343,11 @@ class Runner:
         java_home: str = "",
         catalyst: bool = False,
         derived: Path | None = None,
+        flutter_path: str = "",
+        flavor: object = None,
+        dart_defines: object = None,
+        integration: bool = False,
+        owner: str = "",
     ) -> Build:
         """Start a build or a test run for a scope, in the DerivedData folder `derived` -- a checkout's -- or, for None,
         the scope's own. Refuses with a reason; never runs two at once in one folder, or for one device of a scope.
@@ -318,16 +355,33 @@ class Runner:
         A `configuration` of None is the toolchain's own choice: for xcodebuild, the one the scheme's own action builds
         this kind of run with, else Debug. A test run with an `expected_bundle_id` is refused, before it starts, when
         its tests run in another app.
+
+        A folder a `ProjectToolchain` claims is built by it, whatever the device; only it makes a ``run``, and only it
+        takes a `flavor`, `dart_defines` or `integration`.
         """
         if kind not in KINDS:
             raise BuildRefused(f"a run is one of {', '.join(KINDS)}")
+        project_toolchain = self.project_toolchain(folder)
+        if project_toolchain is None:
+            if kind == "run":
+                raise BuildRefused(
+                    f"{folder} holds no Flutter app (a pubspec.yaml that depends on flutter), which is what "
+                    "sim_flutter runs; build and launch another app with sim_build_run"
+                )
+            values = (flavor, dart_defines, integration)
+            given = [name for name, value in zip(PROJECT_ONLY, values, strict=True) if value]
+            if given:
+                raise BuildRefused(
+                    f"{', '.join(given)} {'is' if len(given) == 1 else 'are'} for a Flutter app, and {folder} holds "
+                    "none (a pubspec.yaml that depends on flutter)"
+                )
         if test_plan is not None and kind != "test":
             raise BuildRefused("a test plan says which tests to run; name one on a test run, not a build")
         if retries and kind != "test":
             raise BuildRefused("only a test run can be retried; a build either succeeds or it does not")
         if catalyst and device_kind != "mac":
             raise BuildRefused("catalyst is only for a macOS app target")
-        toolchain = self.toolchain(device_kind)
+        toolchain = project_toolchain or self.toolchain(device_kind)
         request = Request(
             kind=kind,
             folder=folder,
@@ -350,6 +404,12 @@ class Runner:
             java_home=java_home,
             catalyst=catalyst,
             derived=derived,
+            device_kind=device_kind,
+            flutter_path=flutter_path,
+            flavor=flavor,
+            dart_defines=dart_defines,
+            integration=integration,
+            owner=owner,
         )
         lane = derived if derived is not None else self._state.derived_data(scope)
         async with self._lock:
