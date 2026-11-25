@@ -87,6 +87,8 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Fixed
 
+- The viewer's bar stays on one line from 640 px wide: the settings and release buttons no longer drop to a second
+  line alone; the device's name is shortened first.
 - Scrolling with the wheel or trackpad over a simulator driven by the native helper scrolls it again. The scroll was
   sent to the helper as a macOS app's window action, which a simulator's helper refuses, so nothing moved and the
   viewer said "The simulator did not take that: this device is not a macOS app". Window pointer input -- a secondary

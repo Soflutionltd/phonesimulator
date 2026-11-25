@@ -282,6 +282,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Wide enough for one line: the bar never wraps -- the device's name is shortened first, so the view's own controls
+   stay at the end of the line rather than dropping to a second one alone. */
+@container (min-width: 640px) {
+  .smv-bar { flex-wrap: nowrap; }
+}
+
 @container (max-width: 639px) {
   .smv-bar-device { order: 1; flex: 1 1 0; }
   .smv-window { order: 2; }
