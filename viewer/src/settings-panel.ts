@@ -9,9 +9,15 @@
  * sensitive setting comes back asking for the code `simtrail settings confirm` shows at the terminal, and is sent
  * again with it.
  *
+ * What the server says -- a section's and a setting's description, a notice, why a change was refused -- is shown as it
+ * wrote it, in English; a section's title is said in the viewer's language when the viewer knows the section. Everything
+ * else is written with its message's key on it (`i18n.ts`), so the panel changes language as it stands, a half-made
+ * change kept.
+ *
  * It is a dialog over the screen (`popover.ts`): Escape closes it, and while it is open nothing typed reaches the
  * device. A press outside does not close it, so a half-made change is not lost to a stray click.
  */
+import { english, isMessageKey, label, name, say, sayPlain, type Translate } from './i18n'
 import type { IconRenderer } from './icons'
 import { createPopover, type Layers } from './popover'
 import type { SettingsChange, SettingsRefusal, SettingsTarget, SettingsView } from './protocol.generated'
@@ -27,6 +33,8 @@ export interface SettingsPanelOptions {
   transport: SettingsTransport
   layers: Layers
   icon: IconRenderer
+  /** Says the panel's messages; in English when absent. */
+  t?: Translate
 }
 
 export interface SettingsPanel {
@@ -50,6 +58,7 @@ let panels = 0
 
 export function createSettingsPanel(options: SettingsPanelOptions): SettingsPanel {
   const { panel, transport, icon } = options
+  const t = options.t ?? english
   panels += 1
   const uid = `smv-settings-${panels}`
   let view: SettingsView | null = null
@@ -120,24 +129,27 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     fields = new Map()
 
     const header = make('div', 'smv-settings-head')
-    const title = make('h2', 'smv-settings-title', 'Settings')
+    const title = make('h2', 'smv-settings-title')
+    say(title, t, 'settings.title')
     title.id = `${uid}-title`
     const close = make('button', 'smv-icon')
     close.type = 'button'
-    close.title = 'Close settings'
-    close.setAttribute('aria-label', close.title)
+    name(close, t, 'settings.close')
     close.innerHTML = icon('close')
     close.addEventListener('click', () => popover.close('api'))
     header.append(title, make('span', 'smv-settings-scope', next.scope), close)
 
     const tablist = make('div', 'smv-tabs')
     tablist.setAttribute('role', 'tablist')
-    tablist.setAttribute('aria-label', 'Settings sections')
+    label(tablist, t, 'settings.sections')
     tablist.addEventListener('keydown', onTabKey)
     const tabs: HTMLButtonElement[] = []
     const panes: HTMLElement[] = []
     next.sections.forEach((section, index) => {
       const tab = make('button', 'smv-tab', section.title)
+      // A section this viewer knows is called by its own message; one it does not, as the server calls it.
+      const known = `section.${section.id || 'general'}`
+      if (isMessageKey(known)) say(tab, t, known as 'section.general')
       tab.type = 'button'
       tab.id = `${uid}-tab-${index}`
       tab.setAttribute('role', 'tab')
@@ -150,7 +162,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
       pane.setAttribute('aria-labelledby', tab.id)
       pane.append(make('p', 'smv-pane-doc', section.doc))
       for (const entry of next.settings.filter((setting) => setting.section === section.id)) {
-        const field = renderField(entry, { editable: next.access !== 'read', onInput: refresh, onReset: reset })
+        const field = renderField(entry, { editable: next.access !== 'read', onInput: refresh, onReset: reset, t })
         fields.set(entry.path, field)
         pane.append(field.el)
       }
@@ -161,9 +173,11 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     const footer = make('div', 'smv-settings-foot')
     const targets = make('div', 'smv-targets')
     targets.setAttribute('role', 'radiogroup')
-    targets.setAttribute('aria-label', 'Save for')
-    for (const [value, text] of [['scope', 'This project'], ['all', 'Every project']] as const) {
+    label(targets, t, 'settings.saveFor')
+    for (const value of ['scope', 'all'] as const) {
       const choice = make('label', 'smv-target')
+      const text = make('span', '')
+      say(text, t, `settings.target.${value}`)
       const radio = make('input', '')
       radio.type = 'radio'
       radio.name = `${uid}-target`
@@ -172,7 +186,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
       radio.addEventListener('change', () => {
         target = value
       })
-      choice.append(radio, ` ${text}`)
+      choice.append(radio, ' ', text)
       targets.append(choice)
     }
     const confirm = make('div', 'smv-confirm')
@@ -182,9 +196,10 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     code.type = 'text'
     code.autocomplete = 'one-time-code'
     code.spellcheck = false
-    code.setAttribute('aria-label', 'Confirmation code')
+    label(code, t, 'settings.code')
     code.placeholder = 'ABCD-EFGH'
-    const confirmButton = make('button', 'smv-button', 'Confirm')
+    const confirmButton = make('button', 'smv-button')
+    say(confirmButton, t, 'settings.confirm')
     confirmButton.type = 'button'
     confirmButton.addEventListener('click', () => {
       // Shown only while a change waits for its code.
@@ -194,7 +209,8 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     const status = make('p', 'smv-settings-status')
     status.setAttribute('role', 'status')
     status.setAttribute('aria-live', 'polite')
-    const save = make('button', 'smv-button smv-button-primary', 'Save')
+    const save = make('button', 'smv-button smv-button-primary')
+    say(save, t, 'settings.save')
     save.type = 'button'
     save.addEventListener('click', () => void saveTab())
     footer.append(targets, confirm, status, save)
@@ -210,7 +226,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
 
   async function send(change: SettingsChange): Promise<void> {
     for (const field of fields.values()) field.setError(null)
-    refs!.status.textContent = 'Saving…'
+    say(refs!.status, t, 'settings.saving')
     refs!.save.disabled = true
     let next: SettingsView
     try {
@@ -224,7 +240,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     if (!popover.isOpen) return
     waiting = null
     render(next)
-    refs!.status.textContent = 'Saved.'
+    say(refs!.status, t, 'settings.saved')
     // What had focus -- Save, a field's Reset -- was drawn again: keep focus in the panel, or Escape is heard nowhere.
     focusTab()
   }
@@ -242,10 +258,12 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
       parts.confirmText.textContent = refusal.detail
       parts.code.value = ''
       parts.code.focus()
-      parts.status.textContent = `Waiting for the code for: ${refusal.confirmation.summary}`
+      say(parts.status, t, 'settings.waiting', { summary: refusal.confirmation.summary })
     } else {
       for (const problem of refusal?.errors ?? []) fields.get(problem.path)?.setError(problem.message)
-      parts.status.textContent = refusal?.detail ?? ((error as Error).message || 'The settings could not be saved.')
+      const why = refusal?.detail ?? (error as Error).message
+      if (why) sayPlain(parts.status, why)
+      else say(parts.status, t, 'settings.saveFailed')
     }
     refresh()
   }
@@ -269,7 +287,8 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
 
   async function open(): Promise<void> {
     popover.open()
-    const loading = make('p', 'smv-settings-status', 'Loading settings…')
+    const loading = make('p', 'smv-settings-status')
+    say(loading, t, 'settings.loading')
     loading.setAttribute('role', 'status')
     panel.replaceChildren(loading)
     try {
@@ -278,7 +297,10 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
       render(next)
       focusTab()
     } catch (error) {
-      if (popover.isOpen) loading.textContent = (error as Error).message || 'The settings could not be read.'
+      if (!popover.isOpen) return
+      const why = (error as Error).message
+      if (why) sayPlain(loading, why)
+      else say(loading, t, 'settings.readFailed')
     }
   }
 

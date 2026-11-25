@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * What a person chose for how the viewer looks -- its theme, whether the device's frame is drawn, how large the device is
- * drawn (its actual size, fitted to the window, or a zoom step) -- kept in this
+ * drawn (its actual size, fitted to the window, or a zoom step), the language it speaks -- kept in this
  * browser for next time. Only those: nothing about a device or a scope. A browser that keeps nothing (a private
  * window, storage turned off) simply starts from the defaults each time.
  */
+import { choiceOf, type LocaleChoice } from './i18n'
 
 export type Theme = 'system' | 'light' | 'dark'
 export const THEMES: readonly Theme[] = ['system', 'light', 'dark']
@@ -16,6 +17,8 @@ export interface Preferences {
   theme: Theme | null
   framed: boolean | null
   zoom: KeptZoom | null
+  /** The language picked in the View menu: one the viewer speaks, or the browser's own (`auto`). */
+  lang: LocaleChoice | null
 }
 
 /** A zoom kept, when it is one the viewer draws at: a step between a tenth and four pixels a point. */
@@ -42,9 +45,10 @@ export function readPreferences(): Preferences {
       theme: THEMES.includes(kept.theme as Theme) ? (kept.theme as Theme) : null,
       framed: typeof kept.framed === 'boolean' ? kept.framed : null,
       zoom: zoomOf(kept.zoom),
+      lang: choiceOf(kept.lang),
     }
   } catch {
-    return { theme: null, framed: null, zoom: null }
+    return { theme: null, framed: null, zoom: null, lang: null }
   }
 }
 

@@ -8,11 +8,9 @@
 import { textOn } from './agent-cursor'
 import { deviceNoun, isReal, kindChip } from './device-kind'
 import { escapeHTML } from './escape'
+import { resolve, type Said, type Translate } from './i18n'
 import { DEVICE_STATES, type Device, type DeviceState, type ServerHello } from './protocol.generated'
 
-export const STATE_LABELS: Readonly<Record<DeviceState, string>> = {
-  booting: 'Starting', ready: 'Ready', stalled: 'Reconnecting', failed: 'Failed', stopped: 'Stopped',
-}
 const BOOT_TICK_MS = 1000
 
 export type Offer = 'start' | 'retry'
@@ -37,8 +35,9 @@ export interface StatusParts {
 }
 
 export interface StatusView {
-  /** Show why there is no screen -- with a way on, when there is one -- or, given null, the screen. */
-  say(message: string | null, offer?: Offer): void
+  /** Show why there is no screen -- with a way on, when there is one -- or, given null, the screen. A message asked
+   * for each time it is shown follows the language. */
+  say(message: Said | null, offer?: Offer): void
   showState(state: DeviceState): void
   applyDevice(device: Device | null): void
   /** An agent is using the device, by this title, doing this -- '' when it says nothing more -- and drawn in this colour
@@ -47,6 +46,8 @@ export interface StatusView {
   /** What the server said it offers: a mirror whose connector cannot touch the screen says so. */
   setMode(hello: ServerHello | null): void
   stopBootTimer(): void
+  /** The language changed: say again everything said here. */
+  relabel(): void
 }
 
 /** A device's state from the screen socket, checked -- or null for anything that is not one. */
@@ -56,8 +57,11 @@ export function readDevice(message: Record<string, unknown>): Device | null {
   return valid ? (message as unknown as Device) : null
 }
 
-export function createStatusView(parts: StatusParts): StatusView {
+export function createStatusView(parts: StatusParts, t: Translate): StatusView {
   let device: Device | null = null
+  /** The state the pill shows, and what the empty screen says, as last asked: said again when the language changes. */
+  let state: DeviceState = 'stopped'
+  let told: { message: Said | null, offer?: Offer } = { message: null }
   let hello: ServerHello | null = null
   let agent: string | null = null
   let doing = ''
@@ -69,10 +73,10 @@ export function createStatusView(parts: StatusParts): StatusView {
   /** Who is using the device and what it is doing now -- or that it is, until it says -- else what it is busy with. The
    * agent's name is kept whole in the pill's tooltip, however the pill is cut to fit. */
   function paintBadge(): void {
-    const using = agent ? `${agent} is using this device` : ''
-    const busy = device?.busy ? `Busy: ${device.busy}` : ''
+    const using = agent ? t('agent.using', { agent }) : ''
+    const busy = device?.busy ? t('device.busy', { what: device.busy }) : ''
     if (agent) {
-      activity.textContent = doing ? ` · ${doing}` : ' is using this device'
+      activity.textContent = doing ? ` · ${doing}` : t('agent.usingSuffix')
       parts.badge.replaceChildren(agent, activity)
     } else {
       parts.badge.textContent = busy
@@ -94,7 +98,7 @@ export function createStatusView(parts: StatusParts): StatusView {
   function paintApp(): void {
     const shared = device?.app_hierarchy ?? null
     const said = shared
-      ? `${shared.name} (${shared.bundle_id}) shares its view hierarchy through Simtrail's SDK ${shared.sdk_version}`
+      ? t('app.shares', { name: shared.name, bundle: shared.bundle_id, version: shared.sdk_version })
       : ''
     parts.app.hidden = shared === null
     parts.app.textContent = shared ? `${shared.name} · SDK` : ''
@@ -104,15 +108,16 @@ export function createStatusView(parts: StatusParts): StatusView {
   }
 
   /** What starting says: a real device is not started, only shown again. */
-  const startLabel = () => (isReal(device) ? 'Show the device' : `Start the ${deviceNoun(device)}`)
+  const startLabel = () => t(isReal(device) ? 'start.real' : `start.${deviceNoun(device)}`)
 
-  function say(message: string | null, offer?: Offer): void {
+  function say(message: Said | null, offer?: Offer): void {
+    told = { message, offer }
     parts.empty.hidden = message === null
     parts.canvas.hidden = message !== null
+    const way = escapeHTML(offer === 'start' ? startLabel() : t('retry'))
     parts.empty.innerHTML = message === null ? ''
-      : `<p>${escapeHTML(message)}</p>` + (offer
-        ? `<button type="button" class="smv-btn" data-smv="start">${offer === 'start' ? startLabel() : 'Try again'}</button>`
-        : '')
+      : `<p>${escapeHTML(resolve(message))}</p>`
+        + (offer ? `<button type="button" class="smv-btn" data-smv="start">${way}</button>` : '')
   }
 
   function stopBootTimer(): void {
@@ -120,37 +125,44 @@ export function createStatusView(parts: StatusParts): StatusView {
     bootTimer = null
   }
 
-  function showState(state: DeviceState): void {
-    parts.state.dataset.state = state
-    parts.state.textContent = STATE_LABELS[state]
+  function showState(next: DeviceState): void {
+    state = next
+    parts.state.dataset.state = next
+    parts.state.textContent = t(`state.${next}`)
+  }
+
+  /** The device's name and what it is: what the bar says of it whatever its state. */
+  function paintDevice(): void {
+    parts.name.textContent = device ? `${device.name} · ${device.runtime}` : t('device.unnamed')
+    paintMode()
+    const chip = kindChip(device, t)
+    parts.kind.hidden = !chip
+    parts.kind.textContent = chip
+    paintBadge()
+    paintApp()
   }
 
   function applyDevice(next: Device | null): void {
     device = next
     stopBootTimer()
-    parts.name.textContent = next ? `${next.name} · ${next.runtime}` : 'iOS Simulator'
-    paintMode()
-    const chip = kindChip(next)
-    parts.kind.hidden = !chip
-    parts.kind.textContent = chip
+    paintDevice()
     const noun = deviceNoun(next)
     showState(next?.state ?? 'stopped')
-    paintBadge()
-    paintApp()
     if (!next) return
     if (next.state === 'ready') {
       say(null)
     } else if (next.state === 'booting') {
       const began = Date.now() - next.since_ms
-      const tick = () => say(`Starting ${next.name}… ${Math.round((Date.now() - began) / 1000)}s`)
-      tick()
-      bootTimer = window.setInterval(tick, BOOT_TICK_MS)
+      const starting = () =>
+        t('status.booting', { name: next.name, seconds: Math.round((Date.now() - began) / 1000) })
+      say(starting)
+      bootTimer = window.setInterval(() => say(starting), BOOT_TICK_MS)
     } else if (next.state === 'stalled') {
-      say(`${sentence(next.reason || `The ${noun} stopped answering`)} Reconnecting…`)
+      say(() => t('status.reconnecting', { why: sentence(next.reason || t(`status.unanswering.${noun}`)) }))
     } else if (next.state === 'failed') {
-      say(next.reason || `The ${noun} could not start.`, 'retry')
+      say(() => next.reason || t(`status.failed.${noun}`), 'retry')
     } else {
-      say(`The ${noun} is stopped.`, 'start')
+      say(() => t(`status.stopped.${noun}`), 'start')
     }
   }
 
@@ -160,11 +172,10 @@ export function createStatusView(parts: StatusParts): StatusView {
     const viewOnly = hello !== null && !hello.capabilities.includes('input_touch')
     const slow = hello !== null && device?.kind === 'android' && !hello.capabilities.includes('stream_h264')
     parts.mode.hidden = !viewOnly && !slow
-    parts.mode.textContent = slow || (viewOnly && device?.kind === 'physical') ? 'Set up touch' : 'View only'
+    parts.mode.textContent = t(slow || (viewOnly && device?.kind === 'physical') ? 'mode.setUpTouch' : 'mode.viewOnly')
     parts.mode.title = hello && viewOnly
-      ? hello.fallback_reason ?? `The ${hello.connector} connector shows the screen but cannot touch it.`
-      : slow ? 'Without scrcpy, the screen is shown a few times a second and touches are slow: set it up to see it live.'
-        : ''
+      ? hello.fallback_reason ?? t('mode.viewOnlyWhy', { connector: hello.connector })
+      : slow ? t('mode.slowWhy') : ''
   }
 
   function setMode(next: ServerHello | null): void {
@@ -184,5 +195,10 @@ export function createStatusView(parts: StatusParts): StatusView {
     },
     setMode,
     stopBootTimer,
+    relabel() {
+      showState(state)
+      paintDevice()
+      say(told.message, told.offer)
+    },
   }
 }

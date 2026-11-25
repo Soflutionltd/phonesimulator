@@ -8,6 +8,9 @@
  * scope's own device. A person's Show in this tab and Follow the project set and remove it, and say so with a
  * `simtrail:device` event.
  *
+ * `lang` is the language the viewer speaks -- `fr`, `en`, or `auto` for the browser's own -- changed without starting
+ * afresh; without it the viewer speaks what a person last picked in its View menu, else the browser's.
+ *
  * It draws in an open shadow root with its own styles, themed by `--simtrail-*` custom properties and styled further
  * through `::part(bar)`, `::part(stage)` and `::part(screen)`. `token` is a viewer token -- what an embed ticket is
  * spent for -- or absent where the page's own cookie or origin lets it in; a host with its own API client sets the
@@ -25,7 +28,7 @@ const placementOf = (value: string | null): Placement =>
   PLACEMENTS.includes(value as Placement) ? (value as Placement) : 'page'
 
 export class SimtrailElement extends HTMLElement {
-  static readonly observedAttributes = ['server', 'scope', 'token', 'placement', 'device']
+  static readonly observedAttributes = ['server', 'scope', 'token', 'placement', 'device', 'lang']
 
   #view: ViewHandle | null = null
   #transport: SimtrailTransport | null = null
@@ -62,6 +65,7 @@ export class SimtrailElement extends HTMLElement {
   attributeChangedCallback(name: string, previous: string | null, value: string | null): void {
     if (previous === value || !this.isConnected || this.#picked) return
     if (name === 'placement' && this.#view) this.#view.setPlacement(placementOf(value))
+    else if (name === 'lang' && this.#view) this.#view.setLang(value)
     else this.#render()
   }
 
@@ -83,6 +87,7 @@ export class SimtrailElement extends HTMLElement {
       transport,
       placement,
       device,
+      lang: this.getAttribute('lang') ?? undefined,
       onPlace: placement === 'page' ? undefined : (next) => this.#tell('place', { placement: next }),
       onClose: () => this.#tell('close'),
       onState: (state) => this.#tell('state', state),

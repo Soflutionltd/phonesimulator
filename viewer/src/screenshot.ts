@@ -4,6 +4,7 @@
  * PNG -- saved as a file, or copied to the clipboard. It is taken from the viewer's canvas, so it needs nothing of the
  * server and works on any device the viewer shows.
  */
+import { english, type Translate } from './i18n'
 import type { Device } from './protocol.generated'
 
 export interface ClipboardLike {
@@ -19,11 +20,12 @@ export function screenPng(canvas: HTMLCanvasElement): Promise<Blob | null> {
 const two = (value: number) => String(value).padStart(2, '0')
 
 /** A screenshot's file name, as the iOS Simulator names its own: the device and when, never a path. */
-export function screenshotName(device: Pick<Device, 'name'> | null, at: Date): string {
-  const name = (device?.name ?? 'Device').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'Device'
+export function screenshotName(device: Pick<Device, 'name'> | null, at: Date, t: Translate = english): string {
+  const unnamed = t('screenshot.device')
+  const name = (device?.name ?? unnamed).replace(/[\\/:*?"<>|]+/g, '-').trim() || unnamed
   const day = `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}`
   const time = `${two(at.getHours())}.${two(at.getMinutes())}.${two(at.getSeconds())}`
-  return `Screenshot - ${name} - ${day} at ${time}.png`
+  return t('screenshot.fileName', { name, day, time })
 }
 
 /** The clipboard, where this page may write a picture to it; null where it may not. */
@@ -39,6 +41,8 @@ export interface ScreenshotOptions {
   say(message: string): void
   clipboard?: ClipboardLike | null
   now?(): Date
+  /** Says what happened; in English when absent. */
+  t?: Translate
 }
 
 export interface Screenshots {
@@ -48,18 +52,17 @@ export interface Screenshots {
   copy(): Promise<void>
 }
 
-const NOTHING = 'There is no screen to capture yet.'
-
 export function createScreenshots(options: ScreenshotOptions): Screenshots {
   const clipboard = options.clipboard === undefined ? imageClipboard() : options.clipboard
   const now = options.now ?? (() => new Date())
+  const t = options.t ?? english
 
   return {
     canCopy: clipboard !== null,
     async save() {
       const png = await screenPng(options.canvas)
-      if (!png) return options.say(NOTHING)
-      const name = screenshotName(options.device(), now())
+      if (!png) return options.say(t('screenshot.nothing'))
+      const name = screenshotName(options.device(), now(), t)
       const url = URL.createObjectURL(png)
       const link = options.canvas.ownerDocument.createElement('a')
       link.href = url
@@ -67,17 +70,17 @@ export function createScreenshots(options: ScreenshotOptions): Screenshots {
       link.click()
       // Revoked once the download has had its chance to start.
       setTimeout(() => URL.revokeObjectURL(url), 1000)
-      options.say(`Screenshot saved as ${name}.`)
+      options.say(t('screenshot.saved', { name }))
     },
     async copy() {
-      if (!clipboard) return options.say('This page cannot copy a picture to the clipboard.')
+      if (!clipboard) return options.say(t('screenshot.cannotCopy'))
       const png = await screenPng(options.canvas)
-      if (!png) return options.say(NOTHING)
+      if (!png) return options.say(t('screenshot.nothing'))
       try {
         await clipboard.write([new ClipboardItem({ 'image/png': png })])
-        options.say('Screenshot copied.')
+        options.say(t('screenshot.copied'))
       } catch (error) {
-        options.say(`The screenshot could not be copied: ${(error as Error).message || 'the clipboard refused it'}.`)
+        options.say(t('screenshot.copyFailed', { why: (error as Error).message || t('screenshot.refused') }))
       }
     },
   }

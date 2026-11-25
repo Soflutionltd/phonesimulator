@@ -8,6 +8,7 @@
  * setting says is ever read as HTML. Whether a value is allowed is the server's to say (`setError`): the controls only
  * keep a person within what the rule plainly allows, such as a number's bounds.
  */
+import { english, hint, say, tip, type Translate } from './i18n'
 import type { RuleSpec, SettingEntry, SettingValue } from './protocol.generated'
 
 export interface Field {
@@ -28,23 +29,8 @@ export interface FieldOptions {
   onInput(): void
   /** Put the setting back to what the layer below says. */
   onReset(path: string): void
-}
-
-/** Where a value comes from, in a person's words. */
-export const ORIGIN_LABELS: Readonly<Record<SettingEntry['origin']['layer'], string>> = {
-  default: 'default',
-  file: 'config.toml',
-  scope: 'this project',
-  environment: 'environment',
-  command_line: 'command line',
-}
-
-/** When a change takes effect, when that is not at once. */
-export const EFFECT_LABELS: Readonly<Record<SettingEntry['effect'], string | null>> = {
-  live: null,
-  next_connection: 'on the next connection',
-  next_device: 'on the next device',
-  restart: 'after a restart',
+  /** Says the field's own words -- not the setting's, which are the server's; in English when absent. */
+  t?: Translate
 }
 
 let made = 0
@@ -58,7 +44,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: strin
 
 type Control = { el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement; value(): SettingValue }
 
-function control(rule: RuleSpec, value: SettingValue): Control {
+function control(rule: RuleSpec, value: SettingValue, t: Translate): Control {
   if (rule.kind === 'flag') {
     const input = element('input', 'smv-switch')
     input.type = 'checkbox'
@@ -84,7 +70,7 @@ function control(rule: RuleSpec, value: SettingValue): Control {
   if (rule.kind === 'origins') {
     const area = element('textarea', 'smv-input')
     area.rows = 3
-    area.placeholder = 'http://localhost:3000 — one per line'
+    hint(area, t, 'field.originsHint')
     area.value = Array.isArray(value) ? value.join('\n') : ''
     return {
       el: area,
@@ -111,6 +97,7 @@ function suggestions(rule: RuleSpec, id: string): HTMLDataListElement | null {
 
 export function renderField(entry: SettingEntry, options: FieldOptions): Field {
   made += 1
+  const t = options.t ?? english
   const id = `smv-setting-${made}`
   const row = element('div', 'smv-field')
   row.dataset.smvSetting = entry.path
@@ -120,7 +107,7 @@ export function renderField(entry: SettingEntry, options: FieldOptions): Field {
   const doc = element('p', 'smv-field-doc', entry.doc)
   doc.id = `${id}-doc`
 
-  const input = control(entry.rule, entry.value)
+  const input = control(entry.rule, entry.value, t)
   input.el.id = id
   input.el.setAttribute('aria-describedby', doc.id)
   const choices = suggestions(entry.rule, `${id}-choices`)
@@ -130,17 +117,25 @@ export function renderField(entry: SettingEntry, options: FieldOptions): Field {
   input.el.addEventListener('change', () => options.onInput())
 
   const meta = element('div', 'smv-field-meta')
-  meta.append(element('span', 'smv-chip', `from ${entry.origin.detail && entry.origin.layer === 'environment'
-    ? entry.origin.detail : ORIGIN_LABELS[entry.origin.layer]}`))
-  const effect = EFFECT_LABELS[entry.effect]
-  if (effect) meta.append(element('span', 'smv-chip', `applies ${effect}`))
-  if (entry.reach === 'global') meta.append(element('span', 'smv-chip', 'whole daemon'))
-  if (entry.sensitive) meta.append(element('span', 'smv-chip smv-chip-sensitive', 'confirm at the terminal'))
+  /** A chip: where the value comes from, when a change takes effect, whom it is for. */
+  const chip = (className = 'smv-chip') => {
+    const node = element('span', className)
+    meta.append(node)
+    return node
+  }
+  // Where the value comes from, in a person's words -- or the variable itself, when the environment sets it.
+  if (entry.origin.detail && entry.origin.layer === 'environment') say(chip(), t, 'field.from.named', { name: entry.origin.detail })
+  else say(chip(), t, `field.from.${entry.origin.layer}`)
+  // When a change takes effect, when that is not at once.
+  if (entry.effect !== 'live') say(chip(), t, `field.applies.${entry.effect}`)
+  if (entry.reach === 'global') say(chip(), t, 'field.global')
+  if (entry.sensitive) say(chip('smv-chip smv-chip-sensitive'), t, 'field.sensitive')
   // A value config.toml holds can be put back; a default has nothing to put back, and a locked one is not the file's.
   if (options.editable && entry.locked === null && entry.origin.layer !== 'default') {
-    const reset = element('button', 'smv-link', 'Reset')
+    const reset = element('button', 'smv-link')
+    say(reset, t, 'field.reset')
     reset.type = 'button'
-    reset.title = `Put ${entry.path} back to what applies without it`
+    tip(reset, t, 'field.resetTitle', { path: entry.path })
     reset.addEventListener('click', () => options.onReset(entry.path))
     meta.append(reset)
   }

@@ -14,6 +14,7 @@
  * and offers its files once it is there, or says it could not be kept when it is no longer being rendered and is not.
  */
 import { escapeHTML } from './escape'
+import { english, name, type Translate } from './i18n'
 import type { IconRenderer } from './icons'
 import type { Note } from './note'
 import { createPopover, type Layers } from './popover'
@@ -38,27 +39,17 @@ export type RecordingTransport = Required<
 export type RecordingSize = 'full' | 'pr' | 'both'
 
 interface Size {
-  label: string
-  /** What it keeps, beside its label in the menu. */
-  detail: string
-  /** What the Record button says it will do. */
-  record: string
   /** What the menu's button shows beside its caret. */
   mark: string
   ask: RecordingAsk
 }
 
-/** The sizes the menu offers. */
+/** The sizes the menu offers. Each is called by its `recordSize.…` message, with what it keeps (`….detail`), and
+ * the Record button says what it will do by its `record.…` one. */
 export const SIZES: Record<RecordingSize, Size> = {
-  full: { label: 'Full size', detail: 'As the settings say', record: 'Record the screen', mark: '', ask: {} },
-  pr: {
-    label: 'For a pull request', detail: 'MP4, 450 wide', record: 'Record the screen for a pull request', mark: 'PR',
-    ask: { preset: 'pr' },
-  },
-  both: {
-    label: 'Both', detail: 'Full size, and a copy for a pull request',
-    record: 'Record the screen, with a copy for a pull request', mark: '+PR', ask: { also: 'pr' },
-  },
+  full: { mark: '', ask: {} },
+  pr: { mark: 'PR', ask: { preset: 'pr' } },
+  both: { mark: '+PR', ask: { also: 'pr' } },
 }
 
 export interface RecordingControlOptions {
@@ -76,6 +67,8 @@ export interface RecordingControlOptions {
   note: Note
   transport: RecordingTransport
   icon: IconRenderer
+  /** Says the control's messages; in English when absent. */
+  t?: Translate
   /** Save a file a recording was kept as; a download link clicked, unless a host saves it its own way. */
   save?(file: Blob, name: string): void
   now?(): number
@@ -86,6 +79,8 @@ export interface RecordingControl {
   offer(on: boolean): void
   /** How the device stands, as the server says: whether it is being recorded, since when and by whom. */
   applyDevice(device: Device | null): void
+  /** The language changed: say again what the buttons and an open menu say. */
+  relabel(): void
   destroy(): void
 }
 
@@ -96,8 +91,10 @@ export function elapsed(ms: number): string {
 }
 
 /** A file's size as a person reads it. */
-export function sizeOf(bytes: number): string {
-  return bytes >= 100_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`
+export function sizeOf(bytes: number, t: Translate = english): string {
+  return bytes >= 100_000
+    ? t('size.mb', { n: (bytes / 1_000_000).toFixed(1).replace('.', t('number.decimal')) })
+    : t('size.kb', { n: Math.max(1, Math.round(bytes / 1000)) })
 }
 
 /** Whether a file is the `pr` copy kept beside a recording: `<id>.pr.mp4`, as the server names it. */
@@ -106,9 +103,10 @@ export function isPrCopy(recording: Recording, file: RecordingFile): boolean {
 }
 
 /** What a kept file's Save button says: its format, the copy for a pull request, its pixels when known, its size. */
-export function saveLabel(file: RecordingFile, copy: boolean): string {
+export function saveLabel(file: RecordingFile, copy: boolean, t: Translate = english): string {
   const pixels = file.width > 0 ? ` · ${file.width}×${file.height}` : ''
-  return `Save ${file.format.toUpperCase()}${copy ? ' for a pull request' : ''}${pixels} · ${sizeOf(file.bytes)}`
+  const save = t(copy ? 'recording.saveCopy' : 'recording.save', { format: file.format.toUpperCase() })
+  return `${save}${pixels} · ${sizeOf(file.bytes, t)}`
 }
 
 /** Whether what a stop answered is a recording still being rendered, its files not yet kept. An older server's answer
@@ -129,6 +127,7 @@ export function download(file: Blob, name: string): void {
 
 export function createRecordingControl(options: RecordingControlOptions): RecordingControl {
   const { button, clock, note, transport, icon, sizeToggle, sizePanel } = options
+  const t = options.t ?? english
   const now = options.now ?? (() => Date.now())
   const save = options.save ?? download
   /** When the recording under way began, on this page's clock, and who began it; null when none is. */
@@ -145,26 +144,24 @@ export function createRecordingControl(options: RecordingControlOptions): Record
 
   function paint(): void {
     const recording = under !== null
-    const { label, mark, record } = SIZES[size]
     button.setAttribute('aria-pressed', String(recording))
-    button.title = recording ? `Stop recording (started by ${under!.by})` : record
-    button.setAttribute('aria-label', button.title)
+    if (recording) name(button, t, 'record.stop', { by: under!.by })
+    else name(button, t, `record.${size}`)
     button.innerHTML = icon(recording ? 'square' : 'record')
     button.disabled = busy
-    sizeToggle.title = `Recording size: ${label}`
-    sizeToggle.setAttribute('aria-label', sizeToggle.title)
-    sizeToggle.textContent = mark
+    name(sizeToggle, t, 'recordSize.title', { size: t(`recordSize.${size}`) })
+    sizeToggle.textContent = SIZES[size].mark
     // The size is the next recording's: it is not changed while one is under way.
     sizeToggle.disabled = busy || recording
     if (sizeToggle.disabled) menu.close('api')
     clock.hidden = !recording
-    clock.textContent = recording ? `REC ${elapsed(now() - under!.began)}` : ''
+    clock.textContent = recording ? t('recording.clock', { time: elapsed(now() - under!.began) }) : ''
   }
 
   function paintSizes(): void {
     sizePanel.innerHTML = (Object.keys(SIZES) as RecordingSize[]).map((id) =>
       `<button type="button" role="menuitemradio" aria-checked="${id === size}" data-smv-size="${id}">`
-      + `${SIZES[id].label}<span>${SIZES[id].detail}</span></button>`).join('')
+      + `${escapeHTML(t(`recordSize.${id}`))}<span>${escapeHTML(t(`recordSize.${id}.detail`))}</span></button>`).join('')
   }
 
   function follow(state: RecordingState | null): void {
@@ -176,18 +173,21 @@ export function createRecordingControl(options: RecordingControlOptions): Record
     paint()
   }
 
+  /** Offer what a recording was kept as. Asked for each time the note is drawn, so that it follows the language. */
   function kept(recording: Recording, wanted: RecordingAsk): void {
     const copies = recording.files.map((file) => isPrCopy(recording, file))
-    const files = recording.files.map((file, at) =>
-      `<button type="button" class="smv-btn" data-smv-save="${escapeHTML(file.name)}">`
-      + `${escapeHTML(saveLabel(file, copies[at]))}</button>`).join('')
-    const said = [...recording.notes]
     // A server older than the pr copy keeps the recording as its settings say, and says nothing of a copy.
-    if (wanted.also && !copies.includes(true) && !said.some((line) => line.includes(`${wanted.also} copy`))) {
-      said.push('No copy for a pull request was kept: this server does not make one.')
-    }
-    const notes = said.map((line) => `<p>${escapeHTML(line)}</p>`).join('')
-    note.show(`<p>Recorded ${elapsed(recording.duration_ms)} of ${escapeHTML(recording.device)}.</p>${notes}${files}`)
+    const noCopy = wanted.also && !copies.includes(true)
+      && !recording.notes.some((line) => line.includes(`${wanted.also} copy`))
+    note.show(() => {
+      const files = recording.files.map((file, at) =>
+        `<button type="button" class="smv-btn" data-smv-save="${escapeHTML(file.name)}">`
+        + `${escapeHTML(saveLabel(file, copies[at], t))}</button>`).join('')
+      const said = noCopy ? [...recording.notes, t('recording.noCopy')] : recording.notes
+      const notes = said.map((line) => `<p>${escapeHTML(line)}</p>`).join('')
+      const recorded = t('recording.recorded', { duration: elapsed(recording.duration_ms), device: recording.device })
+      return `<p>${escapeHTML(recorded)}</p>${notes}${files}`
+    })
   }
 
   function stopLooking(): void {
@@ -211,7 +211,7 @@ export function createRecordingControl(options: RecordingControlOptions): Record
       // An older server lists none still being rendered, so says nothing of one that is no longer.
       const gone = !done && answer?.finishing !== undefined && !answer.finishing.some((one) => one.id === recording.id)
       if (done) kept(done, wanted)
-      else if (gone) note.sayText(`The recording of ${recording.device} could not be kept; Simtrail's log says why.`)
+      else if (gone) note.sayText(() => t('recording.lost', { device: recording.device }))
       looking = done || gone || now() >= until ? null : look
       if (looking) again()
     }
@@ -241,18 +241,18 @@ export function createRecordingControl(options: RecordingControlOptions): Record
         asked = ask
       }
     } catch (error) {
-      note.sayText((error as Error).message || 'The recording could not be made.')
+      note.sayText(() => (error as Error).message || t('recording.failed'))
     } finally {
       busy = false
       paint()
     }
   }
 
-  async function saveFile(name: string): Promise<void> {
+  async function saveFile(file: string): Promise<void> {
     try {
-      save(await transport.recordingFile(name), name)
+      save(await transport.recordingFile(file), file)
     } catch (error) {
-      note.sayText((error as Error).message || `${name} could not be saved.`)
+      note.sayText(() => (error as Error).message || t('recording.saveFailed', { name: file }))
     }
   }
 
@@ -294,6 +294,10 @@ export function createRecordingControl(options: RecordingControlOptions): Record
         asked = {}
         follow(state)
       }
+    },
+    relabel() {
+      paint()
+      if (menu.isOpen) paintSizes()
     },
     destroy() {
       if (timer !== null) window.clearInterval(timer)

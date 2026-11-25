@@ -11,6 +11,7 @@
  * The boxes are drawn here, over the screen, never into it: a screenshot or a recording of the device does not show
  * them, and a press goes through them to the screen underneath.
  */
+import { english, type Translate } from './i18n'
 import { SCREEN_TEXT_MAX_BOXES, type ScreenText, type TextBox } from './protocol.generated'
 import type { FramePoint, Rect } from './screen-canvas'
 
@@ -24,6 +25,8 @@ export interface TextOverlayOptions {
   frameBox(): Rect
   /** Where a pointer is on the screen, so the box under it can say its text; no captions without it. */
   pointer?: { target: HTMLElement; at(event: MouseEvent): FramePoint }
+  /** Says how sure a reading is, as a percentage; in English when absent. */
+  t?: Translate
 }
 
 export interface TextOverlayHandle {
@@ -65,6 +68,7 @@ export function readScreenText(raw: unknown): ScreenText | null {
 const percent = (share: number): string => `${share * 100}%`
 
 export function createTextOverlay(overlay: HTMLElement, options: TextOverlayOptions): TextOverlayHandle {
+  const t = options.t ?? english
   const el = document.createElement('div')
   el.className = 'tx'
   el.hidden = true
@@ -161,7 +165,7 @@ export function createTextOverlay(overlay: HTMLElement, options: TextOverlayOpti
     said.textContent = box.text
     const sure = document.createElement('span')
     sure.className = 'tx-sure'
-    sure.textContent = `${Math.round(box.confidence * 100)}%`
+    sure.textContent = t('percent', { n: Math.round(box.confidence * 100) })
     caption.replaceChildren(said, sure)
     const below = box.y < CAPTION_FLIP_SHARE
     const end = box.x + box.w / 2 > 0.5

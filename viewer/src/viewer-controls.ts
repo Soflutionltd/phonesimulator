@@ -19,9 +19,10 @@
  * the device be touched, or touched quickly: a real device's and an Android device's is Set up touch
  * (`touch-setup.ts`), and a simulator's opens the settings where its connector is chosen.
  */
-import { buttonsOf, connectionLabel, deviceNoun, isReal } from './device-kind'
+import { androidReach, buttonsOf, connectionLabel, deviceNoun, isReal } from './device-kind'
 import { createDisplayMenu, type DisplayMenu } from './display-menu'
 import { escapeHTML } from './escape'
+import { english, labelAttrs, name, nameAttrs, said, sayAttr, type PlainKey, type Translate } from './i18n'
 import type { IconName, IconRenderer } from './icons'
 import { createNote } from './note'
 import { createPopover, type Layers } from './popover'
@@ -29,7 +30,7 @@ import { createRecordingControl, type RecordingControl } from './recording-contr
 import { createSettingsPanel, type SettingsPanel } from './settings-panel'
 import { createTouchSetup, type TouchSetupControl } from './touch-setup'
 import type { Capability, Device, DeviceChoice, PanelButton, ServerHello } from './protocol.generated'
-import { STATE_LABELS, type StatusView } from './status-view'
+import type { StatusView } from './status-view'
 import type { SimtrailTransport } from './transport'
 import type { ViewerInput } from './viewer-input'
 import type { ViewerStream } from './viewer-stream'
@@ -39,70 +40,72 @@ export type Placement = 'dock' | 'window' | 'page'
 /** The buttons that need the connector to be able to do something. */
 const NEEDS: ReadonlyArray<[action: string, capability: Capability]> = [['appearance', 'appearance']]
 
-/** The device's own buttons the toolbar offers, in its order, with what each is called. */
-export const BAR_BUTTONS: ReadonlyArray<[button: PanelButton & IconName, title: string]> = [
-  ['back', 'Back'], ['home', 'Home'], ['app_switch', 'Recent apps'], ['lock', 'Lock'],
-  ['volume_down', 'Volume down'], ['volume_up', 'Volume up'],
+/** The device's own buttons the toolbar offers, in its order; each is called by its `button.…` message. */
+export const BAR_BUTTONS: ReadonlyArray<PanelButton & IconName> = [
+  'back', 'home', 'app_switch', 'lock', 'volume_down', 'volume_up',
 ]
-const PRESSED = new Set<string>(BAR_BUTTONS.map(([button]) => button))
+const PRESSED = new Set<string>(BAR_BUTTONS)
 
-const iconButton = (icon: IconRenderer, action: string, name: IconName, title: string, extra = '', className = '') =>
-  `<button type="button" class="smv-icon${className ? ` ${className}` : ''}" data-smv="${action}" title="${title}" aria-label="${title}"${extra}>`
-  + `${icon(name)}</button>`
+type ButtonMaker = (action: string, shape: IconName, title: PlainKey, extra?: string, className?: string) => string
+
+const iconButtons = (icon: IconRenderer, t: Translate): ButtonMaker => (action, shape, title, extra = '', className = '') =>
+  `<button type="button" class="smv-icon${className ? ` ${className}` : ''}" data-smv="${action}"${nameAttrs(t, title)}${extra}>`
+  + `${icon(shape)}</button>`
 
 /** The bar above the stage: the device and how it stands, the menus, the zoom, and the view's own controls. */
-export function barMarkup(icon: IconRenderer): string {
-  const button = (action: string, name: IconName, title: string, extra = '') => iconButton(icon, action, name, title, extra)
+export function barMarkup(icon: IconRenderer, t: Translate): string {
+  const button = iconButtons(icon, t)
   return `<div class="smv-bar" part="bar">
       <div class="smv-bar-device">
-        <button type="button" class="smv-select" data-smv="devices" title="Choose a device" aria-haspopup="menu"
-          aria-expanded="false"><span class="smv-sr">Choose a device: </span><span class="smv-name"
-          data-smv-name>iOS Simulator</span><span class="smv-chevron">${icon('chevron')}</span></button>
-        <span class="smv-state" data-smv-state data-state="stopped">${STATE_LABELS.stopped}</span>
+        <button type="button" class="smv-select" data-smv="devices" title="${said(t, 'devices.choose')}"
+          data-i18n-title="devices.choose" aria-haspopup="menu" aria-expanded="false"><span
+          class="smv-sr"${sayAttr('devices.chooseSr')}>${said(t, 'devices.chooseSr')}</span><span class="smv-name"
+          data-smv-name>${said(t, 'device.unnamed')}</span><span class="smv-chevron">${icon('chevron')}</span></button>
+        <span class="smv-state" data-smv-state data-state="stopped">${said(t, 'state.stopped')}</span>
         <span class="smv-kind" data-smv-kind hidden></span>
-        <button type="button" class="smv-mode" data-smv="mode" data-smv-mode hidden>View only</button>
+        <button type="button" class="smv-mode" data-smv="mode" data-smv-mode hidden>${said(t, 'mode.viewOnly')}</button>
         <span class="smv-app" data-smv-app hidden></span>
         <span class="smv-rec" data-smv-rec hidden></span>
       </div>
       <div class="smv-menus" data-smv-menus></div>
       <span class="smv-spacer"></span>
-      <div class="smv-zoom" role="group" aria-label="Zoom">
-        ${button('zoom-out', 'minus', 'Zoom out')}
+      <div class="smv-zoom" role="group"${labelAttrs(t, 'zoom.group')}>
+        ${button('zoom-out', 'minus', 'zoom.out')}
         <span class="smv-zoom-level" data-smv-zoom-level></span>
-        ${button('zoom-in', 'plus', 'Zoom in')}
-        ${button('zoom-fit', 'fit', 'Fit to window', ' aria-pressed="true"')}
-        <button type="button" class="smv-icon smv-actual" data-smv="zoom-actual" title="Actual size"
-          aria-label="Actual size" aria-pressed="false">100%</button>
+        ${button('zoom-in', 'plus', 'zoom.in')}
+        ${button('zoom-fit', 'fit', 'zoom.fit', ' aria-pressed="true"')}
+        <button type="button" class="smv-icon smv-actual" data-smv="zoom-actual"${nameAttrs(t, 'zoom.actual')}
+          aria-pressed="false"${sayAttr('zoom.actualMark')}>${said(t, 'zoom.actualMark')}</button>
       </div>
       <div class="smv-window">
-        ${button('settings', 'settings', 'Settings', ' aria-haspopup="dialog" aria-expanded="false" hidden')}
-        ${button('place', 'undock', 'Undock into a window')}
-        <a class="smv-icon" data-smv-page target="_blank" rel="noopener" title="Open on its own page"
-           aria-label="Open on its own page">${icon('page')}</a>
-        ${button('stop', 'power', 'Let the simulator go')}
-        ${button('close', 'close', 'Close')}
+        ${button('settings', 'settings', 'settings.title', ' aria-haspopup="dialog" aria-expanded="false" hidden')}
+        ${button('place', 'undock', 'place.undock')}
+        <a class="smv-icon" data-smv-page target="_blank" rel="noopener"${nameAttrs(t, 'page.open')}>${icon('page')}</a>
+        ${button('stop', 'power', 'stop.simulator')}
+        ${button('close', 'close', 'close')}
       </div>
     </div>`
 }
 
 /** The toolbar floating under the device: its buttons, a screenshot, recording, and how it looks. */
-export function toolsMarkup(icon: IconRenderer): string {
-  const button = (action: string, name: IconName, title: string, extra = '') => iconButton(icon, action, name, title, extra)
+export function toolsMarkup(icon: IconRenderer, t: Translate): string {
+  const button = iconButtons(icon, t)
   // Home and Lock until the device says which it has: what a viewer of an older server always showed.
-  const pressed = BAR_BUTTONS.map(([name, title]) =>
-    iconButton(icon, name, name, title, name === 'home' || name === 'lock' ? '' : ' hidden', 'smv-press'))
+  const pressed = BAR_BUTTONS.map((pressable) =>
+    button(pressable, pressable, `button.${pressable}`, pressable === 'home' || pressable === 'lock' ? '' : ' hidden', 'smv-press'))
     .join('\n      ')
-  return `<div class="smv-tools" role="toolbar" aria-label="Device controls" part="toolbar">
+  // Named by its control (`recording-control.ts`) once there is one, and never shown without.
+  return `<div class="smv-tools" role="toolbar"${labelAttrs(t, 'tools.label')} part="toolbar">
       ${pressed}
-      ${button('rotate-left', 'rotate_left', 'Rotate left', ' hidden')}
-      ${button('rotate-right', 'rotate_right', 'Rotate right', ' hidden')}
+      ${button('rotate-left', 'rotate_left', 'rotate.left', ' hidden')}
+      ${button('rotate-right', 'rotate_right', 'rotate.right', ' hidden')}
       <span class="smv-tools-gap" aria-hidden="true"></span>
-      ${button('screenshot', 'camera', 'Save a screenshot', ' disabled')}
-      ${button('record', 'record', 'Record the screen', ' aria-pressed="false" hidden')}
-      <button type="button" class="smv-icon smv-size" data-smv="record-size" title="Recording size: Full size"
-         aria-label="Recording size: Full size" aria-haspopup="menu" aria-expanded="false" hidden></button>
-      ${button('appearance', 'moon', 'Dark appearance', ' aria-pressed="false"')}
-      ${button('display', 'contrast', 'Display', ' aria-haspopup="menu" aria-expanded="false" hidden')}
+      ${button('screenshot', 'camera', 'screenshot.save', ' disabled')}
+      ${button('record', 'record', 'record.full', ' aria-pressed="false" hidden')}
+      <button type="button" class="smv-icon smv-size" data-smv="record-size" aria-haspopup="menu" aria-expanded="false"
+         hidden></button>
+      ${button('appearance', 'moon', 'appearance.dark', ' aria-pressed="false"')}
+      ${button('display', 'contrast', 'display.title', ' aria-haspopup="menu" aria-expanded="false" hidden')}
     </div>`
 }
 
@@ -122,6 +125,8 @@ export interface ControlsOptions {
   status: StatusView
   input: ViewerInput
   icon: IconRenderer
+  /** Says the viewer's messages in the language it speaks now. */
+  t: Translate
   layers: Layers
   placement(): Placement
   onPlace?(next: 'dock' | 'window'): void
@@ -148,74 +153,79 @@ export interface Controls {
   applyDevice(device: Device | null): void
   /** Say something over the screen without taking it away: input the device did not take. */
   tell(message: string): void
+  /** The language changed: say again what the controls say outside the markup `localize` reads. */
+  relabel(): void
   destroy(): void
 }
 
 /** How a device the picker lists reaches this Mac: a real device by cable or network, an emulator on it. */
-function reached(choice: DeviceChoice): string {
-  if (choice.kind === 'physical') return ` · ${connectionLabel(choice.connection)}`
-  if (choice.kind === 'android') return ` · ${choice.connection ? connectionLabel(choice.connection) : 'Emulator'}`
+function reached(choice: DeviceChoice, t: Translate): string {
+  if (choice.kind === 'physical') return ` · ${connectionLabel(choice.connection, t)}`
+  if (choice.kind === 'android') return ` · ${androidReach(choice.connection, t)}`
   return ''
 }
 
 /** Which agents work on a device the picker lists; an older server does not say. */
-function workedOn(choice: DeviceChoice): string {
+function workedOn(choice: DeviceChoice, t: Translate): string {
   const titles = (choice.agents ?? []).map((agent) => agent.title)
-  return titles.length ? ` · used by ${titles.join(', ')}` : ''
+  return titles.length ? ` · ${t('picker.usedBy', { agents: titles.join(', ') })}` : ''
 }
 
 /** A device the picker lists, grouped by kind: simulators first. */
-function choiceRow(choice: DeviceChoice, current: string | undefined): string {
-  const how = reached(choice)
+function choiceRow(choice: DeviceChoice, current: string | undefined, t: Translate): string {
+  const how = reached(choice, t)
   const usable = choice.usable !== false
   const why = choice.detail ? ` title="${escapeHTML(choice.detail)}"` : ''
   return `<button type="button" role="menuitemradio" aria-checked="${choice.udid === current}"`
     + `${usable ? '' : ' aria-disabled="true"'}${why} data-smv-udid="${escapeHTML(choice.udid)}">`
     + `${escapeHTML(choice.name)}<span>${escapeHTML(choice.runtime + how)}`
-    + `${choice.detail ? ` · ${escapeHTML(choice.detail)}` : ''}${escapeHTML(workedOn(choice))}</span></button>`
+    + `${choice.detail ? ` · ${escapeHTML(choice.detail)}` : ''}${escapeHTML(workedOn(choice, t))}</span></button>`
 }
 
 /** What a view that can show any of the scope's devices offers beside its rows: making the device it shows the scope's
  * own, and -- showing one of its own -- following the scope's own again. */
-function tabMarkup(tab: TabChoice, current: Device | null): string {
+function tabMarkup(tab: TabChoice, current: Device | null, t: Translate): string {
   const own = current !== null && current.udid !== tab.own
     ? '<button type="button" role="menuitem" data-smv="use-for-project"'
-      + ` data-smv-device="${escapeHTML(current.udid)}">Use for the project</button>` : ''
+      + ` data-smv-device="${escapeHTML(current.udid)}">${said(t, 'picker.useForProject')}</button>` : ''
   const follow = tab.pinned !== null
-    ? '<button type="button" role="menuitem" data-smv="follow">Follow the project</button>' : ''
+    ? `<button type="button" role="menuitem" data-smv="follow">${said(t, 'picker.follow')}</button>` : ''
   return own + follow
 }
 
-export function pickerMarkup(choices: DeviceChoice[], current: Device | null, tab?: TabChoice): string {
-  const groups: Array<[label: string, rows: DeviceChoice[]]> = [
+export function pickerMarkup(
+  choices: DeviceChoice[], current: Device | null, tab?: TabChoice, t: Translate = english,
+): string {
+  const groups: Array<[label: PlainKey, rows: DeviceChoice[]]> = [
     // An older server says no kind: its choices are simulators.
-    ['Simulators', choices.filter((choice) => choice.kind !== 'physical' && choice.kind !== 'android' && choice.kind !== 'mac')],
-    ['iPhones and iPads', choices.filter((choice) => choice.kind === 'physical')],
-    ['Android', choices.filter((choice) => choice.kind === 'android')],
-    ['macOS apps', choices.filter((choice) => choice.kind === 'mac')],
+    ['picker.simulators', choices.filter((choice) => choice.kind !== 'physical' && choice.kind !== 'android' && choice.kind !== 'mac')],
+    ['picker.physical', choices.filter((choice) => choice.kind === 'physical')],
+    ['picker.android', choices.filter((choice) => choice.kind === 'android')],
+    ['picker.mac', choices.filter((choice) => choice.kind === 'mac')],
   ]
+  const group = (text: string) => `<p class="smv-picker-group" role="presentation">${escapeHTML(text)}</p>`
   const listed = groups.filter(([, rows]) => rows.length)
   const body = listed.map(([label, rows]) =>
-    (listed.length > 1 ? `<p class="smv-picker-group" role="presentation">${label}</p>` : '')
-    + rows.map((choice) => choiceRow(choice, current?.udid)).join('')).join('')
+    (listed.length > 1 ? group(t(label)) : '')
+    + rows.map((choice) => choiceRow(choice, current?.udid, t)).join('')).join('')
   // A real device -- an iPhone, an Android phone -- is never shut down: it is only let go.
   const shutdown = isReal(current)
-    ? '' : '<button type="button" role="menuitem" data-smv="shutdown">Shut down this device</button>'
-  const heading = tab && body ? '<p class="smv-picker-group" role="presentation">Show in this tab</p>' : ''
-  return heading + (body || '<p class="smv-picker-note">No simulators or devices on this Mac.</p>')
-    + (tab ? tabMarkup(tab, current) : '') + shutdown
+    ? '' : `<button type="button" role="menuitem" data-smv="shutdown">${said(t, 'picker.shutdown')}</button>`
+  const heading = tab && body ? group(t('picker.inTab')) : ''
+  return heading + (body || `<p class="smv-picker-note">${said(t, 'picker.none')}</p>`)
+    + (tab ? tabMarkup(tab, current, t) : '') + shutdown
 }
 
 export function createControls(options: ControlsOptions): Controls {
-  const { el, picker, transport, stream, status, input, icon, layers } = options
+  const { el, picker, transport, stream, status, input, icon, layers, t } = options
   const q = <T extends Element>(selector: string) => el.querySelector<T>(selector)!
-  const note = createNote(options.note, icon)
+  const note = createNote(options.note, icon, t)
   const recordButton = q<HTMLButtonElement>('[data-smv="record"]')
   const { startRecording, stopRecording, recordingFile, recordings, changeDevice } = transport
   // Bound, since a host's transport may be an object whose methods use `this`.
   const recording: RecordingControl | null = startRecording && stopRecording && recordingFile
     ? createRecordingControl({
-      button: recordButton, clock: q('[data-smv-rec]'), noteEl: options.note, note, icon, root: el, layers,
+      button: recordButton, clock: q('[data-smv-rec]'), noteEl: options.note, note, icon, t, root: el, layers,
       sizeToggle: q('[data-smv="record-size"]'), sizePanel: options.recordSize,
       transport: {
         startRecording: startRecording.bind(transport),
@@ -227,7 +237,7 @@ export function createControls(options: ControlsOptions): Controls {
     : null
   const display: DisplayMenu | null = changeDevice
     ? createDisplayMenu({
-      root: el, toggle: q('[data-smv="display"]'), panel: options.display, layers, note,
+      root: el, toggle: q('[data-smv="display"]'), panel: options.display, layers, note, t,
       changeDevice: changeDevice.bind(transport),
     })
     : null
@@ -255,7 +265,7 @@ export function createControls(options: ControlsOptions): Controls {
   const { settings: readSettings, changeSettings } = transport
   const settings: SettingsPanel | null = readSettings && changeSettings
     ? createSettingsPanel({
-      root: el, toggle: settingsButton, panel: options.settingsPanel, layers, icon,
+      root: el, toggle: settingsButton, panel: options.settingsPanel, layers, icon, t,
       // Bound, since a host's transport may be an object whose methods use `this`.
       transport: { settings: readSettings.bind(transport), changeSettings: changeSettings.bind(transport) },
     })
@@ -265,7 +275,7 @@ export function createControls(options: ControlsOptions): Controls {
   const { touch, setUpTouch } = transport
   const touchSetup: TouchSetupControl | null = touch && setUpTouch
     ? createTouchSetup({
-      noteEl: options.note, note,
+      noteEl: options.note, note, t,
       transport: { touch: touch.bind(transport), setUpTouch: setUpTouch.bind(transport) },
       openSettings: settings
         ? () => void settings.show(stream.device?.kind === 'android' ? 'android' : 'real_devices') : undefined,
@@ -275,7 +285,7 @@ export function createControls(options: ControlsOptions): Controls {
   async function togglePicker(): Promise<void> {
     if (menu.isOpen) return closePicker()
     menu.open()
-    picker.innerHTML = '<p class="smv-picker-note">Looking for devices…</p>'
+    picker.innerHTML = `<p class="smv-picker-note">${said(t, 'picker.looking')}</p>`
     let choices: DeviceChoice[]
     try {
       const listing = transport.devices()
@@ -285,13 +295,13 @@ export function createControls(options: ControlsOptions): Controls {
       own = (await standing)?.default_udid ?? null
     } catch (err) {
       if (menu.isOpen) {
-        const message = (err as Error).message || 'The devices could not be listed.'
+        const message = (err as Error).message || t('picker.failed')
         picker.innerHTML = `<p class="smv-picker-note">${escapeHTML(message)}</p>`
       }
       return
     }
     if (!menu.isOpen) return
-    picker.innerHTML = pickerMarkup(choices, stream.device, use ? { pinned, own } : undefined)
+    picker.innerHTML = pickerMarkup(choices, stream.device, use ? { pinned, own } : undefined, t)
     menu.focusItem('checked')
   }
 
@@ -305,7 +315,7 @@ export function createControls(options: ControlsOptions): Controls {
     options.onDevice?.(udid)
     if (udid !== null ? udid === here : own !== null && own === here) return
     stream.close()
-    status.say('Switching devices…')
+    status.say(() => t('status.switching'))
     await stream.connect()
   }
 
@@ -316,7 +326,7 @@ export function createControls(options: ControlsOptions): Controls {
     try {
       await transport.choose(udid)
     } catch (err) {
-      note.sayText((err as Error).message || 'That device could not be used.')
+      note.sayText(() => (err as Error).message || t('device.unusable'))
       return
     }
     own = udid
@@ -333,11 +343,11 @@ export function createControls(options: ControlsOptions): Controls {
       await transport.choose(udid)
     } catch (err) {
       // The device in use is still in use: its screen stays, and the note says why the other could not be.
-      note.sayText((err as Error).message || 'That device could not be used.')
+      note.sayText(() => (err as Error).message || t('device.unusable'))
       return
     }
     stream.close()
-    status.say('Switching devices…')
+    status.say(() => t('status.switching'))
     await stream.connect()
   }
 
@@ -345,18 +355,14 @@ export function createControls(options: ControlsOptions): Controls {
     closePicker()
     input.flushTyped()
     const noun = deviceNoun(stream.device)
-    stream.end(shutdown ? 'The device is shut down.'
-      : noun === 'device' ? 'The device is let go, as it was.'
-        : noun === 'emulator' ? 'The emulator is let go; it keeps running for next time.'
-          : 'The simulator is let go; its device keeps running for next time.',
-    'start')
+    stream.end(() => t(shutdown ? 'letGo.shutdown'
+      : noun === 'device' ? 'letGo.device' : noun === 'emulator' ? 'letGo.emulator' : 'letGo.simulator'), 'start')
     void transport.stop(shutdown).catch(() => undefined)
   }
 
   function paintAppearance(): void {
     appearanceButton.setAttribute('aria-pressed', String(dark))
-    appearanceButton.title = dark ? 'Light appearance' : 'Dark appearance'
-    appearanceButton.setAttribute('aria-label', appearanceButton.title)
+    name(appearanceButton, t, dark ? 'appearance.light' : 'appearance.dark')
     appearanceButton.innerHTML = icon(dark ? 'sun' : 'moon')
   }
 
@@ -365,8 +371,7 @@ export function createControls(options: ControlsOptions): Controls {
     el.dataset.placement = placement
     const undock = placement === 'dock'
     placeButton.hidden = placement === 'page' || !options.onPlace
-    placeButton.title = undock ? 'Undock into a window' : 'Dock beside the page'
-    placeButton.setAttribute('aria-label', placeButton.title)
+    name(placeButton, t, undock ? 'place.undock' : 'place.dock')
     placeButton.innerHTML = icon(undock ? 'undock' : 'dock')
     pageLink.hidden = placement === 'page' || !options.pageHref
     pageLink.setAttribute('href', options.pageHref ?? '')
@@ -422,7 +427,7 @@ export function createControls(options: ControlsOptions): Controls {
   function paintButtons(device: Device | null): void {
     const pressable = hello === null || hello.capabilities.includes('input_button')
     const has = buttonsOf(device)
-    for (const [name] of BAR_BUTTONS) q<HTMLButtonElement>(`[data-smv="${name}"]`).hidden = !pressable || !has.includes(name)
+    for (const button of BAR_BUTTONS) q<HTMLButtonElement>(`[data-smv="${button}"]`).hidden = !pressable || !has.includes(button)
   }
 
   /** Rotate Left and Rotate Right, offered where the server can turn the device: a simulator through its native
@@ -461,14 +466,20 @@ export function createControls(options: ControlsOptions): Controls {
         paintAppearance()
       }
       const stop = q<HTMLButtonElement>('[data-smv="stop"]')
-      stop.title = `Let the ${deviceNoun(device)} go`
-      stop.setAttribute('aria-label', stop.title)
+      name(stop, t, `stop.${deviceNoun(device)}`)
       paintButtons(device)
       paintRotate(device)
       recording?.applyDevice(device)
       display?.offer(hello?.capabilities ?? [], reducesMotion(device))
     },
     tell: (message) => note.sayText(message),
+    relabel() {
+      // A menu open in the old language is closed rather than said again: it is drawn afresh as it opens.
+      closePicker()
+      note.relabel()
+      recording?.relabel()
+      display?.relabel()
+    },
     destroy() {
       menu.destroy()
       settings?.destroy()

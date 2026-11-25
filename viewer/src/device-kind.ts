@@ -4,6 +4,7 @@
  * an Android phone. A real device is never started or shut down by Simtrail, only shown and let go; a simulator and an
  * emulator run on this Mac, and are.
  */
+import { english, type Translate } from './i18n'
 import type { Connection, Device, DeviceChoice, PanelButton } from './protocol.generated'
 
 type Described = Pick<Device | DeviceChoice, 'kind' | 'connection'>
@@ -24,15 +25,20 @@ export function deviceNoun(device: Described | null | undefined): 'simulator' | 
 }
 
 /** How a real device reaches this Mac, as a person reads it. */
-export function connectionLabel(connection: Connection | null): string {
-  return connection === 'usb' ? 'USB' : connection ? 'Wi-Fi' : 'Not connected'
+export function connectionLabel(connection: Connection | null, t: Translate = english): string {
+  return t(connection === 'usb' ? 'connection.usb' : connection ? 'connection.wifi' : 'connection.none')
+}
+
+/** How an Android device reaches this Mac: a phone as it is connected, an emulator as one. */
+export function androidReach(connection: Connection | null, t: Translate): string {
+  return connection ? connectionLabel(connection, t) : t('connection.emulator')
 }
 
 /** The chip beside a device's name: what it is, when it is not a simulator, and how it is connected. */
-export function kindChip(device: Described | null | undefined): string {
-  if (device?.kind === 'mac') return 'macOS app'
-  if (device?.kind === 'physical') return `Real device · ${connectionLabel(device.connection)}`
-  if (device?.kind === 'android') return `Android · ${device.connection ? connectionLabel(device.connection) : 'Emulator'}`
+export function kindChip(device: Described | null | undefined, t: Translate = english): string {
+  if (device?.kind === 'mac') return t('chip.mac')
+  if (device?.kind === 'physical') return t('chip.real', { how: connectionLabel(device.connection, t) })
+  if (device?.kind === 'android') return t('chip.android', { how: androidReach(device.connection, t) })
   return ''
 }
 

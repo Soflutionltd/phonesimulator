@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest'
 
+import { english } from './i18n'
 import { familyOf, fitScale, frameGeometry, stepZoom, ZOOM_MAX, ZOOM_MIN, type FrameFamily } from './device-frame'
 
 const PHONE = { w: 402, h: 874 }
@@ -66,7 +67,7 @@ describe('frameGeometry', () => {
     // Each side button stands out of the body by its own depth, on the side it belongs to.
     const left = sides.filter((side) => side.x < body!.x)
     const right = sides.filter((side) => side.x + side.w > body!.x + body!.w)
-    expect(left.map((side) => side.label)).toEqual(['Action button', 'Volume up', 'Volume down'])
+    expect(left.map((side) => english(side.label))).toEqual(['Action button', 'Volume up', 'Volume down'])
     expect(right.map((side) => side.press)).toEqual(['lock'])
     expect(left[0].press).toBeUndefined()
     expect(box.w).toBeCloseTo(body!.w + 2 * body!.x)
@@ -87,7 +88,8 @@ describe('frameGeometry', () => {
     expect(android.sides.map((side) => side.press)).toEqual(['volume_up', 'volume_down', 'lock'])
     const tablet = frameGeometry('tablet', { w: 820, h: 1180 }, 1)
     // The top button lies along the top edge, out of it.
-    expect(tablet.sides[0]).toMatchObject({ y: 0, label: 'Top button', press: 'lock' })
+    expect(tablet.sides[0]).toMatchObject({ y: 0, press: 'lock' })
+    expect(english(tablet.sides[0].label)).toBe('Top button')
     expect(tablet.sides[0].w).toBeGreaterThan(tablet.sides[0].h)
     expect(frameGeometry('tablet_home', { w: 768, h: 1024 }, 1).home).not.toBeNull()
   })

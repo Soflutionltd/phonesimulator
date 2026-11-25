@@ -34,8 +34,10 @@ It is an ES module with TypeScript types and no runtime dependencies; its styles
 | `token` | A viewer token for the scope, sent as `Authorization: Bearer`; absent where the page's own origin or cookie lets it in |
 | `placement` | `page` (the default), `dock` or `window` -- where the host shows it, which decides the buttons offered |
 | `device` | One of the scope's devices, by UDID, to show instead of the scope's own; absent, it follows the scope's own device |
+| `lang` | The language the viewer speaks: `en`, `fr` (or a tag of one, such as `fr-CA`), or `auto` for the browser's own; absent or not spoken, what a person last picked in View > Language, else the browser's |
 
-Changing `server`, `scope`, `token` or `device` starts the viewer afresh; changing `placement` does not reconnect.
+Changing `server`, `scope`, `token` or `device` starts the viewer afresh; changing `placement` or `lang` does not
+reconnect.
 Removing the element closes its socket. It draws in an open shadow root.
 
 | Event | `detail` |
@@ -112,7 +114,7 @@ press them.
   portrait screen, so it lands under the finger. An agent turning the device turns every viewer's too.
 - **The menus** list only what can be done now. Edit: save or copy a screenshot. Device: the device's buttons, the
   appearance, rotating, Display, recording, choosing a device, settings, letting it go. View: the zoom, showing the device's
-  frame, and the viewer's theme (the system's, light or dark).
+  frame, the viewer's theme (the system's, light or dark) and its language (Automatic, English, Français).
 - **Shortcuts**, as the iOS Simulator has them, anywhere in the viewer: Shift-Command-H Home, Command-L Lock,
   Command-Left Arrow rotate left, Command-Right Arrow rotate right,
   Shift-Command-A the appearance, Command-S save a screenshot, Control-Command-C copy it, Command-plus and
@@ -120,8 +122,22 @@ press them.
   itself.
 - A screenshot is the screen's last picture at the device's own pixels, as a PNG, taken by the viewer: it needs
   nothing of the server.
-- The theme, whether the frame is drawn and the zoom picked are kept in the browser (`localStorage`) for next time;
-  nothing else is.
+- The theme, whether the frame is drawn, the zoom and the language picked are kept in the browser (`localStorage`)
+  for next time; nothing else is.
+
+### Languages
+
+The viewer speaks English and French: its menus, toolbar and tooltips, device picker, settings panel and messages,
+and the names a screen reader reads. It speaks, in this order, the language a host asks for (`lang`), the one a person
+last picked in View > Language, the first of the browser's languages it knows (`navigator.languages`: `fr-CA` is
+French), else English. Picking another changes everything where it stands -- no reload, no reconnection, a half-made
+change in the settings panel kept -- and the viewer's root element carries the language as its `lang`.
+
+What the server says is shown as it wrote it, in English: a setting's and a settings section's description, why
+something was refused, a recording's notes, what an agent says it is doing.
+
+Each language is one file of typed messages in the package's source; [the package's README](../../viewer/README.md#languages)
+says how to add one.
 
 ## Theming
 
@@ -179,6 +195,8 @@ view.setActive(true)
 | `onDevice(udid)` | Told when a person picks what the view shows: a UDID, or `null` to follow the scope's own again -- to keep it in a page's address |
 | `theme` | `system`, `light` or `dark`: the viewer's own colours; what a person last picked when absent, else the system's |
 | `deviceFrame` | Whether the device's body is drawn around its screen; what a person last picked when absent, else drawn |
+| `lang` | The language the viewer speaks: `en`, `fr` (or a tag of one), or `auto` for the browser's own; what a person last picked when absent or not spoken, else the browser's |
+| `onLang(lang)` | Told the language spoken, by its tag, as the viewer starts and whenever it changes -- to set a page's own `lang` |
 
 | Handle | Does |
 |---|---|
@@ -187,6 +205,7 @@ view.setActive(true)
 | `connected()` | Whether the screen socket is open |
 | `setActive(on)` | Connect while active; let the screen go while not |
 | `setPlacement(placement)`, `focus()` | Change where it is shown; focus the screen for keys |
+| `setLang(lang)` | Speak another language, as the `lang` option, without reconnecting; `null` for what a person last picked, else the browser's |
 | `destroy()` | Close the socket and remove the viewer |
 
 A picture is drawn on the next animation frame, one per frame (`PAINT_QUEUE_MAX`, 2): pictures come over the socket

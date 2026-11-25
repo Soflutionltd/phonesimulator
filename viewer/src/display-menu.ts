@@ -9,6 +9,7 @@
  * note over the screen.
  */
 import { escapeHTML } from './escape'
+import { english, type PlainKey, type Translate } from './i18n'
 import type { Note } from './note'
 import { createPopover, type Layers } from './popover'
 import type { Capability } from './protocol.generated'
@@ -26,6 +27,8 @@ export interface DisplayMenuOptions {
   panel: HTMLElement
   layers: Layers
   note: Note
+  /** Says the menu's messages; in English when absent. */
+  t?: Translate
   changeDevice(change: DeviceChange): Promise<string>
 }
 
@@ -34,12 +37,14 @@ export interface DisplayMenu {
   /** What the device's connector can change, and whether it can reduce motion -- any device but a simulator: the
    * rows follow. */
   offer(capabilities: readonly Capability[], motion: boolean): void
+  /** The language changed: an open menu is drawn again. */
+  relabel(): void
   destroy(): void
 }
 
 interface Row {
   id: string
-  label: string
+  label: PlainKey
   /** For a switch: whether it is on. */
   checked?: boolean
   change(): DeviceChange
@@ -49,6 +54,7 @@ interface Row {
 
 export function createDisplayMenu(options: DisplayMenuOptions): DisplayMenu {
   const { toggle, panel, note } = options
+  const t = options.t ?? english
   let offered: { statusBar: boolean, accessibility: boolean, motion: boolean } = {
     statusBar: false, accessibility: false, motion: false,
   }
@@ -63,27 +69,27 @@ export function createDisplayMenu(options: DisplayMenuOptions): DisplayMenu {
     const found: Row[] = []
     if (offered.statusBar) {
       found.push({
-        id: 'status', label: 'Demo status bar', checked: demo,
+        id: 'status', label: 'display.demoBar', checked: demo,
         change: () => ({ action: 'status_bar', preset: demo ? 'clear' : 'demo' }), done: () => { demo = !demo },
       })
     }
     if (offered.accessibility) {
       const step = (by: 1 | -1): Row => ({
         id: by > 0 ? 'larger' : 'smaller',
-        label: `${by > 0 ? 'Larger' : 'Smaller'} text`,
+        label: by > 0 ? 'display.larger' : 'display.smaller',
         change: () => ({ action: 'text_size', size: TEXT_SIZES[size + by] }),
         done: () => { size += by },
       })
       if (size < TEXT_SIZES.length - 1) found.push(step(1))
       if (size > 0) found.push(step(-1))
       found.push({
-        id: 'contrast', label: 'Increase contrast', checked: contrast,
+        id: 'contrast', label: 'display.contrast', checked: contrast,
         change: () => ({ action: 'contrast', on: !contrast }), done: () => { contrast = !contrast },
       })
     }
     if (offered.motion) {
       found.push({
-        id: 'motion', label: 'Reduce motion', checked: reduced,
+        id: 'motion', label: 'display.motion', checked: reduced,
         change: () => ({ action: 'reduce_motion', on: !reduced }), done: () => { reduced = !reduced },
       })
     }
@@ -94,8 +100,9 @@ export function createDisplayMenu(options: DisplayMenuOptions): DisplayMenu {
     panel.innerHTML = rows().map((row) => {
       const role = row.checked === undefined ? 'menuitem' : 'menuitemcheckbox'
       const checked = row.checked === undefined ? '' : ` aria-checked="${row.checked}"`
-      return `<button type="button" role="${role}"${checked} data-smv-display="${row.id}">${escapeHTML(row.label)}</button>`
-    }).join('') + `<p class="smv-picker-note">Text: ${TEXT_SIZES[size].split('-').join(' ')}</p>`
+      return `<button type="button" role="${role}"${checked} data-smv-display="${row.id}">${escapeHTML(t(row.label))}</button>`
+    }).join('')
+      + `<p class="smv-picker-note">${escapeHTML(t('display.text', { size: t(`textSize.${TEXT_SIZES[size]}`) }))}</p>`
   }
 
   async function choose(id: string): Promise<void> {
@@ -105,7 +112,7 @@ export function createDisplayMenu(options: DisplayMenuOptions): DisplayMenu {
       note.sayText(await options.changeDevice(row.change()))
       row.done()
     } catch (error) {
-      note.sayText((error as Error).message || 'The device did not change.')
+      note.sayText(() => (error as Error).message || t('display.unchanged'))
     }
     if (menu.isOpen) {
       paint()
@@ -136,6 +143,9 @@ export function createDisplayMenu(options: DisplayMenuOptions): DisplayMenu {
       toggle.hidden = !(offered.statusBar || offered.accessibility)
       if (toggle.hidden) menu.close('api')
       else if (menu.isOpen) paint()
+    },
+    relabel() {
+      if (menu.isOpen) paint()
     },
     destroy() {
       toggle.removeEventListener('click', onToggle)
