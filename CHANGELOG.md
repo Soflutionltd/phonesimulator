@@ -6,6 +6,8 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.10.1] - 2026-11-26
+
 ### Added
 
 - `simtrail helper sign --identity "<identity>"`: sign the helper with a code-signing identity of yours -- a Developer

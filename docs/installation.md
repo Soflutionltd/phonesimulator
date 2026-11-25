@@ -75,7 +75,7 @@ uses it when the native helper cannot be used, and `connectors.preferred = "idb"
 The viewer is [on npm](https://www.npmjs.com/package/@soflution/simtrail) as `@soflution/simtrail`:
 
 ```sh
-npm install @soflution/simtrail@3.10.0
+npm install @soflution/simtrail@3.10.1
 ```
 
 See [the web component](embedding/web-component.md).
