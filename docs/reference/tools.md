@@ -14,6 +14,7 @@ An MCP client lists these through `simtrail mcp`, or through a host application'
 | [`sim_record`](#sim_record) | always | `record` |
 | [`sim_build_run`](#sim_build_run) | with build tools | `app_install`, `app_launch`, `lifecycle` |
 | [`sim_test`](#sim_test) | with build tools | `app_install`, `app_launch`, `lifecycle` |
+| [`sim_login`](#sim_login) | with a password manager | `input_touch` |
 
 ## What a client is told
 
@@ -175,3 +176,20 @@ Offered while `build.tools` is on, and refused per call where the host allows no
 | `test_plan` | string | one of the scheme's test plans; leave out to run what the scheme runs by default | no |
 | `retries` | integer | 0 to 3; more goes for a failing test | no |
 | `destination` | object | another simulator on this Mac: {"name": "iPhone 17"} or {"udid": ...}, with "runtime": "iOS 26.5" to choose between simulators of one name; for an Android device, another one running here | no |
+
+## `sim_login`
+
+Sign the app in with a login saved in the person's password manager -- 1Password, Bitwarden or a command, as login.sources says -- without you ever seeing it: the password is typed straight into the device. Open the sign-in screen first. app: the website or the app's bundle id the login is saved for. account: the username or e-mail of the account the person named -- give it whenever they did: a login for any other account is refused. Several logins matching are refused with their ids: pass item. The password goes only into a secure field -- field, or the only one on screen -- and the username into the text field before it; code: true types the login's one-time code instead, into field or the one field that reads like a code. submit: true presses return after. Answers which login was used and what was filled, never a value; call sim_snapshot for what the app answered. Refused in observe mode, while the screen is recorded, and on a real device or a macOS app unless login.real_devices is on.
+
+Offered while `login.sources` names a password manager ([Signing in](../login.md)). Needs a connector that can do `input_touch`.
+
+| Argument | Type | Allowed | Required |
+|---|---|---|---|
+| `app` | string | the website (example.com) or the app's bundle id or package name the login is saved for | yes |
+| `account` | string | the username or e-mail of the account to sign in to; only a login for it is used | no |
+| `item` | string | the id or title of the saved login, when several match | no |
+| `field` | string | the ref of the password field, a secure one -- or with code: true, of the code's field | no |
+| `code` | boolean | type the login's one-time code (TOTP), not its password | no |
+| `submit` | boolean | press return once it is filled | no |
+| `source` | string | `1password`, `bitwarden`, `command`; look only in this one of login.sources | no |
+| `steal` | boolean | take the device over from another agent that has driven it in the last 2 minutes; only when the person asked for it | no |

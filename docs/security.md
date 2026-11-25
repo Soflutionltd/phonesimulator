@@ -77,8 +77,9 @@ page, which is untrusted, gets as little as does the job:
   cross-site `Sec-Fetch-Site`. `PATCH` is also not among the methods CORS allows.
 - **Sensitive settings wait for a person.** `connectors.native.helper_path`, `connectors.idb.companion_path`,
   `device.developer_dir`, `real_devices.enabled`, `agents_choose`, `developer_dir`, `team_id`, `wda.enabled` and
-  `wda.path`, `build.tools`, `recording.folder`, `server.*` and `security.*` decide what runs, what reaches a real
-  device, where recordings go or who may reach the daemon. A page's change to one is held until
+  `wda.path`, `build.tools`, `recording.folder`, `login.sources`, `login.onepassword_path`, `login.bitwarden_path`,
+  `login.real_devices`, `server.*` and `security.*` decide what runs, what reaches a real device, where recordings
+  go, which password manager is read, or who may reach the daemon. A page's change to one is held until
   `simtrail settings confirm` -- with the admin token, which no page holds -- shows it as it would be written and
   gives a code; the code confirms that exact change, once. A page cannot learn a code, so a script that got into a
   settings session still cannot turn on commands or widen the origins.
@@ -134,6 +135,11 @@ SHA-256 of its token, which only the daemon -- keeping that digest -- and the ho
   or iPad while `real_devices.agents_choose` is on (on by default, off for a host that embeds Simtrail, and sensitive),
   never to one another scope is using; a real device that is gone is never replaced by a simulator. An agent cannot
   set WebDriverAgent up: a person does, once.
+- **A saved login, never its password**: while `login.sources` names a password manager, `sim_login` types a login
+  into the app's secure field -- only a simulator's or an emulator's unless `login.real_devices` is on, never in
+  observe mode or while recording -- and answers with which login it used. The password and the one-time code are in
+  no answer, event, log or argv, and are masked in every later answer of every tool; with `account`, a login for
+  another account is refused ([Signing in](login.md#security)).
 - **Nothing outside the device**: every gesture is drawn by the viewer's own cursor, never the Mac's pointer.
 - **What changes an account, only when confirmed, in observe mode**: with `agent.observe` on, a tap or typing on what
   reads like Delete, Save, Send or Sign out or on a switch, a sideways swipe on a list row, a drop onto the trash, and

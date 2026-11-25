@@ -127,6 +127,13 @@ settle = "perceptual"
 settle_tolerance = 2
 settle_grid = 32
 
+[login]
+sources = []
+onepassword_path = ""
+bitwarden_path = ""
+timeout = 90
+real_devices = false
+
 [build]
 tools = false
 configuration = ""
@@ -1101,6 +1108,67 @@ How many cells across that grid is: more sees smaller changes, fewer lets more m
 - Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
 - Environment: `SIMTRAIL_PERCEPTION_SETTLE_GRID`
 - Key in a host's flat settings: `settle_grid`
+
+## `[login]`
+
+### `login.sources`
+
+Where `sim_login` finds a saved login to sign an app in with, tried in order: `1password` (its CLI, through the 1Password app, which asks for Touch ID), `bitwarden` (its CLI, unlocked), `command:/path` (a program of yours that prints the logins as JSON). Every vault is searched. Empty: agents are not offered `sim_login`.
+
+- Default: `[]`
+- Allowed: a list of up to 5 of `1password`, `bitwarden` and `command:/absolute/path`
+- Takes effect: at once
+- Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
+- Environment: `SIMTRAIL_LOGIN_SOURCES`
+- Key in a host's flat settings: `login_sources`
+- Sensitive: it decides what Simtrail runs or who may reach it, so the viewer's settings panel changes it only once a person confirms with `simtrail settings confirm`
+
+### `login.onepassword_path`
+
+The 1Password CLI to run. Empty: the one on PATH, else where Homebrew installs it.
+
+- Default: empty
+- Allowed: an absolute path, or empty
+- Takes effect: at once
+- Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
+- Environment: `SIMTRAIL_LOGIN_ONEPASSWORD_PATH`
+- Key in a host's flat settings: `login_onepassword_path`
+- Sensitive: it decides what Simtrail runs or who may reach it, so the viewer's settings panel changes it only once a person confirms with `simtrail settings confirm`
+
+### `login.bitwarden_path`
+
+The Bitwarden CLI to run. Empty: the one on PATH, else where Homebrew installs it.
+
+- Default: empty
+- Allowed: an absolute path, or empty
+- Takes effect: at once
+- Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
+- Environment: `SIMTRAIL_LOGIN_BITWARDEN_PATH`
+- Key in a host's flat settings: `login_bitwarden_path`
+- Sensitive: it decides what Simtrail runs or who may reach it, so the viewer's settings panel changes it only once a person confirms with `simtrail settings confirm`
+
+### `login.timeout`
+
+How many seconds a password manager has to answer -- time for you to approve with Touch ID.
+
+- Default: `90`
+- Allowed: a whole number from 10 to 300
+- Takes effect: at once
+- Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
+- Environment: `SIMTRAIL_LOGIN_TIMEOUT`
+- Key in a host's flat settings: `login_timeout`
+
+### `login.real_devices`
+
+Whether `sim_login` also signs in on a real iPhone, iPad or Android phone, or in a macOS app, which hold real data. Off: only simulators and emulators.
+
+- Default: `false`
+- Allowed: `true` or `false`
+- Takes effect: at once
+- Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
+- Environment: `SIMTRAIL_LOGIN_REAL_DEVICES`
+- Key in a host's flat settings: `login_real_devices`
+- Sensitive: it decides what Simtrail runs or who may reach it, so the viewer's settings panel changes it only once a person confirms with `simtrail settings confirm`
 
 ## `[build]`
 

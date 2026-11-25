@@ -20,6 +20,8 @@
   touch, typing and the element tree
 - [Android](android.md) -- Android emulators and phones: adb, scrcpy's live screen, and Gradle builds and tests
 - [Recording](recording.md) -- a screen as an MP4 or a GIF, with each touch drawn, and a demo in a pull request
+- [Signing in](login.md) -- an app signed in from 1Password, Bitwarden or a program of yours, the agent never seeing
+  the password
 
 ## Change its settings
 
