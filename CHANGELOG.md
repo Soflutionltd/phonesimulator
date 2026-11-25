@@ -48,6 +48,18 @@ All notable changes to Simtrail are documented here. The format follows
   the client message `RotateInput` (`{"type": "rotate", "direction": "left" | "right"}`) and the enums
   `ORIENTATIONS` and `ROTATE_DIRECTIONS`; the icon names gain `rotate_left` and `rotate_right`.
 
+- **Flutter.** A folder whose `pubspec.yaml` depends on flutter is built by flutter, for an iOS simulator or an Android
+  device: `sim_build_run` runs `flutter build ios --simulator` or `flutter build apk`, then installs and launches the
+  app as for any build; `sim_test` runs `flutter test`, or with the new `integration` argument the integration tests
+  on the device, and answers with the counts and each failure where it happened. Both take the new `flavor` and
+  `dart_defines` arguments; the values reach flutter in a file only the user can read, deleted once flutter is done.
+  Compile errors are answered as `file:line:column` and their message. See [Flutter](docs/flutter.md).
+- **`sim_flutter`**, a new build tool: `run` starts the app with `flutter run --machine` and keeps it running for the
+  agent; `hot_reload` and `hot_restart` answer their time or each compile error; `stop` and `status`. The app is
+  stopped when the agent's session ends, when it may no longer build, and when Simtrail stops.
+- `build.flutter_path` names the flutter command; otherwise `PATH`, then where Homebrew and a manual install put it.
+  `simtrail doctor` has a `flutter` check that shows the version found.
+
 ### Changed
 
 - The viewer draws the device at its actual size by default, as Simulator.app's Point Accurate does: one point a CSS
@@ -70,24 +82,22 @@ All notable changes to Simtrail are documented here. The format follows
   in the viewer and in the macOS overlay, and said back in the step's line. It now reads `••••` in the agent events,
   the caption, the activity, the step's line and the answers, and is masked in every later answer of every tool, as
   `sim_login`'s password is; a character that has no key is no longer named in the line either.
-- The Gradle log fixtures two build tests read are in the repository again: a global ignore of `*.log` had kept them
-  out.
-- **Flutter.** A folder whose `pubspec.yaml` depends on flutter is built by flutter, for an iOS simulator or an Android
-  device: `sim_build_run` runs `flutter build ios --simulator` or `flutter build apk`, then installs and launches the
-  app as for any build; `sim_test` runs `flutter test`, or with the new `integration` argument the integration tests
-  on the device, and answers with the counts and each failure where it happened. Both take the new `flavor` and
-  `dart_defines` arguments; the values reach flutter in a file only the user can read, deleted once flutter is done.
-  Compile errors are answered as `file:line:column` and their message. See [Flutter](docs/flutter.md).
-- **`sim_flutter`**, a new build tool: `run` starts the app with `flutter run --machine` and keeps it running for the
-  agent; `hot_reload` and `hot_restart` answer their time or each compile error; `stop` and `status`. The app is
-  stopped when the agent's session ends, when it may no longer build, and when Simtrail stops.
-- `build.flutter_path` names the flutter command; otherwise `PATH`, then where Homebrew and a manual install put it.
-  `simtrail doctor` has a `flutter` check that shows the version found.
-
-### Fixed
-
-- The Gradle log fixtures the tests read are in the repository: a global `*.log` ignore had kept them out, so three
-  tests failed on a fresh clone.
+- Security: that mask is set before the first key is struck. A `sim_act` or `sim_flow` step whose typing failed
+  midway, or a call cancelled with the password half typed, left the part that reached the field unmasked in every
+  later answer.
+- Security: characters struck into a secure field one key at a time -- a `keys` step, or a `press` of a character --
+  were said in clear in the step's line and beside the agent's pointer. They read `••••` too, and what one `keys`
+  step typed is masked afterwards. [Security](docs/security.md#what-an-agent-can-reach) says what the mask does not
+  cover: a screenshot of a password shown in clear, a value shorter than four characters, a file on disk such as
+  `build.log`, a password spelled over several steps.
+- Security: a Flutter run's `dart-defines.json`, which may hold secrets, was left on disk when the run failed or was
+  cancelled between being prepared and started -- the JDK or the source could not be read, the app running on the
+  device could not be stopped, or flutter could not be started. It is now deleted in each
+  case, and written anew for the user alone (0600) even where a file or a link of that name was already there.
+- A build cancelled the instant it started kept running, and held its DerivedData folder so that no later build of the
+  scope could start.
+- The Gradle log fixtures the tests read are in the repository again: a global ignore of `*.log` had kept them out, so
+  three tests failed on a fresh clone.
 
 ## [3.9.0] - 2026-11-24
 
