@@ -85,6 +85,7 @@ from simtrail.core.instance import FAILED, READY, STALLED, STOPPED, Closer, Devi
 from simtrail.core.signing import SigningTeams
 from simtrail.core.status import scope_status
 from simtrail.host_copy import HostCopy
+from simtrail.perception.orientation import Orientation
 from simtrail.platform.errors import DeviceControlError
 from simtrail.platform.identifiers import kind_of
 from simtrail.platform.keyboard import KeyboardCheck, mac_keyboard_is_us
@@ -104,6 +105,8 @@ from simtrail.seams import ConfigSource, HeldDevice, UsageProbe
 from simtrail.storage.claims import Claim, Claims, DeviceClaimed
 
 logger = logging.getLogger(__name__)
+#: The ways a device is turned, a quarter clockwise each from the one before: Rotate Right walks them forwards.
+TURNS: tuple[Orientation, ...] = ("portrait", "landscape_left", "portrait_upside_down", "landscape_right")
 
 #: Why a device's session was not started over: it was ended while it was being attached.
 LET_GO_MEANWHILE = "it was let go while its session was being started again"
@@ -725,6 +728,31 @@ class DeviceManager:
     def publish_status(self, instance: DeviceInstance) -> None:
         """Tell every screen watching how the device stands now: its state, and what it is busy with."""
         instance.events.publish({"type": "status", **instance.describe(self._clock())})
+
+    async def turn(self, instance: DeviceInstance, orientation: Orientation) -> None:
+        """Turn the device so an app that takes `orientation` lies that way, as Simulator.app's Device > Rotate does --
+        remembering how it lay first, where its tool can put that back -- and tell every screen watching. Raises
+        `ConnectorError` when its connector cannot turn it."""
+        session = instance.session
+        rotator = session.rotator if session is not None else None
+        if rotator is None:
+            raise ConnectorError(f"the {instance.connector} connector showing this device cannot turn it")
+        await self.changes(instance).turning()
+        await rotator.rotate(orientation)
+        if instance.turned != orientation:
+            instance.turned = orientation
+            self.publish_status(instance)
+
+    async def rotate_by(self, instance: DeviceInstance, direction: str) -> None:
+        """Turn the device a quarter from how Simtrail last turned it: ``left`` anticlockwise, ``right`` clockwise -- a
+        person's Rotate Left and Rotate Right in a viewer. A real device is turned in the hand."""
+        if instance.kind == "physical":
+            raise ConnectorError("a real device is turned in the hand")
+        session = instance.session
+        if session is None or not session.can(Capability.ROTATE):
+            raise ConnectorError(f"the {instance.connector} connector showing this device cannot turn it")
+        at = TURNS.index(instance.turned)
+        await self.turn(instance, TURNS[(at + (1 if direction == "right" else -1)) % len(TURNS)])
 
     def share_app(self, udid: str, app: AppHierarchy | None) -> None:
         """An app in front of a device shares its view hierarchy now, or none does: every screen watching is told."""

@@ -51,6 +51,11 @@
       "x-constant": "ENCODING_SETTINGS",
       "enum": ["auto", "jpeg", "h264"]
     },
+    "Orientation": {
+      "description": "Which way a device is turned, named as the interface of an app that turns with it lies: portrait, upside down, or on its side -- landscape_left with the device turned clockwise, its top to the right, and landscape_right turned anticlockwise. The screen's frames stay portrait whichever way: an app turned is drawn sideways in them.",
+      "x-constant": "ORIENTATIONS",
+      "enum": ["portrait", "portrait_upside_down", "landscape_left", "landscape_right"]
+    },
     "DeviceState": {
       "description": "How a device stands: being brought up, streaming and taking input, running but failing to stream, unable to start, or gone.",
       "x-constant": "DEVICE_STATES",
@@ -126,9 +131,13 @@
         "appearance": {
           "oneOf": [{ "$ref": "client-input.schema.json#/$defs/Appearance" }, { "type": "null" }],
           "description": "Whether the device is light or dark, as Simtrail last read or set it; null until it knows. An older server does not send it."
+        },
+        "orientation": {
+          "$ref": "#/$defs/Orientation",
+          "description": "Which way the device is turned, as Simtrail last turned it -- by a person's Rotate in a viewer or an agent's sim_device rotate; portrait until it turns it. A viewer draws the device turned so, and turns a person's touches back onto the portrait screen. An older server does not send it: read it as portrait."
         }
       },
-      "required": ["udid", "name", "runtime", "state", "reason", "since_ms", "viewers", "busy", "created", "booted_by_us", "screen", "app_hierarchy", "kind", "connection", "buttons", "recording", "appearance"]
+      "required": ["udid", "name", "runtime", "state", "reason", "since_ms", "viewers", "busy", "created", "booted_by_us", "screen", "app_hierarchy", "kind", "connection", "buttons", "recording", "appearance", "orientation"]
     },
     "RecordingState": {
       "description": "A recording of a device's screen under way.",

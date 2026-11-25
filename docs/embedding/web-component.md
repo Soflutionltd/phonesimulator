@@ -101,11 +101,17 @@ press them.
   scale shown, zoom in, fit to the window, actual size), then settings, docking, letting the device go and closing.
   Narrower than 640px, the menus and the zoom take a second line.
 - **The toolbar** floating under the device: its buttons (Home, Lock, and an Android device's Back, Recents and
-  volume), a screenshot, recording and its size, the appearance, and the Display menu.
+  volume), Rotate left and Rotate right, a screenshot, recording and its size, the appearance, and the Display menu.
+- **Rotation**: Rotate left and Rotate right turn a simulator a quarter, as Simulator.app's Device > Rotate does --
+  offered where its connector can turn it (the native one), never for a real device, which is turned in the hand. The
+  server turns it the way an agent's `sim_device rotate` does and says how it stands (`Device.orientation`); every
+  viewer then draws the device turned, its frame and screen with it, and a touch is turned back onto the device's
+  portrait screen, so it lands under the finger. An agent turning the device turns every viewer's too.
 - **The menus** list only what can be done now. Edit: save or copy a screenshot. Device: the device's buttons, the
-  appearance, Display, recording, choosing a device, settings, letting it go. View: the zoom, showing the device's
+  appearance, rotating, Display, recording, choosing a device, settings, letting it go. View: the zoom, showing the device's
   frame, and the viewer's theme (the system's, light or dark).
 - **Shortcuts**, as the iOS Simulator has them, anywhere in the viewer: Shift-Command-H Home, Command-L Lock,
+  Command-Left Arrow rotate left, Command-Right Arrow rotate right,
   Shift-Command-A the appearance, Command-S save a screenshot, Control-Command-C copy it, Command-plus and
   Command-minus zoom, Command-0 fit, Command-1 actual size, Command-comma settings. A macOS app gets Command-keys
   itself.

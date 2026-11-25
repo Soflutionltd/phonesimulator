@@ -2,7 +2,8 @@
 /**
  * The viewer's controls. The bar holds the device picker -- the device's name on it --, where the view is placed,
  * letting the device go, and closing; the menus and the zoom beside them are `viewer-chrome.ts`'s. The toolbar under
- * the device holds the device's buttons -- Home and Lock, and an Android device's Back, Recents and volume --, a
+ * the device holds the device's buttons -- Home and Lock, and an Android device's Back, Recents and volume --, Rotate
+ * Left and Rotate Right where the device can be turned from here, a
  * screenshot, recording and how big it is kept (`recording-control.ts`), the appearance, and how the device looks for
  * a demo (`display-menu.ts`). A button the
  * device cannot press is not offered once the server has said what it can do, nor one the transport has no call for.
@@ -93,6 +94,8 @@ export function toolsMarkup(icon: IconRenderer): string {
     .join('\n      ')
   return `<div class="smv-tools" role="toolbar" aria-label="Device controls" part="toolbar">
       ${pressed}
+      ${button('rotate-left', 'rotate_left', 'Rotate left', ' hidden')}
+      ${button('rotate-right', 'rotate_right', 'Rotate right', ' hidden')}
       <span class="smv-tools-gap" aria-hidden="true"></span>
       ${button('screenshot', 'camera', 'Save a screenshot', ' disabled')}
       ${button('record', 'record', 'Record the screen', ' aria-pressed="false" hidden')}
@@ -380,6 +383,8 @@ export function createControls(options: ControlsOptions): Controls {
     const action = target.dataset.smv
     if (action !== undefined && PRESSED.has(action)) {
       stream.send({ type: 'button', name: action as PanelButton })
+    } else if (action === 'rotate-left' || action === 'rotate-right') {
+      stream.send({ type: 'rotate', direction: action === 'rotate-left' ? 'left' : 'right' })
     } else if (action === 'appearance') {
       if (stream.send({ type: 'appearance', mode: dark ? 'light' : 'dark' })) {
         dark = !dark
@@ -420,6 +425,14 @@ export function createControls(options: ControlsOptions): Controls {
     for (const [name] of BAR_BUTTONS) q<HTMLButtonElement>(`[data-smv="${name}"]`).hidden = !pressable || !has.includes(name)
   }
 
+  /** Rotate Left and Rotate Right, offered where the server can turn the device: a simulator through its native
+   * connector. A real device is turned in the hand, and a macOS app's window does not turn. */
+  function paintRotate(device: Device | null): void {
+    const turnable = hello !== null && hello.capabilities.includes('rotate')
+      && device !== null && (device.kind ?? 'simulator') === 'simulator'
+    for (const action of ['rotate-left', 'rotate-right']) q<HTMLButtonElement>(`[data-smv="${action}"]`).hidden = !turnable
+  }
+
   /** A simulator's motion is not the viewer's to reduce; any other device's is. */
   const reducesMotion = (device: Device | null) => device !== null && device.kind !== 'simulator'
 
@@ -435,6 +448,7 @@ export function createControls(options: ControlsOptions): Controls {
       devicesButton.hidden = false
       devicesButton.disabled = next !== null && !next.capabilities.includes('device_list')
       paintButtons(stream.device)
+      paintRotate(stream.device)
       recording?.offer(next !== null && next.capabilities.includes('record'))
       display?.offer(next?.capabilities ?? [], reducesMotion(stream.device))
     },
@@ -450,6 +464,7 @@ export function createControls(options: ControlsOptions): Controls {
       stop.title = `Let the ${deviceNoun(device)} go`
       stop.setAttribute('aria-label', stop.title)
       paintButtons(device)
+      paintRotate(device)
       recording?.applyDevice(device)
       display?.offer(hello?.capabilities ?? [], reducesMotion(device))
     },

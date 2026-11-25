@@ -306,6 +306,7 @@ class ScreenRelay:
                     keyboard_is_us=self._manager.keyboard_is_us,
                     text=session.text,
                     buttons=session.pressable,
+                    rotate=lambda direction: self._manager.rotate_by(instance, direction),
                 )
                 self._person_session = session
             try:

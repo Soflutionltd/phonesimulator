@@ -89,6 +89,26 @@ describe('createDeviceView', () => {
     expect(onLayout).toHaveBeenCalled()
   })
 
+  it('draws the device turned as it stands, taking the room of its turned box, and fits that box', () => {
+    let turns = 1
+    const { device, view } = rig({ turns: () => turns, zoom: 'fit' }, { w: 1100, h: 800 })
+    const natural = frameGeometry('island', UNITS, 1).box
+    const fitted = Math.min((1100 - 2 * MARGINS.side) / natural.h, (800 - MARGINS.top - MARGINS.bottom) / natural.w)
+    expect(view.scale).toBeCloseTo(fitted)
+    expect(device.style.transform).toBe('rotate(90deg)')
+    expect(device.dataset.turns).toBe('1')
+    const w = parseFloat(device.style.width)
+    const h = parseFloat(device.style.height)
+    // Its margins give it the turned box's room: wider than tall.
+    expect(device.style.margin).toBe(`${-(h - w) / 2}px ${(h - w) / 2}px`)
+    turns = 2
+    view.layout()
+    expect([device.style.transform, device.style.margin]).toEqual(['rotate(180deg)', ''])
+    turns = 0
+    view.layout()
+    expect([device.style.transform, device.dataset.turns]).toEqual(['', '0'])
+  })
+
   it('lays nothing out before the room or the screen has a size', () => {
     const empty = rig({}, { w: 0, h: 0 })
     expect(empty.view.scale).toBeNull()

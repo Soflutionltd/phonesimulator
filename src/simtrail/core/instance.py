@@ -118,6 +118,9 @@ class DeviceInstance:
     screen: Screen | None = None
     #: Which way the app in front was turned on the screen when it was last read: the interface agents work in.
     orientation: Orientation = PORTRAIT
+    #: Which way Simtrail last turned the device -- a person's Rotate in a viewer, an agent's ``sim_device rotate`` --
+    #: named as an app that turns with it lies; portrait until it turns it. Viewers draw the device turned so.
+    turned: Orientation = PORTRAIT
     #: The screen as the screenshot read for its last snapshot showed it, when one was: simctl's turns with the device,
     #: so a device turned after it was described is shown landscape. None for the screen described.
     pictured: Screen | None = None
@@ -236,4 +239,5 @@ class DeviceInstance:
             "buttons": list(self.buttons),
             "recording": None if self.recording is None else self.recording.state(now),
             "appearance": self.appearance,
+            "orientation": self.turned,
         }

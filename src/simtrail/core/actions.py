@@ -1718,10 +1718,9 @@ class AgentActions:
             await self._wait_for_person(instance)
             before = self._remembered(instance, caller).snapshot
             try:
-                # Where the device's tool can put back how it lay, that is remembered before it is turned.
-                await self._manager.changes(instance).turning()
+                # As a person's Rotate in a viewer turns it: how it lay remembered first, and the viewers told.
                 await self.announced(
-                    instance, caller, "device", f"turned to {orientation}", rotator.rotate(orientation)
+                    instance, caller, "device", f"turned to {orientation}", self._manager.turn(instance, orientation)
                 )
             except (ConnectorError, DeviceControlError) as exc:
                 raise ActionError(str(exc)) from exc

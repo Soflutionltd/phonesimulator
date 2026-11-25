@@ -47,6 +47,7 @@ def test_a_device_describes_its_state_and_screen_as_the_protocol_does() -> None:
         "buttons": [],
         "recording": None,
         "appearance": None,
+        "orientation": "portrait",
     }
     iphone = instance(kind="physical", connection="usb")
     assert (iphone.describe(10.25)["kind"], iphone.describe(10.25)["connection"]) == ("physical", "usb")

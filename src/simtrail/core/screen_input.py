@@ -2,7 +2,8 @@
 """What a person does to the screen in a viewer, as input the device takes.
 
 The screen socket accepts the protocol's short list of messages and nothing else (`protocol/v1/client-input`): a finger
-going down, moving and lifting; a scroll; a hardware button; a key that is not text; text; the appearance. Coordinates
+going down, moving and lifting; a scroll; a hardware button; a key that is not text; text; the appearance; a quarter
+turn of the device, as Simulator.app's Rotate Left and Rotate Right. Coordinates
 arrive as shares of the frame -- 0 to 1 across and down -- so the page never needs the device's size, and become points
 here.
 
@@ -19,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -37,7 +38,15 @@ from simtrail.core import gestures
 from simtrail.core.device_changes import Changes
 from simtrail.core.text_entry import text_entry
 from simtrail.platform.keyboard import KeyboardCheck, mac_keyboard_is_us
-from simtrail.protocol import APPEARANCES, KEY_NAMES, PANEL_BUTTONS, SCROLL_MAX_PT, TEXT_MAX_CHARS, TOUCH_PHASES
+from simtrail.protocol import (
+    APPEARANCES,
+    KEY_NAMES,
+    PANEL_BUTTONS,
+    ROTATE_DIRECTIONS,
+    SCROLL_MAX_PT,
+    TEXT_MAX_CHARS,
+    TOUCH_PHASES,
+)
 
 SCROLL_S = 0.12
 
@@ -112,6 +121,9 @@ def translate(message: Any, screen: Screen) -> Command | None:
     if kind == "appearance":
         mode = message.get("mode")
         return Command("appearance", name=mode) if mode in APPEARANCES else None
+    if kind == "rotate":
+        direction = message.get("direction")
+        return Command("rotate", name=direction) if direction in ROTATE_DIRECTIONS else None
     if kind == "text":
         text = message.get("text")
         if isinstance(text, str) and 0 < len(text) <= TEXT_MAX_CHARS and "\x00" not in text:
@@ -137,6 +149,7 @@ class PersonInput:
         keyboard_is_us: KeyboardCheck = mac_keyboard_is_us,
         text: TextSink | None = None,
         buttons: Sequence[str] = IOS_BUTTONS,
+        rotate: Callable[[str], Awaitable[None]] | None = None,
     ) -> None:
         self._sink = sink
         #: The buttons this device has: a person's press of another is refused before it reaches the connector.
@@ -148,6 +161,8 @@ class PersonInput:
         self._control = changes.control
         self._udid = changes.udid
         self._on_touch = on_touch
+        #: Turns the device a quarter, ``left`` or ``right``, as an agent's ``sim_device rotate`` turns it.
+        self._rotate = rotate
         self._typing = typing
         self._keyboard_is_us = keyboard_is_us
         self._events: asyncio.Queue[HidEvent | None] | None = None
@@ -158,6 +173,12 @@ class PersonInput:
         if command.kind == "appearance":
             self._on_touch()
             await self._changes.appearance(command.name)
+            return
+        if command.kind == "rotate":
+            if self._rotate is None:
+                raise ConnectorError("this device cannot be turned from here")
+            self._on_touch()
+            await self._rotate(command.name)
             return
         sink = self._sink
         if sink is None:

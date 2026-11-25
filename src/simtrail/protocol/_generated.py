@@ -103,6 +103,17 @@ APPEARANCES: tuple[Appearance, ...] = (
 )
 
 
+# Which way to turn the device a quarter, as Simulator.app's Rotate Left and Rotate Right do: left is anticlockwise.
+RotateDirection = Literal[
+    "left",
+    "right",
+]
+ROTATE_DIRECTIONS: tuple[RotateDirection, ...] = (
+    "left",
+    "right",
+)
+
+
 # Something a connector can do with a device. The viewer and the agent tools offer only what the connector in use
 # can do.
 Capability = Literal[
@@ -203,6 +214,23 @@ ENCODING_SETTINGS: tuple[EncodingSetting, ...] = (
     "auto",
     "jpeg",
     "h264",
+)
+
+
+# Which way a device is turned, named as the interface of an app that turns with it lies: portrait, upside down, or
+# on its side -- landscape_left with the device turned clockwise, its top to the right, and landscape_right turned
+# anticlockwise. The screen's frames stay portrait whichever way: an app turned is drawn sideways in them.
+Orientation = Literal[
+    "portrait",
+    "portrait_upside_down",
+    "landscape_left",
+    "landscape_right",
+]
+ORIENTATIONS: tuple[Orientation, ...] = (
+    "portrait",
+    "portrait_upside_down",
+    "landscape_left",
+    "landscape_right",
 )
 
 
@@ -483,6 +511,15 @@ class TextInput(TypedDict):
     text: str
 
 
+class RotateInput(TypedDict):
+    """Turn the device a quarter, as Simulator.app's Device > Rotate Left and Rotate Right do. Acted on only where
+    the server offers the rotate capability; a device that cannot be turned from here is refused with
+    input_refused.
+    """
+    type: Literal["rotate"]
+    direction: RotateDirection
+
+
 class AppearanceInput(TypedDict):
     type: Literal["appearance"]
     mode: Appearance
@@ -515,7 +552,7 @@ class WheelInput(TypedDict):
 
 #: What a person does to the screen, sent by the viewer after the hello. The server acts on these and nothing else,
 #: and ignores any other message.
-ClientInput = TouchInput | ScrollInput | ButtonInput | KeyInput | TextInput | AppearanceInput | PointerInput | ChordInput | WheelInput
+ClientInput = TouchInput | ScrollInput | ButtonInput | KeyInput | TextInput | AppearanceInput | PointerInput | ChordInput | WheelInput | RotateInput
 
 
 class Size(TypedDict):
@@ -571,6 +608,10 @@ class Device(TypedDict):
     #: Whether the device is light or dark, as Simtrail last read or set it; null until it knows. An older server
     #: does not send it.
     appearance: Appearance | None
+    #: Which way the device is turned, as Simtrail last turned it -- by a person's Rotate in a viewer or an agent's
+    #: sim_device rotate; portrait until it turns it. A viewer draws the device turned so, and turns a person's
+    #: touches back onto the portrait screen. An older server does not send it: read it as portrait.
+    orientation: Orientation
 
 
 class RecordingState(TypedDict):

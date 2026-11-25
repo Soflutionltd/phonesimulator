@@ -38,6 +38,11 @@ export type KeyName = (typeof KEY_NAMES)[number]
 export const APPEARANCES = ['light', 'dark'] as const
 export type Appearance = (typeof APPEARANCES)[number]
 
+// Which way to turn the device a quarter, as Simulator.app's Rotate Left and Rotate Right do: left is
+// anticlockwise.
+export const ROTATE_DIRECTIONS = ['left', 'right'] as const
+export type RotateDirection = (typeof ROTATE_DIRECTIONS)[number]
+
 // Something a connector can do with a device. The viewer and the agent tools offer only what the connector in use
 // can do.
 export const CAPABILITIES = ['lifecycle', 'device_list', 'appearance', 'open_url', 'app_install', 'app_launch', 'logs', 'screenshot', 'stream_jpeg', 'stream_h264', 'input_touch', 'input_pointer', 'input_button', 'input_key', 'input_text', 'element_tree', 'build_preview', 'record', 'status_bar', 'location', 'accessibility', 'rotate'] as const
@@ -59,6 +64,12 @@ export type Encoding = (typeof ENCODINGS)[number]
 // The encoding a scope asks for. auto is H.264 where the viewer can decode it, JPEG where it cannot.
 export const ENCODING_SETTINGS = ['auto', 'jpeg', 'h264'] as const
 export type EncodingSetting = (typeof ENCODING_SETTINGS)[number]
+
+// Which way a device is turned, named as the interface of an app that turns with it lies: portrait, upside down, or
+// on its side -- landscape_left with the device turned clockwise, its top to the right, and landscape_right turned
+// anticlockwise. The screen's frames stay portrait whichever way: an app turned is drawn sideways in them.
+export const ORIENTATIONS = ['portrait', 'portrait_upside_down', 'landscape_left', 'landscape_right'] as const
+export type Orientation = (typeof ORIENTATIONS)[number]
 
 // How a device stands: being brought up, streaming and taking input, running but failing to stream, unable to
 // start, or gone.
@@ -218,6 +229,13 @@ export interface TextInput {
   text: string
 }
 
+// Turn the device a quarter, as Simulator.app's Device > Rotate Left and Rotate Right do. Acted on only where the
+// server offers the rotate capability; a device that cannot be turned from here is refused with input_refused.
+export interface RotateInput {
+  type: 'rotate'
+  direction: RotateDirection
+}
+
 export interface AppearanceInput {
   type: 'appearance'
   mode: Appearance
@@ -248,7 +266,7 @@ export interface WheelInput {
 
 // What a person does to the screen, sent by the viewer after the hello. The server acts on these and nothing else,
 // and ignores any other message.
-export type ClientInput = TouchInput | ScrollInput | ButtonInput | KeyInput | TextInput | AppearanceInput | PointerInput | ChordInput | WheelInput
+export type ClientInput = TouchInput | ScrollInput | ButtonInput | KeyInput | TextInput | AppearanceInput | PointerInput | ChordInput | WheelInput | RotateInput
 
 // A width and a height.
 export interface Size {
@@ -300,6 +318,10 @@ export interface Device {
   // Whether the device is light or dark, as Simtrail last read or set it; null until it knows. An older server does
   // not send it.
   appearance: Appearance | null
+  // Which way the device is turned, as Simtrail last turned it -- by a person's Rotate in a viewer or an agent's
+  // sim_device rotate; portrait until it turns it. A viewer draws the device turned so, and turns a person's
+  // touches back onto the portrait screen. An older server does not send it: read it as portrait.
+  orientation: Orientation
 }
 
 // A recording of a device's screen under way.

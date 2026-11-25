@@ -14,6 +14,7 @@
  */
 import { createAgentCursor } from './agent-cursor'
 import { createDeviceView } from './device-view'
+import { quarterTurns } from './orientation'
 import { buttonsOf } from './device-kind'
 import { canDecodeH264 } from './h264-stream'
 import { lucideSvg, type IconRenderer } from './icons'
@@ -132,8 +133,10 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
 
   /** The last screen size laid out: the device is drawn again only when it changes. */
   let laidOut = ''
+  /** How many quarter turns clockwise the device is drawn at: as the server last said it stands. */
+  const turns = () => quarterTurns(stream.device?.orientation)
   const screen = createScreenCanvas(canvas, {
-    fit: 'contain', frames: options.frames,
+    fit: 'contain', frames: options.frames, turns,
     onFrame: (frame) => {
       chrome.drawn()
       const size = `${frame.w}x${frame.h}`
@@ -151,7 +154,9 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   /** Where the device's screen is drawn inside the overlay. */
   const frameBox = () => {
     const box = overlay.getBoundingClientRect()
-    return fitRect({ w: box.width, h: box.height }, unitsOf())
+    // Drawn on its side, the overlay's box on the page is its own turned: its width is its height.
+    const sideways = turns() % 2 === 1
+    return fitRect({ w: sideways ? box.height : box.width, h: sideways ? box.width : box.height }, unitsOf())
   }
   // Made before the agent's pointer, so the pointer is drawn over the boxes.
   const text = createTextOverlay(overlay, { frameBox, pointer: { target: canvas, at: (event) => screen.point(event) } })
@@ -186,7 +191,7 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   const kept = readPreferences()
   const deviceView = createDeviceView({
     viewport: q('[data-smv-viewport]'), device: q('[data-smv-device]'), screen: q('[data-smv-screen]'),
-    units: unitsOf, framed: options.deviceFrame ?? kept.framed ?? true,
+    units: unitsOf, framed: options.deviceFrame ?? kept.framed ?? true, turns,
     pressable: (button) => stream.allows('input_button') && buttonsOf(stream.device).includes(button),
     press: (button) => void stream.send({ type: 'button', name: button }),
     // Laid out only once the chrome below is made: the first layout is asked for after it.

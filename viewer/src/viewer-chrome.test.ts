@@ -136,16 +136,23 @@ describe('the viewer around the device', () => {
   it('presses the device from the Device menu and its shortcuts, offering only the buttons the device has', async () => {
     const { $, canvas, view } = await live()
     expect(rows(view.el, 'device')).toEqual([
-      'Home', 'Lock', 'Dark appearance', 'Choose a device…', 'Let the simulator go',
+      'Home', 'Lock', 'Rotate left', 'Rotate right', 'Dark appearance', 'Choose a device…', 'Let the simulator go',
     ])
     canvas.dispatchEvent(key({ key: 'H', metaKey: true, shiftKey: true }))
     canvas.dispatchEvent(key({ key: 'l', metaKey: true }))
     canvas.dispatchEvent(key({ key: 'A', metaKey: true, shiftKey: true }))
+    canvas.dispatchEvent(key({ key: 'ArrowLeft', metaKey: true }))
+    canvas.dispatchEvent(key({ key: 'ArrowRight', metaKey: true }))
     choose(view.el, 'device', 'home')
     expect(socket().sent).toEqual([
       { type: 'button', name: 'home' }, { type: 'button', name: 'lock' }, { type: 'appearance', mode: 'dark' },
-      { type: 'button', name: 'home' },
+      { type: 'rotate', direction: 'left' }, { type: 'rotate', direction: 'right' }, { type: 'button', name: 'home' },
     ])
+    // Their shortcuts are written as Simulator.app writes them.
+    $<HTMLButtonElement>('[data-smv-menu="device"]').click()
+    expect($('[data-smv-item="rotate-left"] kbd').textContent).toBe('⌘←')
+    expect($('[data-smv-item="rotate-right"]').getAttribute('aria-keyshortcuts')).toBe('Meta+ArrowRight')
+    $<HTMLButtonElement>('[data-smv-menu="device"]').click()
     // The appearance row says how the device is.
     $<HTMLButtonElement>('[data-smv-menu="device"]').click()
     expect($('[data-smv-item="appearance"]').getAttribute('aria-checked')).toBe('true')

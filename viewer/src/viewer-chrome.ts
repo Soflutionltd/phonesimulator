@@ -105,6 +105,8 @@ export function createChrome(options: ChromeOptions): Chrome {
         id: 'device', label: 'Device', items: [
           proxy('home', 'Home', { key: 'h', shift: true }),
           proxy('lock', 'Lock', { key: 'l' }),
+          proxy('rotate-left', 'Rotate left', { key: 'arrowleft' }),
+          proxy('rotate-right', 'Rotate right', { key: 'arrowright' }),
           proxy('back', 'Back'),
           proxy('app_switch', 'Recent apps'),
           proxy('volume_up', 'Volume up'),

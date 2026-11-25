@@ -13,6 +13,7 @@
  * the second waits for the next frame, and only a third waiting drops the oldest (`PAINT_QUEUE_MAX`), so the screen
  * is never more than two frames behind.
  */
+import { unturned } from './orientation'
 import type { Size } from './protocol.generated'
 
 export type Fit = 'stretch' | 'contain'
@@ -90,6 +91,8 @@ export interface ScreenCanvasOptions {
   frames?: FrameObserver
   /** Told the frame's size in its units after each frame is drawn. */
   onFrame?(frame: Size): void
+  /** How many quarter turns clockwise the screen is drawn at (`orientation.ts`): a pointer is turned back first. */
+  turns?(): number
 }
 
 export interface ScreenCanvas {
@@ -243,7 +246,12 @@ export function createScreenCanvas(canvas: HTMLCanvasElement, options: ScreenCan
     },
     point(event) {
       const size = { w: frame.w || canvas.width, h: frame.h || canvas.height }
-      return framePoint(event, canvas.getBoundingClientRect(), size, fit)
+      const rect = canvas.getBoundingClientRect()
+      const turns = options.turns?.() ?? 0
+      if (turns % 4 === 0) return framePoint(event, rect, size, fit)
+      // Drawn turned: the bounding box is the turned one, and the canvas's own box is its laid-out size.
+      const back = unturned(event, rect, { w: canvas.offsetWidth, h: canvas.offsetHeight }, turns)
+      return framePoint(back, back.box, size, fit)
     },
     destroy() {
       destroyed = true

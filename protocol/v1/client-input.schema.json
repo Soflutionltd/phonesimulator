@@ -30,6 +30,9 @@
     },
     {
       "$ref": "#/$defs/WheelInput"
+    },
+    {
+      "$ref": "#/$defs/RotateInput"
     }
   ],
   "$defs": {
@@ -176,6 +179,30 @@
       "required": [
         "type",
         "text"
+      ]
+    },
+    "RotateDirection": {
+      "description": "Which way to turn the device a quarter, as Simulator.app's Rotate Left and Rotate Right do: left is anticlockwise.",
+      "x-constant": "ROTATE_DIRECTIONS",
+      "enum": [
+        "left",
+        "right"
+      ]
+    },
+    "RotateInput": {
+      "description": "Turn the device a quarter, as Simulator.app's Device > Rotate Left and Rotate Right do. Acted on only where the server offers the rotate capability; a device that cannot be turned from here is refused with input_refused.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "rotate"
+        },
+        "direction": {
+          "$ref": "#/$defs/RotateDirection"
+        }
+      },
+      "required": [
+        "type",
+        "direction"
       ]
     },
     "AppearanceInput": {

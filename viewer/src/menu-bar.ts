@@ -62,8 +62,12 @@ export interface MenuBar {
 }
 
 /** A shortcut as a Mac menu writes it: ⌃⇧⌘H. */
+/** Keys a menu writes as a sign: the arrows. */
+const SIGNS: Record<string, string> = { arrowleft: '←', arrowright: '→', arrowup: '↑', arrowdown: '↓' }
+
 export function shortcutLabel(shortcut: Shortcut): string {
-  const key = shortcut.key === '-' ? '−' : shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key
+  const key = shortcut.key === '-' ? '−' : SIGNS[shortcut.key]
+    ?? (shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key)
   return `${shortcut.ctrl ? '⌃' : ''}${shortcut.shift ? '⇧' : ''}⌘${key}`
 }
 
@@ -102,7 +106,9 @@ function rowMarkup(item: MenuItem): string {
 
 /** A shortcut as `aria-keyshortcuts` names it: Meta+Shift+H. */
 function keysFor(shortcut: Shortcut): string {
-  const key = shortcut.key === '+' ? 'Plus' : shortcut.key === '-' ? 'Minus' : shortcut.key.toUpperCase()
+  const arrow = /^arrow(left|right|up|down)$/.exec(shortcut.key)
+  const key = shortcut.key === '+' ? 'Plus' : shortcut.key === '-' ? 'Minus'
+    : arrow ? `Arrow${arrow[1][0].toUpperCase()}${arrow[1].slice(1)}` : shortcut.key.toUpperCase()
   return ['Meta', shortcut.ctrl ? 'Control' : '', shortcut.shift ? 'Shift' : '', key].filter(Boolean).join('+')
 }
 

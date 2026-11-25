@@ -41,6 +41,12 @@ All notable changes to Simtrail are documented here. The format follows
   is on. See [Signing in](docs/login.md).
 - Settings `login.sources`, `login.onepassword_path`, `login.bitwarden_path`, `login.timeout` and
   `login.real_devices`; all but `login.timeout` are sensitive.
+- The viewer turns a simulator: Rotate left and Rotate right in the toolbar and the Device menu, Command-Left Arrow
+  and Command-Right Arrow, as Simulator.app has them -- through the same path as `sim_device rotate`, where the
+  device's connector can turn it. The device is drawn turned, frame and all, and a touch lands under the finger.
+  The protocol gains `Device.orientation` (portrait until Simtrail turns the device; an agent's rotate is shown too),
+  the client message `RotateInput` (`{"type": "rotate", "direction": "left" | "right"}`) and the enums
+  `ORIENTATIONS` and `ROTATE_DIRECTIONS`; the icon names gain `rotate_left` and `rotate_right`.
 
 ### Fixed
 

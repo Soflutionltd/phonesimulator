@@ -108,6 +108,7 @@ def test_what_the_server_builds_matches_the_schemas() -> None:
         "buttons": [],
         "recording": None,
         "appearance": "dark",
+        "orientation": "landscape_left",
     }
 
     def wire(message: object) -> Any:
@@ -201,6 +202,8 @@ def test_a_device_choice_says_who_works_on_it_and_a_status_which_device_is_the_s
         {"type": "key", "name": "return"},
         {"type": "text", "text": "café 😀"},
         {"type": "appearance", "mode": "dark"},
+        {"type": "rotate", "direction": "left"},
+        {"type": "rotate", "direction": "right"},
     ],
 )
 def test_the_inputs_a_viewer_sends_are_valid(message: dict[str, Any]) -> None:
@@ -213,6 +216,7 @@ def test_the_inputs_a_viewer_sends_are_valid(message: dict[str, Any]) -> None:
         ("client-input.schema.json", {"type": "touch", "phase": "hover", "nx": 0.5, "ny": 0.5}),
         ("client-input.schema.json", {"type": "touch", "phase": "down", "nx": 1.5, "ny": 0.5}),
         ("client-input.schema.json", {"type": "button", "name": "apple_pay"}),
+        ("client-input.schema.json", {"type": "rotate", "direction": "up"}),
         ("client-input.schema.json", {"type": "text", "text": ""}),
         ("client-input.schema.json", {"type": "text", "text": "a\x00b"}),
         ("client-input.schema.json", {"type": "install", "path": "/x.app"}),

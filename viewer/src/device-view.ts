@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The device as the stage shows it: its frame drawn around its screen (`device-frame.ts`), at a zoom a person picks --
- * fitted to the room, or so many CSS pixels a point -- and scrolled when it is larger than the room.
+ * fitted to the room, or so many CSS pixels a point -- and scrolled when it is larger than the room. The device is
+ * drawn turned as it stands (`turns`), its whole box turned about its centre.
  *
  * The screen's box -- the canvas and what is drawn over it -- is always exactly the device's screen shape at that
  * zoom, so the screen's own measuring (`screen-canvas.ts`) and the agent's pointer (`agent-cursor.ts`) need nothing of
@@ -33,6 +34,8 @@ export interface DeviceViewOptions {
   framed?: boolean
   zoom?: Zoom
   margins?: Margins
+  /** How many quarter turns clockwise the device is drawn at; upright when absent. */
+  turns?(): number
   /** Told after each layout: the scale may have changed. */
   onLayout?(): void
 }
@@ -102,7 +105,10 @@ export function createDeviceView(options: DeviceViewOptions): DeviceView {
   function layout(): void {
     const units = options.units()
     if (units.w <= 0 || units.h <= 0) return
-    const natural = frameGeometry(family, units, 1, framed).box
+    const turns = (((options.turns?.() ?? 0) % 4) + 4) % 4
+    const sideways = turns % 2 === 1
+    const upright = frameGeometry(family, units, 1, framed).box
+    const natural = sideways ? { w: upright.h, h: upright.w } : upright
     const room = { w: viewport.clientWidth, h: viewport.clientHeight }
     const next = zoom === 'fit' ? fitScale(room, natural, margins) : zoom
     if (next === null) return
@@ -110,9 +116,14 @@ export function createDeviceView(options: DeviceViewOptions): DeviceView {
     const geometry = frameGeometry(family, units, scale, framed)
     device.dataset.family = family
     device.dataset.framed = String(framed && geometry.body !== null)
+    device.dataset.turns = String(turns)
     device.toggleAttribute('data-landscape', geometry.landscape)
     device.style.width = px(geometry.box.w)
     device.style.height = px(geometry.box.h)
+    // Turned about its centre, and its margins make the room it takes the turned box's: the stage centres that.
+    const across = sideways ? (geometry.box.h - geometry.box.w) / 2 : 0
+    device.style.transform = turns ? `rotate(${turns * 90}deg)` : ''
+    device.style.margin = sideways ? `${px(-across)} ${px(across)}` : ''
     place(screen, geometry.screen)
 
     const pressable = geometry.sides.map((side) => side.press && options.pressable(side.press))
