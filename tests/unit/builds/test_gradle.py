@@ -53,7 +53,10 @@ class Rig:
         #: Whether the device goes away once the toolchain waits for it.
         self.stays_away = False
         self.waited: list[float] = []
-        self.toolchain = GradleToolchain(self.serial_of, start=self.gradle, jdk=self.find_jdk, sleep=self.sleep)
+        # Its own clock too: a run's length is said, and real time would make it 0.1s on a busy machine.
+        self.toolchain = GradleToolchain(
+            self.serial_of, start=self.gradle, jdk=self.find_jdk, sleep=self.sleep, clock=lambda: 100.0
+        )
         self.runner = Runner(
             MemoryStateStore(tmp_path),
             {"android": self.toolchain},

@@ -78,6 +78,8 @@ class Rig:
             open_run=self.run,
             jdk=self.find_jdk,
             xcrun=self.xcrun,
+            # Its own clock too: a build's time is said, and real time would make it 0.1s on a busy machine.
+            clock=lambda: 100.0,
             signal_group=self.signal,
         )
         self.runner = Runner(

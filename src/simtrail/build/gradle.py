@@ -276,12 +276,15 @@ class GradleToolchain:
         jdk: Callable[[str], Awaitable[Jdk | None]] = find_jdk,
         copy: HostCopy | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._serial_of = serial_of
         self._start = start
         self._jdk = jdk
         self._copy = copy or HostCopy()
         self._sleep = sleep
+        #: What a run's length is measured by.
+        self._clock = clock
 
     async def prepare(self, scope: Scope, request: Request, place: Place, state: StateStore) -> Build:
         for name, value in (("project", request.project), ("workspace", request.workspace)):
@@ -345,13 +348,15 @@ class GradleToolchain:
 
         assemble = task(build.scheme, "assemble", build.configuration)
         if build.kind == "build":
-            return GradleRun(start, await start([assemble]), self._built)
+            return GradleRun(start, await start([assemble]), self._built, self._clock)
         if request.expected_bundle_id:
             expected = request.expected_bundle_id
-            return GradleRun(start, await start([assemble]), lambda run, code: self._held(build, run, code, expected))
+            return GradleRun(
+                start, await start([assemble]), lambda run, code: self._held(build, run, code, expected), self._clock
+            )
         self._clear_results(build)
         first = await start(self._test_args(build, build.only))
-        return GradleRun(start, first, lambda run, code: self._tested(build, run, code))
+        return GradleRun(start, first, lambda run, code: self._tested(build, run, code), self._clock)
 
     @staticmethod
     async def _built(run: GradleRun, code: int) -> int:
