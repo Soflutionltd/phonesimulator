@@ -82,6 +82,8 @@ All notable changes to Simtrail are documented here. The format follows
   `sim_login`'s password is; a character that has no key is no longer named in the line either.
 - The Gradle log fixtures two build tests read are in the repository again: a global ignore of `*.log` had kept them
   out.
+- The viewer's Edit, Device and View menus open over the settings panel: opened while it was showing, a menu was
+  drawn under it, open and unseen.
 - **Flutter.** A folder whose `pubspec.yaml` depends on flutter is built by flutter, for an iOS simulator or an Android
   device: `sim_build_run` runs `flutter build ios --simulator` or `flutter build apk`, then installs and launches the
   app as for any build; `sim_test` runs `flutter test`, or with the new `integration` argument the integration tests
