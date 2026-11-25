@@ -44,12 +44,17 @@ def register(commands: Any) -> None:
     build = actions.add_parser("build", help="build the native helper with Xcode for this version of Simtrail")
     build.add_argument("--force", action="store_true", help="build it even when a usable one is already built")
     build.add_argument("--scope", help="build with this scope's Xcode, instead of this folder's project's")
-    actions.add_parser(
+    sign = actions.add_parser(
         "sign",
-        help="make this Mac's signing certificate for the helper, once, so Screen Recording and Accessibility "
-        "granted to it are kept across upgrades (macOS asks for your password to trust it)",
+        help="sign the helper with a lasting identity, so Screen Recording and Accessibility granted to it are kept "
+        "across upgrades: one you name, else this Mac's own certificate, made once (macOS asks for your password)",
     )
-    command.set_defaults(handler=run, action="status", json=False, force=False, scope=None, signing=None)
+    sign.add_argument(
+        "--identity",
+        help='a code-signing identity of yours, such as "Developer ID Application: …", kept for every later install; '
+        "an empty one goes back to this Mac's own certificate",
+    )
+    command.set_defaults(handler=run, action="status", json=False, force=False, scope=None, signing=None, identity=None)
 
 
 def run(args: argparse.Namespace, ctx: CliContext) -> int:
@@ -65,7 +70,10 @@ def _signing(args: argparse.Namespace, ctx: CliContext) -> LocalSigning:
 
 def _sign(args: argparse.Namespace, ctx: CliContext) -> int:
     signing = _signing(args, ctx)
-    ctx.say("making this Mac's helper-signing certificate; macOS asks for your password once to trust it")
+    if args.identity is not None:
+        signing.remember(args.identity)
+    if not signing.configured:
+        ctx.say("making this Mac's helper-signing certificate; macOS asks for your password once to trust it")
     try:
         found = signing.set_up()
     except SigningError as exc:

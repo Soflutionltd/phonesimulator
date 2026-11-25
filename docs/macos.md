@@ -30,8 +30,15 @@ It makes a code-signing certificate for this Mac, in a keychain of Simtrail's ow
 keychain is not touched; Simtrail's is on the keychain search list only while a helper is signed), and macOS asks for your password once to trust it for code signing. From then on the
 installed helper is signed with it, its requirement names that certificate, and a grant made once is kept across
 upgrades. Allow the helper after signing it; an entry made for an earlier, ad hoc copy should be removed and added
-again. With a signing identity of your own -- a Developer ID, say -- set `SIMTRAIL_HELPER_SIGN_IDENTITY` to its name
-and the helper is signed with that instead.
+again. With a signing identity of your own -- a Developer ID, say -- name it once and no certificate is made:
+
+```sh
+simtrail helper sign --identity "Developer ID Application: Your Name (TEAMID)"
+```
+
+It is kept in Simtrail's state folder, so every later install signs with it, whoever installs the helper -- a daemon
+started by any MCP client, or a command in your terminal; `--identity ""` goes back to this Mac's own certificate.
+`SIMTRAIL_HELPER_SIGN_IDENTITY` names one for a single run.
 
 `simtrail doctor` reads the helper's last nonprompting permission report; it does not request a grant. A report
 from an earlier helper run is evidence of that run, not a fresh permission check.

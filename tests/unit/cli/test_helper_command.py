@@ -150,6 +150,10 @@ class Signing:
 
     def __init__(self, *, refuses: bool = False) -> None:
         self.refuses, self.made = refuses, False
+        self.configured = ""
+
+    def remember(self, identity: str) -> None:
+        self.configured = identity
 
     def set_up(self) -> str:
         from simtrail.platform.local_signing import SigningError
@@ -191,3 +195,16 @@ def test_status_says_how_to_keep_a_grant_when_the_helper_is_signed_as_shipped(tm
     here = Here(tmp_path)
     here("helper", "status")
     assert "signed by: as shipped -- run `simtrail helper sign` once" in here.said()
+
+
+def test_sign_with_an_identity_of_yours_keeps_it_and_makes_no_certificate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from simtrail.cli import helper as command
+
+    signing = Signing()
+    monkeypatch.setattr(command, "LocalSigning", lambda *_, **__: signing)
+    here = Here(tmp_path)
+    assert here("helper", "sign", "--identity", "Developer ID Application: A (TEAM)") == 0
+    assert signing.configured == "Developer ID Application: A (TEAM)"
+    assert not any("making this Mac's helper-signing certificate" in line for line in here.said())

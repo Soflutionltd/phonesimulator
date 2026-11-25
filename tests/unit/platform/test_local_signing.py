@@ -15,6 +15,7 @@ from simtrail.platform.local_signing import (
     CERTIFICATE,
     CODESIGN,
     IDENTITY_ENV,
+    IDENTITY_FILE,
     KEYCHAIN,
     OPENSSL,
     SECURITY,
@@ -172,3 +173,20 @@ def test_signing_puts_the_search_list_back_even_when_codesign_fails_and_refuses_
     programs.refuse, programs.no_list = "", True
     with pytest.raises(SigningError, match="could not read the keychain search list"):
         signing.sign(tmp_path / "helper")
+
+
+def test_an_identity_named_once_signs_every_later_install_until_it_is_forgotten(tmp_path: Path) -> None:
+    folder = tmp_path / "signing"
+    kept = LocalSigning(folder, run=Programs(), env={})
+    kept.remember("  Developer ID Application: A (TEAM) ")
+    assert (folder / IDENTITY_FILE).stat().st_mode & 0o777 == 0o600
+    later = LocalSigning(folder, run=(programs := Programs()), env={})
+    assert later.configured == "Developer ID Application: A (TEAM)" and later.signer().startswith("named:")
+    later.sign(tmp_path / "helper")
+    [signed] = programs.named(CODESIGN)
+    assert signed[signed.index("--sign") + 1] == "Developer ID Application: A (TEAM)", "whoever installs it"
+    run_only = LocalSigning(folder, run=Programs(), env={IDENTITY_ENV: "Apple Development: B"})
+    assert run_only.configured == "Apple Development: B", "the environment names one for its run"
+    later.remember(" ")
+    assert later.configured == "" and not (folder / IDENTITY_FILE).exists()
+    later.remember("")

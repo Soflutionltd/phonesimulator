@@ -13,7 +13,9 @@ sign code only once it is trusted for that, so setting up asks the person once, 
 trust it for code signing. Each helper installed after that
 is signed with it (`LocalSigning.sign`).
 
-A person or a build that has a real identity names it instead (``SIMTRAIL_HELPER_SIGN_IDENTITY``), and the helper is
+A person or a build that has a real identity names it instead -- ``simtrail helper sign --identity``, kept in this
+folder (`IDENTITY_FILE`) so every later install signs with it too, whoever installs it;
+``SIMTRAIL_HELPER_SIGN_IDENTITY`` names one for a single run -- and the helper is
 signed with that from their own keychains -- a developer ID later needs nothing else.
 
 Every program here runs from an argv, never a shell, with a timeout.
@@ -37,6 +39,8 @@ from simtrail.storage.private import ensure_private_dir, write_atomic
 HELPER_IDENTIFIER = "dev.simtrail.helper"
 #: A signing identity a person or a build names, from their own keychains, instead of this Mac's own.
 IDENTITY_ENV = "SIMTRAIL_HELPER_SIGN_IDENTITY"
+#: Where the identity a person named with ``simtrail helper sign --identity`` is kept, for every later install.
+IDENTITY_FILE = "identity"
 KEYCHAIN = "signing.keychain-db"
 PASSWORD = "keychain-password"
 CERTIFICATE = "certificate.pem"
@@ -79,8 +83,25 @@ class LocalSigning:
 
     @property
     def configured(self) -> str:
-        """The identity a person or a build named, else empty."""
-        return self.env.get(IDENTITY_ENV, "").strip()
+        """The identity a person or a build named -- for this run in the environment, else for good with `remember` --
+        else empty."""
+        named = self.env.get(IDENTITY_ENV, "").strip()
+        if named:
+            return named
+        try:
+            return (self.folder / IDENTITY_FILE).read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+
+    def remember(self, identity: str) -> None:
+        """Sign every later install with this identity, whoever installs the helper: a daemon started by any client, a
+        command run in a terminal. An empty one forgets it, and this Mac's own certificate signs again."""
+        path = self.folder / IDENTITY_FILE
+        if not identity.strip():
+            path.unlink(missing_ok=True)
+            return
+        ensure_private_dir(self.folder)
+        write_atomic(path, (identity.strip() + "\n").encode(), mode=0o600)
 
     def fingerprint(self) -> str | None:
         """This Mac's certificate as its SHA-1 -- how codesign names an identity -- or None when there is none. Read

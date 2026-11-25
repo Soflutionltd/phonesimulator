@@ -6,6 +6,18 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `simtrail helper sign --identity "<identity>"`: sign the helper with a code-signing identity of yours -- a Developer
+  ID -- kept in Simtrail's state folder, so every later install signs with it whoever installs it, and no certificate
+  is made.
+
+### Fixed
+
+- A helper signed with an identity named only in `SIMTRAIL_HELPER_SIGN_IDENTITY` was installed again unsigned by the
+  next run without it -- `simtrail helper status`, a daemon -- losing the grants made to it.
+- The build tests no longer fail on a busy machine: a Flutter or Gradle build's length is measured by the test's clock.
+
 ## [3.10.0] - 2026-11-26
 
 ### Added

@@ -48,7 +48,7 @@ Every command answers `--help`. A refusal a person can act on -- a setting, a sc
 | `simtrail helper` | Build the native helper, or say which one is used |
 | `simtrail helper status` | Say which native helper is used, and whether it can be |
 | `simtrail helper build` | Build the native helper with Xcode for this version of Simtrail |
-| `simtrail helper sign` | Make this Mac's signing certificate for the helper, once, so Screen Recording and Accessibility granted to it are kept across upgrades (macOS asks for your password to trust it) |
+| `simtrail helper sign` | Sign the helper with a lasting identity, so Screen Recording and Accessibility granted to it are kept across upgrades: one you name, else this Mac's own certificate, made once (macOS asks for your password) |
 | `simtrail app` | See what an app shares through Simtrail's debug SDK |
 | `simtrail app hierarchy` | Print the view hierarchy the app in front shares |
 | `simtrail wda` | Set up WebDriverAgent to touch, type on and read a real device |
@@ -433,9 +433,11 @@ Build the native helper with Xcode for this version of Simtrail.
 
 ## `simtrail helper sign`
 
-Make this Mac's signing certificate for the helper, once, so Screen Recording and Accessibility granted to it are kept across upgrades (macOS asks for your password to trust it).
+Sign the helper with a lasting identity, so Screen Recording and Accessibility granted to it are kept across upgrades: one you name, else this Mac's own certificate, made once (macOS asks for your password).
 
-It takes no arguments.
+| Argument | Meaning |
+|---|---|
+| `--identity IDENTITY` | a code-signing identity of yours, such as "Developer ID Application: …", kept for every later install; an empty one goes back to this Mac's own certificate |
 
 ## `simtrail app`
 
