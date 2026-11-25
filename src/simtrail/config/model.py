@@ -104,6 +104,12 @@ class SimConfig:
     settle_mode: Literal["perceptual", "exact"]
     settle_tolerance: int
     settle_grid: int
+    #: ``1password``, ``bitwarden`` and ``command:/path`` entries, in the order they are tried.
+    login_sources: tuple[str, ...]
+    login_onepassword_path: str
+    login_bitwarden_path: str
+    login_timeout: int
+    login_real_devices: bool
     build_tools: bool
     build_configuration: str
     #: A bundle identifier, or empty for any.

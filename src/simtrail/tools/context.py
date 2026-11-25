@@ -34,6 +34,7 @@ from simtrail.core.drivers import Drivers
 from simtrail.core.flows import FlowStore
 from simtrail.core.instance import READY, STALLED, DeviceInstance
 from simtrail.core.manager import DeviceManager, SimulatorUnavailable
+from simtrail.core.masking import SecretMask
 from simtrail.core.recordings import Recordings
 from simtrail.core.selections import Agent, Selections
 from simtrail.core.signing import SigningTeams
@@ -115,6 +116,8 @@ class ToolContext:
     #: Who drives each device, for a tool that acts on devices other than the agent's own (`sim_matrix`); None where
     #: nobody is asked.
     drivers: Drivers | None = None
+    #: What every answer is masked with -- a password `sim_login` typed reads ``••••`` in it; set by the registry.
+    secrets: SecretMask | None = None
 
     @property
     def scope(self) -> Scope:

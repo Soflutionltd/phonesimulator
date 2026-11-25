@@ -312,6 +312,8 @@ def test_each_path_setting_shows_a_path_of_its_own_kind() -> None:
         "android.sdk_path": "/Users/you/Library/Android/sdk",
         "android.scrcpy.path": "/opt/homebrew/share/scrcpy/scrcpy-server",
         "android.java_home": "/Applications/Android Studio.app/Contents/jbr/Contents/Home",
+        "login.onepassword_path": "/opt/homebrew/bin/op",
+        "login.bitwarden_path": "/opt/homebrew/bin/bw",
     }
 
 
@@ -356,6 +358,10 @@ def test_what_a_page_cannot_change_alone_and_what_only_the_daemon_has_are_decide
         "mac.apps.accessibility",
         "android.scrcpy.path",
         "android.java_home",
+        "login.sources",
+        "login.onepassword_path",
+        "login.bitwarden_path",
+        "login.real_devices",
         "server.host",
         "server.port",
         "security.allowed_origins",
@@ -377,3 +383,21 @@ def test_the_cursor_colour_is_a_hex_colour_or_empty() -> None:
         assert color.errors(bad) != [], bad
     assert color.rule.parse(" #7C5CFF ") == "#7c5cff"
     assert "#RRGGBB" in color.rule.describe()
+
+
+def test_login_sources_name_password_managers_or_a_program_by_its_absolute_path() -> None:
+    rule = schema.LoginSources()
+    assert rule.errors("login.sources", ("1password", "bitwarden", "command:/usr/local/bin/logins")) == []
+    assert rule.errors("login.sources", ()) == []
+    assert rule.errors("login.sources", "1password") == ["login.sources must be a list of at most 5 sources"]
+    assert rule.errors("login.sources", ("1password",) * 6) == ["login.sources must be a list of at most 5 sources"]
+    assert rule.errors("login.sources", ("1password", "1password")) == ["login.sources names a source twice"]
+    assert rule.errors("login.sources", ("keychain", "command:logins", 3)) == [
+        "login.sources: 'keychain' is not 1password, bitwarden or command:/absolute/path; 'command:logins' names no "
+        "absolute path after command:; 3 is not text"
+    ]
+    assert rule.parse(" 1password , command:/bin/x") == ("1password", "command:/bin/x")
+    assert rule.parse('["bitwarden"]') == ("bitwarden",)
+    assert rule.describe().startswith("a list of up to 5 of `1password`")
+    assert rule.spec() == {"kind": "origins", "max_items": schema.LOGIN_SOURCES_MAX}
+    assert schema.defaults()["login_sources"] == ()

@@ -77,7 +77,7 @@ def folder(path: Path) -> Path:
 
 
 def test_every_tool_is_described_once_with_a_closed_schema_and_listed_whatever_the_device_can_do() -> None:
-    on = dataclasses.replace(SimConfig.defaults(), build_tools=True)
+    on = dataclasses.replace(SimConfig.defaults(), build_tools=True, login_sources=("1password",))
     listed = REGISTRY.manifest(on)
     names = [tool["name"] for tool in listed["tools"]]
     assert names == [
@@ -91,6 +91,7 @@ def test_every_tool_is_described_once_with_a_closed_schema_and_listed_whatever_t
         "sim_matrix",
         "sim_build_run",
         "sim_test",
+        "sim_login",
     ]
     assert REGISTRY.names() == names
     for tool in listed["tools"]:
@@ -98,9 +99,11 @@ def test_every_tool_is_described_once_with_a_closed_schema_and_listed_whatever_t
         assert tool["inputSchema"]["additionalProperties"] is False
     assert next(t for t in listed["tools"] if t["name"] == "sim_act")["inputSchema"]["required"] == ["steps"]
     assert "sim_snapshot" in listed["instructions"] and "sim_build_run" in listed["instructions"]
-    without = REGISTRY.manifest(dataclasses.replace(on, build_tools=False))
+    assert "sim_login" in listed["instructions"]
+    without = REGISTRY.manifest(dataclasses.replace(on, build_tools=False, login_sources=()))
     assert [tool["name"] for tool in without["tools"]] == names[:8]
     assert "xcodebuild" in without["instructions"] and "sim_build_run" not in without["instructions"]
+    assert "sim_login" not in without["instructions"], "no password manager named, no sim_login offered"
 
 
 async def test_a_call_to_no_tool_or_with_arguments_that_are_not_an_object_is_an_error(tmp_path: Path) -> None:

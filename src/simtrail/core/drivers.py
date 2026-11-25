@@ -2,11 +2,11 @@
 """One agent drives a device at a time.
 
 Two agents' taps interleaved on one phone spoil both their runs, and neither can tell. So each device remembers its
-driver (`instance.Driver`): the agent whose call last changed it -- `sim_act`; `sim_app` launching, quitting or
-installing an app or opening a URL; `sim_build_run` and `sim_test`; `sim_record` starting or stopping a recording;
-`sim_flow` playing a flow;
-and `sim_device` choosing, booting, restarting, stopping, turning or setting the device (`CHANGING`). Looking never
-does: a snapshot, a screenshot, `sim_device info`, `list` and `health` are answered whoever drives.
+driver (`instance.Driver`): the agent whose call last changed it -- `sim_act` and `sim_login`; `sim_app` launching,
+quitting or installing an app or opening a URL; `sim_build_run` and `sim_test`; `sim_record` starting or stopping a
+recording; `sim_flow` playing a flow; and `sim_device` choosing, booting, restarting, stopping, turning or setting the
+device (`CHANGING`). Looking never does: a snapshot, a screenshot, `sim_device info`, `list` and `health` are answered
+whoever drives.
 
 While a call of the driver's is under way, or it has acted within `HOLD_S`, another agent's call that would change the
 device is refused with who holds it and since when (`HostCopy.device_held`), where ``device.exclusive`` says so -- on
@@ -32,6 +32,7 @@ HOLD_S = 120.0
 #: The tools that change a device, and -- where only some of a tool's actions do -- those actions.
 CHANGING: dict[str, frozenset[str] | None] = {
     "sim_act": None,
+    "sim_login": None,
     "sim_app": frozenset({"launch", "terminate", "install", "open_url"}),
     "sim_build_run": None,
     "sim_test": None,

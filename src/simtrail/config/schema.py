@@ -400,6 +400,53 @@ class WordLanguages:
         return _text("languages", LANGUAGES_MAX, required=False, example="de, fr")
 
 
+#: The password managers `sim_login` reads, besides ``command:<path>``: a program of the person's that prints logins.
+LOGIN_KINDS = ("1password", "bitwarden")
+#: The prefix of a source that is a program of the person's own.
+LOGIN_COMMAND = "command:"
+LOGIN_SOURCES_MAX = 5
+
+
+def login_source_errors(value: object) -> str | None:
+    """What is wrong with one entry of ``login.sources``, or None."""
+    if not isinstance(value, str):
+        return "is not text"
+    if value in LOGIN_KINDS:
+        return None
+    if value.startswith(LOGIN_COMMAND):
+        path = value[len(LOGIN_COMMAND) :]
+        if _one_line(path, PATH_MAX) and path.startswith("/"):
+            return None
+        return "names no absolute path after command:"
+    return "is not 1password, bitwarden or command:/absolute/path"
+
+
+@dataclass(frozen=True)
+class LoginSources:
+    """Where `sim_login` looks for a saved login, in order: ``1password``, ``bitwarden``, ``command:/path``."""
+
+    def errors(self, name: str, value: Any) -> list[str]:
+        if not isinstance(value, (list, tuple)) or len(value) > LOGIN_SOURCES_MAX:
+            return [f"{name} must be a list of at most {LOGIN_SOURCES_MAX} sources"]
+        wrong = [f"{entry!r} {said}" for entry in value if (said := login_source_errors(entry)) is not None]
+        if wrong:
+            return [f"{name}: {'; '.join(wrong)}"]
+        if len(set(value)) != len(value):
+            return [f"{name} names a source twice"]
+        return []
+
+    def parse(self, raw: str) -> tuple[str, ...]:
+        """Sources separated by commas, or the JSON list `simtrail config get` prints."""
+        return Origins().parse(raw)
+
+    def describe(self) -> str:
+        return f"a list of up to {LOGIN_SOURCES_MAX} of `1password`, `bitwarden` and `command:/absolute/path`"
+
+    def spec(self) -> dict[str, Any]:
+        # A list of text, which a form edits one entry per line, as it does origins.
+        return {"kind": "origins", "max_items": LOGIN_SOURCES_MAX}
+
+
 @dataclass(frozen=True)
 class LoopbackHost:
     def errors(self, name: str, value: Any) -> list[str]:
@@ -777,6 +824,24 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("settle_grid", "perception.settle_grid", 32, Whole(8, 64),
             "How many cells across that grid is: more sees smaller changes, fewer lets more motion pass. At 32, a "
             "cell of a phone's screen is about 12 points square."),
+    Setting("login_sources", "login.sources", (), LoginSources(),
+            "Where `sim_login` finds a saved login to sign an app in with, tried in order: `1password` (its CLI, "
+            "through the 1Password app, which asks for Touch ID), `bitwarden` (its CLI, unlocked), "
+            "`command:/path` (a program of yours that prints the logins as JSON). Every vault is searched. Empty: "
+            "agents are not offered `sim_login`.",
+            sensitive=True),
+    Setting("login_onepassword_path", "login.onepassword_path", "", AbsolutePath(example="/opt/homebrew/bin/op"),
+            "The 1Password CLI to run. Empty: the one on PATH, else where Homebrew installs it.",
+            sensitive=True),
+    Setting("login_bitwarden_path", "login.bitwarden_path", "", AbsolutePath(example="/opt/homebrew/bin/bw"),
+            "The Bitwarden CLI to run. Empty: the one on PATH, else where Homebrew installs it.",
+            sensitive=True),
+    Setting("login_timeout", "login.timeout", 90, Whole(10, 300),
+            "How many seconds a password manager has to answer -- time for you to approve with Touch ID."),
+    Setting("login_real_devices", "login.real_devices", False, Flag(),
+            "Whether `sim_login` also signs in on a real iPhone, iPad or Android phone, or in a macOS app, which "
+            "hold real data. Off: only simulators and emulators.",
+            sensitive=True),
     Setting("build_tools", "build.tools", False, Flag(),
             "Whether agents are offered `sim_build_run` and `sim_test`. They run xcodebuild, so a host also has to "
             "allow commands.",
@@ -899,6 +964,11 @@ SECTIONS: tuple[Section, ...] = (
         "perception",
         "Screen reading",
         "How agents read a screen whose accessibility says nothing, and how they tell it has stopped moving.",
+    ),
+    Section(
+        "login",
+        "Sign-in",
+        "Signing an app in with a login saved in a password manager, which never reaches the agent.",
     ),
     Section("build", "Build", "Building and testing apps from an agent."),
     Section(

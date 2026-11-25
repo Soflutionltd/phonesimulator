@@ -512,6 +512,66 @@ SCHEMAS: dict[str, tuple[str, dict[str, Any]]] = {
     ),
 }
 
+#: The longest app, account and item a `sim_login` call may give.
+LOGIN_TEXT_MAX = 255
+LOGIN_SOURCES = ("1password", "bitwarden", "command")
+
+SCHEMAS["sim_login"] = (
+    "Sign the app in with a login saved in the person's password manager -- 1Password, Bitwarden or a command, as "
+    "login.sources says -- without you ever seeing it: the password is typed straight into the device. Open the "
+    "sign-in screen first. app: the website or the app's bundle id the login is saved for. account: the username or "
+    "e-mail of the account the person named -- give it whenever they did: a login for any other account is refused. "
+    "Several logins matching are refused with their ids: pass item. The password goes only into a secure field -- "
+    "field, or the only one on screen -- and the username into the text field before it; code: true types the "
+    "login's one-time code instead, into field or the one field that reads like a code. submit: true presses return "
+    "after. Answers which login was used and what was filled, never a value; call sim_snapshot for what the app "
+    "answered. Refused in observe mode, while the screen is recorded, and on a real device or a macOS app unless "
+    "login.real_devices is on.",
+    schema(
+        {
+            "app": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": LOGIN_TEXT_MAX,
+                "description": "the website (example.com) or the app's bundle id or package name the login is saved "
+                "for",
+            },
+            "account": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": LOGIN_TEXT_MAX,
+                "description": "the username or e-mail of the account to sign in to; only a login for it is used",
+            },
+            "item": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": LOGIN_TEXT_MAX,
+                "description": "the id or title of the saved login, when several match",
+            },
+            "field": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16,
+                "description": "the ref of the password field, a secure one -- or with code: true, of the code's field",
+            },
+            "code": {"type": "boolean", "description": "type the login's one-time code (TOTP), not its password"},
+            "submit": {"type": "boolean", "description": "press return once it is filled"},
+            "source": {
+                "type": "string",
+                "enum": list(LOGIN_SOURCES),
+                "description": "look only in this one of login.sources",
+            },
+            "steal": _STEAL,
+        },
+        required=("app",),
+    ),
+)
+
+LOGIN_INSTRUCTIONS = (
+    " Sign an app in with sim_login, never by asking for a password or typing one: give account whenever the person "
+    "said whose account it is."
+)
+
 LOOK_AND_ACT = (
     "These tools drive your iOS Simulator or Android emulator while anyone watching sees every gesture live. Look "
     "with sim_snapshot (cheap text) before acting, then act with its refs in one sim_act batch; take sim_screenshot "

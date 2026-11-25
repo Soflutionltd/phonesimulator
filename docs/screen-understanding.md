@@ -326,7 +326,7 @@ One call plays a batch of up to 20 steps, because a round trip is what an agent 
   stay done. A ref after a step that touched the screen is looked up again first, so one a keyboard now covers, or a
   new screen took away, is refused rather than tapped where it was. A failed step, or a wait not met, makes the answer
   an error.
-- **One agent drives a device at a time.** The agent whose `sim_act` -- or `sim_app` launch, terminate, install or
+- **One agent drives a device at a time.** The agent whose `sim_act` or `sim_login` -- or `sim_app` launch, terminate, install or
   `open_url`, `sim_build_run`, `sim_test`, `sim_record` start or stop, or a `sim_device` action that chooses, boots,
   restarts, stops, turns or sets the device -- last changed a device drives it. While one of its calls is under way,
   or it has acted within 2 minutes -- or while another agent at work works on the device -- another agent's such call

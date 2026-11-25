@@ -40,6 +40,7 @@ _CALLS: dict[str, str | Mapping[str, str]] = {
     "sim_screenshot": "Looking at the screen",
     "sim_build_run": "Building",
     "sim_test": "Running tests",
+    "sim_login": "Signing in",
     "sim_record": {"start": "Recording the screen", "stop": "Saving the recording", "": "Checking recordings"},
     "sim_flow": {"run": "Playing a flow", "save": "Saving a flow", "": "Checking flows"},
     "sim_matrix": "Capturing several devices",

@@ -116,6 +116,10 @@ def typed_argument(text: str) -> str:
 class AdbText:
     """Text typed whole through ``input text``: printable ASCII."""
 
+    #: The text goes in adb's command line, where ``ps`` on this Mac and the device's shell can read it: a password
+    #: is never typed this way (`AgentActions.type_hidden`).
+    text_in_argv = True
+
     def __init__(self, adb: Adb, serial: str) -> None:
         self._adb = adb
         self._serial = serial

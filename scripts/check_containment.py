@@ -53,6 +53,9 @@ PROGRAMS = (
     "defaults",
     "pbcopy",
     "pbpaste",
+    # The password managers' CLIs, which reveal passwords: run only by `platform.passwords`.
+    "op",
+    "bw",
 )
 
 ALLOWED = (

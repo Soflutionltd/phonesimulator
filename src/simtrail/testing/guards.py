@@ -58,6 +58,9 @@ FORBIDDEN_PROGRAMS = frozenset(
         "adb",
         "gradle",
         "gradlew",
+        # Password managers' CLIs reveal real passwords: tests play them (`platform.passwords.Run`).
+        "op",
+        "bw",
     }
 )
 

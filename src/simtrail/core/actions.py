@@ -57,7 +57,7 @@ import itertools
 import json
 import math
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable, Collection
+from collections.abc import AsyncIterator, Awaitable, Callable, Collection, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, TypeVar
 
@@ -75,6 +75,7 @@ from simtrail.connectors.base import (
 from simtrail.core import activity, gestures
 from simtrail.core.instance import DeviceInstance
 from simtrail.core.manager import DeviceManager
+from simtrail.core.masking import MASK
 from simtrail.core.refusals import ObserveGuard, touch_refusal
 from simtrail.core.text_entry import paste_refused, text_entry
 from simtrail.core.text_overlay import STILL
@@ -271,6 +272,26 @@ class Gesture:
     command: dict[str, Any] | None = None
     #: What a person watching is told the agent is doing, when the gesture's kind, label and caption do not say it.
     activity: str = ""
+
+
+@dataclass(frozen=True)
+class Hidden:
+    """Text to type that no one is shown -- a password -- the field it goes into, and what it is, as a person reads
+    it: ``password``."""
+
+    ref: str
+    value: str = field(repr=False)
+    what: str
+
+
+@dataclass(frozen=True)
+class TypedHidden:
+    """How hidden text went in: pasted rather than typed as keys, onto a device that refuses a paste it did not ask
+    for, and whether the pasteboard could not be emptied after."""
+
+    pasted: bool
+    refused: bool
+    pasteboard_left: bool
 
 
 @dataclass(frozen=True)
@@ -876,6 +897,73 @@ class AgentActions:
         # First, where an agent reading what it can act on cannot miss why it may not be able to.
         noted = _noted(instance)
         return f"{noted}\n{said}" if noted else said
+
+    async def screen(self, instance: DeviceInstance, caller: Caller, *, max_elements: int) -> Snapshot:
+        """The screen as it is now, read for this agent -- refs as its last snapshot gave them -- and not said."""
+        self._ready(instance)
+        self._readable(instance, self._config.get(instance.owner))
+        event_id = self._announce(instance, caller, Gesture("look", "look", activity="Reading the screen"), 0)
+        ok = False
+        try:
+            current = await self._read(instance, caller, max_elements)
+            ok = True
+        finally:
+            self._done(instance, event_id, ok)
+        return current
+
+    async def type_hidden(
+        self,
+        instance: DeviceInstance,
+        caller: Caller,
+        entries: Sequence[Hidden],
+        *,
+        submit: bool,
+        lead_ms: int,
+        max_elements: int,
+    ) -> TypedHidden:
+        """Type each entry's text into its field, replacing what the field held, and press return after the last when
+        `submit` says so -- as a ``type`` step types it (`_typing`), but never said: no step line, no caption, no
+        activity names the text, so neither the agent, nor a viewer, nor the macOS overlay sees it. Text pasted is
+        taken off the device's pasteboard again once typed. A device whose input would carry the text in a command
+        line another program can read -- adb's ``input text`` -- is refused before anything is typed."""
+        self._ready(instance)
+        self._touchable(instance, caller)
+        self._sink(instance)
+        if instance.busy:
+            raise ActionError(f"the device is busy: {instance.busy}")
+        session = instance.session
+        if session is not None and getattr(session.text, "text_in_argv", False):
+            raise ActionError(
+                "this device types text through adb's command line, which other programs can read; nothing was typed. "
+                "Set scrcpy up (simtrail android setup) to sign in on it"
+            )
+        memory = self._remembered(instance, caller)
+        pasted = False
+        async with instance.input_lock:
+            await self._wait_for_person(instance)
+            try:
+                for index, entry in enumerate(entries):
+                    step = {"into": entry.ref, "clear": True, "submit": submit and index == len(entries) - 1}
+                    typed = await self._typing(instance, caller, entry.value, step, max_elements)
+                    pasted = pasted or bool(typed.text)
+                    hidden = replace(
+                        typed, summary=f"type the {entry.what} into {entry.ref}", caption=MASK,
+                        activity=f"Typing the {entry.what}",
+                    )  # fmt: skip
+                    del typed
+                    await self._play(instance, caller, hidden, lead_ms)
+                    memory.stale = True
+            finally:
+                left = pasted and not await self._unpaste(instance)
+        return TypedHidden(pasted=pasted, refused=pasted and paste_refused(instance.runtime), pasteboard_left=left)
+
+    async def _unpaste(self, instance: DeviceInstance) -> bool:
+        """Empty the device's pasteboard after text was pasted; whether it could be."""
+        try:
+            await self._manager.control(instance).pbcopy(instance.udid, "")
+        except (ConnectorError, DeviceControlError):
+            return False
+        return True
 
     async def capture_scene(self, instance: DeviceInstance) -> dict[str, Any]:
         """Freeze a device frame for inspection without taking its input or changing a caller's snapshot."""

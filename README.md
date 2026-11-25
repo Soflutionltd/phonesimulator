@@ -164,6 +164,12 @@ desktop session, the text reader and an app's shared hierarchy, then proves a ta
 **Security.** Loopback only, a Host allowlist, exact Origin checks, CORS and framing only for origins you list, hashed
 scoped tokens, and one-shot codes in URL fragments. See [Security](docs/security.md).
 
+**Sign-in from a password manager.** `sim_login` signs an app in with a login saved in 1Password -- or Bitwarden, or
+a program of yours -- searching every vault, for the account the person named and no other, and the agent never sees
+the password: it is typed straight into the app's secure field, masked in every answer and in the viewer, and refused
+in observe mode, while recording and on real devices unless allowed. Off until `login.sources` names a password manager.
+See [Signing in](docs/login.md).
+
 **Build and test.** `sim_build_run` and `sim_test` build with xcodebuild for the agent's simulator, install and
 launch, and answer with only what failed and where -- each failing test named so it can be run again alone, and on
 another simulator when asked -- and with the folder, branch and commit they built. They build the git worktree the
@@ -221,8 +227,6 @@ the [command line](docs/reference/cli.md) and the [protocol](docs/reference/prot
 
 ## Roadmap
 
-- **Sign-in through 1Password**: fill an app's login from the person's password manager, never showing the agent a
-  password.
 - **Flutter end to end**: build, install and hot reload a Flutter app from the same tools.
 
 How Simtrail relates to other tools is in [Comparison](docs/comparison.md).
