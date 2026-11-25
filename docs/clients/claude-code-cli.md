@@ -40,6 +40,12 @@ claude mcp add simtrail -- uvx --from git+https://github.com/Soflutionltd/simtra
 
 ### Git worktrees
 
+A session started in a git worktree is a project of its own, with its own settings table, but it works on the
+simulator of the main checkout: `simtrail mcp` started in a worktree whose project has no device yet gives it the one
+of the same folder in the main checkout, rather than a new blank simulator being created at its first call. Its
+sessions then share that simulator with the main checkout's, one driving at a time. `sim_device choose` gives the
+worktree a device of its own.
+
 An agent often works in a git worktree of the project -- a second checkout, on another branch -- after the session
 started in the main checkout. `sim_build_run` and `sim_test` build the folder the agent works in, not the one the
 server started in:

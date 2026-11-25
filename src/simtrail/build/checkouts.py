@@ -236,6 +236,18 @@ def main_of(checkout: Checkout) -> Checkout | None:
     return None
 
 
+def twin_in_main(folder: Path) -> Path | None:
+    """The same folder in its repository's main checkout when `folder` is in a linked git worktree that the repository
+    names back -- ``~/app-feature/ios`` gives ``~/app/ios`` -- else None: in the main checkout itself, outside any
+    checkout, or in one whose main checkout cannot be known."""
+    folder = folder.resolve()
+    checkout = home_checkout(folder)
+    main = main_of(checkout) if checkout is not None else None
+    if checkout is None or main is None or main.top == checkout.top:
+        return None
+    return main.top / folder.relative_to(checkout.top)
+
+
 def build_folder_for(asked: Path, home: Path, *, exact: bool) -> Path | None:
     """Where a build asked for at `asked` runs, for a scope whose build folder is `home` -- or None when that is not a
     folder this scope may build.

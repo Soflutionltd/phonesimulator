@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from simtrail.build import checkouts
-from simtrail.build.checkouts import POINTER_MAX, Checkout, build_folder_for, checkout_of
+from simtrail.build.checkouts import POINTER_MAX, Checkout, build_folder_for, checkout_of, twin_in_main
 from simtrail.testing.checkouts import linked_worktree, main_checkout, separate_main_checkout
 
 
@@ -272,3 +272,10 @@ def test_a_git_file_that_names_no_repositorys_own_git_folder_is_no_build_folder_
     (plain / "Sub").mkdir()
     (plain / "Sub" / ".git").symlink_to(plain / ".git")
     assert checkouts.home_checkout(plain / "Sub") is None
+
+
+def test_a_folder_in_a_worktree_has_its_twin_in_the_main_checkout_and_no_other_folder_has_one(tmp_path: Path) -> None:
+    repo, worktree = layout(tmp_path)
+    assert twin_in_main(worktree / "ios") == repo / "ios" and twin_in_main(worktree) == repo
+    assert twin_in_main(repo / "ios") is None, "the main checkout is its own"
+    assert twin_in_main(tmp_path / "elsewhere") is None

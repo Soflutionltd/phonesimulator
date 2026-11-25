@@ -252,6 +252,19 @@ class DeviceManager:
         """The UDID of the scope's own device: the one it runs, else the one it remembers; None when it has none yet."""
         return self._scopes.get(scope.id) or self._remembered(scope, self._config.get(scope))
 
+    def inherit(self, scope: Scope, source: Scope) -> str | None:
+        """Give a scope that has no device yet the device of another -- a git worktree, its main checkout's -- rather
+        than a new one being created for it at its first call. Answers the UDID it was given, or None when it already
+        had one, the other has none, or one device is shared by the whole group anyway (``device.mode = "shared"``)."""
+        config = self._config.get(scope)
+        if config.device_mode == "shared" or self.default_udid(scope) is not None:
+            return None
+        udid = self.default_udid(source)
+        if udid is None:
+            return None
+        self.directory.memory.choose(scope, False, udid)
+        return udid
+
     def is_current(self, instance: DeviceInstance) -> bool:
         """Whether its device still runs as this instance, rather than it having been ended since."""
         return self._instances.get(instance.udid) is instance

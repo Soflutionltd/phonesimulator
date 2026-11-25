@@ -1264,3 +1264,17 @@ async def test_a_failed_shared_device_is_started_again_keeping_the_scopes_it_was
     assert rig.manager.instance(TP1) is again and rig.manager.instance(scope("tp-2")) is None, "tp-2 only chose it"
     chosen = await rig.manager.ensure(scope("tp-3"), BOOTED_UDID)
     assert chosen is again
+
+
+async def test_a_scope_with_no_device_yet_inherits_another_scopes_so_none_is_created_for_it(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    worktree = scope("tp-2")
+    assert rig.manager.inherit(worktree, TP1) is None, "the main checkout has none to give"
+    await rig.manager.choose(TP1, BOOTED_UDID)
+    assert rig.manager.inherit(worktree, TP1) == BOOTED_UDID
+    assert rig.manager.directory.memory.assigned(worktree, False) == BOOTED_UDID
+    assert rig.manager.inherit(worktree, TP1) is None, "a scope that has a device keeps it"
+    shared = DeviceRig(tmp_path / "shared")
+    shared.config.set(device_mode="shared")
+    await shared.manager.choose(TP1, BOOTED_UDID)
+    assert shared.manager.inherit(worktree, TP1) is None, "the whole group shares one device anyway"

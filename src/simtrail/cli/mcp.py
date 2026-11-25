@@ -39,4 +39,5 @@ def run(args: argparse.Namespace, ctx: CliContext) -> int:
         run_dir=ctx.state.run_dir(),
         locate_daemon=ctx.daemon_url,
         label=args.label,
+        home=None if args.scope else ctx.cwd,
     )

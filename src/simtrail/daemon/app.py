@@ -77,6 +77,11 @@ class LoginCodeRequest(BaseModel):
     settings: bool = False
 
 
+class InheritRequest(BaseModel):
+    #: The scope whose device the other is given: a git worktree's main checkout.
+    source: str = Field(min_length=1, max_length=128)
+
+
 class TokenRequest(BaseModel):
     kind: str = Field(min_length=1, max_length=16)
     scopes: list[str] = Field(min_length=1, max_length=64)
@@ -386,6 +391,13 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         scope = named(body.scope)
         code = daemon.codes.mint(scope.id, "settings" if body.settings else "viewer")
         return ok({"code": code, "url": f"/viewer/{scope.id}#code={code}", "expires_in_s": CODE_TTL_S})
+
+    @app.post(ADMIN + "/scopes/{scope_id}/inherit")
+    async def inherit(scope_id: str, body: InheritRequest, request: Request) -> dict[str, Any]:
+        """Give a scope with no device yet the device of another -- ``simtrail mcp`` started in a git worktree asks for
+        its main checkout's -- so its first call does not create a new one. Answers the UDID given, or null."""
+        admin(request)
+        return ok({"udid": daemon.runtime.manager.inherit(named(scope_id), named(body.source))})
 
     @app.post(ADMIN + "/settings-confirmations")
     async def settings_confirmations(request: Request) -> dict[str, Any]:

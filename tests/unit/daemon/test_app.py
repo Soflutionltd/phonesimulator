@@ -406,6 +406,22 @@ async def test_the_admin_lets_a_device_go_for_every_scope_and_is_told_who_held_i
     assert here.daemon.runtime.selections.on(instance.udid) == [], "no agent keeps it from another any more"
 
 
+async def test_the_admin_gives_a_scope_with_no_device_yet_another_scopes(tmp_path: Path) -> None:
+    here = site(tmp_path)
+    async with here.http() as http:
+        await here.started(http)
+        instance = here.daemon.runtime.manager.instance(TP1)
+        assert instance is not None
+        path = "/api/v1/scopes/tp-9/inherit"
+        assert detail(await http.post("/api/v1/admin" + path[7:], json={"source": "tp-1"})) == (
+            401,
+            AUTHENTICATION_REQUIRED,
+        )
+        given = await http.post("/api/v1/admin" + path[7:], headers=here.admin, json={"source": "tp-1"})
+        again = await http.post("/api/v1/admin" + path[7:], headers=here.admin, json={"source": "tp-1"})
+    assert given.json()["data"] == {"udid": instance.udid} and again.json()["data"] == {"udid": None}
+
+
 async def test_the_admin_sees_which_scopes_the_daemon_serves_a_device_an_agent_or_a_build(tmp_path: Path) -> None:
     here = site(tmp_path)
     async with here.http() as http:

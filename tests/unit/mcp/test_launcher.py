@@ -34,6 +34,7 @@ from simtrail.mcp.launcher import (
     run,
 )
 from simtrail.scope import Scope
+from simtrail.testing.daemon import Daemon
 from simtrail.testing.fakes import ManualClock
 
 URL = "http://127.0.0.1:7466"
@@ -476,3 +477,15 @@ def test_off_the_main_thread_sigterm_is_left_as_it_was() -> None:
     thread.start()
     thread.join()
     assert seen == [before]
+
+
+def test_a_daemon_that_refuses_or_does_not_know_inherit_gives_no_device_and_nothing_fails() -> None:
+    daemon = Daemon(admin=lambda: ADMIN)
+    client = DaemonClient(URL, ADMIN, opener=daemon)
+    path = "/api/v1/admin/scopes/tp-2/inherit"
+    daemon.answers[("POST", path)] = {"udid": "00000000-0000-0000-0000-000000000001"}
+    assert client.inherit("tp-2", "tp-1") == "00000000-0000-0000-0000-000000000001"
+    daemon.answers[("POST", path)] = {"udid": None}
+    assert client.inherit("tp-2", "tp-1") is None
+    daemon.refuse.add(path)
+    assert client.inherit("tp-2", "tp-1") is None

@@ -44,6 +44,7 @@ from simtrail.platform.device_data import DEVICES_DIR_ENV
 from simtrail.protocol import PROTOCOL_VERSION
 from simtrail.scope import Scope
 from simtrail.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
+from simtrail.testing.checkouts import linked_worktree, main_checkout
 from simtrail.testing.daemon import Daemon
 from simtrail.testing.fakes import BOOTED_UDID, FakeBridge, FakeConnector, FakeProcess, FakeXcrun
 
@@ -262,6 +263,22 @@ def test_mcp_serves_this_projects_tools_through_the_daemon(tmp_path: Path) -> No
     assert named("mcp", "--scope", "demo") == 0
     (minted,) = named.daemon.made("POST", "/api/v1/admin/tokens")
     assert minted["scopes"] == ["demo"] and minted["roots"] == [str(named.cwd.resolve())]
+
+
+def test_mcp_started_in_a_git_worktree_gives_its_scope_the_main_checkouts_device(tmp_path: Path) -> None:
+    here = Terminal(tmp_path)
+    repo = main_checkout(tmp_path / "repo")
+    linked_worktree(repo, here.cwd)
+    assert here("mcp") == 0
+    inherit = f"/api/v1/admin/scopes/{Scope.for_folder(here.cwd).id}/inherit"
+    assert here.daemon.made("POST", inherit) == [{"source": Scope.for_folder(repo).id}]
+    named = Terminal(tmp_path / "named")
+    linked_worktree(repo, named.cwd, "named")
+    assert named("mcp", "--scope", "demo") == 0, "a scope a person named is left as it is"
+    assert not [path for method, path, _ in named.daemon.requests if path.endswith("/inherit")]
+    plain = Terminal(tmp_path / "plain")
+    assert plain("mcp") == 0
+    assert not [path for method, path, _ in plain.daemon.requests if path.endswith("/inherit")], "not in a worktree"
 
 
 def test_open_starts_the_daemon_and_opens_the_viewer_without_printing_the_code(tmp_path: Path) -> None:

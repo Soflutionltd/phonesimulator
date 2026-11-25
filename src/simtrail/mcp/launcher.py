@@ -44,6 +44,7 @@ from typing import IO, Any
 from urllib.parse import quote
 
 from simtrail._version import __version__
+from simtrail.build.checkouts import twin_in_main
 from simtrail.daemon import health, lifecycle
 from simtrail.daemon.lease import RENEW_S
 from simtrail.mcp import relay
@@ -235,6 +236,16 @@ class DaemonClient:
             "/api/v1/admin/tokens", {"kind": "agent", "scopes": [scope_id], "roots": list(roots), "label": label}
         )
         return str(data["id"]), str(data["token"])
+
+    def inherit(self, scope_id: str, source_id: str) -> str | None:
+        """Give a scope with no device yet another scope's device; None when it was given none, or this daemon is too
+        old to know how."""
+        try:
+            data = self.post(f"/api/v1/admin/scopes/{quote(scope_id, safe='')}/inherit", {"source": source_id})
+        except DaemonUnavailable:
+            return None
+        udid = data.get("udid") if isinstance(data, Mapping) else None
+        return udid if isinstance(udid, str) else None
 
     def revoke(self, token_id: str) -> None:
         """Stop the daemon accepting a token; a daemon already gone has nothing to revoke."""
@@ -451,6 +462,14 @@ def relay_argv(*, labelled: bool = False) -> list[str]:
     ]
 
 
+def adopt_main_device(client: DaemonClient, scope: Scope, folder: Path) -> str | None:
+    """When `folder` is in a git worktree, give its scope -- if it has no device yet -- the device of the same folder in
+    the main checkout, so a session started in a worktree works on the project's simulator instead of a new blank one
+    being created for it. Answers the UDID it was given, or None."""
+    twin = twin_in_main(folder)
+    return client.inherit(scope.id, Scope.for_folder(twin).id) if twin is not None else None
+
+
 @contextlib.contextmanager
 def terminated_as_exit() -> Iterator[None]:
     """While serving, SIGTERM -- what a proxy or ``kill`` sends to end a server -- ends it as closing stdin does, so its
@@ -485,13 +504,17 @@ def run(
     run_dir: Path | None = None,
     locate_daemon: Callable[[], str] | None = None,
     label: str | None = None,
+    home: Path | None = None,
 ) -> int:
-    """Serve MCP for this scope until the client closes stdin. `label` names the session, else
-    ``SIMTRAIL_AGENT_LABEL`` does (`session_label`). With `run_dir`, a daemon is started under its start
+    """Serve MCP for this scope until the client closes stdin. With `home` -- the folder the scope was made for -- a git
+    worktree's scope with no device yet is given its main checkout's (`adopt_main_device`). `label` names the session,
+    else ``SIMTRAIL_AGENT_LABEL`` does (`session_label`). With `run_dir`, a daemon is started under its start
     lock, and one a person stopped is said to be (`reviver`). With `locate_daemon` -- the daemon's URL as its run
     folder and config say now -- the daemon is followed to another port when it is started again on one."""
     with starting(run_dir):
         ensure_daemon(client, start_daemon, retire=retire_daemon, locate=locate_daemon)
+    if home is not None:
+        adopt_main_device(client, scope, home)
     token_label = f"simtrail mcp (pid {os.getpid()})"
     token_id, token = client.mint_agent_token(scope.id, [str(root) for root in roots], token_label)
     lease = LeaseKeeper(client, token, every_s=every_s)

@@ -76,6 +76,8 @@ All notable changes to Simtrail are documented here. The format follows
   longer refused one another's device for half an hour. An agent of another project keeps a device only while it has
   called within 2 minutes, as `device.exclusive` always said; quiet longer, or gone without saying so, it passes the
   device over by itself.
+- `simtrail mcp` started in a git worktree gives its project, while it has no device yet, the simulator of the main
+  checkout, instead of a new blank one being created at its first call.
 - The viewer draws the device at its actual size by default, as Simulator.app's Point Accurate does: one point a CSS
   pixel, an iPhone 17 Pro 402 by 874. In a window too small it is drawn just small enough to fit, and the scale says
   so (`67% · fitted`). Command-1 is actual size, Command-0 fit to the window, and the zoom a person picks is kept in
