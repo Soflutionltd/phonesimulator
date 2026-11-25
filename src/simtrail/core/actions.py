@@ -1258,8 +1258,12 @@ class AgentActions:
         if kind == "tap" and TAP_BUTTONS[step.get("button", "primary")] == "secondary":
             # A secondary click is a right click, whatever a step calls it.
             kind, step = "right_click", {"right_click": what, **({"modifiers": step["modifiers"]} if held else {})}
+        # Characters struck one key at a time into a secure field are a password as typed text is: never said.
+        keyed = (
+            gestures.struck(what) if kind == "keys" and self._secure_field(self._remembered(instance, caller)) else ""
+        )
         if kind == "keys" and instance.kind != "mac":
-            return self._keyboard(instance, what, guard)
+            return self._keyboard(instance, what, guard, keyed)
         if kind in ("right_click", "hover", "scroll", "keys", "menu"):
             if Capability.INPUT_POINTER not in instance.capabilities:
                 raise ActionError(_no_pointer(instance, kind))
@@ -1279,8 +1283,10 @@ class AgentActions:
                 return Gesture(kind, summary, points=((x, y),), label=label, command=_held(instance, command, held))
             _confirmed(guard, kind)
             command["path" if kind == "menu" else "text"] = what
-            named = " > ".join(what) if kind == "menu" else what
-            return Gesture(kind, f"{kind} {named}"[: CAPTION_MAX + 10], caption=named[:CAPTION_MAX], command=command)
+            named = " > ".join(what) if kind == "menu" else MASK if keyed else what
+            return Gesture(
+                kind, f"{kind} {named}"[: CAPTION_MAX + 10], caption=named[:CAPTION_MAX], command=command, secret=keyed
+            )
         if kind in ("tap", "long_press"):
             middle = kind == "tap" and TAP_BUTTONS[step.get("button", "primary")] == "middle"
             count = _whole(step.get("count"), 1, (1, gestures.TAPS_MAX), "count", "taps") if kind == "tap" else 1
@@ -1399,7 +1405,7 @@ class AgentActions:
         if kind == "press":
             if what not in PANEL_BUTTONS and (held or what not in gestures.KEYS):
                 # A key held with modifiers, or one that is a character: struck as a chord.
-                return self._chord(instance, what, held, guard)
+                return self._chord(instance, what, held, guard, self._remembered(instance, caller))
             refused = None if what in gestures.KEYS else button_refusal(what, instance.buttons)
             if refused is not None:
                 raise ActionError(refused)
@@ -1411,24 +1417,29 @@ class AgentActions:
         pause = _whole(what, 0, PAUSE_MS, "pause")
         return Gesture("pause", f"pause {pause}ms", pause_s=pause / 1000)
 
-    def _chord(self, instance: DeviceInstance, key: str, held: tuple[str, ...], guard: ObserveGuard | None) -> Gesture:
-        """A press of `key` -- one that is not text, or a character -- with `held` modifier keys down."""
+    def _chord(
+        self, instance: DeviceInstance, key: str, held: tuple[str, ...], guard: ObserveGuard | None, memory: _Memory
+    ) -> Gesture:
+        """A press of `key` -- one that is not text, or a character -- with `held` modifier keys down. A character
+        struck into a secure field is one of a password's: said as `MASK`."""
         name = gestures.KEY_ALIASES.get(key.lower(), key)
         written = "+".join([*(gestures.CHORD_NAMES[modifier] for modifier in held), name])
         if held:
             _confirmed(guard, f"press {written}")
+        said = MASK if self._secure_field(memory) and gestures.struck(written) else written
         if instance.kind == "mac":
             if Capability.INPUT_POINTER not in instance.capabilities:
                 raise ActionError(_no_pointer(instance, "keys"))
-            return Gesture("press", f"press {written}", caption=written, command={"kind": "keys", "text": written})
+            return Gesture("press", f"press {said}", caption=said, command={"kind": "keys", "text": written})
         code, shifted = gestures.key_code(key) or (0, False)
         if shifted:
             held = gestures.modifiers([*held, "shift"])
         self._chords_held(instance, held)
-        return Gesture("press", f"press {written}", tuple(gestures.chord(held, code)), caption=written)
+        return Gesture("press", f"press {said}", tuple(gestures.chord(held, code)), caption=said)
 
-    def _keyboard(self, instance: DeviceInstance, text: str, guard: ObserveGuard | None) -> Gesture:
-        """A ``keys`` step on a device with a keyboard: its chords struck one after another."""
+    def _keyboard(self, instance: DeviceInstance, text: str, guard: ObserveGuard | None, keyed: str = "") -> Gesture:
+        """A ``keys`` step on a device with a keyboard: its chords struck one after another. `keyed` is the text they
+        type into a secure field, when they do: the step is then said as `MASK`."""
         if Capability.INPUT_KEY not in instance.capabilities:
             raise ActionError(_no_pointer(instance, "keys"))
         try:
@@ -1440,7 +1451,8 @@ class AgentActions:
         for index, (held, code) in enumerate(struck):
             self._chords_held(instance, held)
             events += [(index * gestures.TAP_S * 2 + at, event) for at, event in gestures.chord(held, code)]
-        return Gesture("keys", f"keys {text}", tuple(events), caption=text[:CAPTION_MAX])
+        said = MASK if keyed else text
+        return Gesture("keys", f"keys {said}", tuple(events), caption=said[:CAPTION_MAX], secret=keyed)
 
     @staticmethod
     def _chords_held(instance: DeviceInstance, held: tuple[str, ...]) -> None:

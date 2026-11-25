@@ -70,6 +70,8 @@ CHARACTER_KEYS: dict[str, tuple[int, bool]] = {
     "_": (45, True), "+": (46, True), "{": (47, True), "}": (48, True), "|": (49, True),
     ":": (51, True), '"': (52, True), "~": (53, True), "<": (54, True), ">": (55, True), "?": (56, True),
 }  # fmt: skip
+#: The character each key types, alone or with Shift -- return aside, which is not text.
+_KEY_CHARACTERS = {key: character for character, key in CHARACTER_KEYS.items() if character != "\n"}
 
 Point = tuple[float, float]
 Timed = tuple[float, HidEvent]
@@ -202,6 +204,16 @@ def chords(text: str) -> list[tuple[tuple[str, ...], int]]:
     if not parsed:
         raise ValueError("keys names one or more chords, e.g. cmd+shift+t")
     return parsed
+
+
+def struck(text: str) -> str:
+    """The text a ``keys`` step's chords type on a US keyboard: each character key struck alone or with Shift, as it
+    then reads. A shortcut, and a key that is not text, type nothing; chords that cannot be read type ""."""
+    try:
+        parsed = chords(text)
+    except ValueError:
+        return ""
+    return "".join(_KEY_CHARACTERS.get((code, "shift" in held), "") for held, code in parsed if set(held) <= {"shift"})
 
 
 def typed(text: str, hold_s: float = KEY_HOLD_S) -> list[Timed] | None:

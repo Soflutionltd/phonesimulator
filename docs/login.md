@@ -115,6 +115,12 @@ What Simtrail guarantees about the value -- the password and the one-time code:
   keyed digest of each value, never the value, with a key made afresh for each run of the daemon.
 - **Never shown to a viewer.** The agent's events say "Typing the password" and show `••••`; the macOS overlay, drawn
   from the same events, likewise.
+- **Not hidden in a picture, a short value or a file.** The mask hides text in what Simtrail answers, and is set
+  before the first key is struck, so a login cancelled midway is masked too. It does not reach a screenshot, a
+  recording or the live viewer: an app that shows the password in clear -- its eye tapped -- shows it there, and to
+  the agent that asks for a screenshot. A value shorter than four characters is not masked, nor is what an app writes
+  itself into a file on disk, such as a build's `build.log`
+  ([what the mask does not cover](security.md#what-an-agent-can-reach)).
 - **Never in a log, an argv or the environment.** A login is asked for by its id; the password comes back on the CLI's
   output, read into the daemon's memory alone. What a CLI says on failure is kept to its first line.
 - **Never in a recording.** `sim_login` is refused while the device's screen is recorded.

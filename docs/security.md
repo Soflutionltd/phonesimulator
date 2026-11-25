@@ -143,7 +143,27 @@ SHA-256 of its token, which only the daemon -- keeping that digest -- and the ho
 - **A password an agent types itself, never shown**: text `sim_act` or `sim_flow` types into a secure field -- the one
   a ref or a point names, the one the agent's last touch landed on, or the one being edited -- reads `••••` in the
   step's line, in the agent events a viewer draws beside the pointer and in the macOS overlay, and is masked in every
-  later answer of every tool, as `sim_login`'s password is.
+  later answer of every tool, as `sim_login`'s password is. It is masked from before its first key is struck: a call
+  that fails or is cancelled with the text half typed has masked it all the same. Characters struck into a secure
+  field one key at a time -- a `keys` step's, or a `press` of a character -- read `••••` in the same places, and what
+  one `keys` step typed is masked afterwards as typed text is.
+- **What that mask does not cover.** It hides text, in what Simtrail says; so:
+  - *A screenshot is not masked.* While an app shows a password in clear -- its eye tapped, or a field that is not
+    secure -- `sim_screenshot`, `sim_matrix`, a recording and the live viewer show it, and the agent's model
+    provider receives the image. Simtrail does not read pictures to hide text in them.
+  - *A value shorter than four characters is not masked*: a three-letter run would match too much of every answer.
+    A PIN of three digits typed into a secure field is still said as `••••` in the step's own line and events, but
+    an app or a log that says it back later is answered as it is.
+  - *A file on disk is not masked.* A build's `build.log`, a recording and anything else written to disk hold what
+    the tool or the app wrote: an app that prints a secret itself leaves it there in clear, though the answer that
+    quotes the log to the agent has it masked.
+  - *A password spelled over several steps is masked only in their lines.* Each `press` of a character, and each
+    `keys` step, is said as `••••`; but only the text of one step is remembered, so a password struck one `press`
+    at a time, or split between several `keys` steps, is not masked when the app shows it back. Type it whole, with
+    `type`, or use `sim_login`.
+  - *Text typed where Simtrail does not see a secure field is ordinary text*: a custom-drawn password field that
+    does not say it is secure, or one that took the focus without the agent touching it or reading the screen since,
+    is shown as typed.
 - **Nothing outside the device**: every gesture is drawn by the viewer's own cursor, never the Mac's pointer.
 - **What changes an account, only when confirmed, in observe mode**: with `agent.observe` on, a tap or typing on what
   reads like Delete, Save, Send or Sign out or on a switch, a sideways swipe on a list row, a drop onto the trash, and

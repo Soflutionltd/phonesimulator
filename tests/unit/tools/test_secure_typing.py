@@ -211,3 +211,35 @@ async def test_a_password_whose_typing_was_cancelled_midway_is_masked_in_every_a
     monkeypatch.undo()
     looked = await shown_back(r)
     assert PASSWORD not in looked and "••••" in looked
+
+
+# -- a password struck one key at a time -------------------------------------------------------------------------------
+
+
+async def test_characters_struck_one_key_at_a_time_into_a_secure_field_are_never_shown(tmp_path: Path) -> None:
+    r = Rigged(tmp_path)
+    instance = await r.up()
+    await r.call("sim_snapshot", {"mode": "full"})
+    events = instance.events.subscribe()
+    struck = " ".join(PASSWORD)
+    answer = await r.call("sim_act", {"steps": [{"tap": "e2"}, {"keys": struck}, {"press": "x"}], "snapshot": "none"})
+    assert answer["isError"] is False, said(answer)
+    assert "ok keys ••••" in said(answer) and "ok press ••••" in said(answer)
+    published = drained(instance, events)
+    captions = [event["caption"] for event in published if event.get("gesture", {}).get("kind") in ("keys", "press")]
+    assert captions == ["••••", "••••"]
+    told = json.dumps([answer, published], ensure_ascii=False)
+    assert struck not in told and PASSWORD not in told and "press x" not in told
+    looked = await shown_back(r)
+    assert PASSWORD not in looked and "••••" in looked, "what the keys typed is masked after, as typed text is"
+
+
+async def test_a_shortcut_in_a_secure_field_and_keys_in_an_ordinary_one_are_still_said(tmp_path: Path) -> None:
+    r = Rigged(tmp_path)
+    await r.up()
+    await r.call("sim_snapshot", {"mode": "full"})
+    steps = [{"tap": "e2"}, {"keys": "cmd+a"}, {"press": "delete"}, {"tap": "e1"}, {"keys": "a n n"}, {"press": "x"}]
+    answer = await r.call("sim_act", {"steps": steps, "snapshot": "none"})
+    assert answer["isError"] is False, said(answer)
+    for line in ("ok keys cmd+a", "ok press delete", "ok keys a n n", "ok press x"):
+        assert line in said(answer)

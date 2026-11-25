@@ -160,3 +160,17 @@ def test_chords_are_written_as_an_app_writes_them(written, struck):
 def test_a_chord_that_is_not_one_is_refused(written, refused):
     with pytest.raises(ValueError, match=re.escape(refused)):
         gestures.chords(written)
+
+
+@pytest.mark.parametrize(
+    ("written", "typed"),
+    [
+        ("h u n t e r 2", "hunter2"),
+        ("shift+a B shift+1 + space", "AB!+ "),
+        ("cmd+a return tab delete ctrl+shift+k", ""),
+        ("p cmd+v q", "pq"),
+        ("no+such+key", ""),
+    ],
+)
+def test_the_text_a_keys_step_types_is_its_character_keys_alone_or_with_shift(written, typed):
+    assert gestures.struck(written) == typed

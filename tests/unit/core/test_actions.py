@@ -1673,6 +1673,17 @@ async def mac_rigged(tmp_path: Path, **offers: bool) -> tuple[Rigged, Any]:
     return r, app
 
 
+async def test_characters_keyed_into_a_mac_apps_secure_field_are_sent_and_never_said(tmp_path):
+    r, app = await mac_rigged(tmp_path)
+    frame = {"x": 16, "y": 160, "width": 370, "height": 44}
+    app.document = {"elements": [{"type": "SecureTextField", "label": "Password", "frame": frame}]}
+    steps = [{"tap": [201, 182]}, {"keys": "h u n t e r 2 shift+1"}, {"press": "x"}, {"keys": "cmd+a"}]
+    acted = await r.actions.perform(r.instance, CALLER, steps, snapshot="none")
+    assert [action.get("text") for action in app.mac_actions] == ["h u n t e r 2 shift+1", "x", "cmd+a"]
+    assert untimed(acted.text).splitlines()[1:] == ["ok keys ••••", "ok press ••••", "ok keys cmd+a"]
+    assert acted.secrets == ("hunter2!",), "what the keys typed, for the tool to mask in the answers after"
+
+
 async def test_a_mac_app_adapter_double_clicks_holds_modifiers_and_clicks_the_middle_button(tmp_path):
     r, app = await mac_rigged(tmp_path, gestures=True, multi_click=True, modifier_input=True, middle_click=True)
     steps = [
