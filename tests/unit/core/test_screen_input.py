@@ -10,11 +10,11 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError, HidEvent
+from simtrail.connectors.base import Capability, ConnectorError, DeviceSession, HidEvent, PointerSink
 from simtrail.core import gestures
 from simtrail.core.control import SimulatorControl
 from simtrail.core.device_changes import DeviceChanges
-from simtrail.core.screen_input import Command, PersonInput, translate
+from simtrail.core.screen_input import Command, PersonInput, pointer_sink, translate
 from simtrail.platform.simctl import Simctl
 from simtrail.protocol import SCROLL_MAX_PT, TEXT_MAX_CHARS
 from simtrail.testing.fakes import BOOTED_UDID, SCREEN, FakeEngine, FakeKeyboard, FakeXcrun
@@ -59,7 +59,12 @@ def test_translate_is_a_whitelist_and_speaks_in_points(message: Any, command: Co
 
 
 def make(
-    engine: FakeEngine | None = None, *, mirror: bool = False, typing: str = "auto", us: bool = False
+    engine: FakeEngine | None = None,
+    *,
+    mirror: bool = False,
+    typing: str = "auto",
+    us: bool = False,
+    pointer: bool = False,
 ) -> tuple[PersonInput, FakeEngine, FakeXcrun, list[int]]:
     engine = engine or FakeEngine()
     xcrun = FakeXcrun()
@@ -70,6 +75,7 @@ def make(
         on_touch=lambda: touched.append(1),
         typing=typing,
         keyboard_is_us=FakeKeyboard(us=us),
+        pointer=engine if pointer and isinstance(engine, PointerSink) else None,
     )
     return person, engine, xcrun, touched
 
@@ -224,7 +230,7 @@ async def test_window_input_uses_only_the_app_sink_and_never_simulator_gestures(
     from simtrail.testing.macos import FakeMacApp
 
     app = FakeMacApp()
-    person, _, xcrun, touched = make(app)
+    person, _, xcrun, touched = make(app, pointer=True)
     for command in [
         Command("right_click", x=2, y=3),
         Command("hover", x=4, y=5),
@@ -239,3 +245,42 @@ async def test_window_input_uses_only_the_app_sink_and_never_simulator_gestures(
     other, _, _, _ = make()
     with pytest.raises(ConnectorError, match="window pointer input"):
         await other.run(Command("hover", x=1, y=1))
+
+
+async def test_a_wheel_over_a_simulator_is_a_swipe_even_when_its_input_could_ask_for_a_window_action() -> None:
+    """The native helper's client drives simulators and macOS apps alike, so it has `mac_action` -- and a simulator's
+    helper answers it "this device is not a macOS app". A person's scroll there is a finger, never that request."""
+    from simtrail.testing.macos import FakeMacApp
+
+    helper = FakeMacApp()
+    simulator = DeviceSession(
+        connector="native",
+        capabilities=frozenset(Capability) - {Capability.INPUT_POINTER},
+        screen=helper,
+        input=helper,
+    )
+    assert isinstance(helper, PointerSink) and pointer_sink(simulator) is None
+    person = PersonInput(
+        helper,
+        DeviceChanges().on(SimulatorControl(Simctl(FakeXcrun())), BOOTED_UDID, remember=False),
+        pointer=pointer_sink(simulator),
+    )
+    await person.run(Command("scroll", x=200, y=400, dy=100))
+    assert helper.mac_actions == []
+    assert helper.hid_events[0] == HidEvent.touch("down", 200, 400)
+    assert helper.hid_events[-1] == HidEvent.touch("up", 200, 300)
+    for command in (Command("hover", x=1, y=1), Command("right_click", x=1, y=1), Command("keys", text="cmd+s")):
+        with pytest.raises(ConnectorError, match="window pointer input"):
+            await person.run(command)
+    assert helper.mac_actions == []
+
+
+def test_only_a_session_that_says_it_takes_a_pointer_is_given_window_input() -> None:
+    from simtrail.testing.macos import FakeMacApp
+
+    app, device = FakeMacApp(), FakeEngine()
+    pointing = frozenset({Capability.INPUT_POINTER, Capability.INPUT_TOUCH})
+    assert pointer_sink(DeviceSession(connector="mac-app", capabilities=pointing, screen=app, input=app)) is app
+    # A session that says so and cannot is not believed either.
+    assert pointer_sink(DeviceSession(connector="idb", capabilities=pointing, screen=device, input=device)) is None
+    assert pointer_sink(DeviceSession(connector="simctl", capabilities=pointing, screen=device)) is None

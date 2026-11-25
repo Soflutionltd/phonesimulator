@@ -46,7 +46,7 @@ from simtrail.connectors.base import Capability, ConnectorError, DeviceSession
 from simtrail.core.events import Event
 from simtrail.core.instance import READY, STALLED, DeviceInstance
 from simtrail.core.manager import STOPPED_REASON, DeviceManager
-from simtrail.core.screen_input import PersonInput, translate
+from simtrail.core.screen_input import PersonInput, pointer_sink, translate
 from simtrail.core.status import capability_names
 from simtrail.platform.errors import DeviceControlError
 from simtrail.protocol import (
@@ -307,6 +307,7 @@ class ScreenRelay:
                     text=session.text,
                     buttons=session.pressable,
                     rotate=lambda direction: self._manager.rotate_by(instance, direction),
+                    pointer=pointer_sink(session),
                 )
                 self._person_session = session
             try:

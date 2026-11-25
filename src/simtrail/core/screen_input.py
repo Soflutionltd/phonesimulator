@@ -26,7 +26,9 @@ from typing import Any
 
 from simtrail.connectors.base import (
     IOS_BUTTONS,
+    Capability,
     ConnectorError,
+    DeviceSession,
     HidEvent,
     InputSink,
     PointerSink,
@@ -131,6 +133,14 @@ def translate(message: Any, screen: Screen) -> Command | None:
     return None
 
 
+def pointer_sink(session: DeviceSession) -> PointerSink | None:
+    """What takes a person's window pointer input through `session`: its input, when the session says it has
+    ``INPUT_POINTER`` -- a macOS app's. None for a simulator, an emulator or a real device, whatever their input looks
+    like: the native helper's client can ask for a window action too, and a device's helper refuses it."""
+    sink = session.input
+    return sink if session.can(Capability.INPUT_POINTER) and isinstance(sink, PointerSink) else None
+
+
 async def _finger(events: asyncio.Queue[HidEvent | None]) -> AsyncIterator[HidEvent]:
     while (event := await events.get()) is not None:
         yield event
@@ -150,8 +160,13 @@ class PersonInput:
         text: TextSink | None = None,
         buttons: Sequence[str] = IOS_BUTTONS,
         rotate: Callable[[str], Awaitable[None]] | None = None,
+        pointer: PointerSink | None = None,
     ) -> None:
         self._sink = sink
+        #: What takes window pointer input -- a secondary click, a hover, a key chord, a wheel -- where the session
+        #: has ``INPUT_POINTER``: a macOS app's. None on a device, whose scroll is a finger's swipe. Never read off
+        #: the sink's shape: a simulator's helper client has the method too, and its helper refuses the request.
+        self._pointer = pointer
         #: The buttons this device has: a person's press of another is refused before it reaches the connector.
         self._buttons = buttons
         #: What types text whole on this device, when it can: then no key is pressed and nothing pasted.
@@ -184,17 +199,16 @@ class PersonInput:
         if sink is None:
             return
         self._on_touch()
-        if command.kind in ("right_click", "hover", "keys") or (
-            command.kind == "scroll" and isinstance(sink, PointerSink)
-        ):
-            if not isinstance(sink, PointerSink):
+        pointer = self._pointer
+        if command.kind in ("right_click", "hover", "keys") or (command.kind == "scroll" and pointer is not None):
+            if pointer is None:
                 raise ConnectorError("this device does not take window pointer input")
             action: dict[str, Any] = {"kind": command.kind, "x": command.x, "y": command.y}
             if command.kind == "scroll":
                 action.update(dx=command.dx, dy=command.dy)
             if command.kind == "keys":
                 action["text"] = command.text
-            await sink.mac_action(action)
+            await pointer.mac_action(action)
             return
         if command.kind == "touch":
             await self._touch(sink, command)

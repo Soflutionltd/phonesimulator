@@ -649,3 +649,45 @@ async def test_a_persons_input_clears_the_text_outlined_over_the_screen_once(tmp
     assert [len(text["boxes"]) for text in said] == [1, 0] and not instance.text.shown
     socket.leave()
     await asyncio.wait_for(running, 2)
+
+
+async def test_a_wheel_over_a_simulator_scrolls_it_and_is_never_refused_as_a_window_action(tmp_path: Path) -> None:
+    """A simulator driven by the native helper: its input is the helper's client, which can also ask for a macOS
+    app's window action. A scroll there was sent as one, and the helper refused it -- "this device is not a macOS
+    app" -- under the screen."""
+    from simtrail.testing.macos import FakeMacApp
+
+    class Helper(FakeMacApp):
+        async def mac_action(self, action: dict[str, Any]) -> dict[str, Any]:
+            raise ConnectorError("this device is not a macOS app")
+
+    helper = Helper()
+    native = FakeConnector("native", engine=helper, capabilities=FULL_CONTROL - {Capability.INPUT_POINTER})
+    rig = DeviceRig(tmp_path, native=native)
+    instance = await rig.up()
+    assert instance.session is not None and instance.session.connector == "native"
+    socket, running = watch(rig, instance)
+    await asyncio.wait_for(socket.framed.wait(), 2)
+    socket.say({"type": "scroll", "nx": 0.5, "ny": 0.5, "dy": 100})
+    lifted = HidEvent.touch("up", 201.0, 337.0)
+    await until(lambda: lifted in helper.hid_events)
+    assert helper.hid_events[0] == HidEvent.touch("down", 201.0, 437.0) and helper.hid_events[-1] == lifted
+    assert refusals(socket) == []
+    socket.leave()
+    await asyncio.wait_for(running, 2)
+
+
+async def test_a_wheel_over_a_session_that_takes_a_pointer_is_its_window_scroll(tmp_path: Path) -> None:
+    from simtrail.testing.macos import FakeMacApp
+
+    app = FakeMacApp()
+    rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=app))
+    instance = await rig.up()
+    socket, running = watch(rig, instance)
+    await asyncio.wait_for(socket.framed.wait(), 2)
+    socket.say({"type": "wheel", "nx": 0.5, "ny": 0.5, "dx": 3, "dy": 100})
+    await until(lambda: app.mac_actions)
+    assert app.mac_actions == [{"kind": "scroll", "x": 201.0, "y": 437.0, "dx": 3.0, "dy": 100.0}]
+    assert app.hid_events == [] and refusals(socket) == []
+    socket.leave()
+    await asyncio.wait_for(running, 2)

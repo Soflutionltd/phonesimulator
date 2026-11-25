@@ -87,6 +87,11 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Fixed
 
+- Scrolling with the wheel or trackpad over a simulator driven by the native helper scrolls it again. The scroll was
+  sent to the helper as a macOS app's window action, which a simulator's helper refuses, so nothing moved and the
+  viewer said "The simulator did not take that: this device is not a macOS app". Window pointer input -- a secondary
+  click, a hover, a key chord, a wheel -- now goes only to a session that has `input_pointer`; on every other device a
+  scroll is a finger's swipe, as it was.
 - Security: text an agent typed with `sim_act` or `sim_flow` into a secure field -- a password field named by a ref or
   a point, the one its last touch landed on, or the one being edited -- was shown in clear beside the agent's pointer
   in the viewer and in the macOS overlay, and said back in the step's line. It now reads `••••` in the agent events,
