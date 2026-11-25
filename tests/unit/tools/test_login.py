@@ -616,7 +616,7 @@ async def test_a_recording_under_way_is_stopped_first(tmp_path: Path) -> None:
         ({"item": 3}, "item is text of 1 to 255 characters"),
         ({"field": "e" * 17}, 'field is a ref from sim_snapshot, such as "e5"'),
         ({"code": "yes"}, "code is true or false"),
-        ({"source": "keychain"}, "source is one of 1password, bitwarden, command, given"),
+        ({"source": "lastpass"}, "source is one of 1password, bitwarden, keychain, command, given"),
         ({"source": "bitwarden"}, "bitwarden is not in login.sources (1password)"),
     ],
 )

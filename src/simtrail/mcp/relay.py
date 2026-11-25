@@ -311,6 +311,10 @@ class Upstream:
         self.locate = locate
         #: Told as each tool call is handed on -- ``simtrail mcp`` holds its lease while calls come; None for nobody.
         self.on_call: Callable[[], None] | None = None
+        #: The headers a request carries for the folder the client works in now, and the path it goes to -- the token
+        #: and the scope of that folder's project, for a relay that serves every project it is called from; None, and
+        #: every request carries the relay's own.
+        self.per_root: Callable[[str, str], Mapping[str, str]] | None = None
         #: What the client called itself, once it has said.
         self.client_name: str | None = None
         #: The folders the client works in, once it has said.
@@ -332,6 +336,8 @@ class Upstream:
             headers[self.client_header] = self.client_name
         if self.roots_header and self.roots:
             headers[self.roots_header] = encode_roots(self.roots)
+        if self.per_root is not None and self.roots:
+            headers.update(self.per_root(self.roots[0], path))
         request = urllib.request.Request(
             f"{self.base}/{path}", data=data, method="GET" if data is None else "POST", headers=headers
         )
@@ -410,8 +416,12 @@ class Relay:
         server_name: str = DEFAULT_SERVER_NAME,
         server_version: str = DEFAULT_SERVER_VERSION,
         progress_s: float = PROGRESS_S,
+        roots_meta: str | None = None,
     ) -> None:
         self.upstream = upstream
+        #: The ``_meta`` key a tool call may name the folders its session works in by, as a ``roots/list`` answer's
+        #: ``roots`` -- a client shared by several sessions says it with each call; None when none is read.
+        self.roots_meta = roots_meta
         self.server_name = server_name
         self.server_version = server_version
         #: How a notification reaches the client while a call runs -- `serve` points it at its locked writer; None, and
@@ -534,12 +544,27 @@ class Relay:
         held, self._held = self._held, []
         return [reply for message in held for reply in self._called(message)]
 
+    def _meta_roots(self, message: Mapping[str, Any]) -> list[str] | None:
+        """The folders a tool call names its session's by, in its ``_meta`` under `roots_meta` -- or None when it names
+        none, or this relay reads none."""
+        if not self.roots_meta:
+            return None
+        raw = message.get("params")
+        meta = raw.get("_meta") if isinstance(raw, dict) else None
+        named = meta.get(self.roots_meta) if isinstance(meta, dict) else None
+        found = root_paths({"roots": named}) if isinstance(named, list) else []
+        return found or None
+
     def _hold(self, message: Mapping[str, Any]) -> list[dict[str, Any]] | None:
         """A request for the client's roots, which this call waits for -- nothing more when calls already wait for
-        one -- or None when the call goes now."""
+        one -- or None when the call goes now: at once when the call names its session's folders itself."""
         if self._held:
             self._held.append(message)
             return []
+        named = self._meta_roots(message)
+        if named is not None:
+            self.upstream.roots = named
+            return None
         asking = self._ask_for_roots() if self._ask_before_calls and not self.upstream.problem else []
         if not asking:
             return None
@@ -677,6 +702,10 @@ def parser() -> argparse.ArgumentParser:
     made.add_argument("--header", action="append", type=_header_spec, default=[], help="NAME=ENVVAR, repeatable")
     made.add_argument("--client-header", help="the header the client's own name is sent in")
     made.add_argument("--roots-header", help="the header the folders the client works in are sent in")
+    made.add_argument(
+        "--roots-meta",
+        help="the _meta key a tool call names its session's folders by, as roots/list does: read instead of asking",
+    )
     made.add_argument("--server-name", default=DEFAULT_SERVER_NAME)
     made.add_argument("--server-version", default=DEFAULT_SERVER_VERSION, help="what serverInfo.version says")
     made.add_argument("--manifest-path", default=MANIFEST_PATH)
@@ -736,6 +765,7 @@ def main(
     revive: Revive | None = None,
     locate: Locate | None = None,
     on_call: Callable[[], None] | None = None,
+    per_root: Callable[[str, str], Mapping[str, str]] | None = None,
 ) -> int:
     args = parser().parse_args(argv)
     environment = os.environ if env is None else env
@@ -751,11 +781,11 @@ def main(
     if unreadable and upstream.problem is None:
         upstream.problem = unreadable
     upstream.on_call = on_call
-    serve(
-        sys.stdin if stdin is None else stdin,
-        sys.stdout if stdout is None else stdout,
-        Relay(upstream, server_name=args.server_name, server_version=args.server_version),
+    upstream.per_root = per_root
+    relay = Relay(
+        upstream, server_name=args.server_name, server_version=args.server_version, roots_meta=args.roots_meta
     )
+    serve(sys.stdin if stdin is None else stdin, sys.stdout if stdout is None else stdout, relay)
     return 0
 
 

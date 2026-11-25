@@ -83,6 +83,8 @@ Serve the agent tools over stdio, for an MCP client.
 | `--scope SCOPE` | the scope to drive, instead of this folder's project |
 | `--root ROOT` | a folder builds and installs may reach; repeatable (default: here) |
 | `--label LABEL` | name this session for viewers and other agents, such as a ticket (default: SIMTRAIL_AGENT_LABEL) |
+| `--scope-from-roots` | act for the project of the folder each call comes from, as the client names it: for a client that serves several sessions with one server |
+| `--roots-meta KEY` | the _meta key a tool call names its session's folders by, read instead of asking the client |
 
 ## `simtrail login`
 

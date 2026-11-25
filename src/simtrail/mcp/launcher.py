@@ -467,11 +467,14 @@ def session_label(given: str | None, env: Mapping[str, str]) -> str:
     return " ".join(label.split())[:LABEL_MAX]
 
 
-def relay_argv(*, labelled: bool = False) -> list[str]:
-    """The relay's flags. A labelled session's relay also sends ``X-Simtrail-Label``, from its environment."""
+def relay_argv(*, labelled: bool = False, roots_meta: str | None = None) -> list[str]:
+    """The relay's flags. A labelled session's relay also sends ``X-Simtrail-Label``, from its environment; with
+    `roots_meta`, it reads a call's folders from that ``_meta`` key."""
     label = ["--header", f"{LABEL_HEADER}={LABEL_ENV}"] if labelled else []
+    meta = ["--roots-meta", roots_meta] if roots_meta else []
     return [
         *label,
+        *meta,
         "--url-env",
         URL_ENV,
         "--header",
@@ -493,6 +496,53 @@ def adopt_main_device(client: DaemonClient, scope: Scope, folder: Path) -> str |
     being created for it. Answers the UDID it was given, or None."""
     twin = twin_in_main(folder)
     return client.inherit(scope.id, Scope.for_folder(twin).id) if twin is not None else None
+
+
+class ProjectTokens:
+    """One agent token for each project a shared relay is called from (``simtrail mcp --scope-from-roots``): a client
+    that serves several sessions -- a hub that starts one server for all of them -- names each call's folder, and the
+    call acts for that folder's project, as `simtrail mcp` started there would: its device, its settings, its builds,
+    and an agent of its own for the other agents to see. Each token is made at the first call from its project -- a git
+    worktree given its main checkout's device first (`adopt_main_device`) -- holds its lease while calls come, and is
+    revoked when the relay closes."""
+
+    def __init__(self, client: DaemonClient, label: str, *, every_s: float = RENEW_S) -> None:
+        self._client = client
+        self._label = label
+        self._every_s = every_s
+        self._lock = threading.Lock()
+        self._made: dict[str, tuple[str, str, LeaseKeeper, threading.Thread]] = {}
+
+    def headers(self, folder: str, path: str) -> Mapping[str, str]:
+        """The token and scope a request from `folder` goes with; a tool call renews its project's lease."""
+        root = Path(folder)
+        scope = Scope.for_folder(root)
+        with self._lock:
+            made = self._made.get(scope.id)
+            if made is None:
+                try:
+                    adopt_main_device(self._client, scope, root)
+                    token_id, token = self._client.mint_agent_token(scope.id, [str(root)], self._label)
+                except DaemonUnavailable as exc:
+                    # Said as the call's failure, never sent with another project's token.
+                    raise ValueError(f"no agent token could be made for {scope.label}: {exc}") from exc
+                lease = LeaseKeeper(self._client, token, every_s=self._every_s)
+                keeper = threading.Thread(target=lease.run, name=f"simtrail-lease-{scope.id}", daemon=True)
+                keeper.start()
+                made = self._made[scope.id] = (token_id, token, lease, keeper)
+        _token_id, token, lease, _keeper = made
+        if path == relay.CALL_PATH.strip("/"):
+            lease.called()
+        return {TOKEN_HEADER: token, SCOPE_HEADER: scope.id}
+
+    def close(self) -> None:
+        """Let every project's lease lapse and revoke its token."""
+        with self._lock:
+            made, self._made = list(self._made.values()), {}
+        for token_id, _token, lease, keeper in made:
+            lease.stop()
+            keeper.join(timeout=REQUEST_TIMEOUT_S)
+            self._client.revoke(token_id)
 
 
 @contextlib.contextmanager
@@ -530,12 +580,17 @@ def run(
     locate_daemon: Callable[[], str] | None = None,
     label: str | None = None,
     home: Path | None = None,
+    scope_from_roots: bool = False,
+    roots_meta: str | None = None,
 ) -> int:
     """Serve MCP for this scope until the client closes stdin. With `home` -- the folder the scope was made for -- a git
     worktree's scope with no device yet is given its main checkout's (`adopt_main_device`). `label` names the session,
-    else ``SIMTRAIL_AGENT_LABEL`` does (`session_label`). With `run_dir`, a daemon is started under its start
-    lock, and one a person stopped is said to be (`reviver`). With `locate_daemon` -- the daemon's URL as its run
-    folder and config say now -- the daemon is followed to another port when it is started again on one."""
+    else ``SIMTRAIL_AGENT_LABEL`` does (`session_label`). With `scope_from_roots`, each call acts for the project of
+    the folder the client names for it -- in its ``_meta`` under `roots_meta`, or its roots -- with a token of that
+    project's own (`ProjectTokens`); a call that names none acts for `scope`. With `run_dir`, a daemon is started
+    under its start lock, and one a person stopped is said to be (`reviver`). With `locate_daemon` -- the daemon's
+    URL as its run folder and config say now -- the daemon is followed to another port when it is started again on
+    one."""
     with starting(run_dir):
         ensure_daemon(client, start_daemon, retire=retire_daemon, locate=locate_daemon)
     if home is not None:
@@ -552,6 +607,7 @@ def run(
     lease = LeaseKeeper(client, token, every_s=every_s)
     keeper = threading.Thread(target=lease.run, name="simtrail-lease", daemon=True)
     keeper.start()
+    projects = ProjectTokens(client, token_label, every_s=every_s) if scope_from_roots else None
     try:
         environment = os.environ if env is None else env
         named = session_label(label, environment)
@@ -565,7 +621,7 @@ def run(
         revive = reviver(client, start_daemon, run_dir, locate_daemon)
         locate = follower(client, locate_daemon) if locate_daemon is not None else None
         return relay.main(
-            relay_argv(labelled=bool(named)),
+            relay_argv(labelled=bool(named), roots_meta=roots_meta),
             env=relay_env,
             stdin=stdin,
             stdout=stdout,
@@ -573,8 +629,11 @@ def run(
             revive=revive,
             locate=locate,
             on_call=lease.called,
+            per_root=projects.headers if projects is not None else None,
         )
     finally:
+        if projects is not None:
+            projects.close()
         lease.stop()
         keeper.join(timeout=REQUEST_TIMEOUT_S)
         # Revoking the token lets go of its lease too, so the device can idle out without waiting for it to lapse.

@@ -283,6 +283,21 @@ def test_mcp_started_in_a_git_worktree_gives_its_scope_the_main_checkouts_device
     assert not [path for method, path, _ in plain.daemon.requests if path.endswith("/inherit")], "not in a worktree"
 
 
+def test_mcp_scope_from_roots_acts_for_the_project_each_call_names(tmp_path: Path) -> None:
+    folder = tmp_path / "Mail"
+    named = [{"uri": f"file://{folder}", "name": "Mail"}]
+    call = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": "sim_device", "_meta": {"k/r": named}},
+    }
+    here = Terminal(tmp_path, stdin=json.dumps(call) + "\n")
+    assert here("mcp", "--scope-from-roots", "--roots-meta", "k/r") == 0
+    scopes = [body["scopes"] for body in here.daemon.made("POST", "/api/v1/admin/tokens")]
+    assert scopes == [[Scope.for_folder(here.cwd).id], [Scope.for_folder(folder).id]]
+
+
 def test_open_starts_the_daemon_and_opens_the_viewer_without_printing_the_code(tmp_path: Path) -> None:
     here = Terminal(tmp_path, daemon=Daemon(up=False))
     assert here("open", "--scope", "demo") == 0

@@ -709,3 +709,57 @@ def test_a_host_names_the_variable_its_certificate_is_in_and_never_the_certifica
     argv = relay_command(url_env="HOST_URL", ca_env="HOST_CA")
     assert argv[-2:] == ["--ca-env", "HOST_CA"] and "BEGIN CERTIFICATE" not in " ".join(argv)
     assert "--ca-env" not in relay_command()
+
+
+META = "com.example.hub/roots"
+
+
+def meta_call(n: int, *paths: str) -> dict[str, Any]:
+    """A call from a client shared by sessions, naming its session's folders in its ``_meta``."""
+    named = [{"uri": f"file://{path}", "name": "x"} for path in paths]
+    return {
+        "jsonrpc": "2.0",
+        "id": n,
+        "method": "tools/call",
+        "params": {"name": "sim_build_run", "_meta": {META: named}},
+    }
+
+
+def test_a_call_naming_its_sessions_folders_in_its_meta_goes_at_once_with_those_folders_and_their_headers() -> None:
+    opener = Opener(MANIFEST, DONE, DONE, DONE)
+    asked_for: list[tuple[str, str]] = []
+
+    def per_root(folder: str, path: str) -> dict[str, str]:
+        asked_for.append((folder, path))
+        return {"X-Simtrail-Token": f"token-of-{folder}", "X-Simtrail-Scope": f"scope-of-{folder}"}
+
+    lines = "".join(
+        json.dumps(message) + "\n"
+        for message in [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": OFFERS_ROOTS},
+            meta_call(2, "/Users/dev/Notes"),
+            meta_call(3, "/Users/dev/Mail App"),
+            # A call naming nothing keeps the folders heard last; one naming a garbled list names none.
+            {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "x", "_meta": {META: "no"}}},
+        ]
+    )
+    stdout = io.StringIO()
+    flags = [*ROOTS_FLAGS, "--roots-meta", META]
+    assert main(flags, env=ENV, stdin=io.StringIO(lines), stdout=stdout, opener=opener, per_root=per_root) == 0
+    replies = [json.loads(line) for line in stdout.getvalue().splitlines()]
+    assert [reply.get("id") for reply in replies] == [1, 2, 3, "simtrail-roots-1"], "only a call naming none asks"
+    calls = [request for request, _ in opener.requests if request.full_url.endswith("/call")]
+    assert [request.get_header("X-simtrail-token") for request in calls] == [
+        "token-of-/Users/dev/Notes",
+        "token-of-/Users/dev/Mail App",
+    ]
+    assert [request.get_header("X-simtrail-scope") for request in calls][-1] == "scope-of-/Users/dev/Mail App"
+    assert ("/Users/dev/Notes", "call") in asked_for
+
+
+def test_without_a_meta_key_or_per_root_headers_a_call_goes_as_before() -> None:
+    opener = Opener(MANIFEST, DONE)
+    replies = run([{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}, meta_call(2, "/x")], opener)
+    assert replies[-1] == {"jsonrpc": "2.0", "id": 2, "result": DONE}
+    ((call, _),) = [(request, t) for request, t in opener.requests if request.full_url.endswith("/call")]
+    assert call.get_header("X-simtrail-token") == "secret-token" and call.get_header("X-simtrail-roots") is None

@@ -28,6 +28,7 @@ from simtrail.mcp.launcher import (
     DaemonUnavailable,
     LeaseKeeper,
     LeaseRefused,
+    ProjectTokens,
     ensure_daemon,
     older,
     reviver,
@@ -523,3 +524,53 @@ def test_sigterm_is_left_as_it_was_when_no_token_could_be_made() -> None:
     with pytest.raises(DaemonUnavailable):
         run(Scope.named("tp-1"), [], client=client, start_daemon=lambda: None, stdin=io.StringIO(""))
     assert signal.getsignal(signal.SIGTERM) is before
+
+
+def test_a_shared_relay_makes_one_token_per_project_it_is_called_from_and_revokes_them_all(tmp_path: Path) -> None:
+    daemon = FakeDaemon()
+    client = DaemonClient(URL, ADMIN, opener=daemon)
+    projects = ProjectTokens(client, "simtrail mcp (pid 1)", every_s=0.01)
+    notes, mail = tmp_path / "Notes", tmp_path / "Mail"
+    first = projects.headers(str(notes), "call")
+    assert first == {"X-Simtrail-Token": "agent-token", "X-Simtrail-Scope": Scope.for_folder(notes).id}
+    assert projects.headers(str(notes), "manifest") == first, "made once for its project"
+    projects.headers(str(mail), "call")
+    minted = [body for _auth, body in daemon.made("POST", "/api/v1/admin/tokens")]
+    assert [body["scopes"] for body in minted] == [[Scope.for_folder(notes).id], [Scope.for_folder(mail).id]]
+    assert minted[0]["roots"] == [str(notes)], "its builds go to its own folder"
+    projects.close()
+    assert len(daemon.made("DELETE", "/api/v1/admin/tokens/t1")) == 2
+    projects.close()
+    assert len(daemon.made("DELETE", "/api/v1/admin/tokens/t1")) == 2, "closed once"
+
+
+def test_a_project_whose_token_cannot_be_made_fails_its_call_rather_than_borrow_another(tmp_path: Path) -> None:
+    daemon = FakeDaemon()
+    daemon.refuse_tokens = b'{"detail": "no"}'
+    projects = ProjectTokens(DaemonClient(URL, ADMIN, opener=daemon), "label")
+    with pytest.raises(ValueError, match="no agent token could be made for Notes"):
+        projects.headers(str(tmp_path / "Notes"), "call")
+
+
+def test_mcp_scope_from_roots_serves_each_project_from_its_own_token(tmp_path: Path) -> None:
+    daemon = FakeDaemon()
+    client = DaemonClient(URL, ADMIN, opener=daemon)
+    folder = tmp_path / "Notes"
+    named = [{"uri": f"file://{folder}", "name": "Notes"}]
+    call = {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {"name": "sim_device", "_meta": {"k/roots": named}},
+    }
+    lines = (
+        json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}) + "\n" + json.dumps(call) + "\n"
+    )
+    stdout = io.StringIO()
+    run(
+        Scope.named("tp-1"), [], client=client, start_daemon=lambda: None, stdin=io.StringIO(lines), stdout=stdout,
+        opener=daemon, scope_from_roots=True, roots_meta="k/roots",
+    )  # fmt: skip
+    scopes = [body["scopes"] for _auth, body in daemon.made("POST", "/api/v1/admin/tokens")]
+    assert scopes == [["tp-1"], [Scope.for_folder(folder).id]], "its own, then the called project's"
+    assert len(daemon.made("DELETE", "/api/v1/admin/tokens/t1")) == 2, "both revoked when it closes"

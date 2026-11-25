@@ -38,6 +38,21 @@ claude mcp add simtrail -- uvx --from git+https://github.com/Soflutionltd/simtra
   simtrail mcp --scope my-app --root /Users/me/Projects/my-app
 ```
 
+### One server for several sessions
+
+A client that starts one MCP server for all its sessions -- a hub sharing its servers between windows -- would have them
+all act for the project `simtrail mcp` was started in. `simtrail mcp --scope-from-roots` acts instead, call by call,
+for the project of the folder each call comes from: as the client's roots say, or -- exactly, when several sessions
+call at once -- as each call's `_meta` says under the key `--roots-meta` names, in the shape of a `roots/list` answer:
+
+```sh
+simtrail mcp --scope-from-roots --roots-meta com.example.hub/roots
+```
+
+Each project gets an agent token of its own at its first call -- a git worktree its main checkout's simulator first --
+so it works on its own device, with its own settings and builds, and is one agent to the others; every token is
+revoked when the server closes. A call that names no folder acts for the project it was started in.
+
 ### Git worktrees
 
 A session started in a git worktree is a project of its own, with its own settings table, but it works on the

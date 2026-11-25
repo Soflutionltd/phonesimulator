@@ -1114,7 +1114,7 @@ How many cells across that grid is: more sees smaller changes, fewer lets more m
 
 ### `login.sources`
 
-Where `sim_login` finds a saved login to sign an app in with, tried in order: `1password` (its CLI, through the 1Password app, which asks for Touch ID), `bitwarden` (its CLI, unlocked), `command:/path` (a program of yours that prints the logins as JSON). Every vault is searched. Empty: agents are not offered `sim_login`.
+Where `sim_login` finds a saved login to sign an app in with, tried in order: `1password` (its CLI, through the 1Password app, which asks for Touch ID), `bitwarden` (its CLI, unlocked), `keychain` (the macOS Keychain: a password saved with the app as its service), `command:/path` (a program of yours that prints the logins as JSON). Every vault is searched. Empty: agents are not offered `sim_login`.
 
 - Default: `[]`
 - Allowed: a list of up to 5 of `1password`, `bitwarden` and `command:/absolute/path`

@@ -563,7 +563,7 @@ SCHEMAS: dict[str, tuple[str, dict[str, Any]]] = {
 
 #: The longest app, account and item a `sim_login` call may give.
 LOGIN_TEXT_MAX = 255
-LOGIN_SOURCES = ("1password", "bitwarden", "command", "given")
+LOGIN_SOURCES = ("1password", "bitwarden", "keychain", "command", "given")
 
 SCHEMAS["sim_login"] = (
     "Sign the app in with a login saved in the person's password manager -- 1Password, Bitwarden or a command, as "

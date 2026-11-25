@@ -8,6 +8,11 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Added
 
+- `simtrail mcp --scope-from-roots [--roots-meta KEY]`: one server for several sessions acts, call by call, for the
+  project of the folder each call comes from -- its roots, or the folders a call names in its `_meta` -- with an agent
+  token of that project's own, made at its first call and revoked when the server closes.
+- `login.sources` and `simtrail login --source` take `keychain`: a login saved in the macOS Keychain with the app as
+  its service.
 - `simtrail login <app>`: sign the project's app in with a login asked from the password manager in your own
   terminal, for a daemon that cannot ask it from inside a sandbox an MCP client runs it in. The login is handed to the
   daemon for one `sim_login` (`source: "given"`), kept in memory for two minutes at most, and typed as any other.

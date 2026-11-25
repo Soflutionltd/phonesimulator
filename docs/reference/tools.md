@@ -256,5 +256,5 @@ Offered while `login.sources` names a password manager ([Signing in](../login.md
 | `field` | string | the ref of the password field, a secure one -- or with code: true, of the code's field | no |
 | `code` | boolean | type the login's one-time code (TOTP), not its password | no |
 | `submit` | boolean | press return once it is filled | no |
-| `source` | string | `1password`, `bitwarden`, `command`, `given`; look only in this one of login.sources | no |
+| `source` | string | `1password`, `bitwarden`, `keychain`, `command`, `given`; look only in this one of login.sources | no |
 | `steal` | boolean | take the device over from another agent that has driven it in the last 2 minutes; only when the person asked for it | no |

@@ -21,6 +21,17 @@ def register(commands: Any) -> None:
         "--label",
         help="name this session for viewers and other agents, such as a ticket (default: SIMTRAIL_AGENT_LABEL)",
     )
+    command.add_argument(
+        "--scope-from-roots",
+        action="store_true",
+        help="act for the project of the folder each call comes from, as the client names it: for a client that "
+        "serves several sessions with one server",
+    )
+    command.add_argument(
+        "--roots-meta",
+        metavar="KEY",
+        help="the _meta key a tool call names its session's folders by, read instead of asking the client",
+    )
     command.set_defaults(handler=run)
 
 
@@ -40,4 +51,6 @@ def run(args: argparse.Namespace, ctx: CliContext) -> int:
         locate_daemon=ctx.daemon_url,
         label=args.label,
         home=None if args.scope else ctx.cwd,
+        scope_from_roots=args.scope_from_roots,
+        roots_meta=args.roots_meta,
     )
