@@ -36,3 +36,6 @@ viewer/coverage/
 .vscode/
 *.swp
 *.profraw
+
+# Test fixtures: captured build logs, kept whatever a global ignore says of *.log.
+!src/simtrail/testing/fixtures/*.log
