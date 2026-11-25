@@ -6,6 +6,8 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.10.0] - 2026-11-26
+
 ### Added
 
 - `simtrail mcp --scope-from-roots [--roots-meta KEY]`: one server for several sessions acts, call by call, for the
