@@ -778,18 +778,24 @@ SETTINGS: tuple[Setting, ...] = (
             "How many cells across that grid is: more sees smaller changes, fewer lets more motion pass. At 32, a "
             "cell of a phone's screen is about 12 points square."),
     Setting("build_tools", "build.tools", False, Flag(),
-            "Whether agents are offered `sim_build_run` and `sim_test`. They run xcodebuild, so a host also has to "
-            "allow commands.",
+            "Whether agents are offered `sim_build_run`, `sim_test` and `sim_flutter`. They run xcodebuild, Gradle "
+            "or flutter, so a host also has to allow commands.",
             embedded_default=True,
             sensitive=True),
     Setting("build_configuration", "build.configuration", "", ConfigurationName(required=False),
             "The build configuration used when a call names none. Empty: the one the scheme builds with in Xcode -- "
             "its Run action's for `sim_build_run`, its Test action's for `sim_test` -- and Debug for a scheme that "
             "has no file to say."),
+    Setting("flutter_path", "build.flutter_path", "", AbsolutePath(example="/opt/homebrew/share/flutter/bin/flutter"),
+            "The flutter command a Flutter app is built, tested and run with -- or the Flutter SDK folder it is in. "
+            "Empty: the one on Simtrail's `PATH`, else `/opt/homebrew/share/flutter/bin/flutter`, "
+            "`~/flutter/bin/flutter` or `~/development/flutter/bin/flutter`.",
+            sensitive=True),
     Setting("build_expected_bundle_id", "build.expected_bundle_id", "", BundleId(),
             "The bundle id of the app `sim_build_run` should install. A build of another -- a configuration with a "
             "bundle id of its own -- is not installed, and the answer names both. A `sim_test` run whose tests run "
-            "in another app is not started, since xcodebuild would install it. Empty: any."),
+            "in another app is not started, since xcodebuild would install it; nor is a `sim_flutter` run, or a "
+            "Flutter integration test, whose project names another. Empty: any."),
     Setting("build_stamp_source", "build.stamp_source", False, Flag(),
             "Whether `sim_build_run` installs on a simulator a copy of the app with the commit it was built from in "
             "its Info.plist -- `SIMTRAIL_SOURCE_SHA`, and `SIMTRAIL_SOURCE_DIRTY` -- signed again as Xcode signs "

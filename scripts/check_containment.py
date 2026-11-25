@@ -15,6 +15,7 @@ meaning stopped, no helper left behind -- hold only while one module owns each:
   WebDriverAgent's;
 * `simtrail/platform/` also runs adb, the Android emulator and Java (`platform.adb`, `platform.emulator`,
   `platform.java`), and `simtrail/build/gradle.py` runs a project's Gradle wrapper;
+* `simtrail/platform/flutter.py` starts flutter, for a Flutter app's builds, tests and runs;
 * `simtrail/connectors/simctl/` is the connector named after simctl;
 * `simtrail/testing/` names them to refuse them (`guards`) and to play them (`fakes`).
 
@@ -45,6 +46,7 @@ PROGRAMS = (
     "emulator",
     "gradlew",
     "gradle",
+    "flutter",
     "java",
     "open",
     "osascript",
@@ -97,7 +99,7 @@ def main() -> int:
     print(
         "\nRun xcrun, simctl, swiftc and git through simtrail/platform/, start idb_companion only through "
         "simtrail/connectors/idb/companion.py and simtrail-helper only through "
-        "simtrail/connectors/native/helper.py, run adb, the emulator and Java through simtrail/platform/, and "
+        "simtrail/connectors/native/helper.py, run adb, the emulator, Java and flutter through simtrail/platform/, and "
         "build through simtrail/build/xcodebuild.py or simtrail/build/gradle.py.",
         file=sys.stderr,
     )

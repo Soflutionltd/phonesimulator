@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from simtrail.build.flutter_run import FlutterSessions
 from simtrail.build.folders import Folders
 from simtrail.build.xcodebuild import BuildRunner
 from simtrail.config.model import SimConfig
@@ -108,6 +109,8 @@ class ToolContext:
     per_agent: bool = False
     #: The folder each agent named for its builds, kept for its later calls; None where nothing is kept.
     folders: Folders | None = None
+    #: The Flutter apps `sim_flutter run` keeps running, by device; None where none are kept.
+    flutter: FlutterSessions | None = None
 
     @property
     def scope(self) -> Scope:

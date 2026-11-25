@@ -1,0 +1,24 @@
+Resolving dependencies...
+Got dependencies!
+Building dev.simtrail.groceries for simulator (ios)...
+Running Xcode build...
+Xcode build done.                                            9,0s
+Failed to build iOS app
+Error output from Xcode build:
+↳
+    ** BUILD FAILED **
+
+
+Xcode's output:
+↳
+    Writing result bundle at path:
+    	/var/folders/xx/T/flutter_tools.HZzGTN/flutter_ios_build_temp_dir/temporary_xcresult_bundle
+
+    lib/screens/list_screen.dart:96:35: Error: Member not found: 'nope'.
+                    child: Text(Labels.nope, style: labelStyle),
+                                       ^^^^
+    lib/screens/list_screen.dart:12:8: Warning: Operand of null-aware operation '?.' has type 'String' which excludes null.
+    Target kernel_snapshot_program failed: Exception
+    Command PhaseScriptExecution failed with a nonzero exit code
+
+Encountered error while building for simulator.

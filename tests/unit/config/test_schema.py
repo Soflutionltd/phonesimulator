@@ -312,6 +312,7 @@ def test_each_path_setting_shows_a_path_of_its_own_kind() -> None:
         "android.sdk_path": "/Users/you/Library/Android/sdk",
         "android.scrcpy.path": "/opt/homebrew/share/scrcpy/scrcpy-server",
         "android.java_home": "/Applications/Android Studio.app/Contents/jbr/Contents/Home",
+        "build.flutter_path": "/opt/homebrew/share/flutter/bin/flutter",
     }
 
 
@@ -340,6 +341,7 @@ def test_what_a_page_cannot_change_alone_and_what_only_the_daemon_has_are_decide
         "connectors.idb.companion_path",
         "device.developer_dir",
         "build.tools",
+        "build.flutter_path",
         "recording.folder",
         "real_devices.enabled",
         "real_devices.agents_choose",

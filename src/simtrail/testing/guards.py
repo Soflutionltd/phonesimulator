@@ -58,6 +58,8 @@ FORBIDDEN_PROGRAMS = frozenset(
         "adb",
         "gradle",
         "gradlew",
+        # A Flutter app's builds, tests and runs: flutter drives xcodebuild, Gradle and the devices itself.
+        "flutter",
     }
 )
 

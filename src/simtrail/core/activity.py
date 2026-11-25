@@ -40,6 +40,13 @@ _CALLS: dict[str, str | Mapping[str, str]] = {
     "sim_screenshot": "Looking at the screen",
     "sim_build_run": "Building",
     "sim_test": "Running tests",
+    "sim_flutter": {
+        "run": "Starting the Flutter app",
+        "hot_reload": "Hot reloading",
+        "hot_restart": "Hot restarting",
+        "stop": "Stopping the Flutter app",
+        "": "Checking the Flutter app",
+    },
     "sim_record": {"start": "Recording the screen", "stop": "Saving the recording", "": "Checking recordings"},
     "sim_app": {
         "launch": "Launching the app",

@@ -51,7 +51,7 @@ from simtrail.connectors.native.helper import (
 )
 from simtrail.connectors.registry import ConnectorRegistry
 from simtrail.core.runtime import Runtime
-from simtrail.doctor import android, macos, real_devices, tap, worktree
+from simtrail.doctor import android, flutter, macos, real_devices, tap, worktree
 from simtrail.doctor.report import CheckResult, Report
 from simtrail.host_copy import HostCopy
 from simtrail.perception.ocr import RecognitionOptions, TextRecognitionError
@@ -63,6 +63,7 @@ from simtrail.platform.adb import Adb
 from simtrail.platform.android_sdk import AndroidSdk, Avd, avds, find_sdk
 from simtrail.platform.developer_dir import ChosenXcode, choose_xcode, selected_developer_dir
 from simtrail.platform.device_data import device_data_dir
+from simtrail.platform.flutter import FlutterSdk, find_flutter, flutter_version
 from simtrail.platform.java import Jdk, find_jdk
 from simtrail.platform.local_signing import LocalSigning
 from simtrail.platform.process import Runner
@@ -133,6 +134,9 @@ class DoctorContext:
     scrcpy: ScrcpyJars = field(default_factory=ScrcpyJars)
     #: The JDK a Gradle build runs with, given ``android.java_home``.
     jdk: Callable[[str], Awaitable[Jdk | None]] = find_jdk
+    #: The flutter command a Flutter app is built with, given ``build.flutter_path``, and how it says its version.
+    flutter: Callable[[str, Mapping[str, str]], FlutterSdk | None] = find_flutter
+    flutter_version: Callable[[FlutterSdk], Awaitable[str | None]] = flutter_version
     #: How touching each real device a running daemon drives stands now, whichever scope it drives it for, and why
     #: there is none to say it of (`cli.wda.in_use`); None skips the check.
     touch_now: Callable[[], tuple[list[dict[str, Any]], str]] | None = None
@@ -515,6 +519,7 @@ CHECKS: tuple[Check, ...] = (
     Check("android devices", android.check_android_devices),
     Check("scrcpy", android.check_scrcpy),
     Check("android builds", android.check_gradle),
+    Check(flutter.NAME, flutter.check_flutter),
     Check("device hub", _device_hub),
     Check("desktop session", _gui_session),
     Check("accessibility", _accessibility),

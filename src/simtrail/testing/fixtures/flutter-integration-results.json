@@ -1,0 +1,20 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":27546,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"/Users/dev/groceries/integration_test/app_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading /Users/dev/groceries/integration_test/app_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":2,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":18826}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":18827}
+{"test":{"id":3,"name":"adds an item from the first screen","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart"},"type":"testStart","time":18827}
+{"testID":3,"messageType":"print","message":"══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════","type":"print","time":37801}
+{"testID":3,"messageType":"print","message":"The following TestFailure was thrown running a test:","type":"print","time":37802}
+{"testID":3,"messageType":"print","message":"Expected: exactly one matching candidate","type":"print","time":37805}
+{"testID":3,"messageType":"print","message":"  Actual: _TextWidgetFinder:<Found 0 widgets with text \"Bread\": []>","type":"print","time":37805}
+{"testID":3,"messageType":"print","message":"   Which: means none were found but one was expected","type":"print","time":37805}
+{"testID":3,"messageType":"print","message":"When the exception was thrown, this was the stack:","type":"print","time":37805}
+{"testID":3,"messageType":"print","message":"#4      main.<anonymous closure> (file:///Users/dev/groceries/integration_test/app_test.dart:27:5)","type":"print","time":37806}
+{"testID":3,"messageType":"print","message":"#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)","type":"print","time":37806}
+{"testID":3,"messageType":"print","message":"This was caught by the test expectation on the following line:","type":"print","time":37806}
+{"testID":3,"messageType":"print","message":"  file:///Users/dev/groceries/integration_test/app_test.dart line 27","type":"print","time":37806}
+{"testID":3,"error":"Test failed. See exception logs above.\nThe test description was: adds an item from the first screen","stackTrace":"","isFailure":false,"type":"error","time":37809}
+{"testID":3,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":37809}
+{"success":false,"type":"done","time":37812}

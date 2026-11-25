@@ -26,6 +26,12 @@ Every checkout builds in the scope's one DerivedData folder, one run at a time, 
 ``checkout``: then each checkout has a folder of its own, and builds of two worktrees run side by side
 (`build.derived`). A folder per worktree is gigabytes for each, with every Swift package resolved and built again, so
 it is a choice, and the folder of a worktree that is gone is deleted.
+
+A Flutter app is built, tested and run by flutter (`build.flutter`), whichever device it is for. `sim_flutter run`
+starts it with ``flutter run --machine`` as a run like a build -- the same folder, the same one-at-a-time, the device
+busy until the app has started -- and keeps it running for the agent: ``hot_reload`` and ``hot_restart`` put its
+saved changes on the device and answer what did not compile, ``stop`` ends it, ``status`` says how it stands
+(`build.flutter_run`).
 """
 
 from __future__ import annotations
@@ -38,6 +44,7 @@ from typing import Any
 from simtrail.build.checkouts import FOLDER_MAX, build_folder_for
 from simtrail.build.derived import checkout_folder, checkout_top, mark, prune
 from simtrail.build.destination import ANDROID, SIMULATORS, choose_destination, described
+from simtrail.build.flutter_run import FlutterSession, SessionGone
 from simtrail.build.stamp import discard
 from simtrail.build.xcodebuild import Build, BuildRefused, BuildRunner
 from simtrail.config.model import SimConfig
@@ -54,6 +61,7 @@ from simtrail.tools.schemas import (
     BUILD_INSTRUCTIONS,
     BUILD_WAIT_BOUNDS,
     BUILD_WAIT_S,
+    FLUTTER_ACTIONS,
     SHELL_INSTRUCTIONS,
     TEST_RETRIES_BOUNDS,
 )
@@ -295,7 +303,7 @@ async def _run(args: dict[str, Any], ctx: ToolContext, kind: str) -> Result:
         return await _result(runner, ctx.scope.id, args["build_id"], wait_s)
     folder, notes = working_folder(args, ctx, home)
     config = ctx.settings_for(folder) if ctx.settings_for is not None and folder != home else ctx.config
-    if kind == "build" and args.get("destination") is not None:
+    if kind != "test" and args.get("destination") is not None:
         raise ToolRefused("destination is for sim_test: a build is installed and launched on your own simulator")
     # Before the device is brought up: a kind nothing here builds for is refused without booting it.
     own = ctx.manager.kind(ctx.scope, ctx.udid)
@@ -325,7 +333,8 @@ async def _run(args: dict[str, Any], ctx: ToolContext, kind: str) -> Result:
             udid=udid,
             developer_dir=instance.developer_dir if instance else config.developer_dir,
             device=device,
-            configuration=args.get("configuration") or config.build_configuration or None,
+            # A run's hot reload needs a debug build, whatever the settings build otherwise.
+            configuration=None if kind == "run" else args.get("configuration") or config.build_configuration or None,
             timeout_s=config.build_timeout_minutes * 60,
             scheme=args.get("scheme"),
             project=args.get("project"),
@@ -338,12 +347,18 @@ async def _run(args: dict[str, Any], ctx: ToolContext, kind: str) -> Result:
             test_diagnostics=config.build_test_diagnostics,
             team=await _team(ctx, config, folder) if is_device_udid(udid) else "",
             after=after if kind == "build" else None,
-            # A build is held to it once built, before Simtrail installs it; a test host xcodebuild installs itself.
-            expected_bundle_id=config.build_expected_bundle_id if kind == "test" else "",
+            # A build is held to it once built, before Simtrail installs it; a test host xcodebuild installs itself, and
+            # flutter run its app.
+            expected_bundle_id=config.build_expected_bundle_id if kind != "build" else "",
             device_kind=device_kind,
             java_home=config.android_java_home,
             catalyst=flag_arg(args.get("catalyst"), "catalyst"),
             derived=derived,
+            flutter_path=config.flutter_path,
+            flavor=args.get("flavor"),
+            dart_defines=args.get("dart_defines"),
+            integration=flag_arg(args.get("integration"), "integration"),
+            owner=ctx.caller.key,
         )
     except BaseException:
         if held:
@@ -373,10 +388,71 @@ async def _test(args: dict[str, Any], ctx: ToolContext) -> Result:
     return await _run(args, ctx, "test")
 
 
+def _session(ctx: ToolContext) -> FlutterSession:
+    """The Flutter app `sim_flutter run` started on the calling agent's device -- or why there is none."""
+    instance = ctx.instance()
+    udid = instance.udid if instance is not None else ctx.udid
+    session = ctx.flutter.on(ctx.scope.id, udid) if ctx.flutter is not None and udid is not None else None
+    if session is None:
+        raise ToolRefused("no Flutter app runs on your device from sim_flutter run: start one with action run")
+    return session
+
+
+def _status(session: FlutterSession) -> Result:
+    if session.alive:
+        state = "running" if session.started.is_set() else "starting"
+        said = f"{session.label} is {state} on the device ({session.build_id}), from {session.folder}"
+    else:
+        said = f"{session.label} is not running: {session.why_gone()}; start it again with action run"
+    data = {"running": session.alive, "started": session.started.is_set(), "build_id": session.build_id}
+    return text(f"{said}\nlog {session.log_path}", data=data)
+
+
+async def _reload(session: FlutterSession, *, full: bool) -> Result:
+    verb = "hot restart" if full else "hot reload"
+    if not session.alive:
+        raise ToolRefused(f"{session.why_gone()}; start it again with action run")
+    try:
+        reload = await session.reload(full=full)
+    except SessionGone as exc:
+        raise ToolRefused(f"{verb} failed: {exc}") from exc
+    message = f" · {reload.message}" if reload.message else ""
+    lines = [f"{verb} {'ok' if reload.ok else 'FAILED'} · {session.label} · {reload.seconds:g}s{message}"]
+    for issue in reload.errors:
+        lines.append(" ".join(part for part in ("error", issue.where(session.folder), issue.message) if part))
+    if not reload.ok:
+        lines.append("the app keeps the code it had: fix what failed, save, and call again")
+    data = {"ok": reload.ok, "errors": len(reload.errors), "seconds": reload.seconds}
+    return text("\n".join(lines), error=not reload.ok, data=data)
+
+
+async def _flutter(args: dict[str, Any], ctx: ToolContext) -> Result:
+    action = args.get("action")
+    if action not in FLUTTER_ACTIONS:
+        raise ToolRefused(f"action is one of {', '.join(FLUTTER_ACTIONS)}")
+    if action == "run":
+        return await _run(args, ctx, "run")
+    _builds(ctx)
+    session = _session(ctx)
+    if action == "status":
+        return _status(session)
+    if action == "stop":
+        running = session.alive
+        assert ctx.flutter is not None
+        await ctx.flutter.stop(session)
+        said = "stopped" if running else "was not running"
+        return text(f"{session.label} {said}; flutter run has ended\nlog {session.log_path}")
+    return await _reload(session, full=action == "hot_restart")
+
+
 class BuildToolProvider:
     """The build tools: listed while ``build.tools`` is on; otherwise the agent is told to build from its shell."""
 
-    tools: tuple[Tool, ...] = (make_tool("sim_build_run", NEEDS, _build_run), make_tool("sim_test", NEEDS, _test))
+    tools: tuple[Tool, ...] = (
+        make_tool("sim_build_run", NEEDS, _build_run),
+        make_tool("sim_test", NEEDS, _test),
+        make_tool("sim_flutter", NEEDS, _flutter),
+    )
 
     def offered(self, config: SimConfig) -> bool:
         return config.build_tools

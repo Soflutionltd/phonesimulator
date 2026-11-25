@@ -194,9 +194,10 @@ def runner_arguments(only: Sequence[str], skip: Sequence[str]) -> list[str]:
     return arguments
 
 
-def built_app(module_folder: Path, variant: str) -> tuple[Path, str] | None:
-    """The APK a variant built and the package it installs as, from the output metadata AGP writes beside it."""
-    for metadata in sorted((module_folder / APK_OUTPUTS).glob("**/output-metadata.json")):
+def built_app(module_folder: Path, variant: str, *, outputs: Path = APK_OUTPUTS) -> tuple[Path, str] | None:
+    """The APK a variant built and the package it installs as, from the output metadata AGP writes beside it, in the
+    module's `outputs` -- ``build/outputs/apk``, or ``outputs/apk`` in the build folder a Flutter app gives it."""
+    for metadata in sorted((module_folder / outputs).glob("**/output-metadata.json")):
         try:
             said = json.loads(metadata.read_text(encoding="utf-8"))
         except (OSError, ValueError):

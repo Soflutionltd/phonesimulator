@@ -12,6 +12,7 @@ from typing import Any
 from simtrail.build.checkouts import FOLDER_MAX
 from simtrail.build.destination import KEYS as DESTINATION_KEYS
 from simtrail.build.destination import TEXT_MAX as DESTINATION_TEXT_MAX
+from simtrail.build.flutter import DEFINE_VALUE_MAX, DEFINES_MAX, FLAVOR_MAX
 from simtrail.build.runner import TEST_ID_MAX, TESTS_MAX
 from simtrail.core.actions import MAX_STEPS
 from simtrail.core.device_settings import SPEED_BOUNDS, WAYPOINTS_MAX
@@ -61,6 +62,8 @@ DEVICE_ACTIONS = (
     "rotate",
     "health",
 )
+#: What `sim_flutter` does: start the app and keep it running, put changes on it, end it, or say how it stands.
+FLUTTER_ACTIONS = ("run", "hot_reload", "hot_restart", "stop", "status")
 #: The ways `sim_device rotate` turns a simulator, named as the app's interface then lies.
 ROTATIONS = ("portrait", "landscape_left", "landscape_right", "upside_down")
 
@@ -90,6 +93,21 @@ _BUILD_PROPERTIES: dict[str, Any] = {
     },
     "wait_s": {"type": "integer", "minimum": BUILD_WAIT_BOUNDS[0], "maximum": BUILD_WAIT_BOUNDS[1]},
     "build_id": {"type": "string", "description": "a run that answered still running: wait for it again"},
+}
+#: What a Flutter app's build, test run and run take besides.
+_FLUTTER_PROPERTIES: dict[str, Any] = {
+    "flavor": {
+        "type": "string",
+        "maxLength": FLAVOR_MAX,
+        "description": "Flutter: the flavor to build, as flutter --flavor takes it",
+    },
+    "dart_defines": {
+        "type": "object",
+        "additionalProperties": {"type": "string", "maxLength": DEFINE_VALUE_MAX},
+        "maxProperties": DEFINES_MAX,
+        "description": 'Flutter: values the Dart code reads with String.fromEnvironment, {"API_URL": "..."}; handed '
+        "to flutter in a file, never on its command line",
+    },
 }
 _TEST_IDS = {
     "type": "array",
@@ -372,15 +390,16 @@ SCHEMAS: dict[str, tuple[str, dict[str, Any]]] = {
         ),
     ),
     "sim_build_run": (
-        "Build the app in your folder with xcodebuild for your simulator -- with Gradle for an Android device -- then "
-        "install and launch it. Answers ok, or "
+        "Build the app in your folder with xcodebuild for your simulator -- with Gradle for an Android device, with "
+        "flutter for a Flutter app (a pubspec.yaml depending on flutter) -- then install and launch it. Answers ok, or "
         "each error as file:line and message. A build longer than wait_s answers with its build_id: call again with "
         "that build_id to keep waiting.",
-        schema(_BUILD_PROPERTIES),
+        schema({**_BUILD_PROPERTIES, **_FLUTTER_PROPERTIES}),
     ),
     "sim_test": (
-        "Run the scheme's tests (unit and UI; an Android project's instrumented tests) on your device, or on another "
-        "one with destination. Answers with the "
+        "Run the scheme's tests (unit and UI; an Android project's instrumented tests; a Flutter app's unit and widget "
+        "tests with flutter test, or with integration: true its integration_test folder on your device) on your "
+        "device, or on another one with destination. Answers with the "
         "counts and each failure where it happened, named as only_testing takes it back -- or, when the tests do not "
         "build, with the compile errors. While they run your device takes no sim_act steps. A test that fails, is "
         "retried and then passes is reported as flaky: worth knowing before you treat a green run as a fix.",
@@ -400,7 +419,32 @@ SCHEMAS: dict[str, tuple[str, dict[str, Any]]] = {
                     "description": "more goes for a failing test",
                 },
                 "destination": _DESTINATION,
+                **_FLUTTER_PROPERTIES,
+                "integration": {
+                    "type": "boolean",
+                    "description": "Flutter: run the integration tests (integration_test, or the files only_testing "
+                    "names there) on the device, instead of the unit and widget tests",
+                },
             }
+        ),
+    ),
+    "sim_flutter": (
+        "A Flutter app kept running on your device, for hot reload. run: build it with flutter run and start it -- "
+        "the device is busy until it has started; a run longer than wait_s answers with its build_id, call again with "
+        "it. hot_reload: put your saved Dart changes on the running app, keeping its state; hot_restart: start it "
+        "again from main with them. Both answer ok, or each compile error as file:line and message -- the app keeps "
+        "the code it had. stop: end the app and flutter run; it also ends when your session does. status: whether it "
+        "runs, and its log.",
+        schema(
+            {
+                "action": {"type": "string", "enum": list(FLUTTER_ACTIONS)},
+                "folder": _BUILD_PROPERTIES["folder"],
+                **_FLUTTER_PROPERTIES,
+                "wait_s": _BUILD_PROPERTIES["wait_s"],
+                "build_id": _BUILD_PROPERTIES["build_id"],
+                "steal": _STEAL,
+            },
+            required=("action",),
         ),
     ),
 }
@@ -419,5 +463,6 @@ SHELL_INSTRUCTIONS = (
 )
 BUILD_INSTRUCTIONS = (
     "Build, install and launch the app with sim_build_run, and run its tests with sim_test: both answer with only what "
-    "failed and where."
+    "failed and where. For a Flutter app, sim_flutter run keeps it running, and hot_reload puts each saved change on "
+    "it in about a second."
 )

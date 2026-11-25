@@ -130,6 +130,7 @@ settle_grid = 32
 [build]
 tools = false
 configuration = ""
+flutter_path = ""
 expected_bundle_id = ""
 stamp_source = false
 derived_data = "scope"
@@ -1106,7 +1107,7 @@ How many cells across that grid is: more sees smaller changes, fewer lets more m
 
 ### `build.tools`
 
-Whether agents are offered `sim_build_run` and `sim_test`. They run xcodebuild, so a host also has to allow commands.
+Whether agents are offered `sim_build_run`, `sim_test` and `sim_flutter`. They run xcodebuild, Gradle or flutter, so a host also has to allow commands.
 
 - Default: `false` (a host embedding Simtrail: `true`)
 - Allowed: `true` or `false`
@@ -1127,9 +1128,21 @@ The build configuration used when a call names none. Empty: the one the scheme b
 - Environment: `SIMTRAIL_BUILD_CONFIGURATION`
 - Key in a host's flat settings: `build_configuration`
 
+### `build.flutter_path`
+
+The flutter command a Flutter app is built, tested and run with -- or the Flutter SDK folder it is in. Empty: the one on Simtrail's `PATH`, else `/opt/homebrew/share/flutter/bin/flutter`, `~/flutter/bin/flutter` or `~/development/flutter/bin/flutter`.
+
+- Default: empty
+- Allowed: an absolute path, or empty
+- Takes effect: at once
+- Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
+- Environment: `SIMTRAIL_BUILD_FLUTTER_PATH`
+- Key in a host's flat settings: `flutter_path`
+- Sensitive: it decides what Simtrail runs or who may reach it, so the viewer's settings panel changes it only once a person confirms with `simtrail settings confirm`
+
 ### `build.expected_bundle_id`
 
-The bundle id of the app `sim_build_run` should install. A build of another -- a configuration with a bundle id of its own -- is not installed, and the answer names both. A `sim_test` run whose tests run in another app is not started, since xcodebuild would install it. Empty: any.
+The bundle id of the app `sim_build_run` should install. A build of another -- a configuration with a bundle id of its own -- is not installed, and the answer names both. A `sim_test` run whose tests run in another app is not started, since xcodebuild would install it; nor is a `sim_flutter` run, or a Flutter integration test, whose project names another. Empty: any.
 
 - Default: empty
 - Allowed: a bundle identifier, such as `com.example.Notes`, or empty

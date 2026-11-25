@@ -36,7 +36,7 @@ def _short(text: str) -> str:
     return value if len(value) <= MESSAGE_MAX else value[: MESSAGE_MAX - 1] + "…"
 
 
-def _what_went_wrong(log: str) -> list[str]:
+def what_went_wrong(log: str) -> list[str]:
     """Gradle's own account of why a build failed: each ``> `` line of its section, the task first."""
     found = _WRONG.findall(log)
     if not found:
@@ -61,7 +61,7 @@ def read_log(log: str, folder: Path, *, succeeded: bool, seconds: float | None) 
     errors = [issue for issue in issues if issue.kind == "error"]
     warnings = [issue for issue in issues if issue.kind == "warning"]
     if not succeeded and not errors:
-        wrong = _what_went_wrong(log)
+        wrong = what_went_wrong(log)
         errors = [Issue("error", _short(" ".join(wrong) if wrong else "Gradle failed; the log says why"))]
     return BuildSummary(
         succeeded=succeeded,

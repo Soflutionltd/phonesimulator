@@ -35,11 +35,11 @@ each setting's problem is shown beside it.
 
 ## Sensitive settings
 
-Twenty-four settings decide what Simtrail runs, what reaches a real device or an Android one, where recordings go,
+Twenty-five settings decide what Simtrail runs, what reaches a real device or an Android one, where recordings go,
 or who may reach it: `connectors.native.helper_path`, `connectors.idb.companion_path`, `device.developer_dir`,
 `real_devices.enabled`, `real_devices.agents_choose`, `real_devices.developer_dir`, `real_devices.team_id`,
 `real_devices.wda.enabled`, `real_devices.wda.path`, `android.enabled`, `android.sdk_path`, `android.phones`,
-`android.agents_choose`, `android.scrcpy.path`, `android.java_home`, `build.tools`, `recording.folder`, `server.host`,
+`android.agents_choose`, `android.scrcpy.path`, `android.java_home`, `build.tools`, `build.flutter_path`, `recording.folder`, `server.host`,
 `server.port`, `security.allowed_origins`, `security.frame_ancestors`, `mac.apps.enabled`, `mac.apps.agents_choose`
 and `mac.apps.accessibility`. A web page is not trusted with those alone, so saving a
 change to one asks for a code:
