@@ -389,14 +389,14 @@ def test_the_cursor_colour_is_a_hex_colour_or_empty() -> None:
 
 def test_login_sources_name_password_managers_or_a_program_by_its_absolute_path() -> None:
     rule = schema.LoginSources()
-    assert rule.errors("login.sources", ("1password", "bitwarden", "command:/usr/local/bin/logins")) == []
+    assert rule.errors("login.sources", ("1password", "bitwarden", "keychain", "command:/usr/local/bin/logins")) == []
     assert rule.errors("login.sources", ()) == []
     assert rule.errors("login.sources", "1password") == ["login.sources must be a list of at most 5 sources"]
     assert rule.errors("login.sources", ("1password",) * 6) == ["login.sources must be a list of at most 5 sources"]
     assert rule.errors("login.sources", ("1password", "1password")) == ["login.sources names a source twice"]
-    assert rule.errors("login.sources", ("keychain", "command:logins", 3)) == [
-        "login.sources: 'keychain' is not 1password, bitwarden or command:/absolute/path; 'command:logins' names no "
-        "absolute path after command:; 3 is not text"
+    assert rule.errors("login.sources", ("lastpass", "command:logins", 3)) == [
+        "login.sources: 'lastpass' is not 1password, bitwarden, keychain or command:/absolute/path; 'command:logins' "
+        "names no absolute path after command:; 3 is not text"
     ]
     assert rule.parse(" 1password , command:/bin/x") == ("1password", "command:/bin/x")
     assert rule.parse('["bitwarden"]') == ("bitwarden",)

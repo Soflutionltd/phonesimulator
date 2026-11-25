@@ -226,3 +226,52 @@ async def test_run_ends_a_program_that_outlasts_its_time_and_says_one_that_canno
     assert slow == Ran(124, "", "it did not answer within 0.2s")
     missing = await run(("/nonexistent/password-cli",), 1.0)
     assert missing.code == 127 and missing.out == "" and missing.reason
+
+
+# -- Keychain ---------------------------------------------------------------------------------------------------------
+
+#: What ``security find-generic-password -s com.example.notes`` prints about an item (macOS 26), its password left out.
+KEYCHAIN_ITEM = (
+    'keychain: "/Users/ann/Library/Keychains/login.keychain-db"\n'
+    "version: 512\n"
+    'class: "genp"\n'
+    "attributes:\n"
+    '    "acct"<blob>="ann@example.com"\n'
+    '    "labl"<blob>="Notes (test account)"\n'
+    '    "svce"<blob>="com.example.notes"\n'
+)
+
+
+async def test_the_keychain_finds_a_login_by_the_app_it_is_saved_for_and_reads_its_password_only_to_type_it() -> None:
+    find = ("/usr/bin/security", "find-generic-password", "-s", "com.example.notes")
+    reveal = (*find, "-a", "ann@example.com", "-w")
+    cli = FakeCli((find, ok(KEYCHAIN_ITEM)), (reveal, ok(PASSWORD + "\n")))
+    (source,) = passwords.sources(["keychain"], timeout=30, run=cli)
+    (login,) = await source.logins("com.example.notes")
+    assert (login.source, login.title, login.username, login.where, login.urls) == (
+        "keychain", "Notes (test account)", "ann@example.com", "Keychain", ("com.example.notes",),
+    )  # fmt: skip
+    assert PASSWORD not in held(login) and cli.calls == [find], "listed without its password"
+    credentials = await login.reveal()
+    assert (credentials.username, credentials.password) == ("ann@example.com", PASSWORD)
+    assert cli.timeouts == [30, 30]
+
+
+async def test_the_keychain_without_a_login_for_the_app_has_none_and_a_failure_says_why() -> None:
+    find = ("/usr/bin/security", "find-generic-password", "-s", "com.example.mail")
+    source = passwords.Keychain(timeout=5, run=FakeCli((find, Ran(44, "", "The specified item could not be found."))))
+    assert await source.logins("com.example.mail") == []
+    denied = passwords.Keychain(timeout=5, run=FakeCli((find, Ran(1, "", "Operation not permitted"))))
+    with pytest.raises(PasswordSourceError, match="the Keychain could not be read: Operation not permitted"):
+        await denied.logins("com.example.mail")
+    bare = ("/usr/bin/security", "find-generic-password", "-s", "x")
+    unnamed = '    "acct"<blob>="a"\n'
+    gone = (*bare, "-a", "a", "-w")
+    lost = passwords.Keychain(timeout=5, run=FakeCli((bare, ok(unnamed)), (gone, Ran(1, "", ""))))
+    (login,) = await lost.logins("x")
+    assert login.title == "x", "titled by its app when it has no label"
+    with pytest.raises(PasswordSourceError, match="the Keychain did not give the password: exit 1"):
+        await login.reveal()
+    silent = passwords.Keychain(timeout=5, run=FakeCli((bare, Ran(2, "", ""))))
+    with pytest.raises(PasswordSourceError, match="could not be read: exit 2"):
+        await silent.logins("x")

@@ -41,6 +41,19 @@ again.
 `brew install bitwarden-cli`, `bw login`, then `bw unlock` and export the `BW_SESSION` it prints in the environment
 the daemon starts with. `login.bitwarden_path` names another CLI than the one on PATH or Homebrew's.
 
+### The macOS Keychain
+
+Save the login with the app -- its bundle id, or its website -- as the service, and the account's username as the
+account; `-w` last asks for the password without echoing it:
+
+```sh
+security add-generic-password -s com.example.notes -a ann@example.com -l "Notes test account" -w
+```
+
+`keychain` finds it by the app's id alone, and reads its password only to type it. Only a process that may run
+`security` reaches the Keychain: `simtrail login --source keychain` from your terminal does; a daemon started by an MCP
+client that runs its servers in a sandbox forbidding the Keychain does not.
+
 ### A program of your own
 
 `command:/absolute/path` runs that program with the app or website as its one argument. It prints the logins for it
@@ -101,7 +114,7 @@ sandbox inherits that sandbox -- which may forbid what the password manager's CL
 simtrail login com.example.notes --account ann@example.com --submit
 ```
 
-It reads `login.sources`, or `--source 1password` (repeatable), finds the login as `sim_login` does, hands it to the
+It reads `login.sources`, or `--source 1password` (or `bitwarden`, `keychain`, `command:/path`; repeatable), finds the login as `sim_login` does, hands it to the
 daemon for one use -- in memory, for this project and app, dropped once taken or after two minutes -- and has
 `sim_login` type it (`source: "given"`), with the same fields found and the same masking. `--field` and `--code` are
 `sim_login`'s. It prints which login was used and what was filled, never a value; no value is ever on its command

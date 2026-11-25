@@ -401,7 +401,7 @@ class WordLanguages:
 
 
 #: The password managers `sim_login` reads, besides ``command:<path>``: a program of the person's that prints logins.
-LOGIN_KINDS = ("1password", "bitwarden")
+LOGIN_KINDS = ("1password", "bitwarden", "keychain")
 #: The prefix of a source that is a program of the person's own.
 LOGIN_COMMAND = "command:"
 LOGIN_SOURCES_MAX = 5
@@ -418,12 +418,13 @@ def login_source_errors(value: object) -> str | None:
         if _one_line(path, PATH_MAX) and path.startswith("/"):
             return None
         return "names no absolute path after command:"
-    return "is not 1password, bitwarden or command:/absolute/path"
+    return "is not 1password, bitwarden, keychain or command:/absolute/path"
 
 
 @dataclass(frozen=True)
 class LoginSources:
-    """Where `sim_login` looks for a saved login, in order: ``1password``, ``bitwarden``, ``command:/path``."""
+    """Where `sim_login` looks for a saved login, in order: ``1password``, ``bitwarden``, ``keychain``,
+    ``command:/path``."""
 
     def errors(self, name: str, value: Any) -> list[str]:
         if not isinstance(value, (list, tuple)) or len(value) > LOGIN_SOURCES_MAX:
@@ -828,7 +829,8 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("login_sources", "login.sources", (), LoginSources(),
             "Where `sim_login` finds a saved login to sign an app in with, tried in order: `1password` (its CLI, "
             "through the 1Password app, which asks for Touch ID), `bitwarden` (its CLI, unlocked), "
-            "`command:/path` (a program of yours that prints the logins as JSON). Every vault is searched. Empty: "
+            "`keychain` (the macOS Keychain: a password saved with the app as its service), `command:/path` (a "
+            "program of yours that prints the logins as JSON). Every vault is searched. Empty: "
             "agents are not offered `sim_login`.",
             sensitive=True),
     Setting("login_onepassword_path", "login.onepassword_path", "", AbsolutePath(example="/opt/homebrew/bin/op"),

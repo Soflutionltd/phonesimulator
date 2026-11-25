@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The password managers `sim_login` reads a saved login from: 1Password's CLI, Bitwarden's, or a program of the
-person's own that prints logins as JSON -- run here, and nowhere else.
+"""The password managers `sim_login` reads a saved login from: 1Password's CLI, Bitwarden's, the macOS Keychain, or a
+program of the person's own that prints logins as JSON -- run here, and nowhere else.
 
 **What is listed holds no secret.** A source first lists its logins -- an id, a title, the vault, the username and
 the websites or apps saved with each -- and only the one chosen is revealed, once, for the fill (`Login.reveal`).
@@ -35,6 +35,10 @@ from simtrail.platform.process import kill_and_reap
 #: The CLIs' names, and where Homebrew puts them when the daemon's PATH does not reach there.
 ONEPASSWORD = "op"
 BITWARDEN = "bw"
+#: macOS's Keychain CLI, always at this path.
+SECURITY = "/usr/bin/security"
+#: What ``security find-generic-password`` answers when no password is saved under the service.
+NOT_IN_KEYCHAIN = 44
 HOMEBREW_BINS = ("/opt/homebrew/bin", "/usr/local/bin")
 #: How long 1Password's list of logins -- which holds nothing secret -- is used again before it is read anew.
 LIST_TTL_S = 600.0
@@ -303,6 +307,48 @@ class Command(Source):
         )
 
 
+def _attribute(listing: str, name: str) -> str:
+    """One attribute of what ``security find-generic-password`` prints about an item: ``"acct"<blob>="ann@…"``."""
+    marker = f'"{name}"<blob>="'
+    for line in listing.splitlines():
+        start = line.find(marker)
+        if start >= 0 and line.rstrip().endswith('"'):
+            return line[start + len(marker) : line.rstrip().rfind('"')]
+    return ""
+
+
+class Keychain(Source):
+    """The macOS Keychain: a generic password saved with the app -- its bundle id or website -- as its service and the
+    account's username as its account (``security add-generic-password -s com.example.notes -a ann@example.com -w``).
+    A login is found by its service alone, and its password read only to be typed. Reached only by a process that may
+    run ``security``: ``simtrail login`` in your terminal, not a daemon started inside a sandbox that forbids it."""
+
+    kind = "keychain"
+
+    def __init__(self, *, timeout: float, run: Run = run, program: str = SECURITY) -> None:
+        self._timeout = timeout
+        self._run = run
+        self._program = program
+
+    async def logins(self, target: str, *, fresh: bool = False) -> list[Login]:
+        ran = await self._run((self._program, "find-generic-password", "-s", target), self._timeout)
+        if ran.code == NOT_IN_KEYCHAIN:
+            return []
+        if ran.code != 0:
+            raise PasswordSourceError(f"the Keychain could not be read: {ran.reason or f'exit {ran.code}'}")
+        account = _attribute(ran.out, "acct")
+        title = _attribute(ran.out, "labl") or target
+
+        async def reveal() -> Credentials:
+            argv = (self._program, "find-generic-password", "-s", target, "-a", account, "-w")
+            got = await self._run(argv, self._timeout)
+            if got.code != 0:
+                raise PasswordSourceError(f"the Keychain did not give the password: {got.reason or f'exit {got.code}'}")
+            return Credentials(account, got.out.removesuffix("\n"))
+
+        return [Login(self.kind, f"{target}/{account}", title, account, "Keychain", (target,), reveal)]
+
+
 def sources(
     entries: Sequence[str],
     *,
@@ -330,6 +376,8 @@ def sources(
                     "Bitwarden's CLI was not found: install it (brew install bitwarden-cli) or set login.bitwarden_path"
                 )
             found.append(Bitwarden(program, timeout=timeout, run=run))
+        elif entry == "keychain":
+            found.append(Keychain(timeout=timeout, run=run))
         else:
             found.append(Command(entry.removeprefix("command:"), timeout=timeout, run=run))
     return found
