@@ -272,6 +272,9 @@ class Gesture:
     command: dict[str, Any] | None = None
     #: What a person watching is told the agent is doing, when the gesture's kind, label and caption do not say it.
     activity: str = ""
+    #: Text typed into a secure field: said as `MASK` by the summary, the caption and every event, and kept here only
+    #: so the tool that played it can mask it in every answer after (`core.masking`).
+    secret: str = field(default="", repr=False)
 
 
 @dataclass(frozen=True)
@@ -324,6 +327,8 @@ class _Memory:
     #: Every element a ref of this agent's has named on this device, as it was last read: a ref is never given to
     #: another element later (`perception.snapshot`), so a ref seen on an earlier screen still says what it was.
     seen: dict[str, Element] = field(default_factory=dict)
+    #: Whether this agent's last touch landed on a secure field, so text typed next with no ``into`` goes into it.
+    secure_focus: bool = False
 
 
 @dataclass(frozen=True)
@@ -335,6 +340,8 @@ class Acted:
     unmet: bool = False
     completed_steps: int = 0
     failed_step: int | None = None
+    #: The text its steps typed into secure fields, for the tool to mask in every answer after; never said.
+    secrets: tuple[str, ...] = field(default=(), repr=False)
 
 
 def _whole(value: Any, default: int, bounds: tuple[int, int], name: str, unit: str = "milliseconds") -> int:
@@ -1294,6 +1301,8 @@ class AgentActions:
                     "scrcpy (simtrail android setup) to double-tap"
                 )
             x, y, label, named = await self._target(instance, caller, what, max_elements, guard=guard)
+            memory = self._remembered(instance, caller)
+            memory.secure_focus = self._secure_at(memory, what)
             if instance.kind == "mac" and kind == "tap" and (middle or count > 1 or held):
                 if middle and not _offers(instance, "middle_click"):
                     raise ActionError(_needs_adapter("a middle click"))
@@ -1440,6 +1449,23 @@ class AgentActions:
                 "this device's input types text and cannot hold command, option or control; nothing was sent"
             )
 
+    def _secure_at(self, memory: _Memory, target: Any) -> bool:
+        """Whether a ref or a point lands on a secure field, as this agent last read the screen."""
+        if isinstance(target, str):
+            element = memory.seen.get(target)
+            return element is not None and element.kind == "secure"
+        under = memory.snapshot.at(float(target[0]), float(target[1])) if memory.snapshot is not None else []
+        return bool(under) and under[0].kind == "secure"
+
+    @staticmethod
+    def _secure_field(memory: _Memory) -> bool:
+        """Whether text typed now goes into a secure field: the one this agent's last touch landed on, or the one
+        being edited when it last looked. Either is enough: a password shown by mistake cannot be taken back."""
+        if memory.secure_focus:
+            return True
+        look = memory.snapshot
+        return look is not None and any(e.kind == "secure" and "editing" in e.flags for e in look.elements)
+
     async def _typing(
         self,
         instance: DeviceInstance,
@@ -1451,11 +1477,20 @@ class AgentActions:
     ) -> Gesture:
         events: list[gestures.Timed] = []
         points: tuple[Point, ...] = ()
-        summary, start = f'type "{what[:CAPTION_MAX]}"', 0.0
+        memory = self._remembered(instance, caller)
+        named = ""
         if step.get("into") is not None:
             x, y, _label, named = await self._target(instance, caller, step["into"], max_elements, guard=guard)
             events += gestures.tap(x, y)
-            points, summary, start = ((x, y),), f"{summary} into {named}", FOCUS_S
+            points, start = ((x, y),), FOCUS_S
+            memory.secure_focus = self._secure_at(memory, step["into"])
+        else:
+            start = 0.0
+        secure = self._secure_field(memory)
+        # Text going into a secure field is a password: no line, caption, event or overlay shows it (`MASK`).
+        shown = MASK if secure else what[:CAPTION_MAX]
+        secret = what if secure else ""
+        summary = f'type "{shown}"' + (f" into {named}" if named else "")
         submitted = ""
         if step.get("submit") is True and guard is not None:
             submitted = await self._submitting(instance, caller, "submit", step.get("into"), max_elements, guard)
@@ -1468,7 +1503,7 @@ class AgentActions:
             }
             if points:
                 command.update(x=points[0][0], y=points[0][1])
-            return Gesture("type", summary + submitted, points=points, caption=what[:CAPTION_MAX], command=command)
+            return Gesture("type", summary + submitted, points=points, caption=shown, command=command, secret=secret)
         if step.get("clear") is True:
             events += [(start + at, event) for at, event in gestures.select_all()]
             events += [(start + gestures.TAP_S * 2 + at, event) for at, event in gestures.key("delete")]
@@ -1477,7 +1512,9 @@ class AgentActions:
             # A device that types any text whole needs neither a key for each character nor the pasteboard.
             after = tuple(gestures.key("return")) if step.get("submit") is True else ()
             summary += f" and submit{submitted}" if after else ""
-            return Gesture("type", summary, tuple(events), points, caption=what[:CAPTION_MAX], typed=what, after=after)
+            return Gesture(
+                "type", summary, tuple(events), points, caption=shown, typed=what, after=after, secret=secret
+            )
         entry = await text_entry(what, self._config.get(caller.scope).device_typing, self._manager.keyboard_is_us)
         events += [(start + at, event) for at, event in entry.events]
         start += gestures.duration(entry.events)
@@ -1485,12 +1522,15 @@ class AgentActions:
             events += [(start + gestures.TAP_S * 2 + at, event) for at, event in gestures.key("return")]
             summary += f" and submit{submitted}"
         if entry.pasted and paste_refused(instance.runtime):
-            # Said, because nothing else would: the paste arrives, iOS drops it, and the field looks untouched.
+            # Said, because nothing else would: the paste arrives, iOS drops it, and the field looks untouched. Why it
+            # was pasted can name one of its characters, which a password's line does not.
+            why = entry.why_pasted
+            if secure and entry.why_pasted.endswith("has no key to type it with"):
+                why = "one of its characters has no key to type it with"
             summary += (
-                f" -- pasted, since {entry.why_pasted}, and {instance.runtime} refuses a paste without asking: check "
-                "the field"
+                f" -- pasted, since {why}, and {instance.runtime} refuses a paste without asking: check the field"
             )
-        return Gesture("type", summary, tuple(events), points, caption=what[:CAPTION_MAX], text=entry.pasted)
+        return Gesture("type", summary, tuple(events), points, caption=shown, text=entry.pasted, secret=secret)
 
     async def _wait_for_person(self, instance: DeviceInstance) -> None:
         """Wait for a viewer's input to have been still for `QUIET_S` and for any pause to lift, `PERSON_WAIT_S` at
@@ -1599,6 +1639,7 @@ class AgentActions:
             raise ActionError(f"the device is busy: {instance.busy}")
         memory = self._remembered(instance, caller)
         lines: list[str] = []
+        secrets: list[str] = []
         failed = False
         completed_steps = 0
         failed_step = None
@@ -1627,6 +1668,8 @@ class AgentActions:
                         # A ref in a later step is where the screen now has it: a step can open a keyboard over it, or
                         # take it away, and a ref touched where it was would touch whatever is there now.
                         memory.stale = True
+                    if gesture.secret:
+                        secrets.append(gesture.secret)
                     lines.append(f"ok {gesture.summary} +{round((self._clock() - began) * 1000)}ms{said}")
                     completed_steps += 1
                     read_next = number < len(checked) or (wait is None and snapshot != "none")
@@ -1651,8 +1694,9 @@ class AgentActions:
             else:
                 lines.append(diff(before, after) if snapshot == "diff" else after.text())
         return Acted(
-            "\n".join(lines), failed=failed, unmet=unmet, completed_steps=completed_steps, failed_step=failed_step
-        )
+            "\n".join(lines), failed=failed, unmet=unmet, completed_steps=completed_steps, failed_step=failed_step,
+            secrets=tuple(secrets),
+        )  # fmt: skip
 
     async def rotate(
         self, instance: DeviceInstance, caller: Caller, orientation: Orientation, *, max_elements: int = 120

@@ -44,6 +44,11 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Fixed
 
+- Security: text an agent typed with `sim_act` or `sim_flow` into a secure field -- a password field named by a ref or
+  a point, the one its last touch landed on, or the one being edited -- was shown in clear beside the agent's pointer
+  in the viewer and in the macOS overlay, and said back in the step's line. It now reads `••••` in the agent events,
+  the caption, the activity, the step's line and the answers, and is masked in every later answer of every tool, as
+  `sim_login`'s password is; a character that has no key is no longer named in the line either.
 - The Gradle log fixtures two build tests read are in the repository again: a global ignore of `*.log` had kept them
   out.
 

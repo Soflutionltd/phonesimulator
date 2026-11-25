@@ -140,6 +140,10 @@ SHA-256 of its token, which only the daemon -- keeping that digest -- and the ho
   observe mode or while recording -- and answers with which login it used. The password and the one-time code are in
   no answer, event, log or argv, and are masked in every later answer of every tool; with `account`, a login for
   another account is refused ([Signing in](login.md#security)).
+- **A password an agent types itself, never shown**: text `sim_act` or `sim_flow` types into a secure field -- the one
+  a ref or a point names, the one the agent's last touch landed on, or the one being edited -- reads `••••` in the
+  step's line, in the agent events a viewer draws beside the pointer and in the macOS overlay, and is masked in every
+  later answer of every tool, as `sim_login`'s password is.
 - **Nothing outside the device**: every gesture is drawn by the viewer's own cursor, never the Mac's pointer.
 - **What changes an account, only when confirmed, in observe mode**: with `agent.observe` on, a tap or typing on what
   reads like Delete, Save, Send or Sign out or on a switch, a sideways swipe on a list row, a drop onto the trash, and

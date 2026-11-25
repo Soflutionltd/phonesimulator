@@ -15,7 +15,9 @@ step that names a ref begins a call of its own: the screen is read just before i
 there -- waited for up to `FIND_S`, as a screen that is still opening takes a moment. Variables are given their values
 by ``variables``; one missing, or given and not used, refuses the run before anything plays. What the run answers --
 each step ok or error, numbered in the flow, then what changed on screen -- says a variable's value as its name, so a
-password typed is not repeated back. The run stops at the first step that fails or wait not met, saying which.
+password typed is not repeated back -- and a value typed into a secure field is said as ``••••`` wherever the agent
+is shown at work, and masked in every answer after, as `sim_act` masks it. The run stops at the first step that
+fails or wait not met, saying which.
 """
 
 from __future__ import annotations
@@ -45,6 +47,7 @@ from simtrail.core.flows import (
 from simtrail.core.instance import DeviceInstance
 from simtrail.core.refusals import ObserveGuard
 from simtrail.perception.snapshot import Element, Snapshot
+from simtrail.tools.act import hide_typed
 from simtrail.tools.context import ToolContext, flag_arg, make_tool, ready_device
 from simtrail.tools.results import SHUT_DOWN, Result, ToolRefused, text
 
@@ -276,6 +279,7 @@ async def play(
             except ActionError as exc:
                 lines.append(f"error step {done + 1}: {exc}")
                 return _stopped(lines, values, done, total, failed=True, may_have_run=exc.__cause__ is not None)
+            hide_typed(ctx, acted.secrets)
             lines += [_numbered(line, done) for line in acted.text.splitlines()]
             if acted.failed:
                 return _stopped(lines, values, done + acted.completed_steps, total, failed=True, may_have_run=True)

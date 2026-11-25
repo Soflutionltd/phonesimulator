@@ -10,7 +10,9 @@ alone.
 A call whose step failed, or whose wait was not met -- it gave up, could not read the screen, or was asked for wrongly
 -- is an error, though the steps before stay played and the answer says which. ``allow_stale: true`` touches refs as
 the agent's last snapshot has them, without reading the screen again when it may have changed out of sight
-(`core.actions`). ``steal`` is read by the runtime, before the call gets here (`core.drivers`).
+(`core.actions`). Text typed into a secure field is said as ``••••`` by the step's line and by everything that
+shows the agent at work, and masked in every answer after. ``steal`` is read by the runtime, before the call gets
+here (`core.drivers`).
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from simtrail.connectors.base import Capability
+from simtrail.core.masking import PASSWORD_S
 from simtrail.core.refusals import ObserveGuard
 from simtrail.tools.context import ToolContext, flag_arg, make_tool, ready_device
 from simtrail.tools.results import SHUT_DOWN, Result, ToolRefused, text
@@ -48,6 +51,7 @@ async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
         guard=guard,
         allow_stale=allow_stale,
     )
+    hide_typed(ctx, acted.secrets)
     answer = acted.text
     if acted.failed and await ctx.manager.gone(ctx.scope, ctx.udid):
         answer += "\n" + SHUT_DOWN
@@ -62,6 +66,14 @@ async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
             "wait_met": None if args.get("wait") is None or acted.failed else not acted.unmet,
         },
     )
+
+
+def hide_typed(ctx: ToolContext, secrets: tuple[str, ...]) -> None:
+    """Mask what the steps typed into secure fields in every answer from now on, as `sim_login`'s password is: a
+    field that shows it back once its eye is tapped, or a log that writes it, then reads ``••••``."""
+    if ctx.secrets is not None:
+        for secret in secrets:
+            ctx.secrets.hide(secret, PASSWORD_S)
 
 
 TOOL = make_tool("sim_act", (Capability.INPUT_TOUCH,), run)

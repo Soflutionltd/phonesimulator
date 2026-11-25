@@ -214,9 +214,9 @@ async def test_another_agent_plays_a_flow_finding_each_element_again_and_never_r
     assert said(played).splitlines()[:4] == [
         "flow sign-in · 3 steps",
         'ok type "{{email}}" into e2 "Email" (201,122)',
-        'ok type "{{password}}" into e3 "Password" (201,182)',
+        'ok type "••••" into e3 "Password" (201,182)',
         'ok tap e4 "Sign in" (201,242)',
-    ], "its refs on this agent's screen, and the values said as their names"
+    ], "its refs on this agent's screen, the values said as their names, and a secure field's as nothing at all"
     assert "hunter22" not in said(played) and "qa@example.com" not in said(played)
     assert played["isError"] is False
     assert played["structuredContent"] == {
@@ -228,6 +228,27 @@ async def test_another_agent_plays_a_flow_finding_each_element_again_and_never_r
         "wait_met": True,
     }
     assert rig.idb.engine.hid_events, "the steps reached the device"
+
+
+async def test_a_variable_typed_into_a_secure_field_is_masked_in_every_event_and_every_answer_after(
+    tmp_path: Path,
+) -> None:
+    rig = login(DeviceRig(tmp_path))
+    await saved_sign_in(tools(rig))
+    instance = await rig.up()
+    events = instance.events.subscribe()
+    ctx = tools(rig, OTHER)
+    played = await call(ctx, "sim_flow", run_sign_in(password="hunter22"))
+    assert played["isError"] is False, said(played)
+    published = [events.get_nowait() for _ in range(events.qsize())]
+    typed = [event for event in published if event.get("gesture", {}).get("kind") == "type"]
+    assert [event["caption"] for event in typed] == ["qa@example.com", "••••"], "the e-mail is shown, the password not"
+    assert "Typing “••••”" in [event["activity"] for event in typed]
+    assert "hunter22" not in json.dumps(published, ensure_ascii=False)
+    # The app shows it back later -- its eye tapped -- and the agent reads the screen: it is masked there too.
+    rig.idb.engine.document = {"elements": [_element("StaticText", "Your password is hunter22", 100)]}
+    looked = await call(ctx, "sim_snapshot", {"mode": "full"})
+    assert "hunter22" not in said(looked) and "Your password is ••••" in said(looked)
 
 
 async def test_a_run_needs_each_variable_and_no_other(tmp_path: Path) -> None:
