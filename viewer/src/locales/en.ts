@@ -66,7 +66,6 @@ export const en = {
   'detail.adb_no_permissions': 'This Mac has no permission to use it',
   'detail.adb_silent': 'Does not answer adb now',
 
-  'picker.simulators': 'Simulators',
   'picker.physical': 'iPhones and iPads',
   'picker.android': 'Android',
   'picker.mac': 'macOS apps',

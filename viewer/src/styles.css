@@ -807,16 +807,19 @@ button.smv-home-button:hover {
   padding: var(--smv-space-4);
 }
 
+/* A group's heading -- iOS 26.5, iPhone and iPad, Android, macOS apps -- in red under a rule, apart from its rows. */
 .smv-picker-group {
-  margin: var(--smv-space-4) 0 var(--smv-space-1);
-  padding: 0 var(--smv-space-4);
-  color: var(--smv-text-muted);
+  margin: var(--smv-space-2) 0 var(--smv-space-1);
+  padding: var(--smv-space-2) var(--smv-space-4) 0;
+  border-top: 1px solid var(--smv-border);
+  color: var(--smv-danger);
   font-size: 0.8em;
   font-weight: 600;
 }
 
 .smv-picker-group:first-child {
-  margin-top: var(--smv-space-2);
+  margin-top: 0;
+  border-top: 0;
 }
 
 .smv-picker button[aria-disabled="true"] {

@@ -55,13 +55,25 @@ describe('the picker', () => {
       connection: null, detail: 'Not connected', detail_code: 'not_connected', usable: false },
   ]
 
+  it('heads the simulators of each runtime with it, in the order they come', async () => {
+    const older = { ...choices[0], udid: 'U0', name: 'iPhone 16', runtime: 'iOS 26.4' }
+    const { $ } = await live({ transport: { devices: vi.fn(async () => [older, choices[0], { ...older, udid: 'U2' }]) } })
+    $<HTMLButtonElement>('[data-smv="devices"]').click()
+    await flush()
+    const picker = $<HTMLElement>('[data-smv-picker]')
+    expect([...picker.querySelectorAll('.smv-picker-group')].map((group) => group.textContent))
+      .toEqual(['iOS 26.4', 'iOS 26.5'])
+    expect([...picker.querySelectorAll<HTMLElement>('[data-smv-udid]')].map((row) => row.dataset.smvUdid))
+      .toEqual(['U0', 'U2', 'U1'])
+  })
+
   it('groups simulators and real devices, says how each is connected, and will not pick one it cannot use', async () => {
     const { $, transport } = await live({ transport: { devices: vi.fn(async () => choices) } })
     $<HTMLButtonElement>('[data-smv="devices"]').click()
     await flush()
     const picker = $<HTMLElement>('[data-smv-picker]')
     expect([...picker.querySelectorAll('.smv-picker-group')].map((group) => group.textContent))
-      .toEqual(['Simulators', 'iPhones and iPads'])
+      .toEqual(['iOS 26.5', 'iPhones and iPads'])
     const rows = [...picker.querySelectorAll<HTMLButtonElement>('[data-smv-udid]')]
     // Not connected is said once: the server's detail is how the device is reached.
     expect(rows.map((row) => row.querySelector('.smv-choice-about')!.textContent)).toEqual([

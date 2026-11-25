@@ -205,17 +205,19 @@ function tabMarkup(tab: TabChoice, current: Device | null, t: Translate): string
 export function pickerMarkup(
   choices: DeviceChoice[], current: Device | null, tab?: TabChoice, t: Translate = english,
 ): string {
-  const groups: Array<[label: PlainKey, rows: DeviceChoice[]]> = [
-    // An older server says no kind: its choices are simulators.
-    ['picker.simulators', choices.filter((choice) => choice.kind !== 'physical' && choice.kind !== 'android' && choice.kind !== 'mac')],
-    ['picker.physical', choices.filter((choice) => choice.kind === 'physical')],
-    ['picker.android', choices.filter((choice) => choice.kind === 'android')],
-    ['picker.mac', choices.filter((choice) => choice.kind === 'mac')],
+  // Simulators -- an older server says no kind -- are headed by their runtime, "iOS 26.5"; the rest by their kind.
+  const simulators = choices.filter((choice) => choice.kind !== 'physical' && choice.kind !== 'android' && choice.kind !== 'mac')
+  const groups: Array<[label: string, rows: DeviceChoice[]]> = [
+    ...[...new Set(simulators.map((choice) => choice.runtime))]
+      .map((runtime): [string, DeviceChoice[]] => [runtime, simulators.filter((choice) => choice.runtime === runtime)]),
+    [t('picker.physical'), choices.filter((choice) => choice.kind === 'physical')],
+    [t('picker.android'), choices.filter((choice) => choice.kind === 'android')],
+    [t('picker.mac'), choices.filter((choice) => choice.kind === 'mac')],
   ]
   const group = (text: string) => `<p class="smv-picker-group" role="presentation">${escapeHTML(text)}</p>`
   const listed = groups.filter(([, rows]) => rows.length)
   const body = listed.map(([label, rows]) =>
-    (listed.length > 1 ? group(t(label)) : '')
+    (listed.length > 1 ? group(label) : '')
     + rows.map((choice) => choiceRow(choice, current?.udid, t)).join('')).join('')
   // A real device -- an iPhone, an Android phone -- is never shut down: it is only let go.
   const shutdown = isReal(current)

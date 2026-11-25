@@ -67,7 +67,6 @@ export const fr: Messages = {
   'detail.adb_no_permissions': 'Ce Mac n’a pas l’autorisation de l’utiliser',
   'detail.adb_silent': 'Ne répond pas à adb pour l’instant',
 
-  'picker.simulators': 'Simulateurs',
   'picker.physical': 'iPhone et iPad',
   'picker.android': 'Android',
   'picker.mac': 'Apps macOS',

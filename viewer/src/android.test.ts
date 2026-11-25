@@ -168,7 +168,7 @@ describe('the picker with Android devices', () => {
     await flush()
     const picker = $<HTMLElement>('[data-smv-picker]')
     expect([...picker.querySelectorAll('.smv-picker-group')].map((group) => group.textContent))
-      .toEqual(['Simulators', 'Android'])
+      .toEqual(['iOS 26.5', 'Android'])
     const rows = [...picker.querySelectorAll<HTMLButtonElement>('[data-smv-udid]')]
     expect(rows.map((row) => row.querySelector('.smv-choice-about')!.textContent)).toEqual([
       'iOS 26.5', 'Android 16 (API 36) · Emulator', 'Android 15 (API 35) · USB',

@@ -232,7 +232,7 @@ describe('the language the viewer speaks', () => {
     expect(picker.textContent).toBe('Recherche d’appareils…')
     await flush()
     expect([...picker.querySelectorAll('.smv-picker-group')].map((group) => group.textContent))
-      .toEqual(['Afficher dans cet onglet', 'Simulateurs', 'iPhone et iPad', 'Android', 'Apps macOS'])
+      .toEqual(['Afficher dans cet onglet', 'iOS 26.5', 'iPhone et iPad', 'Android', 'Apps macOS'])
     expect([...picker.querySelectorAll('[data-smv-udid] .smv-choice-about')].map((row) => row.textContent)).toEqual([
       'iOS 26.5 · utilisé par Claude Code', 'iOS 26.3 · USB', 'iPadOS 18 · Non connecté', 'Android 16 · Émulateur',
       'API 36 · Émulateur · Image système non installée\u00a0: installez-la dans le SDK Manager d’Android Studio',
