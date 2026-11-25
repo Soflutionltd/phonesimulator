@@ -195,6 +195,21 @@ def password_form(snapshot: Snapshot, field: str | None) -> Form:
     return Form(username, secret)
 
 
+def to_focus(snapshot: Snapshot, field: str | None) -> Element | None:
+    """The text field to tap before a password form is looked for again, when none is secure yet: Flutter, for one,
+    says its password field is secure only once it has the focus. The field named, when it is a plain text field; else,
+    with no secure field on screen and two text fields or more, the last -- a password's comes after its username's.
+    Tapping only focuses it: the password still goes nowhere but a field that then says it is secure."""
+    if field is not None:
+        named = snapshot.element(field)
+        return named if named is not None and named.kind == TEXT_FIELD else None
+    elements = [element for element in snapshot.elements if element.ref is not None]
+    if any(element.kind == SECURE_FIELD for element in elements):
+        return None
+    texts = [element for element in elements if element.kind == TEXT_FIELD]
+    return texts[-1] if len(texts) >= 2 else None
+
+
 def code_form(snapshot: Snapshot, field: str | None) -> Form:
     """The field a one-time code goes into: the one `field` names, else the only one on screen that reads like one."""
     if field is not None:

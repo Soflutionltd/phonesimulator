@@ -19,6 +19,7 @@ from simtrail.cli import (
     devices,
     doctor,
     helper,
+    login,
     mcp,
     open_viewer,
     record,
@@ -38,8 +39,8 @@ from simtrail.mcp.launcher import DaemonUnavailable
 from simtrail.scope import InvalidScope
 
 COMMANDS = (
-    serve, mcp, open_viewer, stop, doctor, config_command, settings_command, devices, device_command, record, tokens,
-    tools, xcode, helper, app_command, wda, android, version,
+    serve, mcp, login, open_viewer, stop, doctor, config_command, settings_command, devices, device_command, record,
+    tokens, tools, xcode, helper, app_command, wda, android, version,
 )  # fmt: skip
 REFUSALS = (ConfigError, DaemonUnavailable, InvalidScope, TokenRefused)
 

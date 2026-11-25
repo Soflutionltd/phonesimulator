@@ -8,6 +8,9 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Added
 
+- `simtrail login <app>`: sign the project's app in with a login asked from the password manager in your own
+  terminal, for a daemon that cannot ask it from inside a sandbox an MCP client runs it in. The login is handed to the
+  daemon for one `sim_login` (`source: "given"`), kept in memory for two minutes at most, and typed as any other.
 - `sim_flow`: save a walkthrough under a name -- steps and waits exactly as `sim_act` takes them, or batches of them
   -- and play it again in one call through `sim_act`'s own checks, observe mode and one-agent-at-a-time hold. Flows
   are kept as JSON files in `<state>/flows/<project>/`, with what each ref named so another agent finds the element
@@ -93,6 +96,8 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Fixed
 
+- `sim_login` fills a password field that says it is secure only once it has the focus, as a Flutter app's does: it
+  taps that field first, and types the password only if the field then says it is secure.
 - On iOS 16 to 26, text Simtrail pastes -- on a Mac whose keyboard is not US-shaped, say AZERTY -- no longer leaves
   the step "ok" with nothing typed: the Allow Paste prompt iOS shows for the simulator's pasteboard bridge is allowed,
   and the step's line says so, or says the text did not arrive.

@@ -33,6 +33,7 @@ from simtrail.connectors.iphone.connector import DRIVEN
 from simtrail.core.actions import AgentActions
 from simtrail.core.drivers import Drivers
 from simtrail.core.flows import FlowStore
+from simtrail.core.given import GivenLogins
 from simtrail.core.instance import READY, STALLED, DeviceInstance
 from simtrail.core.manager import DeviceManager, SimulatorUnavailable
 from simtrail.core.masking import SecretMask
@@ -117,6 +118,8 @@ class ToolContext:
     #: Who drives each device, for a tool that acts on devices other than the agent's own (`sim_matrix`); None where
     #: nobody is asked.
     drivers: Drivers | None = None
+    #: The logins ``simtrail login`` handed over for `sim_login` (``source: "given"``); None where none are taken.
+    given: GivenLogins | None = None
     #: What every answer is masked with -- a password `sim_login` typed reads ``••••`` in it; set by the registry.
     secrets: SecretMask | None = None
     #: The Flutter apps `sim_flutter run` keeps running, by device; None where none are kept.

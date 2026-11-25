@@ -144,6 +144,8 @@ class DaemonClient:
         headers: Mapping[str, str],
         url: str,
         timeout: float = REQUEST_TIMEOUT_S,
+        *,
+        enveloped: bool = True,
     ) -> Any:
         data = None if payload is None else json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
@@ -151,6 +153,9 @@ class DaemonClient:
         )
         with self._open(request, timeout) as response:
             answer = json.loads(response.read().decode("utf-8"))
+        if not enveloped:
+            # A tool's result, as the agent routes answer it: no envelope around it.
+            return answer
         if not isinstance(answer, dict) or answer.get("ok") is not True:
             raise ValueError(f"the daemon answered {path} with something unexpected")
         return answer.get("data")
@@ -193,9 +198,10 @@ class DaemonClient:
         *,
         token: str | None = None,
         timeout: float = REQUEST_TIMEOUT_S,
+        enveloped: bool = True,
     ) -> Any:
         """A request with a credential, sent only to a listener that has proved it is this user's daemon -- answered
-        within `timeout` seconds."""
+        within `timeout` seconds; with `enveloped` off, its body is the answer, as a tool's result is."""
         url = self.url
         if self._proven != url:
             found = self._probe(url)
@@ -204,7 +210,8 @@ class DaemonClient:
             if found == OTHER:
                 raise NotTheDaemon(impostor(url))
         try:
-            return self._send(method, path, payload, {"Authorization": f"Bearer {token or self._token}"}, url, timeout)
+            auth = {"Authorization": f"Bearer {token or self._token}"}
+            return self._send(method, path, payload, auth, url, timeout, enveloped=enveloped)
         except (urllib.error.URLError, OSError):
             # The daemon may have gone; whatever answers on the port next must prove itself again.
             self._proven = None
@@ -236,6 +243,24 @@ class DaemonClient:
             "/api/v1/admin/tokens", {"kind": "agent", "scopes": [scope_id], "roots": list(roots), "label": label}
         )
         return str(data["id"]), str(data["token"])
+
+    def call_tool(
+        self, token: str, name: str, arguments: Mapping[str, Any], *, timeout: float = REQUEST_TIMEOUT_S
+    ) -> Mapping[str, Any]:
+        """Call one tool as the agent this token is for, answering its result. Raises `DaemonUnavailable` with what the
+        daemon said when it refused the call itself."""
+        try:
+            call = {"name": name, "arguments": dict(arguments)}
+            answer = self.request("POST", f"{AGENT_PATH}/call", call, token=token, timeout=timeout, enveloped=False)
+        except NotTheDaemon as exc:
+            raise DaemonUnavailable(str(exc)) from exc
+        except urllib.error.HTTPError as exc:
+            raise DaemonUnavailable(f"the daemon refused {name}: {relay.refusal(exc)}") from exc
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            raise DaemonUnavailable(f"the daemon could not be reached: {exc}") from exc
+        if not isinstance(answer, Mapping):
+            raise DaemonUnavailable(f"the daemon answered {name} with no result")
+        return answer
 
     def inherit(self, scope_id: str, source_id: str) -> str | None:
         """Give a scope with no device yet another scope's device; None when it was given none, or this daemon is too

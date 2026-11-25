@@ -28,6 +28,7 @@ from simtrail.config.model import SimConfig
 from simtrail.connectors.base import Capability
 from simtrail.core import login
 from simtrail.core.actions import Hidden
+from simtrail.core.given import GIVEN, GivenSource
 from simtrail.core.instance import DeviceInstance
 from simtrail.core.login import Form, LoginRefused
 from simtrail.core.masking import CODE_S, PASSWORD_S
@@ -105,13 +106,16 @@ class Logins:
         if only is not None and only not in LOGIN_SOURCES:
             raise ToolRefused(f"source is one of {', '.join(LOGIN_SOURCES)}")
         config = ctx.config
-        if not config.login_sources:
+        given = only == GIVEN
+        if given and item is None:
+            raise ToolRefused('source "given" takes the item simtrail login handed over')
+        if not given and not config.login_sources:
             raise ToolRefused("sim_login is off: login.sources names no password manager")
         if config.agent_observe:
             raise ToolRefused(
                 "agents only observe here (agent.observe): sim_login is refused, and a person signs in themselves"
             )
-        sources = self.sources(config, only)
+        sources = [] if given else self.sources(config, only)
         instance = await ready_device(ctx)
         if _real(instance) and not config.login_real_devices:
             raise ToolRefused(
@@ -121,13 +125,43 @@ class Logins:
         if instance.recording is not None:
             raise ToolRefused("the screen is being recorded: stop the recording (sim_record stop) before signing in")
         snapshot = await ctx.actions.screen(instance, ctx.caller, max_elements=ctx.config.snapshot_max_elements)
+        form, snapshot = await self._form(ctx, instance, snapshot, field, code=code)
+        if given:
+            taken = ctx.given.take(ctx.caller.scope.id, app, item) if ctx.given is not None and item else None
+            if taken is None:
+                raise ToolRefused(f"no login was handed over for {app} under that item, or it was used or expired")
+            sources = [GivenSource(taken)]
         try:
-            form = login.code_form(snapshot, field) if code else login.password_form(snapshot, field)
             chosen = await login.choose(sources, app, account=account, item=item)
         except LoginRefused as exc:
             raise ToolRefused(str(exc)) from None
         filled = await self._fill(ctx, instance, chosen, form, snapshot, account=account, code=code, submit=submit)
         return self._answer(chosen, form, filled, submit=submit)
+
+    @staticmethod
+    async def _form(
+        ctx: ToolContext, instance: DeviceInstance, snapshot: Snapshot, field: str | None, *, code: bool
+    ) -> tuple[Form, Snapshot]:
+        """The fields the login goes into -- after a tap on the password's field when no field is secure yet, as a
+        Flutter app's is only once it has the focus (`login.to_focus`) -- and the screen they were found on."""
+        try:
+            return (login.code_form(snapshot, field) if code else login.password_form(snapshot, field)), snapshot
+        except LoginRefused as exc:
+            focus = None if code else login.to_focus(snapshot, field)
+            if focus is None or focus.ref is None:
+                raise ToolRefused(str(exc)) from None
+            refused = str(exc)
+        await ctx.actions.act(instance, ctx.caller, [{"tap": focus.ref}], snapshot="none")
+        snapshot = await ctx.actions.screen(instance, ctx.caller, max_elements=ctx.config.snapshot_max_elements)
+        # Only the field tapped, now secure, takes the password: never another one the screen happens to show.
+        now = [
+            element
+            for element in snapshot.elements
+            if element.ref is not None and element.kind == login.SECURE_FIELD and element.holds(focus.x, focus.y)
+        ]
+        if len(now) != 1 or now[0].ref is None:
+            raise ToolRefused(refused)
+        return login.password_form(snapshot, now[0].ref), snapshot
 
     async def _fill(
         self,

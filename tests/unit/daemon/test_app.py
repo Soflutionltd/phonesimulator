@@ -422,6 +422,20 @@ async def test_the_admin_gives_a_scope_with_no_device_yet_another_scopes(tmp_pat
     assert given.json()["data"] == {"udid": instance.udid} and again.json()["data"] == {"udid": None}
 
 
+async def test_the_admin_hands_a_login_over_for_one_sim_login_and_is_answered_only_its_item(tmp_path: Path) -> None:
+    here = site(tmp_path)
+    body = {"scope": "tp-1", "app": "com.example.notes", "username": "ann@example.com", "password": "pw"}
+    async with here.http() as http:
+        assert detail(await http.post("/api/v1/admin/logins", json=body)) == (401, AUTHENTICATION_REQUIRED)
+        empty = await http.post("/api/v1/admin/logins", headers=here.admin, json={**body, "password": ""})
+        assert detail(empty) == (400, "a login handed over has a password or a one-time code")
+        handed = await http.post("/api/v1/admin/logins", headers=here.admin, json=body)
+    data = handed.json()["data"]
+    assert list(data) == ["item"] and "pw" not in handed.text
+    taken = here.daemon.runtime.given.take("tp-1", "com.example.notes", data["item"])
+    assert taken is not None and taken.title == "ann@example.com", "titled by its username when none is given"
+
+
 async def test_the_admin_sees_which_scopes_the_daemon_serves_a_device_an_agent_or_a_build(tmp_path: Path) -> None:
     here = site(tmp_path)
     async with here.http() as http:

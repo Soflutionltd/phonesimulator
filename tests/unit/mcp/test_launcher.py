@@ -489,3 +489,27 @@ def test_a_daemon_that_refuses_or_does_not_know_inherit_gives_no_device_and_noth
     assert client.inherit("tp-2", "tp-1") is None
     daemon.refuse.add(path)
     assert client.inherit("tp-2", "tp-1") is None
+
+
+def test_a_tool_is_called_as_the_agent_its_token_is_for_and_its_result_answered_whole() -> None:
+    daemon = Daemon(admin=lambda: ADMIN)
+    client = DaemonClient(URL, ADMIN, opener=daemon)
+    assert client.call_tool("agent-token", "sim_login", {"app": "x"}) == {
+        "content": [{"type": "text", "text": "ok"}],
+        "isError": False,
+    }
+    assert daemon.made("POST", "/api/v1/agent/call") == [{"name": "sim_login", "arguments": {"app": "x"}}]
+    daemon.refuse.add("/api/v1/agent/call")
+    with pytest.raises(DaemonUnavailable, match="the daemon refused sim_login: refused here"):
+        client.call_tool("agent-token", "sim_login", {})
+    daemon.up = False
+    with pytest.raises(DaemonUnavailable, match="could not be reached"):
+        client.call_tool("agent-token", "sim_login", {})
+    squatter = DaemonClient(URL, ADMIN, opener=FakeDaemon(impostor=True))
+    with pytest.raises(DaemonUnavailable, match="not your Simtrail daemon"):
+        squatter.call_tool("agent-token", "sim_login", {})
+    daemon.up = True
+    daemon.refuse.clear()
+    daemon.answers[("POST", "/api/v1/agent/call")] = ["no", "result"]
+    with pytest.raises(DaemonUnavailable, match="answered sim_login with no result"):
+        client.call_tool("agent-token", "sim_login", {})

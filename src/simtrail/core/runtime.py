@@ -47,6 +47,7 @@ from simtrail.core.device_logs import DeviceLogBook
 from simtrail.core.devices import DeviceDirectory
 from simtrail.core.drivers import HOLD_S, Drivers, Held, changes_device, exclusive
 from simtrail.core.flows import FlowStore, flows_folder
+from simtrail.core.given import GivenLogins
 from simtrail.core.instance import DeviceInstance
 from simtrail.core.mac_backend import MacBackend
 from simtrail.core.manager import DeviceManager, SimulatorUnavailable
@@ -133,6 +134,8 @@ class Runtime:
     folders: Folders = field(default_factory=Folders)
     #: The Flutter apps `sim_flutter run` keeps running for agents.
     flutter: FlutterSessions = field(default_factory=FlutterSessions)
+    #: The logins ``simtrail login`` handed over, each waiting for one `sim_login`.
+    given: GivenLogins = field(default_factory=GivenLogins)
 
     @classmethod
     def build(
@@ -302,6 +305,7 @@ class Runtime:
             sleep=sleep,
             drivers=Drivers(copy, clock=clock),
             selections=Selections(config, clock=clock),
+            given=GivenLogins(clock=clock),
             recordings=recordings or default_recordings(xcrun, copy, clock=clock, sleep=sleep),
             signing=signing,
             touch=TouchSetups(
@@ -410,6 +414,7 @@ class Runtime:
             flows=FlowStore(flows_folder(self.state)),
             drivers=self.drivers,
             flutter=self.flutter,
+            given=self.given,
         )
 
     def _build_folder(self, caller: Caller) -> Path | None:

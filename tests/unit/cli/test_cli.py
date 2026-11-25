@@ -26,6 +26,7 @@ from simtrail import api
 from simtrail._version import __version__
 from simtrail.cli import app_command
 from simtrail.cli import context as context_module
+from simtrail.cli import login as login_command
 from simtrail.cli import record as record_command
 from simtrail.cli import stop as stop_command
 from simtrail.cli.context import CliContext, serve_with_uvicorn
@@ -41,6 +42,7 @@ from simtrail.doctor.report import CheckResult, Report
 from simtrail.host_copy import HostCopy
 from simtrail.mcp import launcher
 from simtrail.platform.device_data import DEVICES_DIR_ENV
+from simtrail.platform.passwords import Credentials, Login, PasswordSourceError, Source
 from simtrail.protocol import PROTOCOL_VERSION
 from simtrail.scope import Scope
 from simtrail.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
@@ -548,6 +550,95 @@ def test_a_token_is_revoked_through_the_running_daemon_so_what_its_agent_held_is
     assert here.daemon.made("DELETE", gone) == [None], "the daemon revoked it, and let go of what it held"
     here.daemon.answers[("DELETE", gone)] = {"revoked": False}
     assert here("token", "revoke", record.id) == 1 and f"there is no token {record.id}" in here.err.getvalue()
+
+
+class OneLogin(Source):
+    """A password manager holding one login for com.example.notes."""
+
+    kind = "1password"
+
+    def __init__(self, password: str = "pw") -> None:
+        self.password = password
+        self.revealed = 0
+
+    async def logins(self, target: str, *, fresh: bool = False) -> list[Login]:
+        async def reveal() -> Credentials:
+            self.revealed += 1
+            return Credentials("ann@example.com", self.password)
+
+        return [Login("1password", "abc", "Example", "ann@example.com", "Private", ("com.example.notes",), reveal)]
+
+
+def test_login_asks_the_password_manager_here_and_has_sim_login_type_what_it_handed_over(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = OneLogin()
+    asked: list[tuple[str, ...]] = []
+
+    def made(entries: Sequence[str], **_: Any) -> list[Source]:
+        asked.append(tuple(entries))
+        return [source]
+
+    monkeypatch.setattr(login_command.passwords, "sources", made)
+    here = Terminal(tmp_path)
+    repo = main_checkout(tmp_path / "repo")
+    linked_worktree(repo, here.cwd)
+    here.daemon.answers[("POST", "/api/v1/admin/logins")] = {"item": "i1"}
+    argv = ("login", "com.example.notes", "--account", "ann@example.com", "--source", "1password", "--submit")
+    assert here(*argv) == 0 and here.said() == ["ok"]
+    assert asked == [("1password",)] and source.revealed == 1
+    (handed,) = here.daemon.made("POST", "/api/v1/admin/logins")
+    assert handed == {
+        "scope": Scope.for_folder(here.cwd).id,
+        "app": "com.example.notes",
+        "title": "Example",
+        "username": "ann@example.com",
+        "password": "pw",
+        "totp": "",
+    }
+    (call,) = here.daemon.made("POST", "/api/v1/agent/call")
+    assert call == {
+        "name": "sim_login",
+        "arguments": {
+            "app": "com.example.notes",
+            "source": "given",
+            "item": "i1",
+            "submit": True,
+            "code": False,
+            "account": "ann@example.com",
+        },
+    }, "the password never goes to the tool call, only the item"
+    assert here.daemon.made("DELETE", "/api/v1/admin/tokens/t1") == [None], "its agent token is revoked after"
+    inherit = f"/api/v1/admin/scopes/{Scope.for_folder(here.cwd).id}/inherit"
+    assert here.daemon.made("POST", inherit) == [{"source": Scope.for_folder(repo).id}], "a worktree uses its repo's"
+
+
+def test_login_says_what_went_wrong_and_names_where_logins_come_from_when_nothing_does(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    here = Terminal(tmp_path)
+    assert here("login", "com.example.notes") == 2
+    assert "name where logins come from: --source 1password" in here.err.getvalue()
+    monkeypatch.setattr(login_command.passwords, "sources", lambda entries, **_: [OneLogin()])
+    assert here("login", "com.example.other", "--source", "1password", "--field", "e3") == 1
+    assert "no saved login for com.example.other" in here.err.getvalue()
+    here.daemon.answers[("POST", "/api/v1/admin/logins")] = {"item": "i2"}
+    here.daemon.answers[("POST", "/api/v1/agent/call")] = {
+        "content": [{"type": "text", "text": "no password field is on screen"}],
+        "isError": True,
+    }
+    assert here("login", "com.example.notes", "--source", "1password", "--field", "e3", "--scope", "demo") == 1
+    assert here.err.getvalue().endswith("simtrail: no password field is on screen\n")
+    call = here.daemon.made("POST", "/api/v1/agent/call")[-1]
+    assert call["arguments"]["field"] == "e3" and "account" not in call["arguments"]
+    assert not [path for _, path, _ in here.daemon.requests if path.endswith("/inherit")], "a named scope is left"
+
+    def broken(entries: Sequence[str], **_: Any) -> list[Source]:
+        raise PasswordSourceError("1Password's CLI was not found")
+
+    monkeypatch.setattr(login_command.passwords, "sources", broken)
+    assert here("login", "com.example.notes", "--source", "1password") == 1
+    assert here.err.getvalue().endswith("simtrail: 1Password's CLI was not found\n")
 
 
 def test_the_daemons_address_comes_from_its_file_or_else_the_settings(tmp_path: Path) -> None:

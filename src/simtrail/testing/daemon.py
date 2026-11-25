@@ -73,7 +73,8 @@ class Daemon:
 
     def answer(self, method: str, path: str, body: Any) -> Any:
         if path == "/api/v1/agent/call":
-            return {"content": [{"type": "text", "text": "ok"}], "isError": False}
+            # A tool's result, unwrapped: the one a test set, else "ok".
+            return self.answers.get((method, path), {"content": [{"type": "text", "text": "ok"}], "isError": False})
         data: Any = {"port": 7466}
         if (method, path) in self.answers:
             data = self.answers[(method, path)]

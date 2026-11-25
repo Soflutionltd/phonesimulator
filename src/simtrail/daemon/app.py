@@ -48,6 +48,7 @@ from simtrail.daemon.pauses import PAUSE_MAX_S, Pauses
 from simtrail.daemon.policy import ConfigPolicy
 from simtrail.daemon.tokens import TokenRecord, TokenRefused, TokenStore
 from simtrail.host_copy import HostCopy
+from simtrail.platform.passwords import Credentials
 from simtrail.platform.xcrun import XcrunRunner, run_xcrun
 from simtrail.protocol import PROTOCOL_VERSION, SERVER
 from simtrail.scope import Scope
@@ -80,6 +81,15 @@ class LoginCodeRequest(BaseModel):
 class InheritRequest(BaseModel):
     #: The scope whose device the other is given: a git worktree's main checkout.
     source: str = Field(min_length=1, max_length=128)
+
+
+class GivenLoginRequest(BaseModel):
+    scope: str = Field(min_length=1, max_length=128)
+    app: str = Field(min_length=1, max_length=255)
+    title: str = Field(default="", max_length=255)
+    username: str = Field(default="", max_length=1024)
+    password: str = Field(default="", max_length=4096, repr=False)
+    totp: str = Field(default="", max_length=64, repr=False)
 
 
 class TokenRequest(BaseModel):
@@ -398,6 +408,19 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         its main checkout's -- so its first call does not create a new one. Answers the UDID given, or null."""
         admin(request)
         return ok({"udid": daemon.runtime.manager.inherit(named(scope_id), named(body.source))})
+
+    @app.post(ADMIN + "/logins")
+    async def give_login(body: GivenLoginRequest, request: Request) -> dict[str, Any]:
+        """Keep a login ``simtrail login`` read from the person's password manager -- outside any sandbox the daemon
+        runs in -- for one `sim_login` of this scope and app (`core.given`): answers the item to pass it as, never the
+        login. Kept in memory only, and dropped once taken or after two minutes."""
+        admin(request)
+        scope = named(body.scope)
+        if not body.password and not body.totp:
+            raise HTTPException(400, "a login handed over has a password or a one-time code")
+        credentials = Credentials(body.username, body.password, body.totp)
+        title = body.title or body.username or body.app
+        return ok({"item": daemon.runtime.given.give(scope.id, body.app, title, credentials)})
 
     @app.post(ADMIN + "/settings-confirmations")
     async def settings_confirmations(request: Request) -> dict[str, Any]:

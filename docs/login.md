@@ -91,6 +91,22 @@ With two-factor sign-in, call it again once the app asks for the code: `{"app": 
 "ann@example.com", "code": true, "submit": true}`. A code the password manager does not hold -- an SMS, an e-mail --
 is refused with "ask the person".
 
+## From a sandboxed client: `simtrail login`
+
+The password manager is asked from the daemon, and a daemon started by an MCP client that runs its servers in a macOS
+sandbox inherits that sandbox -- which may forbid what the password manager's CLI needs, such as the Keychain
+(`1Password's item list failed: ... Operation not permitted`). Ask it from your own terminal instead:
+
+```sh
+simtrail login com.example.notes --account ann@example.com --submit
+```
+
+It reads `login.sources`, or `--source 1password` (repeatable), finds the login as `sim_login` does, hands it to the
+daemon for one use -- in memory, for this project and app, dropped once taken or after two minutes -- and has
+`sim_login` type it (`source: "given"`), with the same fields found and the same masking. `--field` and `--code` are
+`sim_login`'s. It prints which login was used and what was filled, never a value; no value is ever on its command
+line. An agent cannot reach a login handed over: it is taken only with the item `simtrail login` passed itself.
+
 ## Which login, and which field
 
 - **The account asked for, and no other.** With `account`, a login for any other account is never used, even when it
@@ -101,6 +117,9 @@ is refused with "ask the person".
 - **A password goes only into a secure field**: the one `field` names -- refused when it is not secure -- or the only
   one on screen. Two secure fields (a password and its confirmation) need `field`. The username goes into the text
   field just before it, and a field that already holds it is left as it is.
+- **A field secure only once it has the focus** -- a Flutter app's password field, say -- is tapped first: the field
+  `field` names when it is a plain text field, else, with no secure field on screen, the last of two text fields or
+  more. Only that field, if it then says it is secure, takes the password; otherwise the call is refused as before.
 - **A password-only screen that shows another address than the login's is refused**: the password would be tried on
   that account.
 - **A one-time code** goes into the field `field` names, or the one field whose label reads like a code.

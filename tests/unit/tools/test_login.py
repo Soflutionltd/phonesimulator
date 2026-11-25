@@ -23,9 +23,10 @@ from simtrail.config.model import SimConfig
 from simtrail.core.actions import AgentActions
 from simtrail.core.activity import of_call
 from simtrail.core.drivers import changes_device
+from simtrail.core.given import GivenLogins
 from simtrail.core.instance import DeviceInstance
 from simtrail.platform import passwords
-from simtrail.platform.passwords import Ran
+from simtrail.platform.passwords import Credentials, Ran
 from simtrail.platform.xcrun import XcrunResult
 from simtrail.protocol import Connection, DeviceKind, RecordingState
 from simtrail.seams import Caller
@@ -145,6 +146,7 @@ class Rigged:
         self.cli = cli
         self.registry = self.registry_finding(found_at)
         self.actions = AgentActions(self.rig.manager, self.rig.config, clock=self.rig.clock, sleep=no_wait)
+        self.given: GivenLogins | None = None
 
     def registry_finding(self, find: Any) -> ToolRegistry:
         made = functools.partial(passwords.sources, run=self.cli, find=find)
@@ -161,6 +163,7 @@ class Rigged:
             config=self.rig.config.get(CALLER.scope),
             copy=self.rig.copy,
             sleep=no_wait,
+            given=self.given,
         )
         return await self.registry.call(name, arguments, ctx)
 
@@ -308,7 +311,64 @@ async def test_a_password_goes_only_into_a_secure_field(
     refused = await r.login(**arguments)
     assert refused["isError"] is True and refusal in said(refused)
     assert r.cli.calls == [], "the password manager is not asked while the screen has nowhere to put it"
-    assert r.engine.hid_events == []
+    assert [event for event in r.engine.hid_events if event.kind != "touch"] == [] and r.pasted() == [], (
+        "at most the field named is tapped, to give it the focus: nothing is typed"
+    )
+
+
+class Focusing(FakeEngine):
+    """A Flutter app's sign-in screen: its password field says it is secure only once a touch gave it the focus."""
+
+    def __init__(self, before: dict[str, Any], after: dict[str, Any]) -> None:
+        super().__init__(document=before)
+        self.after = after
+
+    async def hid(self, events: Any) -> None:
+        await super().hid(events)
+        if any(event.kind == "touch" for event in self.hid_events):
+            self.document = self.after
+
+
+FLUTTER = screen(node("TextField", "Email", 150), node("TextField", "••••••••", 220), node("Button", "Sign In", 300))
+FOCUSED = screen(
+    node("TextField", "Email", 150), node("SecureTextField", "••••••••", 220), node("Button", "Sign In", 300)
+)
+
+
+@pytest.mark.parametrize("field", [None, "e2"])
+async def test_a_password_field_secure_only_once_focused_is_tapped_then_filled(
+    tmp_path: Path, field: str | None
+) -> None:
+    r = Rigged(tmp_path, one_password(), FLUTTER)
+    r.engine = Focusing(FLUTTER, FOCUSED)
+    r.rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=r.engine), keyboard=FakeKeyboard(us=False))
+    r.rig.config.set(login_sources=("1password",))
+    r.actions = AgentActions(r.rig.manager, r.rig.config, clock=r.rig.clock, sleep=no_wait)
+    await r.up()
+    answer = await r.login(account=USERNAME, **({"field": field} if field else {}))
+    assert answer["isError"] is False, said(answer)
+    assert "the password into e" in said(answer) and PASSWORD.encode() in r.pasted()
+    first = next(event for event in r.engine.hid_events if event.kind == "touch")
+    assert (round(first.x), round(first.y)) == (201, 242), "the password's field was tapped first"
+
+
+async def test_a_tapped_field_that_does_not_turn_secure_takes_no_password(tmp_path: Path) -> None:
+    r = Rigged(tmp_path, one_password(), FLUTTER)
+    await r.up()
+    refused = await r.login(account=USERNAME)
+    assert refused["isError"] is True and "no password field is on screen" in said(refused)
+    assert r.cli.calls == [] and r.pasted() == []
+    beside = Rigged(tmp_path / "beside", one_password(), SIGN_IN)
+    beside.engine = Focusing(SIGN_IN, SIGN_IN)
+    beside.rig = DeviceRig(
+        tmp_path / "beside", idb=FakeConnector("idb", engine=beside.engine), keyboard=FakeKeyboard(us=False)
+    )
+    beside.rig.config.set(login_sources=("1password",))
+    beside.actions = AgentActions(beside.rig.manager, beside.rig.config, clock=beside.rig.clock, sleep=no_wait)
+    await beside.up()
+    named = await beside.login(account=USERNAME, field="e2")
+    assert named["isError"] is True and 'e2 "Email" is a field, not a secure field' in said(named)
+    assert beside.pasted() == [], "never into another secure field the screen happens to show"
 
 
 async def test_the_field_named_is_used_when_several_are_secure(tmp_path: Path) -> None:
@@ -556,7 +616,7 @@ async def test_a_recording_under_way_is_stopped_first(tmp_path: Path) -> None:
         ({"item": 3}, "item is text of 1 to 255 characters"),
         ({"field": "e" * 17}, 'field is a ref from sim_snapshot, such as "e5"'),
         ({"code": "yes"}, "code is true or false"),
-        ({"source": "keychain"}, "source is one of 1password, bitwarden, command"),
+        ({"source": "keychain"}, "source is one of 1password, bitwarden, command, given"),
         ({"source": "bitwarden"}, "bitwarden is not in login.sources (1password)"),
     ],
 )
@@ -676,3 +736,27 @@ async def test_a_login_with_no_username_types_only_the_password_and_leaves_the_u
     answer = await r.login(item="abc123")
     assert "typed the password into e3 (e2, the username's field, was left as it was)" in said(answer)
     assert r.pasted() == [PASSWORD.encode(), b""]
+
+
+# -- a login handed over by simtrail login ---------------------------------------------------------------------------
+
+
+async def test_a_login_handed_over_is_typed_once_without_asking_any_password_manager(tmp_path: Path) -> None:
+    r = Rigged(tmp_path, one_password())
+    r.rig.config.set(login_sources=())
+    await r.up()
+    given = GivenLogins()
+    r.given = given
+    item = given.give(CALLER.scope.id, "com.example.notes", "Example", Credentials(USERNAME, PASSWORD))
+    answer = await r.login(source="given", item=item, account=USERNAME, submit=True)
+    assert answer["isError"] is False, said(answer)
+    assert said(answer).startswith('Used the given login "Example"') and PASSWORD.encode() in r.pasted()
+    assert r.cli.calls == [], "no password manager was asked"
+    again = await r.login(source="given", item=item, account=USERNAME)
+    assert again["isError"] is True and "it was used or expired" in said(again), "taken once"
+    other = given.give("tp-9", "com.example.notes", "Example", Credentials(USERNAME, PASSWORD))
+    assert (await r.login(source="given", item=other))["isError"] is True, "for another scope"
+    bare = await r.login(source="given")
+    assert bare["isError"] is True and said(bare) == 'source "given" takes the item simtrail login handed over'
+    off = await r.login(account=USERNAME)
+    assert off["isError"] is True and "sim_login is off" in said(off), "an agent alone still needs login.sources"

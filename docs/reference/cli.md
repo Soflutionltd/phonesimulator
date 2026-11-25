@@ -8,6 +8,7 @@ Every command answers `--help`. A refusal a person can act on -- a setting, a sc
 |---|---|
 | `simtrail serve` | Run the Simtrail daemon on 127.0.0.1 |
 | `simtrail mcp` | Serve the agent tools over stdio, for an MCP client |
+| `simtrail login` | Sign the project's app in with a login from your password manager, asked from this terminal |
 | `simtrail open` | Open this project's simulator viewer in the browser |
 | `simtrail stop` | Stop a project's device session, and the daemon when asked |
 | `simtrail doctor` | Check this Mac for what Simtrail needs |
@@ -82,6 +83,21 @@ Serve the agent tools over stdio, for an MCP client.
 | `--scope SCOPE` | the scope to drive, instead of this folder's project |
 | `--root ROOT` | a folder builds and installs may reach; repeatable (default: here) |
 | `--label LABEL` | name this session for viewers and other agents, such as a ticket (default: SIMTRAIL_AGENT_LABEL) |
+
+## `simtrail login`
+
+Sign the project's app in with a login from your password manager, asked from this terminal.
+
+| Argument | Meaning |
+|---|---|
+| `APP` | the website or the app's bundle id the login is saved for |
+| `--account ACCOUNT` | the username or e-mail of the account; only a login for it is used |
+| `--item ITEM` | the id or title of the saved login, when several match |
+| `--source SOURCE` | where logins come from, as login.sources names them: 1password, bitwarden or command:/path; repeatable (default: login.sources) |
+| `--field FIELD` | the ref of the password field, from sim_snapshot (default: the only one) |
+| `--code` | type the login's one-time code instead of its password |
+| `--submit` | press return once it is typed |
+| `--scope SCOPE` | for this scope, instead of this folder's project |
 
 ## `simtrail open`
 
