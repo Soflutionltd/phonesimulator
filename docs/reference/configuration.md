@@ -419,7 +419,7 @@ Whether stopping an idle device also shuts it down, when Simtrail booted or crea
 
 ### `device.typing`
 
-How text reaches the device. `auto` types it as key presses when every character is on a US keyboard and the Mac's keyboard layout is US or ABC, and pastes it otherwise; `keys` types whatever has keys, for a US-shaped layout Simtrail does not know; `paste` always pastes, keeping every character exact -- iOS 26 asks to Allow Paste, and iOS 27 refuses the paste.
+How text reaches the device. `auto` types it as key presses when every character is on a US keyboard and the Mac's keyboard layout is US or ABC, and pastes it otherwise; `keys` types whatever has keys, for a US-shaped layout Simtrail does not know; `paste` always pastes, keeping every character exact -- iOS 26 asks to Allow Paste, which Simtrail allows for its own paste, and iOS 27 refuses the paste.
 
 - Default: `auto`
 - Allowed: one of `auto`, `keys`, `paste`

@@ -130,8 +130,10 @@ What Simtrail guarantees about the value -- the password and the one-time code:
 - **The pasteboard.** Where the Mac's keyboard is not US-shaped (AZERTY, say), text reaches a simulator through its
   pasteboard (`device.typing`): Simtrail empties it again once the login is typed, and says so when it could not. With
   Simulator.app's *Automatically Sync Pasteboard* on, the Mac's own pasteboard briefly held it too: turn that off, or
-  set `device.typing = "keys"` where your layout types US characters. iOS 27 refuses a paste it did not ask for, and
-  the answer says so.
+  set `device.typing = "keys"` where your layout types US characters. iOS 16 to 26 ask to Allow Paste: the prompt
+  names the simulator's pasteboard bridge, `CoreSimulatorBridge`, so Simtrail knows it for its own paste and allows
+  it, and the answer says so -- or says the text did not arrive when it could not tell the allow button. iOS 27 refuses
+  a paste it did not ask for, and the answer says so.
 - **Android without scrcpy is refused**: adb's `input text` would put the password in a command line other programs
   can read. Set scrcpy up (`simtrail android setup`).
 

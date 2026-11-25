@@ -775,6 +775,55 @@ async def test_a_paste_to_ios_27_says_it_may_have_been_refused_and_one_to_ios_26
     assert untimed(await r.actions.act(r.instance, CALLER, [{"type": "Київ"}], snapshot="none")) == 'ok type "Київ"'
 
 
+def asking_to_paste(*buttons: str) -> dict[str, Any]:
+    """The settings screen under the prompt iOS 26 shows for a paste from the simulator's pasteboard bridge."""
+    document = copy.deepcopy(fixture_json("ax-settings-interactable.json"))
+    base = {"children": [], "content_required": False, "custom_actions": [], "enabled": True, "help": None,
+            "identifier": None, "pid": 1, "subrole": None, "title": None, "value": None}  # fmt: skip
+    nodes = [
+        {**base, "type": "StaticText", "role_description": "text", "traits": ["StaticText"],
+         "label": "« Notes » souhaite coller un élément depuis « CoreSimulatorBridge »",
+         "frame": {"x": 70, "y": 345, "width": 262, "height": 70}},
+    ]  # fmt: skip
+    for index, label in enumerate(buttons):
+        frame = {"x": 57, "y": 455 + 56 * index, "width": 286, "height": 46}
+        nodes.append({**base, "type": "Button", "role_description": "button", "traits": ["Button"], "label": label,
+                      "frame": frame})  # fmt: skip
+    document["elements"][0]["children"] += nodes
+    return document
+
+
+async def test_the_allow_paste_prompt_ios_26_shows_for_simtrails_own_paste_is_allowed(tmp_path: Path) -> None:
+    r = await rigged(
+        tmp_path, FakeEngine(document=asking_to_paste("Ne pas autoriser le collage", "Autoriser le collage"))
+    )
+    answer = await r.actions.act(r.instance, CALLER, [{"type": "Trip"}], snapshot="none")
+    assert re.sub(r" \+\d+ms", "", answer) == 'ok type "Trip" -- iOS asked to Allow Paste, allowed'
+    assert touches(r.engine.hid_events)[-2:] == [("touch", (200, 534), "down"), ("touch", (200, 534), "up")]
+    r.instance.runtime = "iOS 27.0"
+    tapped = len(r.engine.hid_events)
+    refused = await r.actions.act(r.instance, CALLER, [{"type": "Trip"}], snapshot="none")
+    assert "allowed" not in refused and len(r.engine.hid_events) == tapped + 4, "iOS 27 asks nothing: only the paste"
+
+
+async def test_a_paste_prompt_whose_allow_button_is_not_known_is_said_and_left_alone(tmp_path: Path) -> None:
+    r = await rigged(tmp_path, FakeEngine(document=asking_to_paste("いいえ", "はい", "あとで")))
+    answer = await r.actions.act(r.instance, CALLER, [{"type": "Trip"}], snapshot="none")
+    assert re.sub(r" \+\d+ms", "", answer) == (
+        'ok type "Trip" -- iOS asked to Allow Paste and its allow button was not found: the text did not arrive'
+    )
+    assert not any(event.kind == "touch" for event in r.engine.hid_events), "nothing was tapped"
+
+
+async def test_a_paste_with_no_prompt_on_screen_or_a_screen_that_cannot_be_read_says_nothing_more(
+    tmp_path: Path,
+) -> None:
+    r = await rigged(tmp_path)
+    assert untimed(await r.actions.act(r.instance, CALLER, [{"type": "Trip"}], snapshot="none")) == 'ok type "Trip"'
+    r.engine.accessibility_errors.append(ConnectorError("accessibility is off"))
+    assert untimed(await r.actions.act(r.instance, CALLER, [{"type": "Trip"}], snapshot="none")) == 'ok type "Trip"'
+
+
 async def test_typing_with_clear_selects_what_the_field_holds_and_deletes_it_before_pasting(tmp_path: Path) -> None:
     r = await rigged(tmp_path)
     steps = [{"type": "Trip", "into": "e12", "clear": True, "submit": True}]

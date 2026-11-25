@@ -77,12 +77,12 @@ from simtrail.core.instance import DeviceInstance
 from simtrail.core.manager import DeviceManager
 from simtrail.core.masking import MASK
 from simtrail.core.refusals import ObserveGuard, touch_refusal
-from simtrail.core.text_entry import paste_refused, text_entry
+from simtrail.core.text_entry import names_bridge, paste_asked, paste_prompt_allow, paste_refused, text_entry
 from simtrail.core.text_overlay import STILL
 from simtrail.host_copy import HostCopy
 from simtrail.perception import capture, in_front
 from simtrail.perception.ocr import NoRecognizer, OcrReaders, OnRead, RecognizedLine
-from simtrail.perception.orientation import Orientation
+from simtrail.perception.orientation import Interface, Orientation
 from simtrail.perception.readers import (
     ACCESSIBILITY_SAID_NOTHING,
     MAC_ACCESSIBILITY_SAID_NOTHING,
@@ -177,6 +177,8 @@ MOVED_PT = 10.0
 SWIPE_SHARE = 0.35
 #: How long after tapping a field the text goes into it, so the field has focus.
 FOCUS_S = 0.35
+#: The most elements read to find iOS's Allow Paste prompt: an alert's few, over whatever the app shows.
+PROMPT_ELEMENTS = 200
 QUIET_S = 0.3
 PERSON_WAIT_S = 2.0
 PERSON_POLL_S = 0.05
@@ -1545,6 +1547,25 @@ class AgentActions:
             )
         return Gesture("type", summary, tuple(events), points, caption=shown, text=entry.pasted, secret=secret)
 
+    async def _allow_paste(
+        self, instance: DeviceInstance, caller: Caller, sink: InputSink, interface: Interface
+    ) -> str:
+        """After Simtrail pasted on a simulator that may ask to Allow Paste: when the screen shows that prompt for this
+        paste (`paste_prompt_allow`), allow it, so the text arrives rather than the step passing with nothing typed.
+        What to add to the step's line: that it was allowed, or that the prompt could not be answered."""
+        try:
+            look = await self._read(instance, caller, PROMPT_ELEMENTS)
+        except ActionError:
+            return ""
+        if not any(names_bridge(element) for element in look.elements if element.kind != "button"):
+            return ""
+        allow = paste_prompt_allow(look.elements)
+        if allow is None:
+            return " -- iOS asked to Allow Paste and its allow button was not found: the text did not arrive"
+        tap = gestures.play(gestures.tap(allow.x, allow.y), sleep=self._sleep, clock=self._clock)
+        await sink.hid(interface.events(tap))
+        return " -- iOS asked to Allow Paste, allowed"
+
     async def _wait_for_person(self, instance: DeviceInstance) -> None:
         """Wait for a viewer's input to have been still for `QUIET_S` and for any pause to lift, `PERSON_WAIT_S` at
         most. Only a viewer's input is seen here: a finger on a real phone is not, unless the host pauses for it."""
@@ -1581,6 +1602,10 @@ class AgentActions:
             interface = instance.interface
             assert interface is not None
             await sink.hid(interface.events(gestures.play(gesture.events, sleep=self._sleep, clock=self._clock)))
+            if gesture.text and instance.kind == "simulator" and paste_asked(instance.runtime):
+                said = await self._allow_paste(instance, caller, sink, interface)
+                ok = True
+                return said
             if gesture.typed and instance.session is not None and instance.session.text is not None:
                 if gesture.events:
                     # The field that was tapped takes the keyboard's focus.

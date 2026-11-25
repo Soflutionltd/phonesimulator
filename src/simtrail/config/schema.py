@@ -586,7 +586,7 @@ SETTINGS: tuple[Setting, ...] = (
             "How text reaches the device. `auto` types it as key presses when every character is on a US keyboard "
             "and the Mac's keyboard layout is US or ABC, and pastes it otherwise; `keys` types whatever has keys, "
             "for a US-shaped layout Simtrail does not know; `paste` always pastes, keeping every character exact -- "
-            "iOS 26 asks to Allow Paste, and iOS 27 refuses the paste.",
+            "iOS 26 asks to Allow Paste, which Simtrail allows for its own paste, and iOS 27 refuses the paste.",
             effect="next_connection"),
     Setting("restore_changes", "device.restore_changes", "real_devices", Choice(("real_devices", "all", "off")),
             "What Simtrail changed about a device's look and place -- light or dark, text size, contrast, reduce "

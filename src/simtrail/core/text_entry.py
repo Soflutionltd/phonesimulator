@@ -17,18 +17,40 @@ So ``device.typing`` decides, per scope:
   it otherwise;
 * ``keys`` always types what has keys -- for a layout Simtrail does not know is US-shaped -- and pastes the rest;
 * ``paste`` always pastes, for text that must arrive character for character, on iOS 26 and earlier.
+
+On iOS 16 to 26 the "Allow Paste" prompt a simulator shows for Simtrail's own paste names where the text comes from,
+``CoreSimulatorBridge`` -- the simulator's pasteboard bridge, whatever the system's language -- so it is told from any
+other alert, and allowed (`paste_prompt_allow`): left alone, it hides the screen and the text never arrives.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from simtrail.core import gestures
+from simtrail.perception.snapshot import Element
 from simtrail.platform.keyboard import KeyboardCheck
 
 #: The first iOS that refuses a paste Simtrail sends, without asking the person.
 PASTE_REFUSED_FROM = 27
+#: The first iOS that asks the person to Allow Paste from another app.
+PASTE_ASKED_FROM = 16
+#: What the simulator's paste prompt names as where the text comes from, in every language.
+PASTE_SOURCE = "CoreSimulatorBridge"
+#: The prompt's button that allows the paste, in the languages it was read in (lower case). Its other button refuses.
+ALLOW_PASTE = frozenset(
+    {
+        "allow paste",
+        "autoriser le collage",
+        "einsetzen erlauben",
+        "permitir pegar",
+        "consenti incolla",
+        "plakken toestaan",
+        "permitir colar",
+    }
+)
 
 _IOS = re.compile(r"\AiOS (?P<major>\d+)")
 
@@ -62,3 +84,32 @@ def paste_refused(runtime: str) -> bool:
     """Whether a device on this runtime -- ``iOS 27.0`` -- refuses a paste it did not ask for."""
     match = _IOS.match(runtime)
     return match is not None and int(match.group("major")) >= PASTE_REFUSED_FROM
+
+
+def paste_asked(runtime: str) -> bool:
+    """Whether a device on this runtime -- ``iOS 26.5`` -- may ask to Allow Paste rather than take or refuse it."""
+    match = _IOS.match(runtime)
+    return match is not None and PASTE_ASKED_FROM <= int(match.group("major")) < PASTE_REFUSED_FROM
+
+
+def _said(element: Element) -> tuple[str, ...]:
+    """An element's whole label and value -- never cut, as its line may be."""
+    return element.says or (element.label, element.value or "")
+
+
+def names_bridge(element: Element) -> bool:
+    """Whether an element says the simulator's pasteboard bridge is where a paste comes from."""
+    return any(PASTE_SOURCE in text for text in _said(element))
+
+
+def paste_prompt_allow(elements: Sequence[Element]) -> Element | None:
+    """The button that allows Simtrail's paste, when the screen shows the prompt asking for it: an alert naming
+    `PASTE_SOURCE`, with its allow button by name -- else, of its two buttons, the second, as iOS lays them out
+    (Don't Allow first). None when no such prompt is on the screen."""
+    if not any(names_bridge(element) for element in elements if element.kind != "button"):
+        return None
+    buttons = [element for element in elements if element.kind == "button"]
+    named = [button for button in buttons if " ".join(_said(button)[0].split()).casefold() in ALLOW_PASTE]
+    if named:
+        return named[0]
+    return buttons[1] if len(buttons) == 2 else None

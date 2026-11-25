@@ -93,6 +93,9 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Fixed
 
+- On iOS 16 to 26, text Simtrail pastes -- on a Mac whose keyboard is not US-shaped, say AZERTY -- no longer leaves
+  the step "ok" with nothing typed: the Allow Paste prompt iOS shows for the simulator's pasteboard bridge is allowed,
+  and the step's line says so, or says the text did not arrive.
 - `simtrail stop`, `simtrail stop --device`, `simtrail token revoke` and a host revoking a token let go of the devices
   the agents concerned worked on, which kept refusing other agents until those went quiet for 30 minutes.
 - `simtrail mcp` ended with SIGTERM -- as a proxy or `kill` ends it -- revokes its token as on a normal exit, rather

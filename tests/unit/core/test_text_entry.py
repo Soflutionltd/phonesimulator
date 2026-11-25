@@ -6,7 +6,8 @@ from __future__ import annotations
 import pytest
 
 from simtrail.core import gestures
-from simtrail.core.text_entry import paste_refused, text_entry
+from simtrail.core.text_entry import paste_asked, paste_prompt_allow, paste_refused, text_entry
+from simtrail.perception.snapshot import Element
 from simtrail.testing.fakes import FakeKeyboard
 
 
@@ -48,3 +49,30 @@ async def test_text_with_a_character_no_key_types_is_pasted_whole_whatever_the_s
 )
 def test_a_paste_is_refused_without_asking_from_ios_27(runtime: str, refused: bool) -> None:
     assert paste_refused(runtime) is refused
+
+
+def test_ios_16_to_26_ask_to_allow_a_paste_and_no_other_runtime_does() -> None:
+    assert [paste_asked(runtime) for runtime in ("iOS 15.5", "iOS 16.0", "iOS 26.5", "iOS 27.0", "Android 16")] == [
+        False,
+        True,
+        True,
+        False,
+        False,
+    ]
+
+
+def _element(kind: str, label: str) -> Element:
+    return Element(None, kind, label, None, 0, 0)
+
+
+def test_the_paste_prompt_is_known_by_the_pasteboard_bridge_it_names_and_its_allow_button_found() -> None:
+    message = _element("text", "« Notes » souhaite coller un élément depuis « CoreSimulatorBridge »")
+    refuse, allow = _element("button", "Ne pas autoriser le collage"), _element("button", "Autoriser  le collage")
+    assert paste_prompt_allow([message, refuse, allow]) is allow, "by its name, however it is spaced"
+    unknown = [message, _element("button", "いいえ"), _element("button", "はい")]
+    assert paste_prompt_allow(unknown) is unknown[2], "else the second of its two buttons"
+    assert paste_prompt_allow([*unknown, _element("button", "あとで")]) is None, "never a guess among three"
+    other = [_element("text", "Allow Notes to use your location?"), _element("button", "Allow Paste")]
+    assert paste_prompt_allow(other) is None, "another alert is left alone"
+    named = [_element("button", "CoreSimulatorBridge"), refuse, allow]
+    assert paste_prompt_allow(named) is None, "only a message naming the bridge makes the prompt"
