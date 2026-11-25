@@ -201,12 +201,18 @@ def _test_paths(values: object, folder: Path) -> list[str]:
 
 
 def _write_defines(folder: Path, defines: Mapping[str, str]) -> Path:
-    """The run's dart-defines in a file only this user can read."""
+    """The run's dart-defines in a file only this user can read: made anew, so a file already there -- whatever may
+    read it, or a link to another -- is never the one written, and gone again when it could not be written whole."""
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / DEFINES_FILE
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(descriptor, "w", encoding="utf-8") as file:
-        json.dump(dict(defines), file)
+    path.unlink(missing_ok=True)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as file:
+            json.dump(dict(defines), file)
+    except BaseException:
+        _discard(path)
+        raise
     return path
 
 
@@ -366,7 +372,7 @@ class FlutterToolchain:
         self._check_app(request)
         on_device = request.kind == "run" or (request.kind == "test" and request.integration)
         device = await self._device(request) if on_device else ""
-        defines_file = _write_defines(place.base, defines) if defines else None
+        defines_file = place.base / DEFINES_FILE if defines else None
         common = ["--flavor", flavor] if flavor else []
         if defines_file is not None:
             common.append(f"--dart-define-from-file={defines_file}")
@@ -402,22 +408,37 @@ class FlutterToolchain:
             only=tuple(only),
             env=await self._env(request),
         )
+        # Written last, with nothing awaited before its plan is kept: a run refused or cancelled until here has left
+        # no file, and one given up after it is cleared by `abandon`.
+        if defines_file is not None:
+            _write_defines(place.base, defines)
         self._plans[build.id] = Plan(sdk, tuple(args), defines_file, request.owner)
         return build
 
+    def abandon(self, build: Build) -> None:
+        """Forget a prepared run that will not be launched, and delete the dart-defines written for it."""
+        plan = self._plans.pop(build.id, None)
+        if plan is not None:
+            _discard(plan.defines)
+
     async def launch(self, build: Build, request: Request) -> Any:
         plan = self._plans.pop(build.id)
+        try:
+            return await self._launch(build, request, plan)
+        except BaseException:
+            # Whatever kept flutter from starting -- or cancelled the call meanwhile -- nothing is left to delete the
+            # file later.
+            _discard(plan.defines)
+            raise
+
+    async def _launch(self, build: Build, request: Request, plan: Plan) -> Any:
         if build.kind != "test" or request.integration:
             # What flutter installs replaces the app a session runs there.
             await self.sessions.stop_device(build.udid)
-        try:
-            if build.kind == "run":
-                process = await self._open_run(plan.sdk, plan.args, folder=build.folder, env=build.env)
-            else:
-                process = await self._start(plan.sdk, plan.args, folder=build.folder, log_path=build.log, env=build.env)
-        except OSError:
-            _discard(plan.defines)
-            raise
+        if build.kind == "run":
+            process = await self._open_run(plan.sdk, plan.args, folder=build.folder, env=build.env)
+        else:
+            process = await self._start(plan.sdk, plan.args, folder=build.folder, log_path=build.log, env=build.env)
         if build.kind != "run":
             return FlutterProcess(process, plan.defines, self._clock)
         session = FlutterSession(

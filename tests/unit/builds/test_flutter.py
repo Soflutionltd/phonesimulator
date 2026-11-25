@@ -8,6 +8,8 @@ import asyncio
 import json
 import plistlib
 import signal
+import stat
+import time
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +65,11 @@ class Rig:
         self.reachable = True
         self.commit: str | None = "c" * 40
         self.resigned: list[tuple[str, ...]] = []
+        #: What looking for the JDK, or reading the source, raises instead of answering.
+        self.jdk_error: BaseException | None = None
+        self.source_error: BaseException | None = None
+        #: Set once the source is being read, which then waits to be cancelled.
+        self.reading: asyncio.Event | None = None
         self.toolchain = FlutterToolchain(
             self.sessions,
             self.serial_of,
@@ -89,6 +96,8 @@ class Rig:
         return self.sdk
 
     async def find_jdk(self, configured: str) -> Jdk | None:
+        if self.jdk_error is not None:
+            raise self.jdk_error
         return self.jdk
 
     async def serial_of(self, udid: str) -> str:
@@ -104,6 +113,11 @@ class Rig:
         (self.run if pid >= 7000 else self.flutter).signal(pid, sig)
 
     async def read_source(self, folder: Path) -> Source:
+        if self.source_error is not None:
+            raise self.source_error
+        if self.reading is not None:
+            self.reading.set()
+            await asyncio.Event().wait()
         return Source(f"source {folder} · main @ {(self.commit or 'none')[:8]}", self.commit)
 
     async def begin(self, kind: str = "build", **options: Any) -> Build:
@@ -126,6 +140,11 @@ class Rig:
 
     def args(self) -> list[tuple[str, ...]]:
         return [call.args for call in self.flutter.calls]
+
+    def defines_left(self) -> list[str]:
+        """Every dart-defines file still on disk, and every run prepared that was not launched."""
+        files = self.runner.derived_data(SCOPE).parent.parent.rglob(DEFINES_FILE)
+        return [*(path.name for path in files), *self.toolchain._plans]
 
 
 @pytest.fixture
@@ -277,6 +296,85 @@ async def test_a_flutter_that_cannot_be_started_leaves_no_dart_defines(rig: Rig)
     with pytest.raises(BuildRefused, match="flutter could not be started: gone"):
         await rig.begin("run", dart_defines={"TOKEN": "t"})
     assert list(rig.runner.derived_data(SCOPE).parent.parent.rglob(DEFINES_FILE)) == []
+
+
+async def test_a_run_that_fails_while_it_is_prepared_leaves_no_dart_defines(rig: Rig) -> None:
+    rig.jdk_error = RuntimeError("the JDK could not be looked for")
+    with pytest.raises(RuntimeError, match="the JDK could not be looked for"):
+        await rig.begin(udid=EMULATOR, dart_defines={"TOKEN": "t"})
+    assert rig.defines_left() == []
+
+
+async def test_a_run_whose_source_cannot_be_read_leaves_no_dart_defines(rig: Rig) -> None:
+    rig.source_error = RuntimeError("git answered nothing readable")
+    with pytest.raises(RuntimeError, match="git answered nothing readable"):
+        await rig.begin(dart_defines={"TOKEN": "t"})
+    assert rig.defines_left() == [] and rig.flutter.calls == []
+
+
+async def test_a_run_cancelled_before_flutter_starts_leaves_no_dart_defines(rig: Rig) -> None:
+    rig.reading = asyncio.Event()
+    starting = asyncio.ensure_future(rig.begin(dart_defines={"TOKEN": "t"}))
+    await rig.reading.wait()
+    assert rig.defines_left() == [DEFINES_FILE, "b1"], "written and its run prepared, while the source is read"
+    starting.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await starting
+    assert rig.defines_left() == [] and rig.flutter.calls == []
+    rig.reading = None
+    assert (await rig.answer(dart_defines={"TOKEN": "t"}))[0].state == "succeeded", "the next run is not held up"
+
+
+async def test_dart_defines_that_cannot_be_written_whole_are_not_left_in_part(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def full(value: object, file: Any) -> None:
+        file.write('{"TOKEN": ')
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr("simtrail.build.flutter.json.dump", full)
+    with pytest.raises(OSError, match="no space left on device"):
+        await rig.begin(dart_defines={"TOKEN": "t"})
+    assert rig.defines_left() == []
+
+
+@pytest.mark.parametrize("kind", ["build", "run"])
+async def test_a_run_that_fails_as_it_is_launched_leaves_no_dart_defines(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    async def stop_device(udid: str) -> bool:
+        raise RuntimeError("the app running there could not be stopped")
+
+    monkeypatch.setattr(rig.sessions, "stop_device", stop_device)
+    with pytest.raises(RuntimeError, match="could not be stopped"):
+        await rig.begin(kind, dart_defines={"TOKEN": "t"})
+    assert rig.defines_left() == [] and rig.flutter.calls == [] and rig.run.calls == []
+
+
+@pytest.mark.parametrize("left", ["a file others can read", "a link to another file"])
+async def test_dart_defines_are_written_anew_for_this_user_alone_whatever_was_there(
+    rig: Rig, tmp_path: Path, left: str
+) -> None:
+    store = MemoryStateStore(tmp_path)
+    base = store.ensure_dir(store.builds_dir(SCOPE)) / f"{time.strftime('%Y%m%d-%H%M%S', time.localtime(0.0))}-b1"
+    base.mkdir()
+    other = tmp_path / "someone-elses.json"
+    other.write_text("theirs")
+    other.chmod(0o644)
+    if left == "a link to another file":
+        (base / DEFINES_FILE).symlink_to(other)
+    else:
+        (base / DEFINES_FILE).write_text("{}")
+        (base / DEFINES_FILE).chmod(0o644)
+    rig.flutter.then(Play(hold=True))
+    build = await rig.begin(dart_defines={"TOKEN": "t"})
+    written = build.bundle / DEFINES_FILE
+    assert build.bundle == base and not written.is_symlink()
+    assert stat.S_IMODE(written.stat().st_mode) == 0o600 and json.loads(written.read_text()) == {"TOKEN": "t"}
+    assert other.read_text() == "theirs", "what a link named is left as it was"
+    assert (await rig.runner.result(SCOPE.id, build.id, 0)).startswith("build b1 still running")
+    await rig.runner.cancel(SCOPE.id)
+    assert rig.defines_left() == []
 
 
 async def test_a_build_that_runs_too_long_is_ended_and_its_dart_defines_go_with_it(rig: Rig) -> None:

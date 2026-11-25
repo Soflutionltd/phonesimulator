@@ -29,7 +29,7 @@ import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from simtrail.build.source import Source, SourceReader, read_source
 from simtrail.host_copy import HostCopy
@@ -234,6 +234,16 @@ class Toolchain(Protocol):
         ...
 
 
+@runtime_checkable
+class Abandons(Protocol):
+    """A toolchain whose `prepare` leaves something to clear when the run is then not launched -- a file written for
+    it, say."""
+
+    def abandon(self, build: Build) -> None:
+        """Clear what `prepare` left for a run that will not be launched. Safe to call when nothing is left."""
+        ...
+
+
 class ProjectToolchain(Toolchain, Protocol):
     """What builds a kind of project, such as a Flutter app, whatever the device -- the folder says which."""
 
@@ -435,13 +445,20 @@ class Runner:
             base = self._state.ensure_dir(self._state.builds_dir(scope)) / f"{stamp}-{build_id}"
             build = await toolchain.prepare(scope, request, Place(build_id, base, self._clock()), self._state)
             build.toolchain = toolchain
-            built_from = await self.source_of(folder)
-            build.source, build.commit, build.dirty = built_from.line, built_from.commit, built_from.dirty
-            _head_log(build)
             try:
+                built_from = await self.source_of(folder)
+                build.source, build.commit, build.dirty = built_from.line, built_from.commit, built_from.dirty
+                _head_log(build)
                 build.process = await toolchain.launch(build, request)
-            except OSError as exc:
-                raise BuildRefused(f"{toolchain.name} could not be started: {exc}. {self._copy.doctor_hint}") from exc
+            except BaseException as exc:
+                # Not launched -- refused, failed or cancelled: what its toolchain prepared for it goes with it.
+                if isinstance(toolchain, Abandons):
+                    toolchain.abandon(build)
+                if isinstance(exc, OSError):
+                    raise BuildRefused(
+                        f"{toolchain.name} could not be started: {exc}. {self._copy.doctor_hint}"
+                    ) from exc
+                raise
             self._forget_finished(scope.id)
             build.lane = lane
             self._builds[build_id] = build
