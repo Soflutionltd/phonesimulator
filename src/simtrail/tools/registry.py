@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which tools an agent is offered, and running a call to one.
 
-Tools come from providers: the device tools always, the build tools while ``build.tools`` is on -- and a host or a
+Tools come from providers: the device tools always, the build tools while ``build.tools`` is on, `sim_login` while
+``login.sources`` names a password manager -- and a host or a
 later version adds a provider rather than editing this. A manifest lists every tool of a provider offered, whatever the
 scope's device can do now: a tool its connector cannot serve -- `sim_act` on a view-only mirror, or on a real device
 whose cable came out -- is refused when called, saying why and what would put it right (`context.require`). A list
@@ -22,9 +23,11 @@ from simtrail.build.provider import BuildToolProvider
 from simtrail.build.xcodebuild import BuildRefused
 from simtrail.config.model import SimConfig
 from simtrail.core.actions import ActionError
+from simtrail.core.masking import SecretMask
 from simtrail.platform.errors import DeviceControlError
 from simtrail.tools import act, app, device, record, screenshot, snapshot
 from simtrail.tools.context import Tool, ToolContext
+from simtrail.tools.login import LoginToolProvider
 from simtrail.tools.results import SHUT_DOWN, Result, ToolRefused, text
 from simtrail.tools.schemas import LOOK_AND_ACT
 
@@ -57,9 +60,18 @@ class DeviceToolProvider:
 
 
 class ToolRegistry:
-    def __init__(self, providers: Sequence[ToolProvider] = (DeviceToolProvider(), BuildToolProvider())) -> None:
-        self._providers = tuple(providers)
+    def __init__(
+        self,
+        providers: Sequence[ToolProvider] | None = None,
+        *,
+        secrets: SecretMask | None = None,
+    ) -> None:
+        self._providers = tuple(
+            providers if providers is not None else (DeviceToolProvider(), BuildToolProvider(), LoginToolProvider())
+        )
         self._tools = {tool.name: tool for provider in self._providers for tool in provider.tools}
+        #: The passwords `sim_login` typed, as digests: masked in every answer, whichever tool gives it.
+        self.secrets = secrets or SecretMask()
 
     def names(self) -> list[str]:
         return list(self._tools)
@@ -73,14 +85,18 @@ class ToolRegistry:
         }
 
     async def call(self, name: object, arguments: object, ctx: ToolContext) -> Result:
-        """Run one tool call, answering with its result -- or with why not, as an error result."""
+        """Run one tool call, answering with its result -- or with why not, as an error result -- with any password
+        `sim_login` typed masked in it, wherever it came from: a screen, a log, an error."""
+        return self.secrets.result(await self._call(name, arguments, ctx))
+
+    async def _call(self, name: object, arguments: object, ctx: ToolContext) -> Result:
         tool = self._tools.get(name) if isinstance(name, str) else None
         if tool is None:
             return text(f"there is no tool named {name!r}", error=True)
         if not isinstance(arguments, dict):
             return text("arguments must be an object", error=True)
         try:
-            return await tool.handler(arguments, dataclasses.replace(ctx, tool=tool))
+            return await tool.handler(arguments, dataclasses.replace(ctx, tool=tool, secrets=self.secrets))
         except (ActionError, DeviceControlError) as exc:
             # Only what the device's connector or its tool failed at can mean the device has gone, so only that asks.
             from_device = isinstance(exc, DeviceControlError) or exc.__cause__ is not None

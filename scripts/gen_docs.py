@@ -31,6 +31,7 @@ from simtrail.config import schema
 from simtrail.config.model import SimConfig
 from simtrail.connectors.base import Capability
 from simtrail.tools.context import Tool
+from simtrail.tools.login import LoginToolProvider
 from simtrail.tools.registry import DeviceToolProvider, ToolRegistry
 
 if sys.version_info >= (3, 11):
@@ -50,6 +51,11 @@ PROVIDERS: tuple[tuple[str, str, tuple[Tool, ...]], ...] = (
         "with build tools",
         "while `build.tools` is on, and refused per call where the host allows no commands",
         BuildToolProvider.tools,
+    ),
+    (
+        "with a password manager",
+        "while `login.sources` names a password manager ([Signing in](../login.md))",
+        LoginToolProvider().tools,
     ),
 )
 

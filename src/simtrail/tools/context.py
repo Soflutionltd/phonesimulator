@@ -32,6 +32,7 @@ from simtrail.connectors.iphone.connector import DRIVEN
 from simtrail.core.actions import AgentActions
 from simtrail.core.instance import READY, STALLED, DeviceInstance
 from simtrail.core.manager import DeviceManager, SimulatorUnavailable
+from simtrail.core.masking import SecretMask
 from simtrail.core.recordings import Recordings
 from simtrail.core.selections import Agent, Selections
 from simtrail.core.signing import SigningTeams
@@ -108,6 +109,8 @@ class ToolContext:
     per_agent: bool = False
     #: The folder each agent named for its builds, kept for its later calls; None where nothing is kept.
     folders: Folders | None = None
+    #: What every answer is masked with -- a password `sim_login` typed reads ``••••`` in it; set by the registry.
+    secrets: SecretMask | None = None
 
     @property
     def scope(self) -> Scope:
