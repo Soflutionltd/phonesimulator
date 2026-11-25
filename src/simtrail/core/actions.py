@@ -340,7 +340,8 @@ class Acted:
     unmet: bool = False
     completed_steps: int = 0
     failed_step: int | None = None
-    #: The text its steps typed into secure fields, for the tool to mask in every answer after; never said.
+    #: The text its steps typed into secure fields -- a step that failed midway too -- for the tool to mask in every
+    #: answer after; never said.
     secrets: tuple[str, ...] = field(default=(), repr=False)
 
 
@@ -1617,11 +1618,14 @@ class AgentActions:
         max_elements: int = 120,
         guard: ObserveGuard | None = None,
         allow_stale: bool = False,
+        on_secret: Callable[[str], None] | None = None,
     ) -> Acted:
         """Play the steps in order, wait if asked, and say what happened and what the screen now shows -- and whether a
         step failed or the wait was not met. A tap, a long press, typing, a sideways swipe, a drag or return on what
         `guard` keeps agents off is refused, unless it is confirmed. `allow_stale` touches refs as this agent's
-        snapshot has them, without reading the screen again when it may have changed out of sight."""
+        snapshot has them, without reading the screen again when it may have changed out of sight. `on_secret` is told
+        the text a step is about to type into a secure field, before a key of it is struck: a call cancelled or failed
+        midway has typed part of it all the same, and answers with no `Acted` to name it."""
         began = self._clock()
         deadline = began + CALL_S
         checked = check_steps(steps)
@@ -1655,6 +1659,10 @@ class AgentActions:
                                 f"the call has run {CALL_S:g}s, as long as one may; call again for the rest"
                             )
                         gesture = await self._gesture(instance, caller, kind, what, step, max_elements, guard)
+                        if gesture.secret:
+                            secrets.append(gesture.secret)
+                            if on_secret is not None:
+                                on_secret(gesture.secret)
                         said = await self._play(instance, caller, gesture, lead_ms if cursor else 0)
                     except ActionError as exc:
                         lines.append(f"error step {number}: {exc}")
@@ -1668,8 +1676,6 @@ class AgentActions:
                         # A ref in a later step is where the screen now has it: a step can open a keyboard over it, or
                         # take it away, and a ref touched where it was would touch whatever is there now.
                         memory.stale = True
-                    if gesture.secret:
-                        secrets.append(gesture.secret)
                     lines.append(f"ok {gesture.summary} +{round((self._clock() - began) * 1000)}ms{said}")
                     completed_steps += 1
                     read_next = number < len(checked) or (wait is None and snapshot != "none")

@@ -17,6 +17,7 @@ here (`core.drivers`).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from simtrail.connectors.base import Capability
@@ -50,8 +51,8 @@ async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
         max_elements=ctx.config.snapshot_max_elements,
         guard=guard,
         allow_stale=allow_stale,
+        on_secret=hides_typed(ctx),
     )
-    hide_typed(ctx, acted.secrets)
     answer = acted.text
     if acted.failed and await ctx.manager.gone(ctx.scope, ctx.udid):
         answer += "\n" + SHUT_DOWN
@@ -74,6 +75,12 @@ def hide_typed(ctx: ToolContext, secrets: tuple[str, ...]) -> None:
     if ctx.secrets is not None:
         for secret in secrets:
             ctx.secrets.hide(secret, PASSWORD_S)
+
+
+def hides_typed(ctx: ToolContext) -> Callable[[str], None]:
+    """What `AgentActions.perform` tells each secret before it types it, so it is masked even when the call is
+    cancelled or fails with the text half typed."""
+    return lambda secret: hide_typed(ctx, (secret,))
 
 
 TOOL = make_tool("sim_act", (Capability.INPUT_TOUCH,), run)

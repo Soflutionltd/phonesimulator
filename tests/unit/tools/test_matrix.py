@@ -107,6 +107,41 @@ async def test_each_device_is_captured_in_each_appearance_and_laid_out_on_one_sh
         ], "the text size, each appearance, then the look it had"
 
 
+async def test_a_variable_a_flow_types_into_a_secure_field_is_in_no_answer_and_no_event(tmp_path: Path) -> None:
+    rig = matrix_rig(tmp_path)
+    field = {"x": 16, "width": 370, "height": 44}
+    rig.idb.engine.document = {
+        "elements": [
+            {"type": "TextField", "label": "Email", "frame": {**field, "y": 100}},
+            {"type": "SecureTextField", "label": "Password", "frame": {**field, "y": 160}},
+        ]
+    }
+    ctx = tools(rig)
+    await REGISTRY.call("sim_snapshot", {"mode": "full"}, ctx)
+    steps = [{"type": "{{email}}", "into": "e1"}, {"type": "{{password}}", "into": "e2"}]
+    saved = await REGISTRY.call("sim_flow", {"action": "save", "name": "sign-in", "steps": steps}, ctx)
+    assert saved["isError"] is False, said(saved)
+    # The device the matrix captures is brought up beside the agent's own: its events are heard once it is there.
+    await matrix(ctx, devices=[PRO], appearances=["light"], save_to="before")
+    instance = rig.manager.instance(CALLER.scope, PRO)
+    assert instance is not None
+    events = instance.events.subscribe()
+    variables = {"email": "qa@example.com", "password": "matrix-s3cret"}
+    played = await matrix(ctx, devices=[PRO], appearances=["light", "dark"], flow="sign-in", variables=variables)
+    assert played["isError"] is False, said(played)
+    assert [line.split(" · ")[1] for line in said(played)[:2]] == ["light", "dark"], "the flow finished on each"
+    published = [events.get_nowait() for _ in range(events.qsize())]
+    typed = [event["caption"] for event in published if event.get("gesture", {}).get("kind") == "type"]
+    assert typed == ["qa@example.com", "••••"] * 2, "typed before each screenshot, the password never shown"
+    assert "matrix-s3cret" not in repr([played, published])
+    # The app shows it back later -- its eye tapped -- and the agent reads the screen: it is masked there too.
+    rig.idb.engine.document = {
+        "elements": [{"type": "StaticText", "label": "Your password is matrix-s3cret", "frame": {**field, "y": 100}}]
+    }
+    looked = await REGISTRY.call("sim_snapshot", {"mode": "full"}, ctx)
+    assert "matrix-s3cret" not in repr(looked) and "Your password is ••••" in "\n".join(said(looked))
+
+
 async def test_the_app_is_launched_afresh_and_a_flow_played_before_each_screenshot(tmp_path: Path) -> None:
     rig = matrix_rig(tmp_path)
     ctx = tools(rig)

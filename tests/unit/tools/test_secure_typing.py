@@ -4,6 +4,7 @@ caption beside its pointer and what it is doing -- the macOS overlay and every a
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Any
 
 import pytest
 
+from simtrail.connectors.base import ConnectorError
 from simtrail.core.actions import AgentActions
 from simtrail.core.instance import DeviceInstance
 from simtrail.seams import Caller
@@ -147,3 +149,65 @@ def test_a_context_with_no_mask_hides_nothing_and_does_not_fail(tmp_path: Path) 
     r = Rigged(tmp_path)
     assert r.ctx.secrets is None, "only the registry gives a call its mask"
     hide_typed(r.ctx, (PASSWORD,))
+
+
+# -- a call that ends with the password half typed ---------------------------------------------------------------------
+
+
+def stopping_midway(monkeypatch: pytest.MonkeyPatch, engine: Any, then: Exception | asyncio.Event) -> None:
+    """Make the device take two of a gesture's events, then fail with `then` -- or wait for ever, once it is set."""
+
+    async def hid(events: Any) -> None:
+        taken = 0
+        async for event in events:
+            engine.hid_events.append(event)
+            taken += 1
+            if taken == 2 and isinstance(then, Exception):
+                raise then
+            if taken == 2:
+                then.set()
+                await asyncio.Event().wait()
+
+    monkeypatch.setattr(engine, "hid", hid)
+
+
+async def shown_back(r: Rigged) -> str:
+    """What the agent reads once the app shows the password in clear, as a field does when its eye is tapped."""
+    r.rig.idb.engine.document = {"elements": [_element("TextField", "Password", 160, value=PASSWORD)]}
+    return said(await r.call("sim_snapshot", {"mode": "full"}))
+
+
+async def test_a_password_whose_typing_failed_midway_is_masked_in_every_answer_after(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    r = Rigged(tmp_path)
+    await r.up()
+    await r.call("sim_snapshot", {"mode": "full"})
+    engine = r.rig.idb.engine
+    stopping_midway(monkeypatch, engine, ConnectorError("the device went away"))
+    answer = await r.call("sim_act", {"steps": [{"type": PASSWORD, "into": "e2"}], "snapshot": "none"})
+    assert answer["isError"] is True and 'error step 1: type "••••" into e2' in said(answer)
+    assert len(engine.hid_events) == 2, "part of it reached the device"
+    monkeypatch.undo()
+    looked = await shown_back(r)
+    assert PASSWORD not in looked and "••••" in looked
+
+
+async def test_a_password_whose_typing_was_cancelled_midway_is_masked_in_every_answer_after(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    r = Rigged(tmp_path)
+    await r.up()
+    await r.call("sim_snapshot", {"mode": "full"})
+    engine = r.rig.idb.engine
+    typing = asyncio.Event()
+    stopping_midway(monkeypatch, engine, typing)
+    steps = [{"type": PASSWORD, "into": "e2"}]
+    calling = asyncio.ensure_future(r.call("sim_act", {"steps": steps, "snapshot": "none"}))
+    await typing.wait()
+    calling.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await calling
+    monkeypatch.undo()
+    looked = await shown_back(r)
+    assert PASSWORD not in looked and "••••" in looked

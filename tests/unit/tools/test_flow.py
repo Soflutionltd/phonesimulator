@@ -11,6 +11,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from simtrail.connectors.base import ConnectorError
 from simtrail.core.actions import MAX_STEPS, AgentActions
 from simtrail.core.flows import FlowStore
@@ -249,6 +251,32 @@ async def test_a_variable_typed_into_a_secure_field_is_masked_in_every_event_and
     rig.idb.engine.document = {"elements": [_element("StaticText", "Your password is hunter22", 100)]}
     looked = await call(ctx, "sim_snapshot", {"mode": "full"})
     assert "hunter22" not in said(looked) and "Your password is ••••" in said(looked)
+
+
+async def test_a_secure_variable_whose_typing_failed_midway_is_masked_in_every_answer_after(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig = login(DeviceRig(tmp_path))
+    ctx = tools(rig)
+    await saved_sign_in(ctx)
+    engine, gestures = rig.idb.engine, 0
+
+    async def hid(events: Any) -> None:
+        nonlocal gestures
+        gestures += 1
+        async for event in events:
+            engine.hid_events.append(event)
+            if gestures == 2:
+                raise ConnectorError("the device went away")
+
+    monkeypatch.setattr(engine, "hid", hid)
+    played = await call(ctx, "sim_flow", run_sign_in(password="half-typed-pw"))
+    assert played["isError"] is True and "error step 2" in said(played) and "half-typed-pw" not in said(played)
+    monkeypatch.undo()
+    # The part that reached the field is shown back -- its eye tapped -- and the agent reads the screen.
+    engine.document = {"elements": [_element("StaticText", "Your password is half-typed-pw", 100)]}
+    looked = await call(ctx, "sim_snapshot", {"mode": "full"})
+    assert "half-typed-pw" not in said(looked) and "Your password is ••••" in said(looked)
 
 
 async def test_a_run_needs_each_variable_and_no_other(tmp_path: Path) -> None:

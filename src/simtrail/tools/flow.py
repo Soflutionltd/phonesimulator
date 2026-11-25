@@ -47,7 +47,7 @@ from simtrail.core.flows import (
 from simtrail.core.instance import DeviceInstance
 from simtrail.core.refusals import ObserveGuard
 from simtrail.perception.snapshot import Element, Snapshot
-from simtrail.tools.act import hide_typed
+from simtrail.tools.act import hides_typed
 from simtrail.tools.context import ToolContext, flag_arg, make_tool, ready_device
 from simtrail.tools.results import SHUT_DOWN, Result, ToolRefused, text
 
@@ -275,11 +275,11 @@ async def play(
                     lead_ms=ctx.config.cursor_lead_ms,
                     max_elements=ctx.config.snapshot_max_elements,
                     guard=guard,
+                    on_secret=hides_typed(ctx),
                 )
             except ActionError as exc:
                 lines.append(f"error step {done + 1}: {exc}")
                 return _stopped(lines, values, done, total, failed=True, may_have_run=exc.__cause__ is not None)
-            hide_typed(ctx, acted.secrets)
             lines += [_numbered(line, done) for line in acted.text.splitlines()]
             if acted.failed:
                 return _stopped(lines, values, done + acted.completed_steps, total, failed=True, may_have_run=True)

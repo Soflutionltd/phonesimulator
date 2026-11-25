@@ -7,6 +7,7 @@ refuses (`testing.guards`).
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import functools
 import json
@@ -243,6 +244,31 @@ async def test_no_value_reaches_an_answer_a_log_an_event_or_an_argv(
         assert all(secret not in " ".join(call.args) for call in r.rig.xcrun.calls)
     snapshot = said(answers[2])
     assert 'field "Password" ="••••"' in snapshot and 'text "Your code •••• was sent; link ?p=••••"' in snapshot
+
+
+async def test_a_login_cancelled_while_it_is_typed_is_masked_in_every_answer_after(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    r = Rigged(tmp_path, one_password(), us=True)
+    await r.up()
+    typing = asyncio.Event()
+
+    async def hid(events: Any) -> None:
+        async for event in events:
+            r.engine.hid_events.append(event)
+            typing.set()
+            await asyncio.Event().wait()
+
+    monkeypatch.setattr(r.engine, "hid", hid)
+    signing_in = asyncio.ensure_future(r.login(account=USERNAME))
+    await typing.wait()
+    signing_in.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await signing_in
+    monkeypatch.undo()
+    r.engine.document = screen(node("StaticText", f"Your password is {PASSWORD}", 100))
+    looked = said(await r.call("sim_snapshot", {"mode": "full"}))
+    assert PASSWORD not in looked and "Your password is ••••" in looked
 
 
 async def test_a_one_time_code_goes_into_the_field_named_or_the_one_that_reads_like_a_code(tmp_path: Path) -> None:
