@@ -139,3 +139,11 @@ async def test_a_character_with_no_key_is_not_named_when_the_text_is_a_password(
     answer = await r.call("sim_act", {"steps": [{"type": "pässwörd", "into": "e2"}], "snapshot": "none"})
     assert "pasted, since one of its characters has no key" in said(answer), said(answer)
     assert "'ä'" not in said(answer) and "pässwörd" not in said(answer)
+
+
+def test_a_context_with_no_mask_hides_nothing_and_does_not_fail(tmp_path: Path) -> None:
+    from simtrail.tools.act import hide_typed
+
+    r = Rigged(tmp_path)
+    assert r.ctx.secrets is None, "only the registry gives a call its mask"
+    hide_typed(r.ctx, (PASSWORD,))

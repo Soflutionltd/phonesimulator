@@ -36,6 +36,8 @@ describe('orientation', () => {
     expect(TURNS.map(quarterTurns)).toEqual([0, 1, 2, 3])
     expect(quarterTurns(undefined)).toBe(0)
     expect(quarterTurns(null)).toBe(0)
+    // A way a newer server names that this viewer does not know: drawn upright rather than guessed.
+    expect(quarterTurns('face_up' as never)).toBe(0)
   })
 
   it('turns a pointer on a turned screen back onto the same point of the portrait screen, whichever way', () => {
@@ -95,5 +97,20 @@ describe('turning the device from the viewer', () => {
     expect([device.style.transform, device.dataset.turns]).toEqual(['rotate(270deg)', '3'])
     socket().message({ type: 'status', ...DEVICE, orientation: 'portrait' })
     expect(device.style.transform).toBe('')
+  })
+
+  it('draws the agent on the screen where it acts, on a device drawn on its side too', async () => {
+    const { $ } = await live()
+    // On its side, the overlay's box on the page is its own turned: 874 wide, 402 tall.
+    $<HTMLElement>('[data-smv-overlay]').getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 874, height: 402, right: 874, bottom: 402, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect
+    socket().message({ type: 'status', ...DEVICE, orientation: 'landscape_left' })
+    socket().message({
+      type: 'agent', id: 'a1', phase: 'intent', agent: { key: 'k', title: 'Claude Code' },
+      gesture: { kind: 'tap', duration_ms: 80, points: [[0.25, 0.75]] }, label: '', caption: '', lead_ms: 0,
+      pointer: true,
+    })
+    // In the screen's own points, as the overlay turns with the device.
+    expect($<HTMLElement>('[data-ac-pointer]').style.transform).toBe('translate(100.5px, 655.5px)')
   })
 })

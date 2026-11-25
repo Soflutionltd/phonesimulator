@@ -113,6 +113,9 @@ describe('the viewer around the device', () => {
     // The next viewer starts where the person left it.
     const again = await live()
     expect(again.$('[data-smv="zoom-fit"]').getAttribute('aria-pressed')).toBe('true')
+    // Fitted to a room that has no size yet: no scale to say.
+    again.$<HTMLButtonElement>('[data-smv="zoom-fit"]').click()
+    expect(again.$('[data-smv-zoom-level]').textContent).toBe('')
   })
 
   it('offers a screenshot once a picture is drawn, and saves it from its button, the Edit menu or Command-S', async () => {
