@@ -91,6 +91,14 @@
   --smv-space-7: var(--simtrail-space-7, 24px);
   --smv-font: var(--simtrail-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif);
   --smv-font-size: var(--simtrail-font-size, 13px);
+  /* What floats over the stage -- the toolbar, a menu, a popover -- lifted by a soft, layered shadow and a hairline. */
+  --smv-float: 0 0 0 0.5px var(--smv-border), 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px -6px var(--smv-shadow);
+  --smv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* The accent under white text: a shade deeper, so a filled button or tab reads at AA in both themes. */
+  --smv-accent-fill: color-mix(in srgb, var(--smv-accent) 84%, #000);
+  --smv-accent-fill-hover: color-mix(in srgb, var(--smv-accent) 72%, #000);
+  --smv-hover: color-mix(in srgb, var(--smv-text) 7%, transparent);
+  --smv-press: color-mix(in srgb, var(--smv-text) 12%, transparent);
 }
 
 :host {
@@ -113,13 +121,26 @@
 
 .smv ::selection {
   color: var(--smv-on-accent);
-  background: var(--smv-accent);
+  background: var(--smv-accent-fill);
 }
 
 .smv button:focus-visible,
-.smv a:focus-visible {
+.smv a:focus-visible,
+.smv select:focus-visible,
+.smv input:focus-visible,
+.smv textarea:focus-visible {
   outline: 2px solid var(--smv-accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
+}
+
+.smv button,
+.smv a {
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 150ms var(--smv-ease), color 150ms var(--smv-ease), opacity 150ms var(--smv-ease);
+}
+
+.smv button:active:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--smv-press);
 }
 
 .smv-sr {
@@ -142,8 +163,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--smv-space-2) var(--smv-space-3);
-  min-height: 40px;
-  padding: var(--smv-space-2) var(--smv-space-3);
+  min-height: 44px;
+  padding: var(--smv-space-2) var(--smv-space-5);
   border-bottom: 1px solid var(--smv-border);
   background: var(--smv-surface);
 }
@@ -189,7 +210,7 @@
 
 .smv-select:hover:not(:disabled),
 .smv-select[aria-expanded="true"] {
-  background: var(--smv-surface-sunken);
+  background: var(--smv-hover);
 }
 
 .smv-select:disabled {
@@ -233,7 +254,7 @@
 
 .smv-menu:hover,
 .smv-menu[aria-expanded="true"] {
-  background: var(--smv-surface-sunken);
+  background: var(--smv-hover);
 }
 
 .smv-zoom-level {
@@ -241,6 +262,16 @@
   color: var(--smv-text-muted);
   font-variant-numeric: tabular-nums;
   text-align: center;
+  white-space: nowrap;
+}
+
+/* Its actual size, drawn smaller to fit: the scale says so, in the accent. */
+.smv-zoom-level[data-reduced="true"] {
+  color: var(--smv-accent);
+}
+
+.smv-zoom-why {
+  color: var(--smv-text-muted);
 }
 
 .smv-icon.smv-actual {
@@ -261,7 +292,7 @@
 }
 
 @container (max-width: 459px) {
-  .smv-zoom-level,
+  .smv-zoom-why,
   .smv-icon.smv-actual {
     display: none;
   }
@@ -273,11 +304,13 @@
 .smv-app,
 .smv-rec {
   flex: none;
-  padding: 0 var(--smv-space-3);
+  padding: var(--smv-space-1) var(--smv-space-4);
   border-radius: var(--smv-radius-full);
   color: var(--smv-text-muted);
-  background: var(--smv-surface-sunken);
+  background: var(--smv-hover);
   font-size: 0.85em;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .smv-state[data-state="ready"] {
@@ -353,8 +386,8 @@ button.smv-mode {
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
   border-radius: var(--smv-radius);
@@ -363,10 +396,15 @@ button.smv-mode {
   cursor: pointer;
 }
 
-.smv-icon:hover:not(:disabled),
-.smv-icon[aria-pressed="true"] {
+.smv-icon:hover:not(:disabled) {
   color: var(--smv-text);
-  background: var(--smv-surface-sunken);
+  background: var(--smv-hover);
+}
+
+/* A switch that is on -- the appearance, recording, fit, actual size -- reads in the accent, not a darker grey. */
+.smv-icon[aria-pressed="true"] {
+  color: var(--smv-accent);
+  background: color-mix(in srgb, var(--smv-accent) 12%, transparent);
 }
 
 .smv-icon:disabled {
@@ -380,13 +418,19 @@ button.smv-mode {
 }
 
 .smv-btn {
-  padding: var(--smv-space-2) var(--smv-space-4);
-  border: 1px solid var(--smv-border);
-  border-radius: var(--smv-radius);
-  color: var(--smv-text);
-  background: var(--smv-surface);
+  min-height: 32px;
+  padding: var(--smv-space-3) var(--smv-space-6);
+  border: 0;
+  border-radius: var(--smv-radius-full);
+  color: var(--smv-on-accent);
+  background: var(--smv-accent-fill);
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.smv-btn:hover {
+  background: var(--smv-accent-fill-hover);
 }
 
 .smv-stage {
@@ -405,7 +449,12 @@ button.smv-mode {
   inset: 0;
   display: flex;
   overflow: auto;
+  /* Centred, and from its start once larger than the room -- a device turned has margins of its own, not auto. */
+  align-items: safe center;
+  justify-content: safe center;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--smv-border) transparent;
 }
 
 /* The device: every part placed in CSS pixels by device-view.ts, from device-frame.ts's geometry. */
@@ -415,6 +464,7 @@ button.smv-mode {
   width: 100%;
   height: 100%;
   margin: auto;
+  transition: transform 350ms var(--smv-ease);
 }
 
 /* No screen to show: no device either, only what the stage says about it. */
@@ -519,19 +569,19 @@ button.smv-home-button:hover {
   align-items: center;
   gap: var(--smv-space-1);
   max-width: calc(100% - 2 * var(--smv-space-4));
-  padding: var(--smv-space-2);
+  padding: var(--smv-space-2) var(--smv-space-3);
   overflow-x: auto;
-  border: 1px solid var(--smv-border);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 14px;
   background: var(--smv-raised);
-  box-shadow: 0 1px 2px var(--smv-shadow), 0 8px 24px -8px var(--smv-shadow);
+  box-shadow: var(--smv-float);
   transform: translateX(-50%);
   scrollbar-width: none;
 }
 
 .smv-tools .smv-icon {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
 }
 
 .smv-tools .smv-icon.smv-size {
@@ -541,6 +591,11 @@ button.smv-home-button:hover {
 .smv-tools .smv-icon svg {
   width: 18px;
   height: 18px;
+}
+
+/* No device on the stage -- starting, stopped, failed -- and nothing for the toolbar to press. */
+.smv-stage:has(> .smv-empty:not([hidden])) .smv-tools {
+  display: none;
 }
 
 .smv-tools:not(:has(.smv-press:not([hidden]))) .smv-tools-gap {
@@ -572,7 +627,7 @@ button.smv-home-button:hover {
   overflow: hidden;
   border-radius: var(--smv-radius-full);
   color: var(--smv-on-accent);
-  background: var(--smv-accent);
+  background: var(--smv-accent-fill);
   font-size: 0.85em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -585,8 +640,8 @@ button.smv-home-button:hover {
   --ac-color: var(--smv-cursor);
   --ac-text: var(--smv-cursor-text);
   color: var(--ac-text);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ac-color) 86%, #fff), var(--ac-color));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18), 0 1px 2px rgb(0 0 0 / 0.22), 0 6px 16px rgb(0 0 0 / 0.18);
+  background: var(--ac-color);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 6px 16px -4px rgb(0 0 0 / 0.22);
   font-weight: 600;
 }
 
@@ -606,10 +661,20 @@ button.smv-home-button:hover {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--smv-space-4);
-  padding: var(--smv-space-4);
+  gap: var(--smv-space-6);
+  padding: var(--smv-space-7);
   color: var(--smv-text-muted);
   text-align: center;
+}
+
+/* What the stage says -- starting, stopped, failed -- in a readable measure; a long path breaks anywhere. */
+.smv-empty p {
+  max-width: 46ch;
+  margin: 0;
+  font-size: 1.05em;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
 .smv-picker {
@@ -623,11 +688,12 @@ button.smv-home-button:hover {
   max-width: calc(100% - 2 * var(--smv-space-2));
   max-height: calc(100% - 2 * var(--smv-space-2));
   overflow: auto;
-  padding: var(--smv-space-2);
-  border: 1px solid var(--smv-border);
-  border-radius: var(--smv-radius);
+  padding: var(--smv-space-3);
+  border: 0;
+  border-radius: 12px;
   background: var(--smv-raised);
-  box-shadow: 0 1px 2px var(--smv-shadow), 0 12px 32px -8px var(--smv-shadow);
+  box-shadow: var(--smv-float);
+  scrollbar-width: thin;
 }
 
 /* Opened from the bar -- the device picker and the menus -- under their titles; from the toolbar, above it. */
@@ -635,6 +701,11 @@ button.smv-home-button:hover {
 .smv-menu-panel {
   right: auto;
   left: var(--smv-space-2);
+}
+
+/* The device picker: a column a name and its runtime read across, never the whole stage's width. */
+.smv-picker[data-smv-picker] {
+  width: min(24rem, calc(100% - 2 * var(--smv-space-2)));
 }
 
 .smv-picker[data-smv-display],
@@ -662,8 +733,10 @@ button.smv-home-button:hover {
 .smv-picker button {
   display: flex;
   justify-content: space-between;
-  gap: var(--smv-space-4);
-  padding: var(--smv-space-2) var(--smv-space-4);
+  gap: var(--smv-space-6);
+  min-height: 28px;
+  padding: var(--smv-space-3) var(--smv-space-4);
+  line-height: 1.3;
   border: 0;
   border-radius: var(--smv-radius);
   color: inherit;
@@ -673,9 +746,14 @@ button.smv-home-button:hover {
   cursor: pointer;
 }
 
-.smv-picker button:hover,
+.smv-picker button:hover:not([aria-disabled="true"]),
+.smv-picker button:focus-visible {
+  background: var(--smv-hover);
+}
+
 .smv-picker button[aria-checked="true"] {
-  background: var(--smv-surface-sunken);
+  color: var(--smv-accent);
+  font-weight: 500;
 }
 
 .smv-picker button:focus-visible {
@@ -694,11 +772,15 @@ button.smv-home-button:hover {
 }
 
 .smv-picker-group {
-  margin: var(--smv-space-2) 0 0;
-  padding: var(--smv-space-2) var(--smv-space-4) 0;
+  margin: var(--smv-space-4) 0 var(--smv-space-1);
+  padding: 0 var(--smv-space-4);
   color: var(--smv-text-muted);
   font-size: 0.8em;
   font-weight: 600;
+}
+
+.smv-picker-group:first-child {
+  margin-top: var(--smv-space-2);
 }
 
 .smv-picker button[aria-disabled="true"] {
@@ -721,10 +803,14 @@ button.smv-home-button:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--smv-space-2) var(--smv-space-4);
-  padding: var(--smv-space-2) var(--smv-space-2) var(--smv-space-2) var(--smv-space-4);
-  border: 1px solid var(--smv-border);
-  border-radius: var(--smv-radius);
-  background: var(--smv-surface);
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--smv-space-5) var(--smv-space-7) var(--smv-space-5) var(--smv-space-6);
+  border: 0;
+  border-radius: 12px;
+  background: var(--smv-raised);
+  box-shadow: var(--smv-float);
+  line-height: 1.45;
 }
 
 .smv-note p {
@@ -759,12 +845,12 @@ button.smv-home-button:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--smv-space-5);
-  padding: var(--smv-space-5) var(--smv-space-6);
+  gap: var(--smv-space-5) var(--smv-space-6);
+  padding: var(--smv-space-6) var(--smv-space-7);
 }
 
 .smv-settings-head {
-  border-bottom: 1px solid var(--smv-border);
+  padding-bottom: var(--smv-space-4);
 }
 
 .smv-settings-foot {
@@ -773,8 +859,9 @@ button.smv-home-button:hover {
 
 .smv-settings-title {
   margin: 0;
-  font-size: 1.15em;
-  font-weight: 600;
+  font-size: 1.4em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .smv-settings-scope {
@@ -807,43 +894,58 @@ button.smv-home-button:hover {
 .smv-tabs {
   display: flex;
   gap: var(--smv-space-2);
-  padding: var(--smv-space-3) var(--smv-space-6);
+  padding: var(--smv-space-2) var(--smv-space-7) var(--smv-space-5);
   overflow-x: auto;
   border-bottom: 1px solid var(--smv-border);
+  /* Scrolled sideways when narrow: the next tab, cut at the edge, says there are more. */
+  scrollbar-width: none;
 }
 
 .smv-tab {
   padding: var(--smv-space-3) var(--smv-space-5);
   border: 0;
-  border-radius: var(--smv-radius);
+  border-radius: var(--smv-radius-full);
   color: var(--smv-text-muted);
   background: none;
   font: inherit;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
 }
 
-.smv-tab[aria-selected="true"] {
+.smv-tab:hover {
   color: var(--smv-text);
-  background: var(--smv-surface-sunken);
+  background: var(--smv-hover);
+}
+
+.smv-tab[aria-selected="true"] {
+  color: var(--smv-on-accent);
+  background: var(--smv-accent-fill);
 }
 
 .smv-pane {
   flex: 1;
   min-height: 0;
-  padding: var(--smv-space-5) var(--smv-space-6) var(--smv-space-7);
+  padding: var(--smv-space-7) var(--smv-space-7) calc(2 * var(--smv-space-7));
   overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* A section reads as one column of comfortable measure, however wide the panel. */
+.smv-pane > * {
+  max-width: 44rem;
 }
 
 .smv-pane-doc {
-  padding-bottom: var(--smv-space-5);
-  border-bottom: 1px solid var(--smv-border);
+  padding-bottom: var(--smv-space-4);
+  font-size: 1.05em;
+  line-height: 1.5;
 }
 
 .smv-field {
   display: grid;
   gap: var(--smv-space-3);
-  padding: var(--smv-space-6) 0;
+  padding: var(--smv-space-7) 0;
   border-bottom: 1px solid var(--smv-border);
 }
 
@@ -858,7 +960,9 @@ button.smv-home-button:hover {
 
 .smv-field-name {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-weight: 500;
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--smv-text);
 }
 
 .smv-field-doc,
@@ -891,27 +995,33 @@ button.smv-home-button:hover {
 .smv-chip {
   padding: var(--smv-space-1) var(--smv-space-4);
   line-height: 1.4;
-  border: 1px solid var(--smv-border);
   border-radius: var(--smv-radius-full);
   color: var(--smv-text-muted);
+  background: var(--smv-hover);
   font-size: 0.85em;
 }
 
 .smv-chip-sensitive {
-  border-color: var(--smv-warning);
   color: var(--smv-warning);
+  background: color-mix(in srgb, var(--smv-warning) 12%, transparent);
 }
 
 .smv-input {
   box-sizing: border-box;
   width: 100%;
   max-width: 32rem;
+  min-height: 36px;
   padding: var(--smv-space-4) var(--smv-space-5);
   border: 1px solid var(--smv-border);
-  border-radius: var(--smv-radius);
+  border-radius: 10px;
   color: var(--smv-text);
   background: var(--smv-surface-sunken);
   font: inherit;
+  transition: border-color 150ms var(--smv-ease);
+}
+
+.smv-input:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--smv-text) 25%, transparent);
 }
 
 .smv-input:disabled,
@@ -920,12 +1030,41 @@ button.smv-home-button:hover {
   cursor: not-allowed;
 }
 
+/* An on/off setting as a switch, as macOS and iOS draw one: still a checkbox to the keyboard and to assistive tech. */
 .smv-switch {
+  position: relative;
   justify-self: start;
+  flex: none;
+  box-sizing: border-box;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border-radius: var(--smv-radius-full);
+  background: var(--smv-press);
+  cursor: pointer;
+  appearance: none;
+  transition: background-color 200ms var(--smv-ease);
+}
+
+.smv-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
   width: 18px;
   height: 18px;
-  margin: 0;
-  accent-color: var(--smv-accent);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 0 0 0.5px rgb(0 0 0 / 0.08);
+  transition: translate 200ms var(--smv-ease);
+}
+
+.smv-switch:checked {
+  background: var(--smv-accent-fill);
+}
+
+.smv-switch:checked::after {
+  translate: 16px 0;
 }
 
 .smv-link,
@@ -943,16 +1082,31 @@ button.smv-home-button:hover {
 }
 
 .smv-button {
-  padding: var(--smv-space-4) var(--smv-space-6);
-  border: 1px solid var(--smv-border);
+  min-height: 32px;
+  padding: var(--smv-space-3) var(--smv-space-7);
+  border: 0;
+  border-radius: var(--smv-radius-full);
   color: var(--smv-text);
-  background: var(--smv-surface-sunken);
+  background: var(--smv-hover);
+  font-weight: 600;
+}
+
+.smv-button:hover:not(:disabled) {
+  background: var(--smv-press);
 }
 
 .smv-button-primary {
-  border-color: var(--smv-accent);
   color: var(--smv-on-accent);
-  background: var(--smv-accent);
+  background: var(--smv-accent-fill);
+}
+
+.smv-button-primary:hover:not(:disabled) {
+  background: var(--smv-accent-fill-hover);
+}
+
+.smv-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .smv-button:disabled {
@@ -966,6 +1120,10 @@ button.smv-home-button:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--smv-space-5);
+}
+
+.smv-target input {
+  accent-color: var(--smv-accent);
 }
 
 .smv-target {
@@ -996,7 +1154,12 @@ button.smv-home-button:hover {
 .smv-input:focus-visible,
 .smv-switch:focus-visible {
   outline: 2px solid var(--smv-accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
+}
+
+.smv-input:focus-visible {
+  outline-offset: 0;
+  border-color: var(--smv-accent);
 }
 
 /* -- An agent's pointer (agent-cursor.ts). The pointer is placed with an inline transform, and shakes with the
@@ -1044,7 +1207,7 @@ button.smv-home-button:hover {
 }
 
 .smv .ac-fill-top {
-  stop-color: color-mix(in srgb, var(--ac-color) 70%, #fff);
+  stop-color: var(--ac-color);
 }
 
 .smv .ac-fill {
@@ -1065,8 +1228,8 @@ button.smv-home-button:hover {
   overflow: hidden;
   border-radius: var(--smv-radius-full);
   color: var(--ac-text);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ac-color) 86%, #fff), var(--ac-color));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18), 0 1px 2px rgb(0 0 0 / 0.22), 0 6px 16px rgb(0 0 0 / 0.18);
+  background: var(--ac-color);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 6px 16px -4px rgb(0 0 0 / 0.22);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -1116,8 +1279,7 @@ button.smv-home-button:hover {
 /* One soft pulse where a tap lands: a ring with a glow and a faint fill, growing out from under the pointer. */
 .smv .ac-ripple {
   border: 2px solid var(--ac-color);
-  background: radial-gradient(circle, color-mix(in srgb, var(--ac-color) 30%, transparent) 0, transparent 70%);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--ac-color) 45%, transparent);
+  background: color-mix(in srgb, var(--ac-color) 16%, transparent);
   animation: smv-ripple 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
 }
 
@@ -1243,6 +1405,12 @@ button.smv-home-button:hover {
   from { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .smv-device,
+  .smv button,
+  .smv a,
+  .smv-switch,
+  .smv-switch::after,
+  .smv-input { transition: none; }
   .smv .ac-pointer { transition-duration: 0ms !important; }
   .smv .ac-arrow svg { transition: none; }
   .smv .ac-pointer.is-failed, .smv .tx { animation: none; }
@@ -1265,8 +1433,20 @@ button.smv-home-button:hover {
   background: none;
 }
 
-.smv-picker.smv-menu-panel button:hover {
-  background: var(--smv-surface-sunken);
+.smv-picker.smv-menu-panel button[aria-checked="true"] {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.smv-picker.smv-menu-panel button:hover,
+.smv-picker.smv-menu-panel button:focus-visible {
+  color: var(--smv-on-accent);
+  background: var(--smv-accent-fill);
+}
+
+.smv-picker.smv-menu-panel button:hover kbd,
+.smv-picker.smv-menu-panel button:focus-visible kbd {
+  color: inherit;
 }
 
 .smv-picker.smv-menu-panel button[role="menuitemcheckbox"][aria-checked="true"]::after {
@@ -1283,4 +1463,9 @@ button.smv-home-button:hover {
   border: solid currentColor;
   border-width: 0 2px 2px 0;
   transform: translateY(-65%) rotate(45deg);
+}
+
+/* A menu row's label is the row itself: read at full strength, its shortcut muted beside it. */
+.smv-picker.smv-menu-panel button span {
+  color: inherit;
 }

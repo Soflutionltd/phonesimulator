@@ -54,6 +54,14 @@ All notable changes to Simtrail are documented here. The format follows
   pixel, an iPhone 17 Pro 402 by 874. In a window too small it is drawn just small enough to fit, and the scale says
   so (`67% · fitted`). Command-1 is actual size, Command-0 fit to the window, and the zoom a person picks is kept in
   the browser beside the theme and the frame.
+- A quieter viewer, in light and dark: switches that are on -- the appearance, recording, fit, actual size -- read in
+  the accent; the toolbar, menus, device picker and notes float on one soft layered shadow instead of borders; a menu
+  row highlights in the accent as a Mac menu does; the settings panel has a larger title, accent tabs, switches for
+  on/off settings, pill buttons and a readable measure; the start and error screens set their message in a measure
+  and break a long path; the agent's label and pill are flat colour, without gradients; a filled control's accent is
+  a shade deeper so white text on it meets AA. The device picker keeps to a column, the toolbar is hidden while no
+  device is shown, and turning the device is animated except with reduced motion. Every part, custom property and
+  option of `<sim-trail>` is kept.
 
 ### Fixed
 

@@ -141,6 +141,10 @@ Custom properties pass into the shadow root. Each has a default, for the viewer'
 | `--simtrail-space-1` to `--simtrail-space-7` | Spacing, 2px to 24px |
 | `--simtrail-font`, `--simtrail-font-size` | Type |
 
+Filled controls -- a primary button, the selected settings tab, a switch that is on, a menu row under the pointer --
+draw `--simtrail-accent` a shade deeper, so white text on it reads at WCAG AA in both themes; outlines, the scale and
+pressed icons use it as it is.
+
 For anything more, style its parts: `simtrail::part(bar)`, `::part(stage)` and `::part(screen)`, and -- since the
 device's frame -- `::part(device)` and `::part(toolbar)`.
 
