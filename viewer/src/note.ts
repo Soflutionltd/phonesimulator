@@ -4,22 +4,29 @@
  * stays until it is closed with its own button or replaced by the next, and is read out as it changes.
  */
 import { escapeHTML } from './escape'
+import { english, resolve, type Said, type Translate } from './i18n'
 import type { IconRenderer } from './icons'
 
 export interface Note {
-  /** Show markup the caller made safe; `sayText` for plain text. */
-  show(markup: string): void
-  sayText(text: string): void
+  /** Show markup the caller made safe; `sayText` for plain text. Either may be asked for each time it is shown, so
+   * that a note still showing follows the language. */
+  show(markup: Said): void
+  sayText(text: Said): void
   hide(): void
+  /** The language changed: say again what is showing. */
+  relabel(): void
   destroy(): void
 }
 
-export function createNote(el: HTMLElement, icon: IconRenderer): Note {
+export function createNote(el: HTMLElement, icon: IconRenderer, t: Translate = english): Note {
   el.setAttribute('role', 'status')
+  let shown: Said | null = null
 
-  function show(markup: string): void {
-    el.innerHTML = `${markup}<button type="button" class="smv-icon smv-note-close" data-smv-note-close title="Close"`
-      + ` aria-label="Close">${icon('close')}</button>`
+  function show(markup: Said): void {
+    shown = markup
+    const close = escapeHTML(t('close'))
+    el.innerHTML = `${resolve(markup)}<button type="button" class="smv-icon smv-note-close" data-smv-note-close`
+      + ` title="${close}" aria-label="${close}">${icon('close')}</button>`
     el.hidden = false
   }
 
@@ -30,9 +37,12 @@ export function createNote(el: HTMLElement, icon: IconRenderer): Note {
 
   return {
     show,
-    sayText: (text) => show(`<p>${escapeHTML(text)}</p>`),
+    sayText: (text) => show(() => `<p>${escapeHTML(resolve(text))}</p>`),
     hide: () => {
       el.hidden = true
+    },
+    relabel: () => {
+      if (shown !== null && !el.hidden) show(shown)
     },
     destroy: () => el.removeEventListener('click', onClick),
   }

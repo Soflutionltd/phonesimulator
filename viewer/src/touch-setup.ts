@@ -8,14 +8,12 @@
  * restarts with a device that can be touched.
  */
 import { escapeHTML } from './escape'
+import { english, type Translate } from './i18n'
 import type { Note } from './note'
-import type { TeamSource, TouchSetup } from './protocol.generated'
+import type { TouchSetup } from './protocol.generated'
 import type { SimtrailTransport } from './transport'
 
 const POLL_MS = 3000
-const FROM: Readonly<Record<TeamSource, string>> = {
-  project: "the project's own team", setting: 'real_devices.team_id', mac: 'the only team on this Mac',
-}
 
 export type TouchTransport = Required<Pick<SimtrailTransport, 'touch' | 'setUpTouch'>>
 
@@ -24,6 +22,8 @@ export interface TouchSetupOptions {
   noteEl: HTMLElement
   note: Note
   transport: TouchTransport
+  /** Says the setup's messages; in English when absent. */
+  t?: Translate
   /** Open the settings where WebDriverAgent and its team are set; absent where no settings are offered. */
   openSettings?(): void
 }
@@ -35,17 +35,18 @@ export interface TouchSetupControl {
 }
 
 /** How touching the device stands, as the note shows it, with a button for what a person can do next. */
-export function touchMarkup(setup: TouchSetup, settings: boolean): string {
+export function touchMarkup(setup: TouchSetup, settings: boolean, t: Translate = english): string {
   const button = (action: string, label: string) =>
-    `<button type="button" class="smv-btn" data-smv-touch="${action}">${label}</button>`
-  const message = setup.state === 'ready' ? 'This device can be touched.'
-    : setup.state === 'not_needed' ? 'There is nothing to set up: a simulator is touched as it is.'
-      : setup.message || 'Touch is being set up.'
+    `<button type="button" class="smv-btn" data-smv-touch="${action}">${escapeHTML(label)}</button>`
+  const message = setup.state === 'ready' ? t('touch.ready')
+    : setup.state === 'not_needed' ? t('touch.notNeeded')
+      : setup.message || t('touch.pending')
   const team = setup.team && setup.team_from
-    ? `<p>Signed by team ${escapeHTML(setup.team)}: ${FROM[setup.team_from]}.</p>` : ''
-  const next = setup.state === 'offer' ? button('set-up', 'Set up touch')
-    : setup.state === 'failed' ? button('set-up', 'Try again')
-      : (setup.state === 'needs_team' || setup.state === 'off') && settings ? button('settings', 'Open settings')
+    // The message is the viewer's own; the team's name is the server's, and is the part made safe.
+    ? `<p>${t(`touch.signed.${setup.team_from}`, { team: escapeHTML(setup.team) })}</p>` : ''
+  const next = setup.state === 'offer' ? button('set-up', t('mode.setUpTouch'))
+    : setup.state === 'failed' ? button('set-up', t('retry'))
+      : (setup.state === 'needs_team' || setup.state === 'off') && settings ? button('settings', t('touch.openSettings'))
         : ''
   return `<div class="smv-touch" data-smv-touch-note data-state="${setup.state}"><p>${escapeHTML(message)}</p>`
     + `${team}${next}</div>`
@@ -53,6 +54,7 @@ export function touchMarkup(setup: TouchSetup, settings: boolean): string {
 
 export function createTouchSetup(options: TouchSetupOptions): TouchSetupControl {
   const { noteEl, note, transport } = options
+  const t = options.t ?? english
   let timer: number | null = null
 
   function stopFollowing(): void {
@@ -64,7 +66,7 @@ export function createTouchSetup(options: TouchSetupOptions): TouchSetupControl 
   const showing = () => !noteEl.hidden && noteEl.querySelector('[data-smv-touch-note]') !== null
 
   function show(setup: TouchSetup): void {
-    note.show(touchMarkup(setup, options.openSettings !== undefined))
+    note.show(() => touchMarkup(setup, options.openSettings !== undefined, t))
     stopFollowing()
     if (setup.state === 'building' || setup.state === 'starting') {
       timer = window.setTimeout(() => void follow(), POLL_MS)
@@ -76,7 +78,7 @@ export function createTouchSetup(options: TouchSetupOptions): TouchSetupControl 
       show(await call())
     } catch (error) {
       stopFollowing()
-      note.sayText((error as Error).message || 'Touch could not be set up.')
+      note.sayText(() => (error as Error).message || t('touch.failed'))
     }
   }
 

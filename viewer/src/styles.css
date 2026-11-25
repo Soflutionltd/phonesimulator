@@ -1418,8 +1418,10 @@ button.smv-home-button:hover {
   .smv .ac-ripple, .smv .ac-hold { animation-name: smv-ring-still; }
 }
 
-/* -- The menus (menu-bar.ts): a tick column before each row, the shortcut after it. */
+/* -- The menus (menu-bar.ts): a tick column before each row, the shortcut after it. They open from the bar, over
+   whatever the stage shows -- the settings panel too, which stays open under them. */
 .smv-menu-panel {
+  z-index: 4;
   min-width: 15rem;
 }
 

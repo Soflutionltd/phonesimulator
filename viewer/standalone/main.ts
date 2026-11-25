@@ -14,8 +14,13 @@
  * names one of the scope's devices, ``?device=<udid>`` (``simtrail open --device``): then it shows that one, and comes
  * back to it after a restart, whichever the scope's own is. Its picker's Show in this tab and Follow the project keep
  * the address in step, without reloading, and its title names the device it shows.
+ *
+ * The page speaks the viewer's language -- what a person last picked in its View menu, else the browser's -- and its
+ * own `lang` follows it.
  */
 import { createHttpTransport, TransportError } from '../src/http-transport'
+import { createI18n } from '../src/i18n'
+import { readPreferences } from '../src/preferences'
 import { createViewer, type ViewHandle } from '../src/viewer'
 
 export const APP_ID = 'simtrail-app'
@@ -34,6 +39,8 @@ export interface PageEnv {
   history: { replaceState(data: unknown, unused: string, url?: string): void }
   fetch: typeof fetch
   title(text: string): void
+  /** Told the language the page speaks, by its tag, as it starts and whenever it changes. */
+  lang?(tag: string): void
 }
 
 /** Which page this is, for which scope, the code or ticket that lets it in, and the device it shows. */
@@ -83,11 +90,12 @@ function notice(root: HTMLElement, text: string): null {
 }
 
 export async function boot(root: HTMLElement, env: PageEnv): Promise<ViewHandle | null> {
+  const { t, locale } = createI18n(readPreferences().lang ?? 'auto')
+  env.lang?.(locale)
   const place = readPlace(env.location)
-  if (!place) return notice(root, 'This is not a Simtrail viewer address.')
-  const again = place.page === 'viewer' ? 'Open the viewer again with `simtrail open`.'
-    : 'Reload the page that shows this frame.'
-  if (!place.code) return notice(root, `This page lets you in with a one-time link. ${again}`)
+  if (!place) return notice(root, t('page.notViewer'))
+  const again = t(`page.again.${place.page}`)
+  if (!place.code) return notice(root, t('page.oneTime', { again }))
   const pathname = env.location.pathname
   env.history.replaceState(null, '', addressOf(pathname, place.device))
   let session: Session
@@ -111,6 +119,7 @@ export async function boot(root: HTMLElement, env: PageEnv): Promise<ViewHandle 
       if (next !== titled) env.title((titled = next))
     },
     onDevice: (udid) => env.history.replaceState(null, '', addressOf(pathname, udid)),
+    onLang: (tag) => env.lang?.(tag),
   })
   view.setActive(true)
   return view
@@ -126,6 +135,9 @@ export function start(doc: Document = document, win: Window = window): Promise<V
     fetch: (input, init) => win.fetch(input, init),
     title: (text) => {
       doc.title = text
+    },
+    lang: (tag) => {
+      doc.documentElement.lang = tag
     },
   })
 }

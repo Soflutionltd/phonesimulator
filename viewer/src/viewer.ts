@@ -17,6 +17,7 @@ import { createDeviceView } from './device-view'
 import { quarterTurns } from './orientation'
 import { buttonsOf } from './device-kind'
 import { canDecodeH264 } from './h264-stream'
+import { choiceOf, createI18n, labelAttrs, localize, type Translate } from './i18n'
 import { lucideSvg, type IconRenderer } from './icons'
 import { createLayers } from './popover'
 import { readPreferences, type Theme } from './preferences'
@@ -78,6 +79,13 @@ export interface ViewerOptions {
   /** Draw the device's body -- its edges, buttons, Dynamic Island or notch -- around its screen. What a person last
    * picked in the View menu when absent, else drawn. */
   deviceFrame?: boolean
+  /** The language the viewer speaks: a BCP 47 tag of one it does -- `en`, `fr`, `fr-CA` -- or `auto` for the first of
+   * the browser's languages it speaks, else English. What a person last picked in the View menu when absent or not
+   * spoken, else `auto`. */
+  lang?: string
+  /** Told the language the viewer speaks, by its tag (`en`, `fr`), as it starts and whenever it changes -- for a page
+   * to set its own `lang`. */
+  onLang?(lang: string): void
 }
 
 export interface ViewHandle {
@@ -90,16 +98,19 @@ export interface ViewHandle {
   /** Connect while active; let the device's screen go while not. */
   setActive(on: boolean): void
   setPlacement(placement: Placement): void
+  /** Speak another language, without reconnecting: as `ViewerOptions.lang`, and with null what a person last picked
+   * in the View menu, else the browser's. */
+  setLang(lang: string | null): void
   focus(): void
   destroy(): void
 }
 
-const stageMarkup = (tools: string) => `
+const stageMarkup = (tools: string, t: Translate) => `
     <div class="smv-stage" data-smv-stage part="stage">
       <div class="smv-viewport" data-smv-viewport>
         <div class="smv-device" data-smv-device part="device">
           <div class="smv-screen" data-smv-screen>
-            <canvas class="smv-canvas" data-smv-canvas tabindex="0" aria-label="iOS Simulator screen" part="screen"></canvas>
+            <canvas class="smv-canvas" data-smv-canvas tabindex="0"${labelAttrs(t, 'screen.label')} part="screen"></canvas>
             <div class="smv-overlay" data-smv-overlay></div>
           </div>
         </div>
@@ -108,8 +119,8 @@ const stageMarkup = (tools: string) => `
       <div class="smv-badge" data-smv-badge hidden></div>
       <div class="smv-empty" data-smv-empty hidden></div>
       <div class="smv-picker" data-smv-picker role="menu" hidden></div>
-      <div class="smv-picker" data-smv-display role="menu" aria-label="Display" hidden></div>
-      <div class="smv-picker" data-smv-record-size role="menu" aria-label="Recording size" hidden></div>
+      <div class="smv-picker" data-smv-display role="menu"${labelAttrs(t, 'display.title')} hidden></div>
+      <div class="smv-picker" data-smv-record-size role="menu"${labelAttrs(t, 'recordSize.menu')} hidden></div>
       <div class="smv-note" data-smv-note hidden></div>
       <div class="smv-settings" data-smv-settings role="dialog" hidden></div>
     </div>`
@@ -120,7 +131,13 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   el.className = 'smv'
   // Before anything is asked of the server: every call is then about that device.
   if (options.device) void options.transport.use?.(options.device)
-  el.innerHTML = barMarkup(icon) + stageMarkup(toolsMarkup(icon))
+  const kept = readPreferences()
+  /** What is asked of the language when a host asks nothing: a person's last pick, else the browser's. */
+  const keptLang = () => readPreferences().lang ?? 'auto'
+  const i18n = createI18n(choiceOf(options.lang) ?? kept.lang ?? 'auto')
+  const { t } = i18n
+  el.lang = i18n.locale
+  el.innerHTML = barMarkup(icon, t) + stageMarkup(toolsMarkup(icon, t), t)
   host.appendChild(el)
   adoptStyles(el)
 
@@ -148,7 +165,7 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   const status = createStatusView({
     canvas, empty: q('[data-smv-empty]'), badge: q('[data-smv-badge]'), name: q('[data-smv-name]'),
     kind: q('[data-smv-kind]'), state: q('[data-smv-state]'), mode: q('[data-smv-mode]'), app: q('[data-smv-app]'),
-  })
+  }, t)
   /** The screen's shape: the device's points once it says, the canvas's until then. */
   const unitsOf = () => stream.device?.screen?.points ?? { w: canvas.width, h: canvas.height }
   /** Where the device's screen is drawn inside the overlay. */
@@ -159,14 +176,16 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
     return fitRect({ w: sideways ? box.height : box.width, h: sideways ? box.width : box.height }, unitsOf())
   }
   // Made before the agent's pointer, so the pointer is drawn over the boxes.
-  const text = createTextOverlay(overlay, { frameBox, pointer: { target: canvas, at: (event) => screen.point(event) } })
+  const text = createTextOverlay(overlay, {
+    frameBox, pointer: { target: canvas, at: (event) => screen.point(event) }, t,
+  })
   const cursor = createAgentCursor(overlay, {
-    frameBox,
+    frameBox, t,
     reducedMotion: options.reducedMotion,
     onActive: (on, title, activity, color) => status.setAgent(on ? title : null, activity, color),
   })
   const stream = createViewerStream({
-    transport: options.transport, screen, cursor, text, status, unitsOf, frames: options.frames,
+    transport: options.transport, screen, cursor, text, status, t, unitsOf, frames: options.frames,
     canDecodeH264: options.canDecodeH264 ?? (() => canDecodeH264()),
     wanted: () => active && !destroyed,
     onHello: (hello) => {
@@ -188,7 +207,6 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   })
   /** Menus open over the screen; while one is, the screen's input holds back. */
   const layers = createLayers()
-  const kept = readPreferences()
   const deviceView = createDeviceView({
     viewport: q('[data-smv-viewport]'), device: q('[data-smv-device]'), screen: q('[data-smv-screen]'),
     units: unitsOf, framed: options.deviceFrame ?? kept.framed ?? true, zoom: kept.zoom ?? 'actual', turns,
@@ -196,24 +214,36 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
     press: (button) => void stream.send({ type: 'button', name: button }),
     // Laid out only once the chrome below is made: the first layout is asked for after it.
     onLayout: () => chrome.paintZoom(),
+    t,
   })
   const input = attachInput({
     canvas, screen, send: (message) => stream.send(message), allows: stream.allows, blocked: () => layers.open,
-    onUnsent: () => controls.tell('That did not reach the device: its screen is not connected.'),
+    onUnsent: () => controls.tell(t('input.unsent')),
   })
   const controls = createControls({
     el, picker: q('[data-smv-picker]'), display: q('[data-smv-display]'), recordSize: q('[data-smv-record-size]'),
     note: q('[data-smv-note]'), settingsPanel: q('[data-smv-settings]'), transport: options.transport, stream,
-    status, input, icon, layers,
+    status, input, icon, t, layers,
     placement: () => placement, onPlace: options.onPlace, pageHref: options.pageHref, onClose: options.onClose,
     device: options.device, onDevice: options.onDevice,
   })
   controls.paintPlacement()
   const chrome = createChrome({
     el, stage: q('[data-smv-stage]'), canvas, view: deviceView, layers, device: () => stream.device,
-    tell: (message) => controls.tell(message), theme: options.theme ?? kept.theme ?? 'system',
+    tell: (message) => controls.tell(message), theme: options.theme ?? kept.theme ?? 'system', i18n,
   })
   deviceView.layout()
+  // The language changed -- in the View menu, or by the host: everything said is said again, as it stands.
+  const unlisten = i18n.onChange((locale) => {
+    el.lang = locale
+    localize(el, t)
+    status.relabel()
+    cursor.relabel()
+    controls.relabel()
+    chrome.relabel()
+    options.onLang?.(locale)
+  })
+  options.onLang?.(i18n.locale)
 
   return {
     el,
@@ -243,9 +273,11 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
       placement = next
       controls.paintPlacement()
     },
+    setLang: (lang) => i18n.set(choiceOf(lang) ?? keptLang()),
     focus: () => canvas.focus(),
     destroy() {
       destroyed = true
+      unlisten()
       status.stopBootTimer()
       stream.cancelReconnect()
       input.destroy()

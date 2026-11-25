@@ -9,6 +9,7 @@
  * on the device (`screen-canvas.ts` measures against the screen box alone). A screen wider than tall is drawn with the
  * device on its side, its top to the left.
  */
+import type { PlainKey } from './i18n'
 import type { Device, PanelButton, Size } from './protocol.generated'
 import type { Rect } from './screen-canvas'
 
@@ -21,7 +22,8 @@ interface SideSpec {
   edge: 'left' | 'right' | 'top'
   at: number
   length: number
-  label: string
+  /** The message that names it. */
+  label: PlainKey
   press?: PanelButton
 }
 
@@ -39,15 +41,15 @@ interface FamilySpec {
   sides: readonly SideSpec[]
 }
 
-const VOLUME_UP = 'Volume up'
-const VOLUME_DOWN = 'Volume down'
-const SIDE = 'Side button'
+const VOLUME_UP = 'button.volume_up'
+const VOLUME_DOWN = 'button.volume_down'
+const SIDE = 'frame.side'
 
 const SPECS: Record<FrameFamily, FamilySpec> = {
   island: {
     side: 0.045, top: 0.045, bottom: 0.045, screenRadius: 0.145, bodyRadius: 0.19, cutout: 'island', home: 0,
     sides: [
-      { edge: 'left', at: 0.185, length: 0.05, label: 'Action button' },
+      { edge: 'left', at: 0.185, length: 0.05, label: 'frame.action' },
       { edge: 'left', at: 0.265, length: 0.095, label: VOLUME_UP, press: 'volume_up' },
       { edge: 'left', at: 0.375, length: 0.095, label: VOLUME_DOWN, press: 'volume_down' },
       { edge: 'right', at: 0.28, length: 0.15, label: SIDE, press: 'lock' },
@@ -56,7 +58,7 @@ const SPECS: Record<FrameFamily, FamilySpec> = {
   notch: {
     side: 0.045, top: 0.045, bottom: 0.045, screenRadius: 0.12, bodyRadius: 0.165, cutout: 'notch', home: 0,
     sides: [
-      { edge: 'left', at: 0.17, length: 0.04, label: 'Ring switch' },
+      { edge: 'left', at: 0.17, length: 0.04, label: 'frame.ring' },
       { edge: 'left', at: 0.25, length: 0.085, label: VOLUME_UP, press: 'volume_up' },
       { edge: 'left', at: 0.35, length: 0.085, label: VOLUME_DOWN, press: 'volume_down' },
       { edge: 'right', at: 0.27, length: 0.14, label: SIDE, press: 'lock' },
@@ -65,7 +67,7 @@ const SPECS: Record<FrameFamily, FamilySpec> = {
   home: {
     side: 0.075, top: 0.29, bottom: 0.29, screenRadius: 0, bodyRadius: 0.16, cutout: null, home: 0.17,
     sides: [
-      { edge: 'left', at: 0.12, length: 0.035, label: 'Ring switch' },
+      { edge: 'left', at: 0.12, length: 0.035, label: 'frame.ring' },
       { edge: 'left', at: 0.19, length: 0.06, label: VOLUME_UP, press: 'volume_up' },
       { edge: 'left', at: 0.27, length: 0.06, label: VOLUME_DOWN, press: 'volume_down' },
       { edge: 'right', at: 0.19, length: 0.075, label: SIDE, press: 'lock' },
@@ -74,7 +76,7 @@ const SPECS: Record<FrameFamily, FamilySpec> = {
   tablet: {
     side: 0.03, top: 0.03, bottom: 0.03, screenRadius: 0.024, bodyRadius: 0.054, cutout: null, home: 0,
     sides: [
-      { edge: 'top', at: 0.8, length: 0.07, label: 'Top button', press: 'lock' },
+      { edge: 'top', at: 0.8, length: 0.07, label: 'frame.top', press: 'lock' },
       { edge: 'right', at: 0.1, length: 0.06, label: VOLUME_UP, press: 'volume_up' },
       { edge: 'right', at: 0.18, length: 0.06, label: VOLUME_DOWN, press: 'volume_down' },
     ],
@@ -82,7 +84,7 @@ const SPECS: Record<FrameFamily, FamilySpec> = {
   tablet_home: {
     side: 0.07, top: 0.13, bottom: 0.13, screenRadius: 0, bodyRadius: 0.07, cutout: null, home: 0.065,
     sides: [
-      { edge: 'top', at: 0.83, length: 0.07, label: 'Top button', press: 'lock' },
+      { edge: 'top', at: 0.83, length: 0.07, label: 'frame.top', press: 'lock' },
       { edge: 'right', at: 0.12, length: 0.055, label: VOLUME_UP, press: 'volume_up' },
       { edge: 'right', at: 0.19, length: 0.055, label: VOLUME_DOWN, press: 'volume_down' },
     ],
@@ -92,7 +94,7 @@ const SPECS: Record<FrameFamily, FamilySpec> = {
     sides: [
       { edge: 'right', at: 0.17, length: 0.07, label: VOLUME_UP, press: 'volume_up' },
       { edge: 'right', at: 0.245, length: 0.07, label: VOLUME_DOWN, press: 'volume_down' },
-      { edge: 'right', at: 0.36, length: 0.08, label: 'Power button', press: 'lock' },
+      { edge: 'right', at: 0.36, length: 0.08, label: 'frame.power', press: 'lock' },
     ],
   },
   bare: { side: 0, top: 0, bottom: 0, screenRadius: 0, bodyRadius: 0, cutout: null, home: 0, sides: [] },
@@ -128,7 +130,8 @@ export interface Shape extends Rect {
 }
 
 export interface SideButton extends Rect {
-  label: string
+  /** The message that names it. */
+  label: PlainKey
   press?: PanelButton
 }
 

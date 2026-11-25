@@ -31,6 +31,16 @@ All notable changes to Simtrail are documented here. The format follows
 - A light theme, following the system or picked in View; `ViewerOptions` gains `theme` and `deviceFrame`, the
   element `::part(device)` and `::part(toolbar)`, and the custom properties `--simtrail-raised`, `--simtrail-device`
   and `--simtrail-device-edge`. The theme and the frame shown are kept in the browser for next time.
+- The viewer speaks French as well as English: its Edit, Device and View menus, the toolbar and its tooltips, the
+  device picker, the zoom, the settings panel's own words and its sections' titles, what it says of a device that
+  starts, stops or fails, its notes and every accessible name. It speaks the first of the browser's languages it
+  knows (`navigator.languages`), else English; View > Language picks Automatic, English or Français, kept in the
+  browser for next time, and the change is made where the viewer stands, without reloading or reconnecting.
+  `ViewerOptions` gains `lang` and `onLang`, `ViewHandle` `setLang`, and `<sim-trail>` the `lang` attribute, which
+  changes the language without starting afresh; the viewer's root carries the language as its own `lang`, for a
+  screen reader. Messages live in typed catalogues, one file a language (`viewer/src/locales/`): adding a language
+  is adding a file. What the server says -- a setting's and a section's description, a refusal's reason, a
+  recording's notes -- is shown as it wrote it, in English.
 - `sim_login` signs an app in with a login from the person's password manager -- 1Password through its CLI and the
   1Password app (Touch ID), Bitwarden, or a program of their own (`command:/path`) -- searching every vault. With
   `account`, a login for any other account is refused; several logins matching are refused without `item`. The
@@ -98,6 +108,8 @@ All notable changes to Simtrail are documented here. The format follows
   scope could start.
 - The Gradle log fixtures the tests read are in the repository again: a global ignore of `*.log` had kept them out, so
   three tests failed on a fresh clone.
+- The viewer's Edit, Device and View menus open over the settings panel: opened while it was showing, a menu was
+  drawn under it, open and unseen.
 
 ## [3.9.0] - 2026-11-24
 

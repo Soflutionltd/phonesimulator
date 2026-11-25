@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FakeSocket } from '../test-support/fake-socket'
+import { settingsView } from '../test-support/settings'
 import { DEVICE, HELLO, VIEW_ONLY, flush, frame, live, socket } from '../test-support/viewer-harness'
 import { TAG_JPEG, type Device } from './protocol.generated'
 
@@ -54,6 +55,18 @@ describe('the viewer around the device', () => {
     // Laid out once there is a scale to draw at: actual size, here, where the room has no size.
     $<HTMLButtonElement>('[data-smv="zoom-actual"]').click()
     expect(device.querySelector('.smv-body')).not.toBeNull()
+  })
+
+  it('opens a menu over the settings panel, which stays open under it', async () => {
+    const settings = vi.fn(async () => settingsView())
+    const { $ } = await live({ transport: { settings, changeSettings: vi.fn() } })
+    $<HTMLButtonElement>('[data-smv="settings"]').click()
+    await flush()
+    $<HTMLButtonElement>('[data-smv-menu="view"]').click()
+    const [menu, panel] = [$<HTMLElement>('[data-smv-menu-panel="view"]'), $<HTMLElement>('[data-smv-settings]')]
+    expect([menu.hidden, panel.hidden]).toEqual([false, false])
+    // The panel covers the whole stage: a menu under it would be open and unseen.
+    expect(Number(getComputedStyle(menu).zIndex)).toBeGreaterThan(Number(getComputedStyle(panel).zIndex))
   })
 
   it('keeps the device name on a picker that cannot change it', async () => {

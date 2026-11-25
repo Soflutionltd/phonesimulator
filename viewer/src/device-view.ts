@@ -13,6 +13,7 @@
  * connector can press them; the others are drawn only.
  */
 import { familyOf, fitScale, frameGeometry, stepZoom, type FrameFamily, type Margins, type Shape } from './device-frame'
+import { english, name, type PlainKey, type Translate } from './i18n'
 import type { Device, PanelButton, Size } from './protocol.generated'
 
 /** The device's actual size -- a point a CSS pixel, smaller only when the room is -- fitted to the room, or so many
@@ -42,6 +43,8 @@ export interface DeviceViewOptions {
   turns?(): number
   /** Told after each layout: the scale may have changed. */
   onLayout?(): void
+  /** Names the frame's buttons; in English when absent. */
+  t?: Translate
 }
 
 export interface DeviceView {
@@ -75,6 +78,7 @@ function place(el: HTMLElement, shape: Shape | (Omit<Shape, 'radius'> & { radius
 export function createDeviceView(options: DeviceViewOptions): DeviceView {
   const { viewport, device, screen } = options
   const margins = options.margins ?? MARGINS
+  const t = options.t ?? english
   let family: FrameFamily = familyOf(null)
   let framed = options.framed ?? true
   let zoom: Zoom = options.zoom ?? 'actual'
@@ -92,14 +96,13 @@ export function createDeviceView(options: DeviceViewOptions): DeviceView {
 
   viewport.style.padding = `${margins.top}px ${margins.side}px ${margins.bottom}px`
 
-  function part(label: string, press: PanelButton | undefined, className: string): HTMLElement {
+  function part(label: PlainKey, press: PanelButton | undefined, className: string): HTMLElement {
     if (press && options.pressable(press)) {
       const button = document.createElement('button')
       button.type = 'button'
       button.className = className
       button.dataset.smvSide = press
-      button.title = label
-      button.setAttribute('aria-label', label)
+      name(button, t, label)
       button.addEventListener('click', () => options.press(press))
       return button
     }
@@ -142,7 +145,7 @@ export function createDeviceView(options: DeviceViewOptions): DeviceView {
       made = signature
       for (const old of parts) old.remove()
       parts = geometry.sides.map((side) => part(side.label, side.press, 'smv-side'))
-      if (geometry.home) parts.push(part('Home button', 'home', 'smv-home-button'))
+      if (geometry.home) parts.push(part('frame.home', 'home', 'smv-home-button'))
       // The side buttons sit under the body's edge, and the screen and what is over it above the body.
       device.prepend(...parts.filter((el) => el.classList.contains('smv-side')), body)
       device.append(cutout, ...parts.filter((el) => el.classList.contains('smv-home-button')))

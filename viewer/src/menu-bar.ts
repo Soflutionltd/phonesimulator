@@ -8,9 +8,13 @@
  * offered exactly while that button is. A shortcut runs its row as a click would, only while the row is available, and
  * only while the viewer says shortcuts are its own: a macOS app gets Command-S itself.
  *
+ * What a menu says may be asked for each time it is shown (a function), so that it follows the viewer's language:
+ * rows are drawn as their menu opens, and `relabel` says the titles again.
+ *
  * Each menu is a popover (`popover.ts`): Escape closes it and gives focus back to its title, the arrow keys walk it.
  */
 import { escapeHTML } from './escape'
+import { resolve, type Said } from './i18n'
 import { createPopover, type Layers, type Popover } from './popover'
 
 export interface Shortcut {
@@ -24,7 +28,9 @@ export interface Shortcut {
 export interface MenuItem {
   id: string
   /** What the row says; read as the menu opens when it depends on how things stand. */
-  label: string | (() => string)
+  label: Said
+  /** What the set of rows this one starts is called -- Language -- said in a line above it. */
+  group?: Said
   shortcut?: Shortcut
   /** A switch, or one of a set; a plain row when absent. */
   kind?: 'check' | 'radio'
@@ -38,7 +44,7 @@ export type MenuEntry = MenuItem | 'separator'
 
 export interface MenuSpec {
   id: string
-  label: string
+  label: Said
   items: MenuEntry[]
 }
 
@@ -58,6 +64,8 @@ export interface MenuBarOptions {
 export interface MenuBar {
   /** Close whichever menu is open. */
   close(): void
+  /** The language changed: say the menus' titles again, and close an open menu, drawn in the old one. */
+  relabel(): void
   destroy(): void
 }
 
@@ -100,8 +108,10 @@ function rowMarkup(item: MenuItem): string {
   const keys = item.shortcut
     ? `<kbd aria-hidden="true">${escapeHTML(shortcutLabel(item.shortcut))}</kbd>` : ''
   const shortcut = item.shortcut ? ` aria-keyshortcuts="${keysFor(item.shortcut)}"` : ''
-  return `<button type="button" role="${role}"${checked}${shortcut} data-smv-item="${escapeHTML(item.id)}">`
-    + `<span>${escapeHTML(typeof item.label === 'function' ? item.label() : item.label)}</span>${keys}</button>`
+  const group = item.group === undefined ? ''
+    : `<p class="smv-picker-group" role="presentation">${escapeHTML(resolve(item.group))}</p>`
+  return `${group}<button type="button" role="${role}"${checked}${shortcut} data-smv-item="${escapeHTML(item.id)}">`
+    + `<span>${escapeHTML(resolve(item.label))}</span>${keys}</button>`
 }
 
 /** A shortcut as `aria-keyshortcuts` names it: Meta+Shift+H. */
@@ -121,14 +131,12 @@ export function createMenuBar(options: MenuBarOptions): MenuBar {
     const toggle = doc.createElement('button')
     toggle.type = 'button'
     toggle.className = 'smv-menu'
-    toggle.textContent = spec.label
     toggle.dataset.smvMenu = spec.id
     toggle.setAttribute('aria-haspopup', 'menu')
     toggle.setAttribute('aria-expanded', 'false')
     const panel = doc.createElement('div')
     panel.className = 'smv-picker smv-menu-panel'
     panel.setAttribute('role', 'menu')
-    panel.setAttribute('aria-label', spec.label)
     panel.dataset.smvMenuPanel = spec.id
     panel.hidden = true
     bar.appendChild(toggle)
@@ -175,10 +183,20 @@ export function createMenuBar(options: MenuBarOptions): MenuBar {
     for (const { popover } of opened) popover.close('api')
   }
 
+  function relabel(): void {
+    close()
+    for (const { spec, toggle, panel } of opened) {
+      toggle.textContent = resolve(spec.label)
+      panel.setAttribute('aria-label', toggle.textContent)
+    }
+  }
+
   root.addEventListener('keydown', onKey, true)
+  relabel()
 
   return {
     close,
+    relabel,
     destroy() {
       root.removeEventListener('keydown', onKey, true)
       for (const { popover, toggle, panel } of opened) {

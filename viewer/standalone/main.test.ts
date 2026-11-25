@@ -217,3 +217,45 @@ describe('start', () => {
     view!.destroy()
   })
 })
+
+describe('the page\u2019s language', () => {
+  afterEach(() => {
+    localStorage.clear()
+    vi.restoreAllMocks()
+    document.documentElement.removeAttribute('lang')
+  })
+
+  it('says what to do in the language a person reads, and tells the page which', async () => {
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['fr-FR', 'en'])
+    const root = document.createElement('div')
+    const lang = vi.fn()
+    const nowhere = env('/elsewhere', '', vi.fn())
+    expect(await boot(root, { ...nowhere.page, lang })).toBeNull()
+    expect(root.textContent).toBe('Ceci n\u2019est pas une adresse de visualiseur Simtrail.')
+    expect(lang.mock.calls).toEqual([['fr']])
+    await boot(root, env('/viewer/demo', '', vi.fn()).page)
+    expect(root.textContent).toBe('Cette page s\u2019ouvre avec un lien à usage unique. Rouvrez le visualiseur avec `simtrail open`.')
+    await boot(root, env('/embed/demo', '', vi.fn()).page)
+    expect(root.textContent).toBe('Cette page s\u2019ouvre avec un lien à usage unique. Rechargez la page qui affiche ce cadre.')
+    // What a person last picked in the viewer wins over the browser's.
+    localStorage.setItem('simtrail.viewer', JSON.stringify({ lang: 'en' }))
+    await boot(root, env('/elsewhere', '', vi.fn()).page)
+    expect(root.textContent).toBe('This is not a Simtrail viewer address.')
+  })
+
+  it('keeps the document\u2019s own lang in step with the viewer\u2019s', async () => {
+    localStorage.setItem('simtrail.viewer', JSON.stringify({ lang: 'fr' }))
+    const root = document.createElement('main')
+    root.id = APP_ID
+    document.body.appendChild(root)
+    vi.stubGlobal('fetch', server('c0de'))
+    window.history.replaceState(null, '', '/viewer/demo#code=c0de')
+    const view = await start()
+    expect(document.documentElement.lang).toBe('fr')
+    expect(root.querySelector('[data-smv-menu="view"]')!.textContent).toBe('Présentation')
+    root.querySelector<HTMLButtonElement>('[data-smv-menu="view"]')!.click()
+    root.querySelector<HTMLElement>('[data-smv-item="lang-en"]')!.click()
+    expect(document.documentElement.lang).toBe('en')
+    view!.destroy()
+  })
+})

@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * What the viewer offers around the device, beside the device's own controls (`viewer-controls.ts`): the zoom, the
- * device's frame shown or not, screenshots, the viewer's theme, and the Edit, Device and View menus with their
- * shortcuts (`menu-bar.ts`).
+ * device's frame shown or not, screenshots, the viewer's theme and language, and the Edit, Device and View menus with
+ * their shortcuts (`menu-bar.ts`).
  *
  * A menu row that stands for a button the viewer already shows -- Home, Lock, Settings -- runs that button, and is
  * offered exactly while the button is: what a device or a transport cannot do is never in a menu either.
  */
 import type { DeviceView, Zoom } from './device-view'
-import { createMenuBar, type MenuBar, type MenuItem, type Shortcut } from './menu-bar'
+import type { I18n, LocaleChoice, PlainKey } from './i18n'
+import { LOCALES, type Locale } from './locales'
+import { createMenuBar, type MenuBar, type MenuEntry, type MenuItem, type Shortcut } from './menu-bar'
 import type { Layers } from './popover'
 import { keepPreferences, type Theme } from './preferences'
 import type { Device } from './protocol.generated'
@@ -27,6 +29,8 @@ export interface ChromeOptions {
   /** Say something over the screen. */
   tell(message: string): void
   theme: Theme
+  /** The viewer's language: what the menus are said in, and what View > Language changes. */
+  i18n: I18n
   /** The clipboard to copy screenshots to; the page's own when absent. */
   clipboard?: ClipboardLike | null
 }
@@ -36,11 +40,14 @@ export interface Chrome {
   drawn(): void
   /** The zoom changed: say how large the device is drawn. */
   paintZoom(): void
+  /** The language changed: say the menus' titles and the zoom again. */
+  relabel(): void
   destroy(): void
 }
 
 export function createChrome(options: ChromeOptions): Chrome {
-  const { el, view } = options
+  const { el, view, i18n } = options
+  const { t } = i18n
   const q = <T extends Element>(selector: string) => el.querySelector<T>(selector)!
   const level = q<HTMLElement>('[data-smv-zoom-level]')
   const fitButton = q<HTMLButtonElement>('[data-smv="zoom-fit"]')
@@ -48,7 +55,9 @@ export function createChrome(options: ChromeOptions): Chrome {
   const shotButton = q<HTMLButtonElement>('[data-smv="screenshot"]')
   let theme = options.theme
   let hasPicture = false
-  const shots = createScreenshots({ canvas: options.canvas, device: options.device, say: options.tell, clipboard: options.clipboard })
+  const shots = createScreenshots({
+    canvas: options.canvas, device: options.device, say: options.tell, clipboard: options.clipboard, t,
+  })
 
   function applyTheme(next: Theme): void {
     theme = next
@@ -67,16 +76,16 @@ export function createChrome(options: ChromeOptions): Chrome {
   /** Say how large the device is drawn -- and, asked for its actual size in a room too small, that it is smaller. */
   function paintZoom(): void {
     const scale = view.scale
-    const percent = scale === null ? '' : `${Math.round(scale * 100)}%`
+    const percent = scale === null ? '' : t('percent', { n: Math.round(scale * 100) })
     level.textContent = percent
     level.dataset.reduced = String(view.reduced)
     if (view.reduced) {
       const why = document.createElement('span')
       why.className = 'smv-zoom-why'
-      why.textContent = ' · fitted'
+      why.textContent = t('zoom.fitted')
       level.append(why)
     }
-    const said = view.reduced ? `Actual size, reduced to ${percent} to fit the window` : `Zoom ${percent}`
+    const said = t(view.reduced ? 'zoom.reduced' : 'zoom.level', { percent })
     level.title = said
     level.setAttribute('aria-label', said)
     fitButton.setAttribute('aria-pressed', String(view.zoom === 'fit'))
@@ -84,22 +93,35 @@ export function createChrome(options: ChromeOptions): Chrome {
   }
 
   /** A row running a button the viewer shows, offered while it is. */
-  function proxy(action: string, label: string | (() => string), shortcut?: Shortcut): MenuItem {
+  function proxy(action: string, label: PlainKey | (() => string), shortcut?: Shortcut): MenuItem {
     const target = () => el.querySelector<HTMLButtonElement>(`[data-smv="${action}"]`)!
     return {
-      id: action, label, shortcut,
+      id: action, label: typeof label === 'function' ? label : () => t(label), shortcut,
       available: () => !target().hidden && !target().disabled,
       run: () => target().click(),
     }
   }
   const titleOf = (action: string) => () => q<HTMLElement>(`[data-smv="${action}"]`).title
-  const themeRow = (value: Theme, label: string): MenuItem => ({
-    id: `theme-${value}`, label, kind: 'radio', checked: () => theme === value,
+  const themeRow = (value: Theme): MenuItem => ({
+    id: `theme-${value}`, label: () => t(`theme.${value}`), kind: 'radio', checked: () => theme === value,
     run: () => {
       applyTheme(value)
       keepPreferences({ theme: value })
     },
   })
+  /** A language to read the viewer in: the browser's own, or one the viewer speaks, called as it calls itself. */
+  const languageRow = (value: LocaleChoice): MenuItem => ({
+    id: `lang-${value}`, kind: 'radio', checked: () => i18n.choice === value,
+    label: () => (value === 'auto' ? t('language.auto') : LOCALES[value]['language.name']),
+    run: () => {
+      i18n.set(value)
+      keepPreferences({ lang: value })
+    },
+  })
+  const languages: MenuEntry[] = [
+    { ...languageRow('auto'), group: () => t('language.heading') },
+    ...(Object.keys(LOCALES) as Locale[]).map(languageRow),
+  ]
 
   const menus: MenuBar = createMenuBar({
     root: el, bar: q('[data-smv-menus]'), host: options.stage, layers: options.layers,
@@ -107,46 +129,46 @@ export function createChrome(options: ChromeOptions): Chrome {
     shortcuts: () => options.device()?.kind !== 'mac',
     menus: [
       {
-        id: 'edit', label: 'Edit', items: [
-          proxy('screenshot', 'Save screenshot', { key: 's' }),
+        id: 'edit', label: () => t('menu.edit'), items: [
+          proxy('screenshot', 'menu.saveScreenshot', { key: 's' }),
           {
-            id: 'copy-screenshot', label: 'Copy screenshot', shortcut: { key: 'c', ctrl: true },
+            id: 'copy-screenshot', label: () => t('menu.copyScreenshot'), shortcut: { key: 'c', ctrl: true },
             available: () => shots.canCopy && hasPicture, run: () => void shots.copy(),
           },
         ],
       },
       {
-        id: 'device', label: 'Device', items: [
-          proxy('home', 'Home', { key: 'h', shift: true }),
-          proxy('lock', 'Lock', { key: 'l' }),
-          proxy('rotate-left', 'Rotate left', { key: 'arrowleft' }),
-          proxy('rotate-right', 'Rotate right', { key: 'arrowright' }),
-          proxy('back', 'Back'),
-          proxy('app_switch', 'Recent apps'),
-          proxy('volume_up', 'Volume up'),
-          proxy('volume_down', 'Volume down'),
+        id: 'device', label: () => t('menu.device'), items: [
+          proxy('home', 'button.home', { key: 'h', shift: true }),
+          proxy('lock', 'button.lock', { key: 'l' }),
+          proxy('rotate-left', 'rotate.left', { key: 'arrowleft' }),
+          proxy('rotate-right', 'rotate.right', { key: 'arrowright' }),
+          proxy('back', 'button.back'),
+          proxy('app_switch', 'button.app_switch'),
+          proxy('volume_up', 'button.volume_up'),
+          proxy('volume_down', 'button.volume_down'),
           'separator',
-          { ...proxy('appearance', 'Dark appearance', { key: 'a', shift: true }), kind: 'check',
+          { ...proxy('appearance', 'appearance.dark', { key: 'a', shift: true }), kind: 'check',
             checked: () => q('[data-smv="appearance"]').getAttribute('aria-pressed') === 'true' },
-          proxy('display', 'Display…'),
+          proxy('display', 'menu.display'),
           proxy('record', titleOf('record')),
           'separator',
-          proxy('devices', 'Choose a device…'),
-          proxy('settings', 'Settings…', { key: ',' }),
+          proxy('devices', 'menu.chooseDevice'),
+          proxy('settings', 'menu.settings', { key: ',' }),
           proxy('stop', titleOf('stop')),
         ],
       },
       {
-        id: 'view', label: 'View', items: [
-          { id: 'zoom-in', label: 'Zoom in', shortcut: { key: '+' }, run: () => q<HTMLElement>('[data-smv="zoom-in"]').click() },
-          { id: 'zoom-out', label: 'Zoom out', shortcut: { key: '-' }, run: () => q<HTMLElement>('[data-smv="zoom-out"]').click() },
-          { id: 'zoom-fit', label: 'Fit to window', shortcut: { key: '0' }, kind: 'check',
+        id: 'view', label: () => t('menu.view'), items: [
+          { id: 'zoom-in', label: () => t('zoom.in'), shortcut: { key: '+' }, run: () => q<HTMLElement>('[data-smv="zoom-in"]').click() },
+          { id: 'zoom-out', label: () => t('zoom.out'), shortcut: { key: '-' }, run: () => q<HTMLElement>('[data-smv="zoom-out"]').click() },
+          { id: 'zoom-fit', label: () => t('zoom.fit'), shortcut: { key: '0' }, kind: 'check',
             checked: () => view.zoom === 'fit', run: () => zoom('fit') },
-          { id: 'zoom-actual', label: 'Actual size', shortcut: { key: '1' }, kind: 'check',
+          { id: 'zoom-actual', label: () => t('zoom.actual'), shortcut: { key: '1' }, kind: 'check',
             checked: () => view.zoom === 'actual', run: () => zoom('actual') },
           'separator',
           {
-            id: 'frame', label: 'Show device frame', kind: 'check', checked: () => view.framed,
+            id: 'frame', label: () => t('menu.frame'), kind: 'check', checked: () => view.framed,
             available: () => view.family !== 'bare',
             run: () => {
               view.setFramed(!view.framed)
@@ -155,9 +177,11 @@ export function createChrome(options: ChromeOptions): Chrome {
             },
           },
           'separator',
-          themeRow('system', 'Match the system'),
-          themeRow('light', 'Light'),
-          themeRow('dark', 'Dark'),
+          themeRow('system'),
+          themeRow('light'),
+          themeRow('dark'),
+          'separator',
+          ...languages,
         ],
       },
     ],
@@ -186,6 +210,10 @@ export function createChrome(options: ChromeOptions): Chrome {
       shotButton.disabled = false
     },
     paintZoom,
+    relabel() {
+      menus.relabel()
+      paintZoom()
+    },
     destroy() {
       el.removeEventListener('click', onClick)
       menus.destroy()

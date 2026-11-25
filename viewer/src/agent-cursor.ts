@@ -36,6 +36,7 @@
  * quiet. An agent counts as using the device for as long, and never for less than `activeMs`. The pointer is drawn here, over the screen, never into it: a screenshot
  * or a recording of the device does not show it.
  */
+import { english, type Translate } from './i18n'
 import { WORKING_EVERY_S, type Agent, type AgentDone, type AgentEvent, type AgentIntent, type AgentWorking,
   type Point } from './protocol.generated'
 import type { Rect } from './screen-canvas'
@@ -51,12 +52,16 @@ export interface AgentCursorOptions {
    * nothing more -- and the colour it is drawn in ('' for the viewer's own), again whenever any of that changes, so
    * whatever names the agent can match its pointer. */
   onActive?(active: boolean, title: string | null, activity: string, color: string): void
+  /** Says that the agent is thinking or idle; in English when absent. */
+  t?: Translate
 }
 
 export interface AgentCursorHandle {
   readonly el: HTMLElement
   readonly active: boolean
   handle(event: AgentEvent): void
+  /** The language changed: say the label again. */
+  relabel(): void
   destroy(): void
 }
 
@@ -75,14 +80,15 @@ export const PARK_AFTER_MS = 30_000
 export const PARK_GLIDE_MS = 600
 /** How long after a call ends, with nothing new, the label says the agent is thinking. */
 export const THINK_AFTER_MS = 3000
-export const THINKING_LABEL = 'Thinking…'
+/** What the label says then, and of a parked pointer, in English: the viewer says them in its own language. */
+export const THINKING_LABEL = english('agent.thinking')
 /** The least time a label is shown before another replaces it. */
 export const LABEL_MIN_MS = 400
 /** How far in from the screen's bottom-right corner a parked pointer waits, in CSS pixels. */
 export const PARK_INSET = 32
 /** A pointer this close to the screen's right edge has its label on its left, where it fits. */
 export const FLIP_WITHIN = 150
-export const IDLE_LABEL = 'Idle'
+export const IDLE_LABEL = english('agent.idle')
 /** How long the pointer presses down as a tap lands. */
 export const PRESS_MS = 160
 /** The pointer's shape: a rounded arrow whose tip is at (4, 4) of a 24-pixel box, drawn by Simtrail rather than taken
@@ -182,6 +188,7 @@ export function createAgentCursor(overlay: HTMLElement, options: AgentCursorOpti
   const chip = el.querySelector<HTMLElement>('[data-ac-chip]')!
   const timers = new Set<number>()
   const activeMs = options.activeMs ?? ACTIVE_MS
+  const t = options.t ?? english
   const reduced = () => (options.reducedMotion ? options.reducedMotion() : prefersReducedMotion())
   /** The timers that decide what is shown, each replaced when it is set again. */
   const slots: Record<'idle' | 'rest' | 'park' | 'think' | 'label', number | null> = {
@@ -249,8 +256,8 @@ export function createAgentCursor(overlay: HTMLElement, options: AgentCursorOpti
    * the pill says of it. A change within `LABEL_MIN_MS` of an action's label waits out the rest, the latest one
    * winning; what the agent does next replaces thinking, idle or its name at once. */
   function relabel(): void {
-    const thought = thinking && !parked ? THINKING_LABEL : ''
-    const next: [string, string] = [doing || (parked ? IDLE_LABEL : thought || title), doing || thought]
+    const thought = thinking && !parked ? t('agent.thinking') : ''
+    const next: [string, string] = [doing || (parked ? t('agent.idle') : thought || title), doing || thought]
     if (next[0] === shown[0] && next[1] === shown[1]) {
       clear('label')
       return
@@ -462,6 +469,7 @@ export function createAgentCursor(overlay: HTMLElement, options: AgentCursorOpti
       else if (event.phase === 'working') working(event)
       else done(event)
     },
+    relabel,
     destroy() {
       timers.forEach((id) => window.clearTimeout(id))
       timers.clear()

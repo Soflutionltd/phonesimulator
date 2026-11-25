@@ -40,7 +40,7 @@ describe('what a device is', () => {
       .toEqual(['simulator', 'emulator', 'device', 'device'])
     expect([null, DEVICE, EMULATOR, PHONE].map(isReal)).toEqual([false, false, false, true])
     expect(deviceNoun(null)).toBe('simulator')
-    expect([DEVICE, EMULATOR, PHONE, { ...PHONE, connection: 'network' as const }].map(kindChip))
+    expect([DEVICE, EMULATOR, PHONE, { ...PHONE, connection: 'network' as const }].map((device) => kindChip(device)))
       .toEqual(['', 'Android · Emulator', 'Android · USB', 'Android · Wi-Fi'])
     expect([connectionLabel('usb'), connectionLabel('network'), connectionLabel(null)])
       .toEqual(['USB', 'Wi-Fi', 'Not connected'])
