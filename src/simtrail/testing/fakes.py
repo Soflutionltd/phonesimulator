@@ -925,6 +925,7 @@ class FakePhoneBackend:
             "kind": "physical",
             "connection": "usb",
             "detail": self.blocked.get(udid),
+            "detail_code": None,
             "usable": udid not in self.blocked,
             "agents": [],
         }
@@ -1001,6 +1002,7 @@ class FakeAndroidBackend:
             "kind": "android",
             "connection": connection,
             "detail": None,
+            "detail_code": None,
             "usable": True,
             "agents": [],
         }

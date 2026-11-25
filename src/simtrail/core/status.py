@@ -57,6 +57,7 @@ def device_choice(device: Device, created: Collection[str]) -> DeviceChoice:
         "kind": "simulator",
         "connection": None,
         "detail": None,
+        "detail_code": None,
         "usable": True,
         "agents": [],
     }

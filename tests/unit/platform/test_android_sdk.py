@@ -81,6 +81,13 @@ def test_an_avd_says_what_it_is_and_why_it_cannot_start_when_it_cannot(tmp_path:
         "its system image is not installed: install it in Android Studio's SDK Manager"
     )
     assert found["Gone"].problem == f"its folder {home / 'Gone.avd'} is gone"
+    assert {name: made.problem_code for name, made in found.items()} == {
+        "Gone": "avd_folder_missing",
+        "Medium_Phone": "system_image_incomplete",
+        "No_Image": "system_image_missing",
+        "Pixel_9": None,
+    }
     without_sdk = avds(None, {"ANDROID_AVD_HOME": str(home)})
     assert {made.problem for made in without_sdk if made.name != "Gone"} == {"no Android SDK was found to run it"}
+    assert {made.problem_code for made in without_sdk if made.name != "Gone"} == {"android_sdk_missing"}
     assert avds(sdk, {"ANDROID_AVD_HOME": str(tmp_path / "none")}) == []

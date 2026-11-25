@@ -57,22 +57,43 @@ def _entry(**changes: Any) -> dict[str, Any]:
 
 
 @pytest.mark.parametrize(
-    ("changes", "connection", "detail", "developer_mode"),
+    ("changes", "connection", "detail", "code", "developer_mode"),
     [
-        ({}, "usb", None, True),
-        ({"connectionProperties__pairingState": "unpaired"}, "usb", "Not paired: unlock it and choose Trust", True),
-        ({"connectionProperties__transportType": None}, None, "Not connected", True),
-        ({"deviceProperties__developerModeStatus": "disabled"}, "usb", "Developer Mode off", False),
-        ({"deviceProperties__developerModeStatus": None}, "usb", None, None),
-        ({"connectionProperties__transportType": "localNetwork"}, "network", None, True),
+        ({}, "usb", None, None, True),
+        (
+            {"connectionProperties__pairingState": "unpaired"},
+            "usb",
+            "Not paired: unlock it and choose Trust",
+            "not_paired",
+            True,
+        ),
+        ({"connectionProperties__transportType": None}, None, "Not connected", "not_connected", True),
+        (
+            {"deviceProperties__developerModeStatus": "disabled"},
+            "usb",
+            "Developer Mode off",
+            "developer_mode_off",
+            False,
+        ),
+        ({"deviceProperties__developerModeStatus": None}, "usb", None, None, None),
+        ({"connectionProperties__transportType": "localNetwork"}, "network", None, None, True),
     ],
 )
 def test_a_device_read_from_the_deprecated_keys_alone_says_why_it_cannot_be_used(
-    changes: dict[str, Any], connection: str | None, detail: str | None, developer_mode: bool | None
+    changes: dict[str, Any],
+    connection: str | None,
+    detail: str | None,
+    code: str | None,
+    developer_mode: bool | None,
 ) -> None:
     device = read_device(_entry(**changes))
     assert device is not None
-    assert (device.connection, device.detail, device.developer_mode) == (connection, detail, developer_mode)
+    assert (device.connection, device.detail, device.detail_code, device.developer_mode) == (
+        connection,
+        detail,
+        code,
+        developer_mode,
+    )
 
 
 def test_what_is_not_a_real_iphone_or_ipad_is_left_out() -> None:

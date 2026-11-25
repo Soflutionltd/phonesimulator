@@ -212,6 +212,11 @@ describe('the language the viewer speaks', () => {
         connection: 'usb', detail: null, usable: true },
       { udid: 'A1', name: 'Pixel 9', runtime: 'Android 16', state: 'Booted', created: false, kind: 'android',
         connection: null, detail: null, usable: true },
+      { udid: 'A2', name: 'Pixel 8', runtime: 'API 36', state: 'Shutdown', created: false, kind: 'android',
+        connection: null, detail: "its system image is not installed: install it in Android Studio's SDK Manager",
+        detail_code: 'system_image_missing', usable: false },
+      { udid: 'P2', name: 'Old iPad', runtime: 'iPadOS 18', state: 'Disconnected', created: false, kind: 'physical',
+        connection: null, detail: 'Not connected', detail_code: 'not_connected', usable: false },
       { udid: 'M1', name: 'Notes', runtime: 'macOS 26', state: 'Running', created: false, kind: 'mac',
         connection: null, detail: null, usable: true },
     ])
@@ -228,8 +233,10 @@ describe('the language the viewer speaks', () => {
     await flush()
     expect([...picker.querySelectorAll('.smv-picker-group')].map((group) => group.textContent))
       .toEqual(['Afficher dans cet onglet', 'Simulateurs', 'iPhone et iPad', 'Android', 'Apps macOS'])
-    expect([...picker.querySelectorAll('[data-smv-udid] span')].map((row) => row.textContent)).toEqual([
-      'iOS 26.5 · utilisé par Claude Code', 'iOS 26.3 · USB', 'Android 16 · Émulateur', 'macOS 26',
+    expect([...picker.querySelectorAll('[data-smv-udid] .smv-choice-about')].map((row) => row.textContent)).toEqual([
+      'iOS 26.5 · utilisé par Claude Code', 'iOS 26.3 · USB', 'iPadOS 18 · Non connecté', 'Android 16 · Émulateur',
+      'API 36 · Émulateur · Image système non installée\u00a0: installez-la dans le SDK Manager d’Android Studio',
+      'macOS 26',
     ])
     expect([...picker.querySelectorAll('[role="menuitem"]')].map((row) => row.textContent)).toEqual(['Utiliser pour le projet', 'Éteindre cet appareil'])
     $<HTMLButtonElement>('[data-smv="devices"]').click()

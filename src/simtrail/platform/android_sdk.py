@@ -20,6 +20,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from simtrail.protocol import DeviceDetailCode
+
 SDK_ENVS = ("ANDROID_HOME", "ANDROID_SDK_ROOT")
 AVD_HOME_ENV = "ANDROID_AVD_HOME"
 EMULATOR_HOME_ENV = "ANDROID_EMULATOR_HOME"
@@ -110,6 +112,8 @@ class Avd:
     image: Path | None
     #: Why it cannot start; None when it can.
     problem: str | None = None
+    #: Why it cannot start, by a name a viewer says in its own language; None when it can.
+    problem_code: DeviceDetailCode | None = None
 
 
 def _whole(value: str | None) -> int | None:
@@ -123,16 +127,17 @@ def _image(config: Mapping[str, str], sdk: AndroidSdk | None) -> Path | None:
     return (sdk.root / named).resolve()
 
 
-def _problem(folder: Path, image: Path | None, sdk: AndroidSdk | None) -> str | None:
+def _problem(folder: Path, image: Path | None, sdk: AndroidSdk | None) -> tuple[DeviceDetailCode, str] | None:
+    """Why an AVD cannot start, by name and in English; None when it can."""
     if not folder.is_dir():
-        return f"its folder {folder} is gone"
+        return "avd_folder_missing", f"its folder {folder} is gone"
     if sdk is None:
-        return "no Android SDK was found to run it"
+        return "android_sdk_missing", "no Android SDK was found to run it"
     if image is None or not image.is_dir():
-        return "its system image is not installed: install it in Android Studio's SDK Manager"
+        return "system_image_missing", "its system image is not installed: install it in Android Studio's SDK Manager"
     missing = [file for file in IMAGE_FILES if not (image / file).is_file()]
     if missing:
-        return (
+        return "system_image_incomplete", (
             f"its system image is incomplete ({', '.join(missing)} missing): install it again in Android Studio's "
             "SDK Manager"
         )
@@ -147,6 +152,7 @@ def read_avd(ini: Path, sdk: AndroidSdk | None) -> Avd:
     config = read_properties(folder / "config.ini")
     image = _image(config, sdk)
     api = _API.search(config.get("image.sysdir.1", "") or pointer.get("target", ""))
+    problem = _problem(folder, image, sdk)
     return Avd(
         name=name,
         display_name=config.get("avd.ini.displayname") or name.replace("_", " "),
@@ -155,7 +161,8 @@ def read_avd(ini: Path, sdk: AndroidSdk | None) -> Avd:
         height_px=_whole(config.get("hw.lcd.height")),
         density=_whole(config.get("hw.lcd.density")),
         image=image,
-        problem=_problem(folder, image, sdk),
+        problem=problem[1] if problem else None,
+        problem_code=problem[0] if problem else None,
     )
 
 

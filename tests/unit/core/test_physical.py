@@ -15,7 +15,7 @@ from simtrail.core.backends import PhysicalBackend
 from simtrail.core.control import DisplayState, InstalledApp, NoDeviceLogs, PhysicalControl, bundle_executable
 from simtrail.core.devices import DeviceRef, NoDevice
 from simtrail.core.instance import DeviceInstance
-from simtrail.platform.devicectl import Devicectl, DevicectlError
+from simtrail.platform.devicectl import Devicectl, DevicectlError, PhysicalDevice
 from simtrail.testing.fakes import PHONE_UDID, FakeXcrun, fixture_json
 from simtrail.testing.rig import scope
 
@@ -60,6 +60,14 @@ async def test_real_devices_are_listed_by_name_while_they_are_on() -> None:
     assert made.kind == "physical" and not made.runs_here(
         DeviceRef(PHONE_UDID, "Test iPhone", "iOS 26.3", False, "physical", "usb")
     )
+
+
+def test_a_device_that_cannot_be_used_names_why_for_a_viewer_to_say_it_in_its_language() -> None:
+    unplugged = PhysicalDevice(
+        PHONE_UDID, "ID", "Test iPhone", "iPhone 14 Pro", "iOS", "26.3", "", True, False, True, frozenset()
+    )
+    choice = PhysicalBackend.choice(unplugged)
+    assert (choice["detail"], choice["detail_code"], choice["usable"]) == ("Not connected", "not_connected", False)
 
 
 async def test_a_remembered_device_is_used_while_it_is_connected_and_ready_and_is_never_shut_down() -> None:

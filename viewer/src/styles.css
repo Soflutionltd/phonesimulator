@@ -752,6 +752,36 @@ button.smv-home-button:hover {
   cursor: pointer;
 }
 
+/* A row keeps its height when the list is longer than the panel: the panel scrolls, rows never squeeze over each other. */
+.smv-picker > * {
+  flex-shrink: 0;
+}
+
+/* A device row: its name, never wrapped, then what is said of it on the rest of the line, cut short with an ellipsis --
+   the row's tooltip says the whole of it. */
+.smv-picker [data-smv-udid] {
+  align-items: baseline;
+  gap: var(--smv-space-4);
+  white-space: nowrap;
+}
+
+.smv-picker .smv-choice-name,
+.smv-picker .smv-choice-about {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.smv-picker .smv-choice-name {
+  flex: 0 1 auto;
+  color: inherit;
+}
+
+.smv-picker .smv-choice-about {
+  flex: 1 1 0;
+  text-align: right;
+}
+
 .smv-picker button:hover:not([aria-disabled="true"]),
 .smv-picker button:focus-visible {
   background: var(--smv-hover);

@@ -6,10 +6,12 @@ import { settingsView } from '../test-support/settings'
 import {
   CLOCK, DEVICE, FULL, HELLO, VIEW_ONLY, flush, live, said, setup, socket,
 } from '../test-support/viewer-harness'
+import { detailLabel } from './device-kind'
 import { TEXT_SIZES, createDisplayMenu } from './display-menu'
+import { isMessageKey, translator } from './i18n'
 import { createNote } from './note'
 import { createLayers } from './popover'
-import type { Capability, Device, Recording, RecordingState } from './protocol.generated'
+import { DEVICE_DETAIL_CODES, type Capability, type Device, type Recording, type RecordingState } from './protocol.generated'
 import { createRecordingControl, download, elapsed, saveLabel, sizeOf } from './recording-control'
 import { lucideSvg } from './icons'
 
@@ -50,7 +52,7 @@ describe('the picker', () => {
     { udid: 'P2', name: 'Second iPhone', runtime: 'iOS 27.0', state: 'Connected', created: false, kind: 'physical',
       connection: 'network', detail: 'Locked', usable: true },
     { udid: 'P3', name: 'Old iPad', runtime: 'iPadOS 18', state: 'Disconnected', created: false, kind: 'physical',
-      connection: null, detail: 'Not connected', usable: false },
+      connection: null, detail: 'Not connected', detail_code: 'not_connected', usable: false },
   ]
 
   it('groups simulators and real devices, says how each is connected, and will not pick one it cannot use', async () => {
@@ -61,11 +63,14 @@ describe('the picker', () => {
     expect([...picker.querySelectorAll('.smv-picker-group')].map((group) => group.textContent))
       .toEqual(['Simulators', 'iPhones and iPads'])
     const rows = [...picker.querySelectorAll<HTMLButtonElement>('[data-smv-udid]')]
-    expect(rows.map((row) => row.querySelector('span')!.textContent)).toEqual([
-      'iOS 26.5', 'iOS 26.3 · iPhone 14 Pro · USB', 'iOS 27.0 · Wi-Fi · Locked', 'iPadOS 18 · Not connected · Not connected',
+    // Not connected is said once: the server's detail is how the device is reached.
+    expect(rows.map((row) => row.querySelector('.smv-choice-about')!.textContent)).toEqual([
+      'iOS 26.5', 'iOS 26.3 · iPhone 14 Pro · USB', 'iOS 27.0 · Wi-Fi · Locked', 'iPadOS 18 · Not connected',
     ])
+    expect(rows.map((row) => row.querySelector('.smv-choice-name')!.textContent))
+      .toEqual(['iPhone 17 Pro', 'Test iPhone', 'Second iPhone', 'Old iPad'])
     expect(rows[3].getAttribute('aria-disabled')).toBe('true')
-    expect(rows[3].title).toBe('Not connected')
+    expect(rows[3].title).toBe('Old iPad · iPadOS 18 · Not connected')
     expect(picker.querySelector('[data-smv="shutdown"]')).not.toBeNull()
     rows[3].click()
     await flush()
@@ -544,6 +549,24 @@ describe('the note', () => {
   })
 })
 
+describe('what stands in a device\'s way', () => {
+  it('is said in the viewer\'s language when the server names it, and as the server says it otherwise', () => {
+    const french = translator(() => 'fr')
+    expect(detailLabel({ detail: 'Developer Mode off', detail_code: 'developer_mode_off' }, french))
+      .toBe('Mode développeur désactivé')
+    expect(detailLabel({ detail: 'Developer Mode off', detail_code: 'developer_mode_off' })).toBe('Developer Mode off')
+    // A name a newer server gives that this viewer does not know, and an older server that names none.
+    expect(detailLabel({ detail: 'it is sideloading', detail_code: 'sideloading' as never }, french))
+      .toBe('it is sideloading')
+    expect(detailLabel({ detail: 'Locked' } as never, french)).toBe('Locked')
+    expect(detailLabel({ detail: null, detail_code: null }, french)).toBeNull()
+  })
+
+  it('has a message for every name the protocol gives one', () => {
+    expect(DEVICE_DETAIL_CODES.filter((code) => !isMessageKey(`detail.${code}`))).toEqual([])
+  })
+})
+
 describe('an old server', () => {
   it('is read as a simulator with a usable picker row', async () => {
     const { $ } = setup({ transport: { devices: vi.fn(async () => [
@@ -553,6 +576,6 @@ describe('an old server', () => {
     await flush()
     const row = $<HTMLButtonElement>('[data-smv-udid="U9"]')
     expect(row.getAttribute('aria-disabled')).toBeNull()
-    expect(row.querySelector('span')!.textContent).toBe('iOS 18')
+    expect(row.querySelector('.smv-choice-about')!.textContent).toBe('iOS 18')
   })
 })

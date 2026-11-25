@@ -24,6 +24,8 @@ class FakeMacOS:
         self.launched: dict[int, str] = {}
         #: The visible running PIDs, front first, as ``lsappinfo visibleProcessList`` answers.
         self.visible: list[int] = []
+        #: The bundle IDs of the apps listed as agents with no Dock icon (``UIElement``) rather than as apps.
+        self.agents: set[str] = set()
         self.mac = MacOS(self.run, signal_pid=self.signal_pid)
 
     async def run(self, argv: Sequence[str]) -> tuple[int, str]:
@@ -35,7 +37,7 @@ class FakeMacOS:
         if argv[0] == "lsappinfo":
             return 0, "\n".join(
                 f'{i}) "{app.name}" ASN:0x0-{app.pid:#x}: \n bundleID="{app.bundle_id}"\n bundle path="{app.path}"\n'
-                f' pid = {app.pid} type="Foreground"'
+                f' pid = {app.pid} type="{"UIElement" if app.bundle_id in self.agents else "Foreground"}"'
                 + (f"\n launch time =  {self.launched[app.pid]} ( 1 minute ago )" if app.pid in self.launched else "")
                 for i, app in enumerate(self.apps, 1)
                 if app.pid is not None

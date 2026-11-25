@@ -23,6 +23,7 @@ from typing import Any
 from simtrail.platform.errors import DeviceControlError
 from simtrail.platform.identifiers import is_device_udid
 from simtrail.platform.xcrun import XcrunResult, XcrunRunner, run_xcrun
+from simtrail.protocol import DeviceDetailCode
 
 _BUNDLE_ID = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9.-]{0,254}\Z")
 #: How long a call that installs an app may take.
@@ -66,15 +67,29 @@ class PhysicalDevice:
         return "usb" if self.transport == "wired" else "network"
 
     @property
+    def detail_code(self) -> DeviceDetailCode | None:
+        """Why it cannot be used now, by a name a viewer says in its own language; None when it can."""
+        if not self.paired:
+            return "not_paired"
+        if not self.connected:
+            return "not_connected"
+        if self.developer_mode is False:
+            return "developer_mode_off"
+        return None
+
+    @property
     def detail(self) -> str | None:
         """Why it cannot be used now, said so a person can act on it; None when it can."""
-        if not self.paired:
-            return "Not paired: unlock it and choose Trust"
-        if not self.connected:
-            return "Not connected"
-        if self.developer_mode is False:
-            return "Developer Mode off"
-        return None
+        code = self.detail_code
+        return None if code is None else DETAILS[code]
+
+
+#: What each reason a real device cannot be used says, in English.
+DETAILS: dict[DeviceDetailCode, str] = {
+    "not_paired": "Not paired: unlock it and choose Trust",
+    "not_connected": "Not connected",
+    "developer_mode_off": "Developer Mode off",
+}
 
 
 @dataclass(frozen=True)

@@ -19,7 +19,7 @@
  * the device be touched, or touched quickly: a real device's and an Android device's is Set up touch
  * (`touch-setup.ts`), and a simulator's opens the settings where its connector is chosen.
  */
-import { androidReach, buttonsOf, connectionLabel, deviceNoun, isReal } from './device-kind'
+import { androidReach, buttonsOf, connectionLabel, detailLabel, deviceNoun, isReal } from './device-kind'
 import { createDisplayMenu, type DisplayMenu } from './display-menu'
 import { escapeHTML } from './escape'
 import { english, labelAttrs, name, nameAttrs, said, sayAttr, type PlainKey, type Translate } from './i18n'
@@ -160,26 +160,35 @@ export interface Controls {
 
 /** How a device the picker lists reaches this Mac: a real device by cable or network, an emulator on it. */
 function reached(choice: DeviceChoice, t: Translate): string {
-  if (choice.kind === 'physical') return ` · ${connectionLabel(choice.connection, t)}`
-  if (choice.kind === 'android') return ` · ${androidReach(choice.connection, t)}`
+  if (choice.kind === 'physical') return connectionLabel(choice.connection, t)
+  if (choice.kind === 'android') return androidReach(choice.connection, t)
   return ''
 }
 
 /** Which agents work on a device the picker lists; an older server does not say. */
 function workedOn(choice: DeviceChoice, t: Translate): string {
   const titles = (choice.agents ?? []).map((agent) => agent.title)
-  return titles.length ? ` · ${t('picker.usedBy', { agents: titles.join(', ') })}` : ''
+  return titles.length ? t('picker.usedBy', { agents: titles.join(', ') }) : ''
 }
 
-/** A device the picker lists, grouped by kind: simulators first. */
-function choiceRow(choice: DeviceChoice, current: string | undefined, t: Translate): string {
+/** What a row says beside a device's name: what it runs, how it is reached, what stands in its way and who works on
+ * it -- each once: a device not connected is not said to be so twice. */
+function choiceAbout(choice: DeviceChoice, t: Translate = english): string {
   const how = reached(choice, t)
+  const detail = detailLabel(choice, t)
+  return [choice.runtime, how, detail === how ? '' : detail, workedOn(choice, t)].filter(Boolean).join(' · ')
+}
+
+/** A device the picker lists, grouped by kind: simulators first. Its name and what is said of it each keep to one
+ * line, cut short where the row ends; the whole of it is the row's tooltip. */
+function choiceRow(choice: DeviceChoice, current: string | undefined, t: Translate): string {
   const usable = choice.usable !== false
-  const why = choice.detail ? ` title="${escapeHTML(choice.detail)}"` : ''
+  const about = choiceAbout(choice, t)
+  const tip = about ? ` title="${escapeHTML(`${choice.name} · ${about}`)}"` : ''
   return `<button type="button" role="menuitemradio" aria-checked="${choice.udid === current}"`
-    + `${usable ? '' : ' aria-disabled="true"'}${why} data-smv-udid="${escapeHTML(choice.udid)}">`
-    + `${escapeHTML(choice.name)}<span>${escapeHTML(choice.runtime + how)}`
-    + `${choice.detail ? ` · ${escapeHTML(choice.detail)}` : ''}${escapeHTML(workedOn(choice, t))}</span></button>`
+    + `${usable ? '' : ' aria-disabled="true"'}${tip} data-smv-udid="${escapeHTML(choice.udid)}">`
+    + `<span class="smv-choice-name">${escapeHTML(choice.name)}</span>`
+    + `<span class="smv-choice-about">${escapeHTML(about)}</span></button>`
 }
 
 /** What a view that can show any of the scope's devices offers beside its rows: making the device it shows the scope's

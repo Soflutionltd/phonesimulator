@@ -136,10 +136,11 @@ async def test_every_avd_is_listed_and_one_running_is_its_emulator(rig: Rig) -> 
     listed = {choice["udid"]: choice for choice in await rig.backend.choices(rig.config, ())}
     assert listed[PIXEL] == {
         "udid": PIXEL, "name": "Pixel 9", "runtime": "API 36", "state": "Shutdown", "created": False,
-        "kind": "android", "connection": None, "detail": None, "usable": True, "agents": [],
+        "kind": "android", "connection": None, "detail": None, "detail_code": None, "usable": True, "agents": [],
     }  # fmt: skip
     broken = listed[android_id("avd", "Broken")]
     assert not broken["usable"] and str(broken["detail"]).startswith("its system image is not installed")
+    assert broken["detail_code"] == "system_image_missing"
     rig.emulator_up()
     running = await rig.backend.lookup(PIXEL, rig.config)
     assert running is not None and (running["state"], running["runtime"]) == ("Booted", "Android 16 (API 36)")
@@ -166,10 +167,16 @@ async def test_phones_are_listed_by_serial_number_and_one_not_allowed_yet_says_w
     waiting = listed[android_id("adb", "192.168.1.9:5555")]
     assert (waiting["state"], waiting["connection"], waiting["usable"]) == ("Unauthorized", "network", False)
     assert waiting["detail"] == "allow USB debugging on the phone, then try again"
-    assert (
-        listed[android_id("adb", "R58M99XYZ")]["detail"] == "it cannot be reached now: unplug it and plug it in again"
+    assert waiting["detail_code"] == "usb_debugging_not_allowed"
+    assert phone["detail_code"] is None
+    offline = listed[android_id("adb", "R58M99XYZ")]
+    assert (offline["detail"], offline["detail_code"]) == (
+        "it cannot be reached now: unplug it and plug it in again",
+        "adb_offline",
     )
-    assert listed[android_id("adb", "R58M77QQQ")]["detail"] == "it is sideloading"
+    # A state with no name of its own is said as adb says it, and named nothing: a viewer shows it as it is.
+    sideloading = listed[android_id("adb", "R58M77QQQ")]
+    assert (sideloading["detail"], sideloading["detail_code"]) == ("it is sideloading", None)
     without_phones = await rig.backend.choices(rig.config.with_values(android_phones=False), ())
     assert {choice["udid"] for choice in without_phones} == {PIXEL, android_id("avd", "Broken")}
     assert await rig.backend.choices(rig.config.with_values(android=False), ()) == []
@@ -192,6 +199,7 @@ async def test_a_ready_phone_that_does_not_answer_is_listed_but_cannot_be_picked
     listed = await rig.backend.choices(rig.config, ())
     phone = next(choice for choice in listed if choice["connection"] == "usb")
     assert phone["detail"] == "it does not answer adb now" and not phone["usable"]
+    assert phone["detail_code"] == "adb_silent"
 
 
 async def test_a_scope_gets_its_remembered_device_else_a_running_emulator_else_one_that_can_start(rig: Rig) -> None:

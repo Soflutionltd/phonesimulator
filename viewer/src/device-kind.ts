@@ -4,7 +4,7 @@
  * an Android phone. A real device is never started or shut down by Simtrail, only shown and let go; a simulator and an
  * emulator run on this Mac, and are.
  */
-import { english, type Translate } from './i18n'
+import { english, isMessageKey, type PlainKey, type Translate } from './i18n'
 import type { Connection, Device, DeviceChoice, PanelButton } from './protocol.generated'
 
 type Described = Pick<Device | DeviceChoice, 'kind' | 'connection'>
@@ -32,6 +32,14 @@ export function connectionLabel(connection: Connection | null, t: Translate = en
 /** How an Android device reaches this Mac: a phone as it is connected, an emulator as one. */
 export function androidReach(connection: Connection | null, t: Translate): string {
   return connection ? connectionLabel(connection, t) : t('connection.emulator')
+}
+
+/** What a person should know of a device before picking it: in the viewer's language when the server names it -- its
+ * message is `detail.<name>` --, as the server says it otherwise: a name this viewer does not know, or an older server,
+ * which names none. Null when nothing. */
+export function detailLabel(choice: Pick<DeviceChoice, 'detail' | 'detail_code'>, t: Translate = english): string | null {
+  const key = `detail.${choice.detail_code}`
+  return choice.detail_code && isMessageKey(key) ? t(key as PlainKey) : choice.detail || null
 }
 
 /** The chip beside a device's name: what it is, when it is not a simulator, and how it is connected. */

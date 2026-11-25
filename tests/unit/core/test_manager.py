@@ -647,6 +647,7 @@ async def test_the_picker_lists_this_macs_ios_simulators_and_a_pick_is_kept(tmp_
         "kind": "simulator",
         "connection": None,
         "detail": None,
+        "detail_code": None,
         "usable": True,
         "agents": [],
     }

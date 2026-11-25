@@ -128,6 +128,7 @@ class MacBackend:
                 kind="mac",
                 connection=None,
                 detail=None,
+                detail_code=None,
                 usable=True,
                 agents=[],
             )

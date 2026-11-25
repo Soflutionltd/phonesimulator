@@ -206,6 +206,7 @@ class PhysicalBackend:
             "kind": "physical",
             "connection": "usb" if device.connection == "usb" else "network" if device.connection else None,
             "detail": device.detail,
+            "detail_code": device.detail_code,
             "usable": device.detail is None,
             "agents": [],
         }

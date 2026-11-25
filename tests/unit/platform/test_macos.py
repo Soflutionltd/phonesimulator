@@ -111,12 +111,25 @@ def test_launch_services_listing_is_parsed_with_its_rank() -> None:
     )
     first, second, third = applications(text)
     assert first == macos.Running(replace(APP, version="1.2"), "0x0-0xd9ab99e", "2026/11/08 00:33:48", 0)
-    assert second == macos.Running(replace(APP, path="/B/Sample.app", pid=102), "", "2026/11/04 12:27:44", 1)
-    assert third == macos.Running(replace(APP, path="/C/Sample.app", pid=103), "", "", 2)
+    assert second == macos.Running(replace(APP, path="/B/Sample.app", pid=102), "", "2026/11/04 12:27:44", 1, False)
+    assert third == macos.Running(replace(APP, path="/C/Sample.app", pid=103), "", "", 2, False)
+    assert first.regular
     assert macos.front_to_back('ASN:0x0-0x1-"Terminal": ASN:0x0-0xd9ab99e-"Sample": ') == {
         "0x0-0x1": 0,
         "0x0-0xd9ab99e": 1,
     }
+
+
+async def test_only_apps_with_a_dock_icon_are_listed_unless_an_agent_is_known() -> None:
+    wallpaper = MacApp("com.apple.wallpaper.agent", "Wallpaper", "/System/Wallpaper.app", 201)
+    login = MacApp("com.apple.loginwindow", "loginwindow", "/System/loginwindow.app", 202)
+    menu_extra = MacApp("dev.example.MenuExtra", "Menu Extra", "/Applications/MenuExtra.app", 203)
+    fake = FakeMacOS(APP, wallpaper, login, menu_extra)
+    fake.agents = {wallpaper.bundle_id, login.bundle_id, menu_extra.bundle_id}
+    assert await fake.mac.apps() == [APP]
+    # An agent a scope installed is known, and is listed -- running -- like any app.
+    fake.mac.known[menu_extra.id] = replace(menu_extra, pid=None)
+    assert await fake.mac.apps() == [APP, menu_extra]
 
 
 async def test_an_installed_version_is_kept_while_its_copy_runs() -> None:

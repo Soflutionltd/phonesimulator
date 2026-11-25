@@ -388,6 +388,42 @@ SETTINGS_TARGETS: tuple[SettingsTarget, ...] = (
 )
 
 
+# A detail a device picker shows, by a name that stays the same in every language: a real device not paired, not
+# connected, or with Developer Mode off; an Android emulator whose folder, SDK or system image is missing or
+# incomplete; an Android phone that has not allowed USB debugging, is offline, is being authorized or connected,
+# gives this Mac no permission, or does not answer adb.
+DeviceDetailCode = Literal[
+    "not_paired",
+    "not_connected",
+    "developer_mode_off",
+    "avd_folder_missing",
+    "android_sdk_missing",
+    "system_image_missing",
+    "system_image_incomplete",
+    "usb_debugging_not_allowed",
+    "adb_offline",
+    "adb_authorizing",
+    "adb_connecting",
+    "adb_no_permissions",
+    "adb_silent",
+]
+DEVICE_DETAIL_CODES: tuple[DeviceDetailCode, ...] = (
+    "not_paired",
+    "not_connected",
+    "developer_mode_off",
+    "avd_folder_missing",
+    "android_sdk_missing",
+    "system_image_missing",
+    "system_image_incomplete",
+    "usb_debugging_not_allowed",
+    "adb_offline",
+    "adb_authorizing",
+    "adb_connecting",
+    "adb_no_permissions",
+    "adb_silent",
+)
+
+
 #: A fraction of the screen: 0 at its left or top edge, 1 at its right or bottom edge.
 Share = float
 
@@ -1178,6 +1214,9 @@ class DeviceChoice(TypedDict):
     connection: Connection | None
     #: What a person should know before picking it, such as Locked or Developer Mode off; null when nothing.
     detail: str | None
+    #: The detail by a name that stays the same in every language, for a viewer to say it in its own; null when
+    #: detail is null or is not one of them. An older server does not send it: show detail as it is.
+    detail_code: DeviceDetailCode | None
     #: Whether it can be picked now; detail says why not. An older server does not send it: read it as true.
     usable: bool
     #: The scope's agents working on it now, the first to come first; empty when none. An older server does not send

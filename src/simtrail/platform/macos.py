@@ -7,6 +7,9 @@ A bundle ID is one device, however many copies of the app are installed: its ide
 rebuilds and install folders. The device follows the copy that runs -- the one a device session is attached to while
 it lives, else the frontmost visible copy, else the one launched last -- and remembers that copy's exact bundle path,
 so a launch with no copy running opens the copy last seen running or installed, never another one.
+
+Only apps a person uses are listed: those with a Dock icon. An agent with none -- loginwindow, WindowManager, the
+wallpaper, a menu-bar extra -- is listed only once it is known, installed for a scope with `sim_app install`.
 """
 
 from __future__ import annotations
@@ -69,6 +72,9 @@ class Running:
     launched: str = ""
     #: Where LaunchServices listed it, which breaks a tie between two launches in one second.
     order: int = 0
+    #: Whether it is an app a person uses -- one with a Dock icon, LaunchServices' ``Foreground`` type -- rather than an
+    #: agent with no Dock icon (``UIElement``): loginwindow, WindowManager, the wallpaper, a menu-bar extra.
+    regular: bool = True
 
 
 def applications(text: str) -> list[Running]:
@@ -76,14 +82,15 @@ def applications(text: str) -> list[Running]:
     for order, entry in enumerate(re.split(r"(?m)^\s*\d+\) ", text)[1:]):
         identifier = re.search(r'(?m)^\s*bundleID="([A-Za-z0-9.-]+)"', entry)
         path = re.search(r'(?m)^\s*bundle path="([^"\n]+\.app)"', entry)
-        pid = re.search(r'pid = (\d+)\b.*?type="(?:Foreground|UIElement)"', entry)
+        pid = re.search(r'pid = (\d+)\b.*?type="(Foreground|UIElement)"', entry)
         name = re.match(r'"([^"\n]+)"', entry)
         if identifier and path and pid and name:
             version = re.search(r'\bVersion="([^"\n]*)"', entry)
             asn = re.match(r'"[^"\n]+"\s+ASN:(0x[0-9A-Fa-f]+-0x[0-9A-Fa-f]+)', entry)
             launched = re.search(r"(?m)^\s*(?:launch|checkin) time =\s+(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d)", entry)
             app = MacApp(identifier[1], name[1], path[1], int(pid[1]), version[1] if version else "")
-            found.append(Running(app, asn[1] if asn else "", launched[1] if launched else "", order))
+            regular = pid[2] == "Foreground"
+            found.append(Running(app, asn[1] if asn else "", launched[1] if launched else "", order, regular))
     return found
 
 
@@ -109,6 +116,12 @@ class MacOS:
         copies: dict[str, list[Running]] = {}
         for copy in applications(out):
             copies.setdefault(copy.app.id, []).append(copy)
+        # The macOS apps listed are those a person uses. An agent -- macOS's own loginwindow, WindowManager,
+        # CoreServicesUIAgent or wallpaper, or another app's helper -- has no Dock icon, and is listed only once it is
+        # known: installed for a scope, or seen running with a Dock icon before.
+        copies = {
+            udid: found for udid, found in copies.items() if udid in self.known or any(copy.regular for copy in found)
+        }
         # Only a bundle ID with several running copies needs to know which is in front.
         front = await self._front() if any(len(found) > 1 for found in copies.values()) else {}
         for udid in copies:

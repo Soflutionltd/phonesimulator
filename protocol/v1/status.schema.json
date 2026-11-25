@@ -71,6 +71,25 @@
         }
       ]
     },
+    "DeviceDetailCode": {
+      "description": "A detail a device picker shows, by a name that stays the same in every language: a real device not paired, not connected, or with Developer Mode off; an Android emulator whose folder, SDK or system image is missing or incomplete; an Android phone that has not allowed USB debugging, is offline, is being authorized or connected, gives this Mac no permission, or does not answer adb.",
+      "x-constant": "DEVICE_DETAIL_CODES",
+      "enum": [
+        "not_paired",
+        "not_connected",
+        "developer_mode_off",
+        "avd_folder_missing",
+        "android_sdk_missing",
+        "system_image_missing",
+        "system_image_incomplete",
+        "usb_debugging_not_allowed",
+        "adb_offline",
+        "adb_authorizing",
+        "adb_connecting",
+        "adb_no_permissions",
+        "adb_silent"
+      ]
+    },
     "DeviceChoice": {
       "description": "A device a scope could use, for a device picker: a simulator on this Mac, a real device connected to it, or an Android emulator or phone.",
       "type": "object",
@@ -95,6 +114,10 @@
           "type": ["string", "null"],
           "description": "What a person should know before picking it, such as Locked or Developer Mode off; null when nothing."
         },
+        "detail_code": {
+          "oneOf": [{ "$ref": "#/$defs/DeviceDetailCode" }, { "type": "null" }],
+          "description": "The detail by a name that stays the same in every language, for a viewer to say it in its own; null when detail is null or is not one of them. An older server does not send it: show detail as it is."
+        },
         "usable": {
           "type": "boolean",
           "description": "Whether it can be picked now; detail says why not. An older server does not send it: read it as true."
@@ -105,7 +128,7 @@
           "description": "The scope's agents working on it now, the first to come first; empty when none. An older server does not send it."
         }
       },
-      "required": ["udid", "name", "runtime", "state", "created", "kind", "connection", "detail", "usable", "agents"]
+      "required": ["udid", "name", "runtime", "state", "created", "kind", "connection", "detail", "detail_code", "usable", "agents"]
     }
   }
 }

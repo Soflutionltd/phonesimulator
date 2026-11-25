@@ -23,6 +23,7 @@ from simtrail.platform.adb import Adb, AdbDevice, AdbError
 from simtrail.platform.android_sdk import AndroidSdk, Avd, avds, find_sdk
 from simtrail.platform.emulator import Emulators
 from simtrail.platform.identifiers import EMULATOR_PREFIX, PHONE_PREFIX, android_id
+from simtrail.protocol import DeviceDetailCode
 from simtrail.seams import StateStore
 
 #: How long asking a running device about itself may take.
@@ -49,6 +50,9 @@ class AndroidDevice:
     #: Why it cannot be used now; None when it can.
     detail: str | None = None
     avd: Avd | None = None
+    #: Why it cannot be used now, by a name a viewer says in its own language; None when it can, or when the reason
+    #: has no name.
+    detail_code: DeviceDetailCode | None = None
 
     @property
     def running(self) -> bool:
@@ -72,14 +76,16 @@ def runtime_label(release: str, sdk: str) -> str:
     return f"Android {release}" if release else f"API {sdk}" if sdk else "Android"
 
 
-#: What adb's states mean to a person, for one that cannot be used.
-STATE_DETAILS = {
-    "unauthorized": "allow USB debugging on the phone, then try again",
-    "offline": "it cannot be reached now: unplug it and plug it in again",
-    "authorizing": "the phone is being asked to allow USB debugging",
-    "connecting": "it is still being connected to",
-    "no permissions": "this Mac has no permission to use it",
+#: What adb's states mean to a person, for one that cannot be used: by name, and in English.
+STATE_DETAILS: dict[str, tuple[DeviceDetailCode, str]] = {
+    "unauthorized": ("usb_debugging_not_allowed", "allow USB debugging on the phone, then try again"),
+    "offline": ("adb_offline", "it cannot be reached now: unplug it and plug it in again"),
+    "authorizing": ("adb_authorizing", "the phone is being asked to allow USB debugging"),
+    "connecting": ("adb_connecting", "it is still being connected to"),
+    "no permissions": ("adb_no_permissions", "this Mac has no permission to use it"),
 }
+#: What a phone that is ready but does not say what it is says.
+SILENT: tuple[DeviceDetailCode, str] = ("adb_silent", "it does not answer adb now")
 
 
 class AndroidDirectory:
@@ -144,7 +150,10 @@ class AndroidDirectory:
         connection: Literal["usb", "network"] = "network" if device.connection == "network" else "usb"
         name = device.model or device.serial
         if said is None:
-            detail = STATE_DETAILS.get(device.state, f"it is {device.state}") if not device.ready else None
+            reason: tuple[DeviceDetailCode | None, str] = (
+                SILENT if device.ready else STATE_DETAILS.get(device.state) or (None, f"it is {device.state}")
+            )
+            code, detail = reason
             return AndroidDevice(
                 android_id(PHONE_PREFIX, device.serial),
                 name,
@@ -153,7 +162,8 @@ class AndroidDirectory:
                 device.state,
                 "Android",
                 connection,
-                detail or "it does not answer adb now",
+                detail,
+                detail_code=code,
             )
         return AndroidDevice(
             android_id(PHONE_PREFIX, said.name),
@@ -203,6 +213,7 @@ def _stopped(avd: Avd) -> AndroidDevice:
         f"API {avd.api}" if avd.api else "Android",
         detail=avd.problem,
         avd=avd,
+        detail_code=avd.problem_code,
     )
 
 

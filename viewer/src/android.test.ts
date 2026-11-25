@@ -155,11 +155,11 @@ describe('an Android device without scrcpy', () => {
 describe('the picker with Android devices', () => {
   const choice = (device: Device, extra: Partial<DeviceChoice> = {}): DeviceChoice => ({
     udid: device.udid, name: device.name, runtime: device.runtime, state: 'Booted', created: false, kind: device.kind,
-    connection: device.connection, detail: null, usable: true, agents: [], ...extra,
+    connection: device.connection, detail: null, detail_code: null, usable: true, agents: [], ...extra,
   })
   const choices = [
     choice(DEVICE), choice(EMULATOR), choice(PHONE, { state: 'Connected' }),
-    choice({ ...PHONE, udid: 'adb-R58OFF-000000', name: 'Locked phone' }, { detail: 'Allow USB debugging', usable: false }),
+    choice({ ...PHONE, udid: 'adb-R58OFF-000000', name: 'Locked phone' }, { detail: 'allow USB debugging on the phone, then try again', detail_code: 'usb_debugging_not_allowed', usable: false }),
   ]
 
   it('groups them after the simulators, says how each is reached, and will not pick one still to be allowed', async () => {
@@ -170,10 +170,11 @@ describe('the picker with Android devices', () => {
     expect([...picker.querySelectorAll('.smv-picker-group')].map((group) => group.textContent))
       .toEqual(['Simulators', 'Android'])
     const rows = [...picker.querySelectorAll<HTMLButtonElement>('[data-smv-udid]')]
-    expect(rows.map((row) => row.querySelector('span')!.textContent)).toEqual([
+    expect(rows.map((row) => row.querySelector('.smv-choice-about')!.textContent)).toEqual([
       'iOS 26.5', 'Android 16 (API 36) · Emulator', 'Android 15 (API 35) · USB',
-      'Android 15 (API 35) · USB · Allow USB debugging',
+      'Android 15 (API 35) · USB · Allow USB debugging on the phone, then try again',
     ])
+    expect(rows[3].title).toBe('Locked phone · Android 15 (API 35) · USB · Allow USB debugging on the phone, then try again')
     expect(picker.querySelector('[data-smv="shutdown"]')).not.toBeNull()
     rows[3].click()
     await flush()

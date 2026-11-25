@@ -77,6 +77,9 @@ All notable changes to Simtrail are documented here. The format follows
   stopped when the agent's session ends, when it may no longer build, and when Simtrail stops.
 - `build.flutter_path` names the flutter command; otherwise `PATH`, then where Homebrew and a manual install put it.
   `simtrail doctor` has a `flutter` check that shows the version found.
+- A device choice says what stands in its way by a name as well, `detail_code` (`not_connected`,
+  `system_image_missing`, `usb_debugging_not_allowed`…), for a viewer to say it in its own language; `detail` still
+  says it in English.
 
 ### Changed
 
@@ -105,6 +108,11 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Fixed
 
+- The viewer's device picker: a row keeps one line -- its name whole, what is said of it cut short with an ellipsis
+  and whole in its tooltip -- and a long list scrolls instead of squeezing rows over each other. A real device not
+  connected is said so once, and what stands in a device's way is said in the viewer's language.
+- macOS apps lists only apps with a Dock icon: macOS's own agents -- loginwindow, WindowManager, the wallpaper --
+  and other apps' helpers are left out, unless one was installed for the scope.
 - `sim_login` fills a password field that says it is secure only once it has the focus, as a Flutter app's does: it
   taps that field first, and types the password only if the field then says it is secure.
 - On iOS 16 to 26, text Simtrail pastes -- on a Mac whose keyboard is not US-shaped, say AZERTY -- no longer leaves

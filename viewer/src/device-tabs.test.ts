@@ -168,7 +168,7 @@ describe('the picker of a view that can show any device', () => {
       choice('U1', [{ key: 'a', title: 'Codex' }, { key: 'b', title: 'Claude <Code>' }]), choice('U2', []), choice('U3'),
     ], DEVICE, { pinned: null, own: 'U1' })
     const rows = new DOMParser().parseFromString(markup, 'text/html').querySelectorAll('[data-smv-udid]')
-    expect([...rows].map((row) => row.querySelector('span')!.textContent)).toEqual([
+    expect([...rows].map((row) => row.querySelector('.smv-choice-about')!.textContent)).toEqual([
       'iOS 26.5 · used by Codex, Claude <Code>', 'iOS 26.5', 'iOS 26.5',
     ])
     expect(pickerMarkup([], DEVICE, { pinned: 'U1', own: 'U1' }))

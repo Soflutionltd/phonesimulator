@@ -286,6 +286,7 @@ def _choice(udid: str, name: str, **more: Any) -> DeviceChoice:
         "kind": "simulator",
         "connection": None,
         "detail": None,
+        "detail_code": None,
         "usable": True,
     }
     return cast(DeviceChoice, {**choice, **more})
