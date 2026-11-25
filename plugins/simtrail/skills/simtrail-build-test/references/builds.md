@@ -10,6 +10,7 @@
 | Tests | Use `only_testing`, `skip_testing`, `test_plan` intentionally. Compile failure means no tests ran; a passing retry remains flaky. |
 | Destination | `sim_test destination` selects a compatible available device; respect other scopes' claims. `sim_build_run` installs on the current device. |
 | Android | `scheme` is the module, `configuration` the variant; test ids are `package.Class` or `package.Class/method`. Instrumented tests need a running target; JVM tests use project commands. |
+| Flutter | A `pubspec.yaml` depending on flutter builds with flutter, for a simulator or Android only. `configuration` is a build mode, `flavor` and `dart_defines` pass through; `only_testing` names test files, `integration: true` runs `integration_test` on the device. For edit loops, `sim_flutter run` once, then `hot_reload` after each saved change; `stop` when done. |
 | Timeouts | Poll `build_id` with bounded waits. Client cancellation/timeout does not guarantee the build stopped. |
 | After UI tests | Check health on read failures. A diagnosed simulator accessibility failure may need restart; recheck the app afterward. |
 | Evidence | Verify installed app/state before recording. Preserve user settings/device; clean up only task-created resources. |

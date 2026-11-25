@@ -130,6 +130,11 @@ lists, starts and drives them, scrcpy's server -- set up once with a click -- sh
 it for snapshots, and `sim_build_run` and `sim_test` build a Gradle project with its own wrapper. A phone is never
 started or shut down, and what Simtrail changes on it is put back. See [Android](docs/android.md).
 
+**Flutter.** A Flutter app is built, tested and installed by the same tools -- `flutter build`, `flutter test` and
+its integration tests on the device, with a flavor and dart-defines kept off the command line -- and `sim_flutter`
+keeps it running for hot reload: each saved change on the device in about a second, or each compile error as
+`file:line` while the app keeps the code it had. See [Flutter](docs/flutter.md).
+
 **Recording.** The viewer's Record button, `sim_record` or `simtrail record` keep a device's screen as an MP4, a GIF
 or both, with each touch drawn where it landed and a 9:41 status bar, and `preset: "pr"` keeps one small enough for
 a pull request. See [Recording](docs/recording.md).
@@ -212,7 +217,6 @@ the [command line](docs/reference/cli.md) and the [protocol](docs/reference/prot
 
 - **Sign-in through 1Password**: fill an app's login from the person's password manager, never showing the agent a
   password.
-- **Flutter end to end**: build, install and hot reload a Flutter app from the same tools.
 - **Replayable flows**: record a named walkthrough once, replay it in one call.
 - **Device matrix**: the same screen on several devices, in light and dark mode, in one call.
 
