@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The device as the stage shows it: its frame drawn around its screen (`device-frame.ts`), at a zoom a person picks --
- * fitted to the room, or so many CSS pixels a point -- and scrolled when it is larger than the room. The device is
- * drawn turned as it stands (`turns`), its whole box turned about its centre.
+ * its actual size, fitted to the room, or so many CSS pixels a point -- and scrolled when it is larger than the room.
+ *
+ * Actual size is Simulator.app's Point Accurate: one point of the device is one CSS pixel, so an iPhone 17 Pro is
+ * drawn 402 by 874 pixels. In a room too small for that it is drawn smaller, just enough to fit, and says so
+ * (`reduced`). The device is drawn turned as it stands (`turns`), its whole box turned about its centre.
  *
  * The screen's box -- the canvas and what is drawn over it -- is always exactly the device's screen shape at that
  * zoom, so the screen's own measuring (`screen-canvas.ts`) and the agent's pointer (`agent-cursor.ts`) need nothing of
@@ -12,8 +15,9 @@
 import { familyOf, fitScale, frameGeometry, stepZoom, type FrameFamily, type Margins, type Shape } from './device-frame'
 import type { Device, PanelButton, Size } from './protocol.generated'
 
-/** Fitted to the room, or so many CSS pixels a point. */
-export type Zoom = 'fit' | number
+/** The device's actual size -- a point a CSS pixel, smaller only when the room is -- fitted to the room, or so many
+ * CSS pixels a point. */
+export type Zoom = 'actual' | 'fit' | number
 
 /** Room kept around the device: the toolbar floats below it. */
 export const MARGINS: Margins = { side: 16, top: 16, bottom: 72 }
@@ -44,6 +48,8 @@ export interface DeviceView {
   /** CSS pixels a point the screen is drawn at; null until the room and the screen have a size. */
   readonly scale: number | null
   readonly zoom: Zoom
+  /** Asked for its actual size, it is drawn smaller to fit the room. */
+  readonly reduced: boolean
   readonly framed: boolean
   readonly family: FrameFamily
   setDevice(device: Pick<Device, 'kind' | 'name'> | null): void
@@ -71,8 +77,9 @@ export function createDeviceView(options: DeviceViewOptions): DeviceView {
   const margins = options.margins ?? MARGINS
   let family: FrameFamily = familyOf(null)
   let framed = options.framed ?? true
-  let zoom: Zoom = options.zoom ?? 'fit'
+  let zoom: Zoom = options.zoom ?? 'actual'
   let scale: number | null = null
+  let reduced = false
   /** What the drawn parts were made for: they are made again only when it changes, so a focused button keeps focus. */
   let made = ''
   const body = document.createElement('div')
@@ -110,9 +117,11 @@ export function createDeviceView(options: DeviceViewOptions): DeviceView {
     const upright = frameGeometry(family, units, 1, framed).box
     const natural = sideways ? { w: upright.h, h: upright.w } : upright
     const room = { w: viewport.clientWidth, h: viewport.clientHeight }
-    const next = zoom === 'fit' ? fitScale(room, natural, margins) : zoom
+    const fitted = fitScale(room, natural, margins)
+    const next = zoom === 'fit' ? fitted : zoom === 'actual' ? Math.min(1, fitted ?? 1) : zoom
     if (next === null) return
     scale = next
+    reduced = zoom === 'actual' && next < 1
     const geometry = frameGeometry(family, units, scale, framed)
     device.dataset.family = family
     device.dataset.framed = String(framed && geometry.body !== null)
@@ -159,6 +168,9 @@ export function createDeviceView(options: DeviceViewOptions): DeviceView {
     },
     get zoom() {
       return zoom
+    },
+    get reduced() {
+      return reduced
     },
     get framed() {
       return framed

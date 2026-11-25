@@ -191,7 +191,7 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   const kept = readPreferences()
   const deviceView = createDeviceView({
     viewport: q('[data-smv-viewport]'), device: q('[data-smv-device]'), screen: q('[data-smv-screen]'),
-    units: unitsOf, framed: options.deviceFrame ?? kept.framed ?? true, turns,
+    units: unitsOf, framed: options.deviceFrame ?? kept.framed ?? true, zoom: kept.zoom ?? 'actual', turns,
     pressable: (button) => stream.allows('input_button') && buttonsOf(stream.device).includes(button),
     press: (button) => void stream.send({ type: 'button', name: button }),
     // Laid out only once the chrome below is made: the first layout is asked for after it.

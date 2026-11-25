@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe('createDeviceView', () => {
   it('fits the device, frame and all, inside the room and its margins, and keeps room for the toolbar', () => {
-    const { viewport, device, screen, view } = rig()
+    const { viewport, device, screen, view } = rig({ zoom: 'fit' })
     const natural = frameGeometry('island', UNITS, 1).box
     const scale = Math.min((800 - 2 * MARGINS.side) / natural.w, (1100 - MARGINS.top - MARGINS.bottom) / natural.h)
     expect(view.scale).toBeCloseTo(scale)
@@ -89,6 +89,24 @@ describe('createDeviceView', () => {
     expect(onLayout).toHaveBeenCalled()
   })
 
+  it('draws the device at its actual size by default, a point a CSS pixel, as Point Accurate in Simulator.app', () => {
+    const { screen, view } = rig({}, { w: 1600, h: 1400 })
+    expect([view.zoom, view.scale, view.reduced]).toEqual(['actual', 1, false])
+    expect(sizeOf(screen).w).toBeCloseTo(402)
+    expect(sizeOf(screen).h).toBeCloseTo(874)
+  })
+
+  it('draws its actual size smaller in a room too small for it, and says it is reduced', () => {
+    const { view } = rig({}, { w: 600, h: 700 })
+    const natural = frameGeometry('island', UNITS, 1).box
+    const fitted = Math.min((600 - 2 * MARGINS.side) / natural.w, (700 - MARGINS.top - MARGINS.bottom) / natural.h)
+    expect(view.zoom).toBe('actual')
+    expect(view.scale).toBeCloseTo(fitted)
+    expect(view.reduced).toBe(true)
+    view.setZoom('fit')
+    expect(view.reduced).toBe(false)
+  })
+
   it('draws the device turned as it stands, taking the room of its turned box, and fits that box', () => {
     let turns = 1
     const { device, view } = rig({ turns: () => turns, zoom: 'fit' }, { w: 1100, h: 800 })
@@ -110,10 +128,12 @@ describe('createDeviceView', () => {
   })
 
   it('lays nothing out before the room or the screen has a size', () => {
-    const empty = rig({}, { w: 0, h: 0 })
+    const empty = rig({ zoom: 'fit' }, { w: 0, h: 0 })
     expect(empty.view.scale).toBeNull()
     empty.view.zoomBy(1)
     expect(empty.view.zoom).toBe('fit')
+    // Its actual size needs no room to be measured: it is only made smaller in a room that has a size.
+    expect(rig({}, { w: 0, h: 0 }).view.scale).toBe(1)
     const unsized = rig({ units: () => ({ w: 0, h: 0 }) })
     expect(unsized.view.scale).toBeNull()
     expect(unsized.device.style.width).toBe('')

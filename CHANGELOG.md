@@ -48,6 +48,13 @@ All notable changes to Simtrail are documented here. The format follows
   the client message `RotateInput` (`{"type": "rotate", "direction": "left" | "right"}`) and the enums
   `ORIENTATIONS` and `ROTATE_DIRECTIONS`; the icon names gain `rotate_left` and `rotate_right`.
 
+### Changed
+
+- The viewer draws the device at its actual size by default, as Simulator.app's Point Accurate does: one point a CSS
+  pixel, an iPhone 17 Pro 402 by 874. In a window too small it is drawn just small enough to fit, and the scale says
+  so (`67% · fitted`). Command-1 is actual size, Command-0 fit to the window, and the zoom a person picks is kept in
+  the browser beside the theme and the frame.
+
 ### Fixed
 
 - Security: text an agent typed with `sim_act` or `sim_flow` into a secure field -- a password field named by a ref or

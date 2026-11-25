@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * What a person chose for how the viewer looks -- its theme, whether the device's frame is drawn -- kept in this
+ * What a person chose for how the viewer looks -- its theme, whether the device's frame is drawn, how large the device is
+ * drawn (its actual size, fitted to the window, or a zoom step) -- kept in this
  * browser for next time. Only those: nothing about a device or a scope. A browser that keeps nothing (a private
  * window, storage turned off) simply starts from the defaults each time.
  */
@@ -8,9 +9,19 @@
 export type Theme = 'system' | 'light' | 'dark'
 export const THEMES: readonly Theme[] = ['system', 'light', 'dark']
 
+/** How large the device is drawn, as kept: its actual size, fitted to the window, or CSS pixels a point. */
+export type KeptZoom = 'actual' | 'fit' | number
+
 export interface Preferences {
   theme: Theme | null
   framed: boolean | null
+  zoom: KeptZoom | null
+}
+
+/** A zoom kept, when it is one the viewer draws at: a step between a tenth and four pixels a point. */
+function zoomOf(value: unknown): KeptZoom | null {
+  if (value === 'actual' || value === 'fit') return value
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0.1 && value <= 4 ? value : null
 }
 
 const KEY = 'simtrail.viewer'
@@ -30,9 +41,10 @@ export function readPreferences(): Preferences {
     return {
       theme: THEMES.includes(kept.theme as Theme) ? (kept.theme as Theme) : null,
       framed: typeof kept.framed === 'boolean' ? kept.framed : null,
+      zoom: zoomOf(kept.zoom),
     }
   } catch {
-    return { theme: null, framed: null }
+    return { theme: null, framed: null, zoom: null }
   }
 }
 

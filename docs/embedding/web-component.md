@@ -99,6 +99,9 @@ press them.
 
 - **The bar**: the device picker (its name and runtime), the Edit, Device and View menus, the zoom (zoom out, the
   scale shown, zoom in, fit to the window, actual size), then settings, docking, letting the device go and closing.
+- **Actual size by default**: the device is drawn as Simulator.app's Point Accurate draws it, one point of the device a
+  CSS pixel -- an iPhone 17 Pro's screen 402 by 874 pixels. In a window too small for that it is drawn just small
+  enough to fit, and the scale shown says so (`67% · fitted`). Command-1 is actual size, Command-0 fit to the window.
   Narrower than 640px, the menus and the zoom take a second line.
 - **The toolbar** floating under the device: its buttons (Home, Lock, and an Android device's Back, Recents and
   volume), Rotate left and Rotate right, a screenshot, recording and its size, the appearance, and the Display menu.
@@ -117,7 +120,8 @@ press them.
   itself.
 - A screenshot is the screen's last picture at the device's own pixels, as a PNG, taken by the viewer: it needs
   nothing of the server.
-- The theme and whether the frame is drawn are kept in the browser (`localStorage`) for next time; nothing else is.
+- The theme, whether the frame is drawn and the zoom picked are kept in the browser (`localStorage`) for next time;
+  nothing else is.
 
 ## Theming
 

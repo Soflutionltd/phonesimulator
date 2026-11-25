@@ -68,9 +68,11 @@ describe('the viewer around the device', () => {
     const level = $<HTMLElement>('[data-smv-zoom-level]')
     const actual = $<HTMLButtonElement>('[data-smv="zoom-actual"]')
     const fit = $<HTMLButtonElement>('[data-smv="zoom-fit"]')
-    // The room has no size here: nothing to fit to yet.
+    // At its actual size from the start, as Simulator.app's Point Accurate: the room has no size to be too small.
+    expect([level.textContent, actual.getAttribute('aria-pressed')]).toEqual(['100%', 'true'])
+    // The room has no size here: nothing to fit to yet, so it stays as it was drawn.
     fit.click()
-    expect([level.textContent, fit.getAttribute('aria-pressed')]).toEqual(['', 'true'])
+    expect([level.textContent, fit.getAttribute('aria-pressed')]).toEqual(['100%', 'true'])
     actual.click()
     expect([level.textContent, actual.getAttribute('aria-pressed'), fit.getAttribute('aria-pressed')]).toEqual(['100%', 'true', 'false'])
     expect($<HTMLElement>('[data-smv-screen]').style.width).toBe('402px')
@@ -91,6 +93,26 @@ describe('the viewer around the device', () => {
     $('[data-smv-canvas]').dispatchEvent(key({ key: '0', metaKey: true }))
     expect(fit.getAttribute('aria-pressed')).toBe('true')
     expect(rows(view.el, 'view').slice(0, 4)).toEqual(['Zoom in', 'Zoom out', 'Fit to window', 'Actual size'])
+  })
+
+  it('shrinks its actual size to fit a room too small, says so, and keeps the zoom picked for next time', async () => {
+    const { $, canvas } = await live()
+    const viewport = $<HTMLElement>('[data-smv-viewport]')
+    Object.defineProperty(viewport, 'clientWidth', { configurable: true, get: () => 420 })
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, get: () => 600 })
+    const level = $<HTMLElement>('[data-smv-zoom-level]')
+    canvas.dispatchEvent(key({ key: '1', metaKey: true }))
+    expect(level.dataset.reduced).toBe('true')
+    expect(level.textContent).toMatch(/^\d+% · fitted$/)
+    expect(level.getAttribute('aria-label')).toMatch(/^Actual size, reduced to \d+% to fit the window$/)
+    expect($('[data-smv="zoom-actual"]').getAttribute('aria-pressed')).toBe('true')
+    expect(JSON.parse(localStorage.getItem('simtrail.viewer')!).zoom).toBe('actual')
+    canvas.dispatchEvent(key({ key: '0', metaKey: true }))
+    expect([level.dataset.reduced, $('[data-smv="zoom-fit"]').getAttribute('aria-pressed')]).toEqual(['false', 'true'])
+    document.body.innerHTML = ''
+    // The next viewer starts where the person left it.
+    const again = await live()
+    expect(again.$('[data-smv="zoom-fit"]').getAttribute('aria-pressed')).toBe('true')
   })
 
   it('offers a screenshot once a picture is drawn, and saves it from its button, the Edit menu or Command-S', async () => {

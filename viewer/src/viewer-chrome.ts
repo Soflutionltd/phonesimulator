@@ -57,16 +57,30 @@ export function createChrome(options: ChromeOptions): Chrome {
   }
   applyTheme(theme)
 
+  /** Draw the device so large, and keep the choice for next time. */
   function zoom(next: Zoom): void {
     view.setZoom(next)
+    keepPreferences({ zoom: view.zoom })
     paintZoom()
   }
 
+  /** Say how large the device is drawn -- and, asked for its actual size in a room too small, that it is smaller. */
   function paintZoom(): void {
     const scale = view.scale
-    level.textContent = scale === null ? '' : `${Math.round(scale * 100)}%`
+    const percent = scale === null ? '' : `${Math.round(scale * 100)}%`
+    level.textContent = percent
+    level.dataset.reduced = String(view.reduced)
+    if (view.reduced) {
+      const why = document.createElement('span')
+      why.className = 'smv-zoom-why'
+      why.textContent = ' · fitted'
+      level.append(why)
+    }
+    const said = view.reduced ? `Actual size, reduced to ${percent} to fit the window` : `Zoom ${percent}`
+    level.title = said
+    level.setAttribute('aria-label', said)
     fitButton.setAttribute('aria-pressed', String(view.zoom === 'fit'))
-    actualButton.setAttribute('aria-pressed', String(view.zoom === 1))
+    actualButton.setAttribute('aria-pressed', String(view.zoom === 'actual'))
   }
 
   /** A row running a button the viewer shows, offered while it is. */
@@ -129,7 +143,7 @@ export function createChrome(options: ChromeOptions): Chrome {
           { id: 'zoom-fit', label: 'Fit to window', shortcut: { key: '0' }, kind: 'check',
             checked: () => view.zoom === 'fit', run: () => zoom('fit') },
           { id: 'zoom-actual', label: 'Actual size', shortcut: { key: '1' }, kind: 'check',
-            checked: () => view.zoom === 1, run: () => zoom(1) },
+            checked: () => view.zoom === 'actual', run: () => zoom('actual') },
           'separator',
           {
             id: 'frame', label: 'Show device frame', kind: 'check', checked: () => view.framed,
@@ -153,11 +167,12 @@ export function createChrome(options: ChromeOptions): Chrome {
     const action = (event.target as HTMLElement).closest<HTMLElement>('[data-smv]')?.dataset.smv
     if (action === 'zoom-in' || action === 'zoom-out') {
       view.zoomBy(action === 'zoom-in' ? 1 : -1)
+      keepPreferences({ zoom: view.zoom })
       paintZoom()
     } else if (action === 'zoom-fit') {
       zoom('fit')
     } else if (action === 'zoom-actual') {
-      zoom(1)
+      zoom('actual')
     } else if (action === 'screenshot') {
       void shots.save()
     }
