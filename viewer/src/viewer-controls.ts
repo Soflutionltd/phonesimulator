@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The viewer's toolbar: the device's buttons -- Home and Lock, and an Android device's Back, Recents and volume --,
- * the appearance, recording and how big it is kept (`recording-control.ts`), how the device looks for a demo
- * (`display-menu.ts`), the device picker, where the view is placed, letting the device go, and closing. A button the
+ * The viewer's controls. The bar holds the device picker -- the device's name on it --, where the view is placed,
+ * letting the device go, and closing; the menus and the zoom beside them are `viewer-chrome.ts`'s. The toolbar under
+ * the device holds the device's buttons -- Home and Lock, and an Android device's Back, Recents and volume --, a
+ * screenshot, recording and how big it is kept (`recording-control.ts`), the appearance, and how the device looks for
+ * a demo (`display-menu.ts`). A button the
  * device cannot press is not offered once the server has said what it can do, nor one the transport has no call for.
  *
  * The picker is a menu (`popover.ts`): Escape closes it and gives focus back to its button, and the arrow keys walk its
@@ -34,9 +36,7 @@ import type { ViewerStream } from './viewer-stream'
 export type Placement = 'dock' | 'window' | 'page'
 
 /** The buttons that need the connector to be able to do something. */
-const NEEDS: ReadonlyArray<[action: string, capability: Capability]> = [
-  ['appearance', 'appearance'], ['devices', 'device_list'],
-]
+const NEEDS: ReadonlyArray<[action: string, capability: Capability]> = [['appearance', 'appearance']]
 
 /** The device's own buttons the toolbar offers, in its order, with what each is called. */
 export const BAR_BUTTONS: ReadonlyArray<[button: PanelButton & IconName, title: string]> = [
@@ -45,34 +45,61 @@ export const BAR_BUTTONS: ReadonlyArray<[button: PanelButton & IconName, title: 
 ]
 const PRESSED = new Set<string>(BAR_BUTTONS.map(([button]) => button))
 
+const iconButton = (icon: IconRenderer, action: string, name: IconName, title: string, extra = '', className = '') =>
+  `<button type="button" class="smv-icon${className ? ` ${className}` : ''}" data-smv="${action}" title="${title}" aria-label="${title}"${extra}>`
+  + `${icon(name)}</button>`
+
+/** The bar above the stage: the device and how it stands, the menus, the zoom, and the view's own controls. */
 export function barMarkup(icon: IconRenderer): string {
-  const button = (action: string, name: IconName, title: string, extra = '') =>
-    `<button type="button" class="smv-icon" data-smv="${action}" title="${title}" aria-label="${title}"${extra}>`
-    + `${icon(name)}</button>`
+  const button = (action: string, name: IconName, title: string, extra = '') => iconButton(icon, action, name, title, extra)
+  return `<div class="smv-bar" part="bar">
+      <div class="smv-bar-device">
+        <button type="button" class="smv-select" data-smv="devices" title="Choose a device" aria-haspopup="menu"
+          aria-expanded="false"><span class="smv-sr">Choose a device: </span><span class="smv-name"
+          data-smv-name>iOS Simulator</span><span class="smv-chevron">${icon('chevron')}</span></button>
+        <span class="smv-state" data-smv-state data-state="stopped">${STATE_LABELS.stopped}</span>
+        <span class="smv-kind" data-smv-kind hidden></span>
+        <button type="button" class="smv-mode" data-smv="mode" data-smv-mode hidden>View only</button>
+        <span class="smv-app" data-smv-app hidden></span>
+        <span class="smv-rec" data-smv-rec hidden></span>
+      </div>
+      <div class="smv-menus" data-smv-menus></div>
+      <span class="smv-spacer"></span>
+      <div class="smv-zoom" role="group" aria-label="Zoom">
+        ${button('zoom-out', 'minus', 'Zoom out')}
+        <span class="smv-zoom-level" data-smv-zoom-level></span>
+        ${button('zoom-in', 'plus', 'Zoom in')}
+        ${button('zoom-fit', 'fit', 'Fit to window', ' aria-pressed="true"')}
+        <button type="button" class="smv-icon smv-actual" data-smv="zoom-actual" title="Actual size"
+          aria-label="Actual size" aria-pressed="false">100%</button>
+      </div>
+      <div class="smv-window">
+        ${button('settings', 'settings', 'Settings', ' aria-haspopup="dialog" aria-expanded="false" hidden')}
+        ${button('place', 'undock', 'Undock into a window')}
+        <a class="smv-icon" data-smv-page target="_blank" rel="noopener" title="Open on its own page"
+           aria-label="Open on its own page">${icon('page')}</a>
+        ${button('stop', 'power', 'Let the simulator go')}
+        ${button('close', 'close', 'Close')}
+      </div>
+    </div>`
+}
+
+/** The toolbar floating under the device: its buttons, a screenshot, recording, and how it looks. */
+export function toolsMarkup(icon: IconRenderer): string {
+  const button = (action: string, name: IconName, title: string, extra = '') => iconButton(icon, action, name, title, extra)
   // Home and Lock until the device says which it has: what a viewer of an older server always showed.
   const pressed = BAR_BUTTONS.map(([name, title]) =>
-    button(name, name, title, name === 'home' || name === 'lock' ? '' : ' hidden')).join('\n      ')
-  return `<div class="smv-bar" part="bar">
-      <span class="smv-name" data-smv-name>iOS Simulator</span>
-      <span class="smv-kind" data-smv-kind hidden></span>
-      <span class="smv-state" data-smv-state data-state="stopped">${STATE_LABELS.stopped}</span>
-      <button type="button" class="smv-mode" data-smv="mode" data-smv-mode hidden>View only</button>
-      <span class="smv-app" data-smv-app hidden></span>
-      <span class="smv-rec" data-smv-rec hidden></span>
-      <span class="smv-spacer"></span>
+    iconButton(icon, name, name, title, name === 'home' || name === 'lock' ? '' : ' hidden', 'smv-press'))
+    .join('\n      ')
+  return `<div class="smv-tools" role="toolbar" aria-label="Device controls" part="toolbar">
       ${pressed}
-      ${button('appearance', 'moon', 'Dark appearance', ' aria-pressed="false"')}
+      <span class="smv-tools-gap" aria-hidden="true"></span>
+      ${button('screenshot', 'camera', 'Save a screenshot', ' disabled')}
       ${button('record', 'record', 'Record the screen', ' aria-pressed="false" hidden')}
       <button type="button" class="smv-icon smv-size" data-smv="record-size" title="Recording size: Full size"
          aria-label="Recording size: Full size" aria-haspopup="menu" aria-expanded="false" hidden></button>
+      ${button('appearance', 'moon', 'Dark appearance', ' aria-pressed="false"')}
       ${button('display', 'contrast', 'Display', ' aria-haspopup="menu" aria-expanded="false" hidden')}
-      ${button('devices', 'devices', 'Choose a device', ' aria-haspopup="menu" aria-expanded="false"')}
-      ${button('settings', 'settings', 'Settings', ' aria-haspopup="dialog" aria-expanded="false" hidden')}
-      ${button('place', 'undock', 'Undock into a window')}
-      <a class="smv-icon" data-smv-page target="_blank" rel="noopener" title="Open on its own page"
-         aria-label="Open on its own page">${icon('page')}</a>
-      ${button('stop', 'power', 'Let the simulator go')}
-      ${button('close', 'close', 'Close')}
     </div>`
 }
 
@@ -403,6 +430,10 @@ export function createControls(options: ControlsOptions): Controls {
       for (const [action, capability] of NEEDS) {
         q<HTMLButtonElement>(`[data-smv="${action}"]`).hidden = next !== null && !next.capabilities.includes(capability)
       }
+      // The device's name is on the picker's button: a device that cannot be changed keeps its name, on a button
+      // that does nothing.
+      devicesButton.hidden = false
+      devicesButton.disabled = next !== null && !next.capabilities.includes('device_list')
       paintButtons(stream.device)
       recording?.offer(next !== null && next.capabilities.includes('record'))
       display?.offer(next?.capabilities ?? [], reducesMotion(stream.device))

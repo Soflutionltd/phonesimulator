@@ -13,20 +13,25 @@
  * those without the socket noticing, so a device is never reconnected to be moved.
  */
 import { createAgentCursor } from './agent-cursor'
+import { createDeviceView } from './device-view'
+import { buttonsOf } from './device-kind'
 import { canDecodeH264 } from './h264-stream'
 import { lucideSvg, type IconRenderer } from './icons'
 import { createLayers } from './popover'
+import { readPreferences, type Theme } from './preferences'
 import type { Capability, Device, Encoding, ServerHello } from './protocol.generated'
 import { createScreenCanvas, fitRect, type FrameObserver } from './screen-canvas'
 import { createStatusView } from './status-view'
 import { adoptStyles } from './styles'
 import { createTextOverlay } from './text-overlay'
 import type { SimtrailTransport } from './transport'
-import { barMarkup, createControls, type Placement } from './viewer-controls'
+import { createChrome } from './viewer-chrome'
+import { barMarkup, createControls, toolsMarkup, type Placement } from './viewer-controls'
 import { attachInput } from './viewer-input'
 import { createViewerStream } from './viewer-stream'
 
 export type { Placement } from './viewer-controls'
+export type { Theme } from './preferences'
 
 export interface ViewerState {
   device: Device | null
@@ -66,6 +71,12 @@ export interface ViewerOptions {
   /** Told when a person picks what this view shows: a device's UDID, or null to follow the scope's own again -- for a
    * page to keep it in its address. */
   onDevice?(udid: string | null): void
+  /** The viewer's own colours: the system's light or dark (`system`), or one of them. What a person last picked in
+   * the View menu when absent, else the system's. */
+  theme?: Theme
+  /** Draw the device's body -- its edges, buttons, Dynamic Island or notch -- around its screen. What a person last
+   * picked in the View menu when absent, else drawn. */
+  deviceFrame?: boolean
 }
 
 export interface ViewHandle {
@@ -82,10 +93,17 @@ export interface ViewHandle {
   destroy(): void
 }
 
-const STAGE = `
+const stageMarkup = (tools: string) => `
     <div class="smv-stage" data-smv-stage part="stage">
-      <canvas class="smv-canvas" data-smv-canvas tabindex="0" aria-label="iOS Simulator screen" part="screen"></canvas>
-      <div class="smv-overlay" data-smv-overlay></div>
+      <div class="smv-viewport" data-smv-viewport>
+        <div class="smv-device" data-smv-device part="device">
+          <div class="smv-screen" data-smv-screen>
+            <canvas class="smv-canvas" data-smv-canvas tabindex="0" aria-label="iOS Simulator screen" part="screen"></canvas>
+            <div class="smv-overlay" data-smv-overlay></div>
+          </div>
+        </div>
+      </div>
+      ${tools}
       <div class="smv-badge" data-smv-badge hidden></div>
       <div class="smv-empty" data-smv-empty hidden></div>
       <div class="smv-picker" data-smv-picker role="menu" hidden></div>
@@ -101,7 +119,7 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   el.className = 'smv'
   // Before anything is asked of the server: every call is then about that device.
   if (options.device) void options.transport.use?.(options.device)
-  el.innerHTML = barMarkup(icon) + STAGE
+  el.innerHTML = barMarkup(icon) + stageMarkup(toolsMarkup(icon))
   host.appendChild(el)
   adoptStyles(el)
 
@@ -112,7 +130,18 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   let destroyed = false
   let placement: Placement = options.placement ?? 'page'
 
-  const screen = createScreenCanvas(canvas, { fit: 'contain', frames: options.frames })
+  /** The last screen size laid out: the device is drawn again only when it changes. */
+  let laidOut = ''
+  const screen = createScreenCanvas(canvas, {
+    fit: 'contain', frames: options.frames,
+    onFrame: (frame) => {
+      chrome.drawn()
+      const size = `${frame.w}x${frame.h}`
+      if (size === laidOut) return
+      laidOut = size
+      deviceView.layout()
+    },
+  })
   const status = createStatusView({
     canvas, empty: q('[data-smv-empty]'), badge: q('[data-smv-badge]'), name: q('[data-smv-name]'),
     kind: q('[data-smv-kind]'), state: q('[data-smv-state]'), mode: q('[data-smv-mode]'), app: q('[data-smv-app]'),
@@ -138,9 +167,11 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
     onHello: (hello) => {
       status.setMode(hello)
       controls.applyHello(hello)
+      deviceView.layout()
     },
     onChange: () => {
       controls.applyDevice(stream.device)
+      deviceView.setDevice(stream.device)
       const hello = stream.hello
       options.onState?.({
         device: stream.device, connector: hello?.connector ?? null, capabilities: hello?.capabilities ?? [],
@@ -152,6 +183,15 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   })
   /** Menus open over the screen; while one is, the screen's input holds back. */
   const layers = createLayers()
+  const kept = readPreferences()
+  const deviceView = createDeviceView({
+    viewport: q('[data-smv-viewport]'), device: q('[data-smv-device]'), screen: q('[data-smv-screen]'),
+    units: unitsOf, framed: options.deviceFrame ?? kept.framed ?? true,
+    pressable: (button) => stream.allows('input_button') && buttonsOf(stream.device).includes(button),
+    press: (button) => void stream.send({ type: 'button', name: button }),
+    // Laid out only once the chrome below is made: the first layout is asked for after it.
+    onLayout: () => chrome.paintZoom(),
+  })
   const input = attachInput({
     canvas, screen, send: (message) => stream.send(message), allows: stream.allows, blocked: () => layers.open,
     onUnsent: () => controls.tell('That did not reach the device: its screen is not connected.'),
@@ -164,6 +204,11 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
     device: options.device, onDevice: options.onDevice,
   })
   controls.paintPlacement()
+  const chrome = createChrome({
+    el, stage: q('[data-smv-stage]'), canvas, view: deviceView, layers, device: () => stream.device,
+    tell: (message) => controls.tell(message), theme: options.theme ?? kept.theme ?? 'system',
+  })
+  deviceView.layout()
 
   return {
     el,
@@ -200,6 +245,8 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
       stream.cancelReconnect()
       input.destroy()
       controls.destroy()
+      chrome.destroy()
+      deviceView.destroy()
       cursor.destroy()
       text.destroy()
       screen.destroy()
