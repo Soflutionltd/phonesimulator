@@ -500,13 +500,17 @@ class Runner:
                     lines.append(f"not launched: {exc}")
             build.answer = "\n".join([*lines, *_closing(build)])
         except asyncio.CancelledError:
-            await self._end(build)
-            build.state = "cancelled"
-            build.answer = "\n".join([f"{build.kind} {build.id} was cancelled", *_closing(build)])
+            await self._cancelled(build)
             raise
         finally:
             assert build.lane is not None, "a run is watched only once it holds its folder"
             self._running.pop((build.scope.id, build.lane), None)
+
+    async def _cancelled(self, build: Build) -> None:
+        """End a cancelled run's process, and say so in its answer."""
+        await self._end(build)
+        build.state = "cancelled"
+        build.answer = "\n".join([f"{build.kind} {build.id} was cancelled", *_closing(build)])
 
     async def source_of(self, folder: Path) -> Source:
         """The source a run in `folder` would build, as git has it now (`source`)."""
@@ -578,6 +582,12 @@ class Runner:
         build.task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await build.task
+        assert build.lane is not None, "a run going holds its folder"
+        if self._running.get((build.scope.id, build.lane)) is build:
+            # Cancelled before its watcher took a first step, which a task cancelled so early never takes: its process
+            # would run on, and its folder stay held.
+            await self._cancelled(build)
+            del self._running[(build.scope.id, build.lane)]
 
     async def cancel_group(self, group: str) -> int:
         """End every run a group of scopes has going -- its simulator was switched off. Answers how many."""

@@ -385,6 +385,17 @@ async def test_a_build_that_runs_too_long_is_ended_and_its_dart_defines_go_with_
     assert not (build.bundle / DEFINES_FILE).exists()
 
 
+async def test_a_run_cancelled_as_soon_as_it_starts_is_ended_and_frees_its_folder(rig: Rig) -> None:
+    rig.flutter.then(Play(hold=True))
+    build = await rig.begin(dart_defines={"TOKEN": "t"})
+    # Nothing awaited since: the task watching the run has not taken its first step.
+    assert await rig.runner.cancel(SCOPE.id) is True
+    assert rig.flutter.signals == [(6000, signal.SIGTERM)] and rig.runner.runs() == []
+    assert build.state == "cancelled" and rig.defines_left() == []
+    assert (await rig.runner.result(SCOPE.id, build.id, 0)).startswith("build b1 was cancelled")
+    assert (await rig.answer())[0].state == "succeeded", "the folder is free for the next run"
+
+
 async def test_flavor_dart_defines_and_integration_are_for_a_flutter_app_only(rig: Rig, tmp_path: Path) -> None:
     other = tmp_path / "Notes"
     other.mkdir()
