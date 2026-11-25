@@ -13,6 +13,10 @@ All notable changes to Simtrail are documented here. The format follows
   are kept as JSON files in `<state>/flows/<project>/`, with what each ref named so another agent finds the element
   again; long flows are played 20 steps a call; `{{variable}}` values are given to `run`, a missing one refuses the
   run, and typing into a secure field must go through a variable so a secret is never kept.
+- `sim_matrix`: capture one screen on several devices (UDIDs, or the presets `small_iphone`, `large_iphone`, `ipad`
+  and `android`) in light and dark and an optional text size, launching an app and playing a saved flow first; each
+  screenshot is saved in one folder with a captioned contact sheet, each device gets back its appearance and text size,
+  and a device another agent works on is skipped unless `steal: true`.
 
 ## [3.9.0] - 2026-11-24
 

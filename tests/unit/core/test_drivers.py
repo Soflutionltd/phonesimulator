@@ -135,6 +135,7 @@ def test_which_calls_change_the_device_and_where_one_agent_drives_at_a_time() ->
     assert not changes_device("sim_snapshot", {}) and not changes_device(None, {})
     assert not changes_device("sim_act", "tap"), "arguments that are no object are refused by the tool"
     assert changes_device("sim_flow", {"action": "run"}) and not changes_device("sim_flow", {"action": "save"})
+    assert not changes_device("sim_matrix", {}), "a matrix asks about each of its devices itself"
     assert exclusive("real_devices", real=True) and not exclusive("real_devices", real=False)
     assert exclusive("all", real=False) and not exclusive("off", real=True)
 

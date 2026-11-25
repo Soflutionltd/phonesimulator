@@ -78,11 +78,11 @@ from simtrail.tools.results import Result, text
 #: Where what each device still has changed is written down, in the host's run folder (`core.device_changes`).
 CHANGES_LEFT = "device-changes.json"
 #: The calls that never give an agent that has no device yet one: they list, say or choose devices, recordings or
-#: flows.
+#: flows -- and a matrix, which names its own devices.
 UNSETTLED = frozenset(
     {("sim_device", "list"), ("sim_device", "info"), ("sim_device", "choose"), ("sim_record", "list")}
     | {("sim_record", "status"), ("sim_flow", "save"), ("sim_flow", "list"), ("sim_flow", "show")}
-    | {("sim_flow", "delete")}
+    | {("sim_flow", "delete"), ("sim_matrix", None)}
 )
 
 
@@ -392,6 +392,7 @@ class Runtime:
             per_agent=config.device_selection == "agent",
             folders=self.folders,
             flows=FlowStore(flows_folder(self.state)),
+            drivers=self.drivers,
         )
 
     def _build_folder(self, caller: Caller) -> Path | None:

@@ -50,7 +50,7 @@ _SCHEME = re.compile(r"\A([A-Za-z][A-Za-z0-9+.-]*):")
 _BUNDLE_ID = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._-]{0,254}\Z")
 
 
-def _bundle(value: object) -> str:
+def bundle_of(value: object) -> str:
     if not isinstance(value, str) or not _BUNDLE_ID.match(value):
         raise ToolRefused(
             "bundle_id must be an app's id: a bundle identifier like com.example.Notes, or an Android package name "
@@ -110,14 +110,14 @@ async def _logs(args: dict[str, Any], instance: DeviceInstance, control: LogRead
     wanted = args.get("filter")
     if wanted is not None and (not isinstance(wanted, str) or len(wanted) > FILTER_MAX):
         raise ToolRefused(f"filter is text of at most {FILTER_MAX} characters")
-    bundle = _bundle(args["bundle_id"]) if args.get("bundle_id") is not None else None
+    bundle = bundle_of(args["bundle_id"]) if args.get("bundle_id") is not None else None
     shown = await control.logs(instance.udid, since_s=since, bundle_id=bundle)
     rows = [row for row in shown if not wanted or wanted.casefold() in row.casefold()]
     return "\n".join(rows[-lines:]) if rows else f"no log lines in the last {since}s"
 
 
 async def _info(args: dict[str, Any], instance: DeviceInstance, control: AppControl, ctx: ToolContext) -> str:
-    bundle = _bundle(args.get("bundle_id"))
+    bundle = bundle_of(args.get("bundle_id"))
     app = await control.app_info(instance.udid, bundle)
     if app is None:
         return f"{bundle} is not installed on {instance.name}"
@@ -148,7 +148,7 @@ async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
     require(ctx, instance, (NEEDS[action],), f"sim_app {action}")
     control = ctx.manager.control(instance)
     if action == "launch":
-        bundle, launch_args = _bundle(args.get("bundle_id")), _launch_args(args.get("args"))
+        bundle, launch_args = bundle_of(args.get("bundle_id")), _launch_args(args.get("args"))
         relaunch = flag_arg(args.get("relaunch"), "relaunch")
         verb = "relaunch" if relaunch else "launch"
         launching = control.launch(instance.udid, bundle, launch_args, terminate_running=relaunch)
@@ -168,7 +168,7 @@ async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
             instance.launched[bundle] = pid
         return text(f"{verb}ed {bundle}" + (f" (pid {pid})" if pid else ""))
     if action == "terminate":
-        bundle = _bundle(args.get("bundle_id"))
+        bundle = bundle_of(args.get("bundle_id"))
         ending = control.terminate(instance.udid, bundle)
         ended = await ctx.actions.announced(instance, ctx.caller, "app", f"quit {bundle}", ending)
         instance.launched.pop(bundle, None)

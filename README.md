@@ -140,6 +140,11 @@ agent: each ref is found again by what it named, long flows are split into calls
 variables are given at run time. A step that types into a secure field must type a variable, so a password is never
 kept, and the answer says each value as its name.
 
+**Device matrix.** `sim_matrix` captures the same screen on several devices -- UDIDs, or presets such as
+`small_iphone`, `large_iphone`, `ipad` and `android` -- in light and dark and at a chosen text size, launching the app
+and playing a saved flow first. Each screenshot is saved in one folder beside a captioned contact sheet, every device
+gets back the look it had, and one another agent holds is skipped unless the call steals it.
+
 **Connectors.** Simtrail's own native helper gives full control with nothing to install; idb_companion still can,
 and the simctl connector mirrors the screen view-only when neither is there, and says why. `auto` uses the fastest that
 works and falls back when one fails. More connectors plug in through an entry point. See
@@ -219,7 +224,6 @@ the [command line](docs/reference/cli.md) and the [protocol](docs/reference/prot
 - **Sign-in through 1Password**: fill an app's login from the person's password manager, never showing the agent a
   password.
 - **Flutter end to end**: build, install and hot reload a Flutter app from the same tools.
-- **Device matrix**: the same screen on several devices, in light and dark mode, in one call.
 
 How Simtrail relates to other tools is in [Comparison](docs/comparison.md).
 

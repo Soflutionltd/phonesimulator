@@ -30,6 +30,7 @@ from simtrail.config.model import SimConfig
 from simtrail.connectors.base import Capability, ReportsStarting, ReportsTrouble
 from simtrail.connectors.iphone.connector import DRIVEN
 from simtrail.core.actions import AgentActions
+from simtrail.core.drivers import Drivers
 from simtrail.core.flows import FlowStore
 from simtrail.core.instance import READY, STALLED, DeviceInstance
 from simtrail.core.manager import DeviceManager, SimulatorUnavailable
@@ -111,6 +112,9 @@ class ToolContext:
     folders: Folders | None = None
     #: Each scope's saved flows (`sim_flow`); None where none are kept.
     flows: FlowStore | None = None
+    #: Who drives each device, for a tool that acts on devices other than the agent's own (`sim_matrix`); None where
+    #: nobody is asked.
+    drivers: Drivers | None = None
 
     @property
     def scope(self) -> Scope:
@@ -154,14 +158,15 @@ def flag_arg(value: object, name: str) -> bool:
     return value
 
 
-async def ready_device(ctx: ToolContext) -> DeviceInstance:
-    """The calling agent's device, brought up if it is not, waited for, and able to do what the tool needs. An agent
-    that works on no device yet works on this one from now on (`core.selections`)."""
+async def ready_device(ctx: ToolContext, udid: str | None = None) -> DeviceInstance:
+    """The calling agent's device -- or, given its `udid`, another one brought up beside it -- brought up if it is
+    not, waited for, and able to do what the tool needs. An agent that works on no device yet works on its own from now
+    on (`core.selections`); one asked for by `udid` is used for this call only, and the agent's own stays its own."""
     try:
-        instance = await ctx.manager.ensure(ctx.scope, ctx.udid)
+        instance = await ctx.manager.ensure(ctx.scope, udid or ctx.udid)
     except SimulatorUnavailable as exc:
         raise ToolRefused(str(exc)) from exc
-    if ctx.selections is not None and ctx.per_agent:
+    if ctx.selections is not None and ctx.per_agent and udid is None:
         ctx.selections.bind(ctx.caller, instance.udid)
     waited, limit = 0.0, READY_WAIT_S
     what = "simulator" if instance.kind == "simulator" else "device"

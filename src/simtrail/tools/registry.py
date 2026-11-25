@@ -23,7 +23,7 @@ from simtrail.build.xcodebuild import BuildRefused
 from simtrail.config.model import SimConfig
 from simtrail.core.actions import ActionError
 from simtrail.platform.errors import DeviceControlError
-from simtrail.tools import act, app, device, flow, record, screenshot, snapshot
+from simtrail.tools import act, app, device, flow, matrix, record, screenshot, snapshot
 from simtrail.tools.context import Tool, ToolContext
 from simtrail.tools.results import SHUT_DOWN, Result, ToolRefused, text
 from simtrail.tools.schemas import LOOK_AND_ACT
@@ -55,6 +55,7 @@ class DeviceToolProvider:
         app.TOOL,
         record.TOOL,
         flow.TOOL,
+        matrix.TOOL,
     )
 
     def offered(self, config: SimConfig) -> bool:

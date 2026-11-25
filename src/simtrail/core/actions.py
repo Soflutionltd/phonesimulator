@@ -200,6 +200,9 @@ TURN_SETTLE = {"settle_ms": 300, "timeout_ms": 3000}
 #: answers with: a list flicked goes on gliding, a ref read meanwhile is where its row was passing, and on iOS a tap on
 #: a list still moving only stops it -- on an iPhone 17 Pro a row read 0.8 s after a swipe and tapped was not opened.
 MOVED_SETTLE = {"settle_ms": 300, "timeout_ms": 2500}
+#: How a screenshot that compares devices waits for the screen to stop moving first -- an app launched, an appearance
+#: changed, a screen pushed: a picture taken mid-way shows half of each (`settled`).
+CAPTURE_SETTLE = {"settle_ms": 500, "timeout_ms": 5000}
 #: The gestures that set what is on the screen moving, to be waited out (`MOVED_SETTLE`).
 MOVING = frozenset({"swipe", "drag"})
 
@@ -652,6 +655,11 @@ class AgentActions:
         """This agent's last snapshot of the device, without reading it again; None before its first."""
         memory = self._memory.get((instance.udid, caller.key))
         return memory.snapshot if memory is not None else None
+
+    async def settled(self, instance: DeviceInstance, caller: Caller, max_elements: int) -> bool:
+        """Wait for the screen to stop moving, as `CAPTURE_SETTLE` asks: whether it did in time."""
+        self._ready(instance)
+        return (await self._wait(instance, caller, CAPTURE_SETTLE, max_elements)).met
 
     async def read(self, instance: DeviceInstance, caller: Caller, max_elements: int) -> Snapshot:
         """The screen as it is now, kept as this agent's last look -- for a caller that acts on elements itself."""

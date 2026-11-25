@@ -42,6 +42,7 @@ _CALLS: dict[str, str | Mapping[str, str]] = {
     "sim_test": "Running tests",
     "sim_record": {"start": "Recording the screen", "stop": "Saving the recording", "": "Checking recordings"},
     "sim_flow": {"run": "Playing a flow", "save": "Saving a flow", "": "Checking flows"},
+    "sim_matrix": "Capturing several devices",
     "sim_app": {
         "launch": "Launching the app",
         "terminate": "Quitting the app",
