@@ -1290,3 +1290,25 @@ async def test_a_scope_with_no_device_yet_inherits_another_scopes_so_none_is_cre
     shared.config.set(device_mode="shared")
     await shared.manager.choose(TP1, BOOTED_UDID)
     assert shared.manager.inherit(worktree, TP1) is None, "the whole group shares one device anyway"
+
+
+async def test_worktrees_whose_main_checkout_has_no_device_all_land_on_the_first_ones(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    first, second = scope("tp-2"), scope("tp-3")
+    assert rig.manager.inherit(first, TP1) is None, "the main checkout has none to give yet"
+    rig.manager.directory.memory.choose(first, False, BOOTED_UDID)
+    made = await rig.manager.ensure(first)
+    assert made.task is not None
+    await made.task
+    assert rig.manager.default_udid(TP1) == BOOTED_UDID, "the main checkout remembers the first worktree's device"
+    assert rig.manager.inherit(second, TP1) == BOOTED_UDID, "so the next worktree is given it"
+    assert rig.manager.family("tp-2") == rig.manager.family("tp-3") == "tp-1"
+
+
+async def test_a_main_checkout_with_no_device_is_given_the_one_a_worktree_already_has(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    worktree = scope("tp-2")
+    rig.manager.directory.memory.choose(worktree, False, BOOTED_UDID)
+    assert rig.manager.inherit(worktree, TP1) is None, "it keeps its own"
+    assert rig.manager.default_udid(TP1) == BOOTED_UDID
+    assert rig.manager.inherit(scope("tp-3"), TP1) == BOOTED_UDID

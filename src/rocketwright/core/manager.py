@@ -226,6 +226,9 @@ class DeviceManager:
         self._scopes: dict[str, str] = {}
         #: A scope given another's device (`inherit`) -> that other scope: one project, for who shares its devices.
         self._families: dict[str, str] = {}
+        #: A worktree's scope -> its main checkout's, which had no device when the worktree asked (`inherit`): the
+        #: device the worktree is given first is remembered for the main checkout too, so its other worktrees join it.
+        self._anchors: dict[str, Scope] = {}
         self._lock = asyncio.Lock()
         #: Each device's own lock, by UDID, given to every instance of it (`DeviceInstance.session_lock`).
         self._session_locks: dict[str, asyncio.Lock] = {}
@@ -271,18 +274,37 @@ class DeviceManager:
     def inherit(self, scope: Scope, source: Scope) -> str | None:
         """Give a scope that has no device yet the device of another -- a git worktree, its main checkout's -- rather
         than a new one being created for it at its first call. Answers the UDID it was given, or None when it already
-        had one, the other has none, or one device is shared by the whole group anyway (``device.mode = "shared"``)."""
+        had one, the other has none, or one device is shared by the whole group anyway (``device.mode = "shared"``).
+
+        When the other has none, it is given the worktree's instead -- the one it has, else the first it is given
+        (`_anchor`) -- so every worktree of a repository whose main checkout runs nothing still lands on one device."""
         config = self._config.get(scope)
         if config.device_mode == "shared":
             return None
         udid, own = self.default_udid(source), self.default_udid(scope)
-        if udid is not None and own in (None, udid):
+        if udid is None:
+            if own is None:
+                self._anchors[scope.id] = source
+            else:
+                self.directory.memory.choose(source, False, own)
+                self._families[scope.id] = self.family(source.id)
+            return None
+        if own in (None, udid):
             # Given it now, or earlier and still on it: the two are one project, whose agents share its devices.
             self._families[scope.id] = self.family(source.id)
-        if own is not None or udid is None:
+        if own is not None:
             return None
         self.directory.memory.choose(scope, False, udid)
         return udid
+
+    def _anchor(self, scope: Scope, udid: str) -> None:
+        """Remember a worktree's first device for its main checkout, when that had none (`inherit`): the repository's
+        other worktrees are given it in turn."""
+        source = self._anchors.pop(scope.id, None)
+        if source is None or self.default_udid(source) is not None:
+            return
+        self.directory.memory.choose(source, False, udid)
+        self._families[scope.id] = self.family(source.id)
 
     def family(self, scope_id: str) -> str:
         """The scope whose device a scope was given (`inherit`), else the scope itself: what makes two scopes -- a git
@@ -508,6 +530,7 @@ class DeviceManager:
         running = self._instances.get(ref.udid)
         if not self._shareable(scope, running):
             raise SimulatorUnavailable(self._copy.in_use_elsewhere_of_kind(ref.kind), 409)
+        self._anchor(scope, ref.udid)
         if running is not None and running.live:
             self._join(running, scope, now)
             self._scopes[scope.id] = ref.udid
