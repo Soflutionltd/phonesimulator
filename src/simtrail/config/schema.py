@@ -592,11 +592,17 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("device_templates", "device.templates", True, Flag(),
             "Whether a new simulator is copied from a template -- one Simtrail created and booted once, for each "
             "runtime and device type -- rather than created blank: it is ready in about half the time, since its "
-            "first boot is already done. The first device of a runtime and type is created as before while its "
-            "template is prepared in the background. Each template is one more simulator kept on disk (2-3 GB); it is "
-            "never given to a scope, nor deleted by the idle clean-up or `simtrail devices prune`. Off: every new "
-            "simulator is created blank.",
+            "first boot is already done. A template is made only when a device of its runtime and type is asked for: "
+            "that first device is created as before while the template is prepared in the background, in about a "
+            "minute. Each template is one more simulator kept on disk (about 1 GB), until `device.template_days` "
+            "passes without a device copied from it; it is never given to a scope, nor deleted by the idle clean-up "
+            "or `simtrail devices prune`. Off: every new simulator is created blank.",
             effect="next_device"),
+    Setting("template_days", "device.template_days", 30, Whole(0, 365),
+            "A simulator template no device has been copied from for this many days is deleted, and made again the "
+            "next time a device of its runtime and type is asked for -- so one for an iOS or a device type nobody "
+            "uses any more does not stay on disk. 0 keeps them.",
+            reach="global"),
     Setting("device_typing", "device.typing", "auto", Choice(("auto", "keys", "paste")),
             "How text reaches the device. `auto` types it as key presses with the keys the Mac's own keyboard layout "
             "has for it -- AZERTY's, QWERTZ's, a US keyboard's -- and pastes it when a character has no key there (an "

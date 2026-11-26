@@ -50,6 +50,7 @@ agent_idle_minutes = 30
 shutdown_on_idle = true
 delete_created = "empty"
 templates = true
+template_days = 30
 typing = "auto"
 restore_changes = "real_devices"
 selection = "agent"
@@ -433,7 +434,7 @@ What becomes of a simulator Simtrail created for a scope -- each takes 1.5-3.5 G
 
 ### `device.templates`
 
-Whether a new simulator is copied from a template -- one Simtrail created and booted once, for each runtime and device type -- rather than created blank: it is ready in about half the time, since its first boot is already done. The first device of a runtime and type is created as before while its template is prepared in the background. Each template is one more simulator kept on disk (2-3 GB); it is never given to a scope, nor deleted by the idle clean-up or `simtrail devices prune`. Off: every new simulator is created blank.
+Whether a new simulator is copied from a template -- one Simtrail created and booted once, for each runtime and device type -- rather than created blank: it is ready in about half the time, since its first boot is already done. A template is made only when a device of its runtime and type is asked for: that first device is created as before while the template is prepared in the background, in about a minute. Each template is one more simulator kept on disk (about 1 GB), until `device.template_days` passes without a device copied from it; it is never given to a scope, nor deleted by the idle clean-up or `simtrail devices prune`. Off: every new simulator is created blank.
 
 - Default: `true`
 - Allowed: `true` or `false`
@@ -441,6 +442,17 @@ Whether a new simulator is copied from a template -- one Simtrail created and bo
 - Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
 - Environment: `SIMTRAIL_DEVICE_TEMPLATES`
 - Key in a host's flat settings: `device_templates`
+
+### `device.template_days`
+
+A simulator template no device has been copied from for this many days is deleted, and made again the next time a device of its runtime and type is asked for -- so one for an iOS or a device type nobody uses any more does not stay on disk. 0 keeps them.
+
+- Default: `30`
+- Allowed: a whole number from 0 to 365
+- Takes effect: at once
+- Set for: the whole daemon only; a scope's table cannot change it
+- Environment: `SIMTRAIL_DEVICE_TEMPLATE_DAYS`
+- Key in a host's flat settings: `template_days`
 
 ### `device.typing`
 

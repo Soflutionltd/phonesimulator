@@ -76,7 +76,7 @@ async def test_the_first_device_is_created_blank_and_its_template_prepared_in_th
     assert state(rig, template) == "Shutdown"
     assert template not in rig.memory.all_created() and rig.memory.all_templates() == {template}
     stored = json.loads((tmp_path / "state" / "devices.json").read_text())
-    assert stored["templates"] == {f"{RUNTIME}|{PHONE}": {"udid": template, "ready": True}}
+    assert stored["templates"] == {f"{RUNTIME}|{PHONE}": {"udid": template, "ready": True, "used": rig.wall.now}}
 
 
 async def test_the_next_device_is_copied_from_the_template_and_remembered_as_made(tmp_path: Path) -> None:
@@ -320,3 +320,99 @@ async def test_the_rigs_simctl_refuses_to_copy_a_device_it_does_not_have_or_that
     rig.set_state(created, "Booted")
     with pytest.raises(SimctlError, match="current state: Booted"):
         await simctl.clone(created, "copy")
+
+
+# -- expiry (device.template_days) ------------------------------------------------------------------------------------
+
+DAY = 86400
+
+
+def deleted(rig: DeviceRig) -> list[str]:
+    return [args[2] for args in rig.argv() if args[:2] == ("simctl", "delete")]
+
+
+async def test_a_template_no_device_was_copied_from_for_its_days_is_deleted_and_made_again_on_demand(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    rig = rig_with_templates(tmp_path, idle_minutes=240)
+    await rig.up()
+    await rig.manager.directory.settle()
+    template = made(2)
+    made_at = rig.wall.now
+    assert rig.memory.templates_used() == {template: made_at}, "its making is its first use"
+    rig.wall.advance(20 * DAY)
+    await rig.up("tp-2")
+    assert rig.memory.templates_used() == {template: made_at + 20 * DAY}, "a copy dates it again"
+    rig.wall.advance(29 * DAY)
+    await rig.manager.reap()
+    assert deleted(rig) == [] and rig.memory.all_templates() == {template}
+    rig.wall.advance(DAY)
+    await rig.manager.reap()
+    assert deleted(rig) == [template] and rig.memory.all_templates() == set()
+    assert f"deleted the simulator template {template}: no device was copied from it for 30 days" in caplog.text
+    remove(rig, template)
+    # Asked for again, it is made again: the device created blank meanwhile.
+    third = await rig.up("tp-3")
+    await rig.manager.directory.settle()
+    assert ("create", TEMPLATE_NAME, PHONE) in calls(rig) and third.created
+    assert rig.memory.template(RUNTIME, PHONE) == Template(made(5), ready=True)
+
+
+async def test_templates_are_kept_at_zero_days_and_while_no_device_runs_to_read_the_setting_from(
+    tmp_path: Path,
+) -> None:
+    rig = rig_with_templates(tmp_path, template_days=0, idle_minutes=240)
+    await rig.up()
+    await rig.manager.directory.settle()
+    rig.wall.advance(400 * DAY)
+    await rig.manager.reap()
+    assert deleted(rig) == [] and rig.memory.all_templates() == {made(2)}
+    rig.config.set(template_days=30)
+    await rig.manager.stop(TP1)
+    rig.clock.advance(1)
+    await rig.manager.reap()
+    assert deleted(rig) == [], "no device's settings to go by: never the defaults"
+
+
+async def test_a_template_never_dated_is_dated_first_and_one_simctl_cannot_delete_is_kept(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    rig = rig_with_templates(tmp_path)
+    directory = DeviceDirectory(rig.memory, wall=rig.wall)
+    simctl = Simctl(rig.xcrun)
+    config = SimConfig.defaults()
+    rig.memory.remember_template(RUNTIME, PHONE, "OLD", ready=True)
+    assert rig.memory.templates_used() == {"OLD": None}, "a file from before templates were dated"
+    assert await directory.expire_templates(simctl, config) == []
+    assert rig.memory.templates_used() == {"OLD": rig.wall.now}
+    rig.wall.advance(31 * DAY)
+    rig.xcrun.on("simctl", "delete", rc=1, err="Unable to delete: busy")
+    assert await directory.expire_templates(simctl, config) == []
+    assert rig.memory.all_templates() == {"OLD"} and "could not delete the simulator template OLD" in caplog.text
+
+
+async def test_a_template_being_booted_or_under_a_memory_that_does_not_date_them_is_never_deleted(
+    tmp_path: Path,
+) -> None:
+    rig = rig_with_templates(tmp_path)
+    simctl = Simctl(rig.xcrun)
+    config = SimConfig.defaults()
+    rig.memory.remember_template(RUNTIME, PHONE, "BOOTING", ready=False)
+    rig.memory.template_used("BOOTING", rig.wall.now - 90 * DAY)
+    directory = DeviceDirectory(rig.memory, wall=rig.wall)
+    directory._booting.add("BOOTING")
+    assert await directory.expire_templates(simctl, config) == []
+    plain = DeviceDirectory(PlainMemory(rig.memory), wall=rig.wall)
+    assert await plain.expire_templates(simctl, config) == []
+    assert deleted(rig) == []
+
+
+def test_a_templates_date_is_kept_when_it_is_remembered_again_and_dropped_for_another(tmp_path: Path) -> None:
+    memory = JsonDeviceMemory(tmp_path / "devices.json")
+    memory.remember_template(RUNTIME, PHONE, "T1", ready=False)
+    memory.template_used("T1", 5.0)
+    memory.remember_template(RUNTIME, PHONE, "T1", ready=True)
+    assert memory.templates_used() == {"T1": 5.0}
+    memory.remember_template(RUNTIME, PHONE, "T2", ready=False)
+    assert memory.templates_used() == {"T2": None}

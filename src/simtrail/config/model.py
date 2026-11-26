@@ -42,6 +42,7 @@ class SimConfig:
     shutdown_on_idle: bool
     delete_created: Literal["empty", "idle", "never"]
     device_templates: bool
+    template_days: int
     device_typing: Literal["auto", "keys", "paste"]
     restore_changes: Literal["real_devices", "all", "off"]
     device_selection: Literal["agent", "scope"]

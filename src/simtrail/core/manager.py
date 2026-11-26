@@ -1317,11 +1317,14 @@ class DeviceManager:
         Answers the UDIDs ended."""
         ended: list[str] = []
         withdrawn: list[DeviceInstance] = []
+        # The daemon's settings as any running device's scope reads them: device.template_days is the same for all.
+        settings: SimConfig | None = None
         async with self._lock:
             now = self._clock()
             gone = await self._gone()
             for instance in list(self._instances.values()):
                 verdict, off = await self._govern(instance)
+                settings = verdict.config
                 if off:
                     await self._end(instance, shutdown=instance.may_shut_down, off=off)
                     ended.append(instance.udid)
@@ -1351,6 +1354,10 @@ class DeviceManager:
                         await self._delete_idle(instance, verdict.config)
         # A simulator template left unbooted for want of room is tried again while there may be some now.
         self.directory.retry_templates()
+        backend = self.backends.get("simulator")
+        # Only with a device's settings to go by, never the defaults: a person may have set it to keep them.
+        if settings is not None and isinstance(backend, SimulatorBackend):
+            await self.directory.expire_templates(backend.simctl_for(""), settings)
         for instance in withdrawn:
             # One whose session is being started over is not waited for: the reaper runs again in a minute.
             if not instance.session_lock.locked():

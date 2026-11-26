@@ -372,7 +372,7 @@ def test_what_a_page_cannot_change_alone_and_what_only_the_daemon_has_are_decide
     # The daemon reads these for itself alone, so a scope's table cannot change them.
     assert {setting.path for setting in SETTINGS if setting.reach == "global"} == {
         "server.host", "server.port", "security.allowed_origins", "security.frame_ancestors", "recording.folder",
-        "recording.keep",
+        "recording.keep", "device.template_days",
     }  # fmt: skip
     assert all(setting.reach == "global" for setting in SETTINGS if setting.effect == "restart")
 

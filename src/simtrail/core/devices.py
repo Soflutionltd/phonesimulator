@@ -20,6 +20,11 @@ never failing anything when it cannot be: it is tried again later. A template is
 offered in a picker, and never deleted by the idle clean-up or ``simtrail devices prune``; one that went away -- deleted
 in Xcode, its runtime removed -- is forgotten and made again. Templates need a memory that can remember them
 (`DeviceTemplates`), as `JsonDeviceMemory` can; a host's own memory without that creates every device blank.
+
+A template is made only when a device of its runtime and type is asked for, and deleted once no device has been
+copied from it for ``device.template_days`` (`DeviceDirectory.expire_templates`, which the reaper calls): one for a
+runtime or a device type nobody uses any more does not stay on disk. That needs a memory that dates each template's
+last use (`ExpiringTemplates`), as `JsonDeviceMemory` does; a template it has no date for is dated when first seen.
 """
 
 from __future__ import annotations
@@ -28,6 +33,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -143,6 +149,20 @@ class DeviceTemplates(Protocol):
         ...
 
 
+@runtime_checkable
+class ExpiringTemplates(Protocol):
+    """A `DeviceTemplates` that also dates each template's last use, so one left unused is deleted. Optional: under a
+    memory without it, templates are kept."""
+
+    def template_used(self, udid: str, at: float) -> None:
+        """Date a template's last use -- a device copied from it, or its making -- as a wall-clock time."""
+        ...
+
+    def templates_used(self) -> dict[str, float | None]:
+        """Each template's UDID, and when it was last used -- None when it was never dated."""
+        ...
+
+
 def template_name(prefix: str, kind: DeviceType, runtime: Runtime) -> str:
     """What a template is called in Xcode's list, so a person can tell it from a scope's device."""
     return f"{prefix} · template · {kind.name} · {runtime.name}"
@@ -182,7 +202,11 @@ class JsonDeviceMemory:
             "scopes": {str(k): str(v) for k, v in scopes.items()} if isinstance(scopes, dict) else {},
             "created": sorted({str(u) for u in created}) if isinstance(created, list) else [],
             "templates": {
-                str(key): {"udid": str(entry["udid"]), "ready": entry.get("ready") is True}
+                str(key): {
+                    "udid": str(entry["udid"]),
+                    "ready": entry.get("ready") is True,
+                    **({"used": float(entry["used"])} if isinstance(entry.get("used"), (int, float)) else {}),
+                }
                 for key, entry in templates.items()
                 if isinstance(entry, dict) and "udid" in entry
             }
@@ -246,8 +270,21 @@ class JsonDeviceMemory:
 
     def remember_template(self, runtime_id: str, device_type_id: str, udid: str, *, ready: bool) -> None:
         data = self._read_all()
-        data["templates"][self._template_key(runtime_id, device_type_id)] = {"udid": udid, "ready": ready}
+        key = self._template_key(runtime_id, device_type_id)
+        before = data["templates"].get(key, {})
+        used = {"used": before["used"]} if before.get("udid") == udid and "used" in before else {}
+        data["templates"][key] = {"udid": udid, "ready": ready, **used}
         self._write_all(data)
+
+    def template_used(self, udid: str, at: float) -> None:
+        data = self._read_all()
+        for entry in data["templates"].values():
+            if entry["udid"] == udid:
+                entry["used"] = at
+        self._write_all(data)
+
+    def templates_used(self) -> dict[str, float | None]:
+        return {entry["udid"]: entry.get("used") for entry in self._read_all()["templates"].values()}
 
     def forget_template(self, udid: str) -> None:
         data = self._read_all()
@@ -266,9 +303,13 @@ TemplateKey = tuple[str, str]
 class DeviceDirectory:
     """Every scope's device, and the templates new ones are copied from."""
 
-    def __init__(self, memory: DeviceMemory, copy: HostCopy | None = None) -> None:
+    def __init__(
+        self, memory: DeviceMemory, copy: HostCopy | None = None, *, wall: Callable[[], float] = time.time
+    ) -> None:
         self.memory = memory
         self._copy = copy or HostCopy()
+        #: The wall clock a template's last use is dated by: it outlives the daemon, unlike a monotonic one.
+        self._wall = wall
         #: The simulators the host runs now, by UDID: a template is booted only while they leave room under
         #: ``device.max_booted``. `DeviceManager` points it at its own; nothing runs, by default.
         self.running: Callable[[], set[str]] = set
@@ -321,7 +362,9 @@ class DeviceDirectory:
         if template is not None and template.ready and source is not None and key not in self._preparing:
             if source.state == SHUTDOWN:
                 try:
-                    return await simctl.clone(template.udid, name)
+                    copied = await simctl.clone(template.udid, name)
+                    self._used(template.udid)
+                    return copied
                 except DeviceControlError as exc:
                     logger.warning("could not copy the template %s; creating a blank simulator: %s", source.name, exc)
                     return await simctl.create(name, kind.identifier, runtime.identifier)
@@ -383,6 +426,7 @@ class DeviceDirectory:
             name = template_name(config.device_name_prefix, kind, runtime)
             udid = await simctl.create(name, kind.identifier, runtime.identifier)
             templates.remember_template(runtime.identifier, kind.identifier, udid, ready=False)
+            self._used(udid)
         elif found.ready:
             return
         else:
@@ -410,6 +454,38 @@ class DeviceDirectory:
                 self._booting.discard(udid)
         templates.remember_template(runtime.identifier, kind.identifier, udid, ready=True)
         logger.info("prepared the simulator template for %s on %s", kind.name, runtime.name)
+
+    def _used(self, udid: str) -> None:
+        if isinstance(self.memory, ExpiringTemplates):
+            self.memory.template_used(udid, self._wall())
+
+    async def expire_templates(self, simctl: Simctl, config: SimConfig) -> list[str]:
+        """Delete each template no device has been copied from for ``device.template_days`` -- none while it is 0 --
+        and forget it; one never dated is dated now, so its days start counting. A template being prepared or booted is
+        left alone, and so is one simctl cannot delete, tried again later. Answers the UDIDs deleted."""
+        memory = self.memory
+        if config.template_days <= 0 or not isinstance(memory, ExpiringTemplates):
+            return []
+        now = self._wall()
+        deleted: list[str] = []
+        for udid, used in memory.templates_used().items():
+            if used is None:
+                memory.template_used(udid, now)
+                continue
+            if udid in self._booting or now - used < config.template_days * 86400:
+                continue
+            try:
+                await simctl.delete(udid)
+            except DeviceControlError as exc:
+                logger.warning("could not delete the simulator template %s, unused for %d days: %s", udid,
+                               int((now - used) // 86400), exc)  # fmt: skip
+                continue
+            assert isinstance(memory, DeviceTemplates)
+            memory.forget_template(udid)
+            deleted.append(udid)
+            logger.info("deleted the simulator template %s: no device was copied from it for %d days "
+                        "(device.template_days)", udid, int((now - used) // 86400))  # fmt: skip
+        return deleted
 
     async def settle(self) -> None:
         """Wait for every template being prepared."""

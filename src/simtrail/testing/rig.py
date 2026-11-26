@@ -88,6 +88,8 @@ class DeviceRig:
         self.policy = FakePolicy()
         self.copy = copy or HostCopy()
         self.clock = ManualClock()
+        #: The wall clock templates are dated by: a day is 86400 of it.
+        self.wall = ManualClock(1_800_000_000.0)
         self.devices: dict[str, Any] = fixture_json("simctl-devices.json")
         counter = itertools.count(1)
 
@@ -161,7 +163,7 @@ class DeviceRig:
         self.availability = Availability(
             config=self.config, policy=self.policy, registry=self.registry, copy=self.copy, platform=platform
         )
-        directory = DeviceDirectory(self.memory, self.copy)
+        directory = DeviceDirectory(self.memory, self.copy, wall=self.wall)
 
         def simctl_for(developer_dir: str) -> Simctl:
             return Simctl(self.xcrun, developer_dir=developer_dir)
