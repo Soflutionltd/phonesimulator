@@ -6,6 +6,8 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.11.0] - 2026-11-26
+
 ### Added
 
 ### Changed
