@@ -6,6 +6,13 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.11.3] - 2026-11-26
+
+### Fixed
+
+- `simtrail helper status` and `simtrail helper allow` read the helper's permissions while one is missing too: the
+  helper exits 1 then, and its answer was dropped.
+
 ## [3.11.2] - 2026-11-26
 
 ### Added
