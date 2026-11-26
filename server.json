@@ -3,7 +3,7 @@
   "name": "io.github.Soflutionltd/simtrail",
   "title": "Simtrail",
   "description": "Drive iOS Simulators, iPhones, Android devices and macOS apps: UI snapshots, live viewer, recording.",
-  "version": "3.11.6",
+  "version": "3.11.7",
   "websiteUrl": "https://github.com/Soflutionltd/simtrail#readme",
   "repository": {
     "url": "https://github.com/Soflutionltd/simtrail",
@@ -14,7 +14,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "simtrail",
-      "version": "3.11.6",
+      "version": "3.11.7",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

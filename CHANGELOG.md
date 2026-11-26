@@ -6,6 +6,18 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.11.7] - 2026-11-26
+
+### Changed
+
+- A project is called by its name -- its repository's, for a git worktree -- instead of its id: in a simulator's name,
+  the viewer tab's title (`Project · iPhone 17 Pro`) and the settings panel's header. The daemon keeps the names it is
+  told (`scope-names.json`), and a simulator Simtrail made for one project alone is renamed to match. Ids do not change.
+
+### Fixed
+
+- A Flutter reload test that measured real time and failed on a busy machine.
+
 ## [3.11.6] - 2026-11-26
 
 ### Added

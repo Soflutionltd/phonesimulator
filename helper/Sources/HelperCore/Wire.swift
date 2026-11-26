@@ -3,7 +3,7 @@ import Foundation
 
 /// The helper's version, which is Simtrail's: Simtrail refuses a helper of another version.
 public enum HelperVersion {
-    public static let current = "3.11.6"
+    public static let current = "3.11.7"
 }
 
 /// What a frame on the socket is.

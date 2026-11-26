@@ -9,7 +9,7 @@ import Foundation
 /// the server. Catalyst and Designed for iPad apps use Simtrail's per-process Accessibility adapter.
 public enum Simtrail {
     /// The version of Simtrail this SDK came with.
-    public static let sdkVersion = "3.11.6"
+    public static let sdkVersion = "3.11.7"
 
     /// Starts answering Simtrail. Calling it again while it runs changes nothing; call `stop()` first to use other
     /// options.
