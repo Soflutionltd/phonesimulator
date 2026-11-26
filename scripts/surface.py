@@ -48,7 +48,7 @@ UNPROMISED = {
         | {"recordings", "signing", "touch", "drivers", "selections", "let_go", "folders", "flutter", "given"}
     ),
     "Runtime.build": frozenset(
-        {"registry", "claims", "tools", "builds", "xcrun", "keyboard_is_us", "hierarchy", "vision", "clock", "sleep"}
+        {"registry", "claims", "tools", "builds", "xcrun", "keyboard", "hierarchy", "vision", "clock", "sleep"}
         | {"platform", "recordings", "signing", "wda_setup", "android", "has_xcode"}
     ),
 }

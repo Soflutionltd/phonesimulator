@@ -159,10 +159,10 @@ What Simtrail guarantees about the value -- the password and the one-time code:
 - **Memory.** The list a source keeps between calls holds nothing secret -- Bitwarden's and a command's, which carry
   passwords, are read and dropped. A revealed login is emptied as soon as it is typed and kept by nothing once the call
   returns. Python cannot wipe a string's memory in place, so the value lives on in freed memory until it is reused.
-- **The pasteboard.** Where the Mac's keyboard is not US-shaped (AZERTY, say), text reaches a simulator through its
-  pasteboard (`device.typing`): Simtrail empties it again once the login is typed, and says so when it could not. With
-  Simulator.app's *Automatically Sync Pasteboard* on, the Mac's own pasteboard briefly held it too: turn that off, or
-  set `device.typing = "keys"` where your layout types US characters. iOS 16 to 26 ask to Allow Paste: the prompt
+- **The pasteboard.** A login is typed with the keys of the Mac's own layout -- AZERTY, QWERTZ, US -- and reaches a
+  simulator through its pasteboard only when one of its characters has no key there, or `device.typing` says to
+  paste: Simtrail empties it again once the login is typed, and says so when it could not. With Simulator.app's
+  *Automatically Sync Pasteboard* on, the Mac's own pasteboard briefly held it too: turn that off. iOS 16 to 26 ask to Allow Paste: the prompt
   names the simulator's pasteboard bridge, `CoreSimulatorBridge`, so Simtrail knows it for its own paste and allows
   it, and the answer says so -- or says the text did not arrive when it could not tell the allow button. iOS 27 refuses
   a paste it did not ask for, and the answer says so.

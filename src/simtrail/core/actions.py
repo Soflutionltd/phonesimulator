@@ -1536,7 +1536,7 @@ class AgentActions:
             return Gesture(
                 "type", summary, tuple(events), points, caption=shown, typed=what, after=after, secret=secret
             )
-        entry = await text_entry(what, self._config.get(caller.scope).device_typing, self._manager.keyboard_is_us)
+        entry = await text_entry(what, self._config.get(caller.scope).device_typing, self._manager.keyboard)
         events += [(start + at, event) for at, event in entry.events]
         start += gestures.duration(entry.events)
         if step.get("submit") is True:
@@ -1546,8 +1546,8 @@ class AgentActions:
             # Said, because nothing else would: the paste arrives, iOS drops it, and the field looks untouched. Why it
             # was pasted can name one of its characters, which a password's line does not.
             why = entry.why_pasted
-            if secure and entry.why_pasted.endswith("has no key to type it with"):
-                why = "one of its characters has no key to type it with"
+            if secure and entry.keyless_on:
+                why = f"one of its characters has no key on {entry.keyless_on}"
             summary += (
                 f" -- pasted, since {why}, and {instance.runtime} refuses a paste without asking: check the field"
             )

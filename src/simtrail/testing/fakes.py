@@ -41,6 +41,7 @@ from simtrail.core.control import DisplayState, InstalledApp
 from simtrail.core.devices import DeviceRef, NoDevice
 from simtrail.host_copy import HostCopy
 from simtrail.platform.developer_dir import ChosenXcode
+from simtrail.platform.keyboard import LayoutKeys, MacKeyboard
 from simtrail.platform.xcrun import XcrunResult
 from simtrail.protocol import Connection, DeviceChoice, DeviceKind, PendingConfirmation
 from simtrail.scope import Scope
@@ -681,19 +682,21 @@ class FakeXcodeSelect:
 
 
 class FakeKeyboard:
-    """The Mac's keyboard layout, answered without asking the Mac: US-shaped or not, as a test says.
+    """The Mac's keyboard, answered without asking the Mac: a US layout or another, with the keys a test gives it.
 
-    It stands where `platform.keyboard.mac_keyboard_is_us` does, and counts how often it was asked -- text that has no
-    keys, or a scope that always pastes, never asks.
+    It stands where `platform.keyboard.MacKeyboards` does, and counts how often it was asked -- a scope that always
+    pastes, or types with a US keyboard's keys, never asks. With no `keys`, the layout's could not be read: a US layout
+    then types with a US keyboard's, and another pastes.
     """
 
-    def __init__(self, us: bool = False) -> None:
+    def __init__(self, us: bool = False, keys: LayoutKeys | None = None) -> None:
         self.us = us
+        self.keys = keys
         self.asked = 0
 
-    async def __call__(self) -> bool:
+    async def __call__(self) -> MacKeyboard:
         self.asked += 1
-        return self.us
+        return MacKeyboard("com.apple.keylayout.US" if self.us else "com.apple.keylayout.French", self.keys)
 
 
 #: Everything a device can do, as the idb connector offers it: all but turning it, which the native connector adds.

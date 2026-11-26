@@ -64,7 +64,7 @@ from simtrail.perception.readers import CombinedExtraReaders, ExtraReaders
 from simtrail.perception.vision.helper import VisionHelpers
 from simtrail.platform.devicectl import Devicectl
 from simtrail.platform.identifiers import PHONE_PREFIX, kind_of
-from simtrail.platform.keyboard import KeyboardCheck, mac_keyboard_is_us
+from simtrail.platform.keyboard import MAC_KEYBOARD, KeyboardRead
 from simtrail.platform.macos import MacOS
 from simtrail.platform.simctl import Simctl, Starter
 from simtrail.platform.xcode import xcode_installed
@@ -152,7 +152,7 @@ class Runtime:
         tools: ToolRegistry | None = None,
         builds: BuildRunner | None = None,
         xcrun: XcrunRunner = run_xcrun,
-        keyboard_is_us: KeyboardCheck = mac_keyboard_is_us,
+        keyboard: KeyboardRead = MAC_KEYBOARD,
         hierarchy: ExtraReaders | None = None,
         vision: TextRecognizer | None = None,
         may_share: Callable[[Scope, Scope], bool] | None = None,
@@ -170,7 +170,7 @@ class Runtime:
         """Simtrail over these seams.
 
         A host passes `config`, `state`, `policy` and `memory`, and may pass `copy`, `usage`, `may_share` and `pause`:
-        those are the stable part of this call. `registry`, `claims`, `tools`, `builds`, `xcrun`, `keyboard_is_us`,
+        those are the stable part of this call. `registry`, `claims`, `tools`, `builds`, `xcrun`, `keyboard`,
         `hierarchy`, `vision`, `clock`, `sleep`, `platform`, `recordings`, `signing`, `wda_setup`, `android` and
         `has_xcode` are how Simtrail's own tests put a runtime together, and may change in a minor release
         (`docs/stability.md`).
@@ -245,7 +245,7 @@ class Runtime:
             simctl_for=simctl_for,
             copy=copy,
             usage=usage,
-            keyboard_is_us=keyboard_is_us,
+            keyboard=keyboard,
             may_share=may_share,
             clock=clock,
             sleep=sleep,

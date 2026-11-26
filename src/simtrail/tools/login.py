@@ -200,7 +200,7 @@ class Logins:
         if typed.refused:
             notes += (
                 f" It was pasted, and {instance.runtime} refuses a paste it did not ask for: check the field, or set "
-                "device.typing to keys where the Mac's keyboard is US-shaped."
+                "device.typing to auto, which types with the Mac's own keyboard layout."
             )
         if typed.pasteboard_left:
             notes += " The device's pasteboard could not be emptied after the paste: copy something else on it."

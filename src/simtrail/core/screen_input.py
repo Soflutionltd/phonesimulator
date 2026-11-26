@@ -39,7 +39,7 @@ from simtrail.connectors.base import (
 from simtrail.core import gestures
 from simtrail.core.device_changes import Changes
 from simtrail.core.text_entry import text_entry
-from simtrail.platform.keyboard import KeyboardCheck, mac_keyboard_is_us
+from simtrail.platform.keyboard import MAC_KEYBOARD, KeyboardRead
 from simtrail.protocol import (
     APPEARANCES,
     KEY_NAMES,
@@ -156,7 +156,7 @@ class PersonInput:
         *,
         on_touch: Callable[[], None] = lambda: None,
         typing: str = "auto",
-        keyboard_is_us: KeyboardCheck = mac_keyboard_is_us,
+        keyboard: KeyboardRead = MAC_KEYBOARD,
         text: TextSink | None = None,
         buttons: Sequence[str] = IOS_BUTTONS,
         rotate: Callable[[str], Awaitable[None]] | None = None,
@@ -179,7 +179,7 @@ class PersonInput:
         #: Turns the device a quarter, ``left`` or ``right``, as an agent's ``sim_device rotate`` turns it.
         self._rotate = rotate
         self._typing = typing
-        self._keyboard_is_us = keyboard_is_us
+        self._keyboard = keyboard
         self._events: asyncio.Queue[HidEvent | None] | None = None
         self._stream: asyncio.Task[None] | None = None
         self._last = (0.0, 0.0)
@@ -227,7 +227,7 @@ class PersonInput:
             await self._text.type(command.text)
             return
         else:
-            entry = await text_entry(command.text, self._typing, self._keyboard_is_us)
+            entry = await text_entry(command.text, self._typing, self._keyboard)
             if entry.pasted:
                 await self._control.pbcopy(self._udid, entry.pasted)
             events = entry.events

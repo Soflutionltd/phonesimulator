@@ -94,7 +94,7 @@ from simtrail.perception.orientation import Orientation
 from simtrail.platform.device_data import user_apps
 from simtrail.platform.errors import DeviceControlError
 from simtrail.platform.identifiers import kind_of
-from simtrail.platform.keyboard import KeyboardCheck, mac_keyboard_is_us
+from simtrail.platform.keyboard import MAC_KEYBOARD, KeyboardRead
 from simtrail.platform.simctl import Simctl
 from simtrail.protocol import (
     APPEARANCES,
@@ -194,7 +194,7 @@ class DeviceManager:
         simctl_for: Callable[[str], Simctl],
         copy: HostCopy | None = None,
         usage: UsageProbe | None = None,
-        keyboard_is_us: KeyboardCheck = mac_keyboard_is_us,
+        keyboard: KeyboardRead = MAC_KEYBOARD,
         may_share: Callable[[Scope, Scope], bool] | None = None,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
@@ -214,7 +214,7 @@ class DeviceManager:
         #: Whether an agent holds a device; a host points it at its own sessions.
         self.usage: UsageProbe = usage or NoUsage()
         #: Whether the keys Simtrail presses type what they are for: asked each time text is typed.
-        self.keyboard_is_us = keyboard_is_us
+        self.keyboard = keyboard
         #: Whether two scopes may use one device; every two may, unless a host says otherwise.
         self._may_share = may_share or _anyone
         self._config = config

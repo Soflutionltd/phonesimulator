@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""How text reaches a device: typed as keys where it has them and the Mac's layout is US-shaped, else pasted."""
+"""How text reaches a device: typed with the keys the Mac's layout has for it, else pasted."""
 
 from __future__ import annotations
 
@@ -8,16 +8,31 @@ import pytest
 from simtrail.core import gestures
 from simtrail.core.text_entry import paste_asked, paste_prompt_allow, paste_refused, text_entry
 from simtrail.perception.snapshot import Element
+from simtrail.platform.keyboard import LayoutKeys
 from simtrail.testing.fakes import FakeKeyboard
 
+#: A few of AZERTY's keys, as HID keys: a where a US keyboard has q, é alone, { with Option.
+AZERTY: LayoutKeys = {"a": (20, False, False), "z": (26, False, False), "é": (31, False, False), "{": (34, False, True)}
 
-async def test_auto_types_what_has_keys_while_the_macs_layout_is_us_shaped_and_pastes_otherwise() -> None:
+
+async def test_auto_types_with_the_macs_own_layout_where_it_has_every_key() -> None:
+    keyboard = FakeKeyboard(keys=AZERTY)
+    typed = await text_entry("azé{", "auto", keyboard)
+    assert typed.events == gestures.typed("azé{", AZERTY) and typed.pasted == "" and keyboard.asked == 1
+    events = [(event.code, event.phase) for _, event in typed.events]
+    assert events[:2] == [(20, "down"), (20, "up")] and (gestures.OPTION_KEY, "down") in events
+    pasted = await text_entry("café", "auto", keyboard)
+    assert (pasted.events, pasted.pasted) == (gestures.paste(), "café")
+    assert pasted.why_pasted == "'c' has no key on the Mac's com.apple.keylayout.French layout"
+
+
+async def test_auto_types_with_a_us_keyboard_on_a_us_layout_whose_keys_were_not_read_and_pastes_on_another() -> None:
     us, other = FakeKeyboard(us=True), FakeKeyboard(us=False)
     typed = await text_entry("Hi!", "auto", us)
     assert typed.events == gestures.typed("Hi!") and typed.pasted == "" and us.asked == 1
     pasted = await text_entry("Hi!", "auto", other)
     assert pasted.events == gestures.paste() and pasted.pasted == "Hi!" and other.asked == 1
-    assert (typed.why_pasted, pasted.why_pasted) == ("", "the Mac's keyboard layout is not US or ABC")
+    assert (typed.why_pasted, pasted.why_pasted) == ("", "the Mac's keyboard layout could not be read")
 
 
 async def test_keys_types_without_asking_and_paste_pastes_without_asking() -> None:
@@ -28,12 +43,17 @@ async def test_keys_types_without_asking_and_paste_pastes_without_asking() -> No
     assert keyboard.asked == 0
 
 
-@pytest.mark.parametrize("typing", ["auto", "keys", "paste"])
-async def test_text_with_a_character_no_key_types_is_pasted_whole_whatever_the_setting(typing: str) -> None:
+@pytest.mark.parametrize("typing", ["auto", "keys"])
+async def test_text_with_a_character_no_key_types_is_pasted_whole(typing: str) -> None:
     keyboard = FakeKeyboard(us=True)
     entry = await text_entry("café 😀", typing, keyboard)
-    assert (entry.events, entry.pasted, keyboard.asked) == (gestures.paste(), "café 😀", 0)
-    assert entry.why_pasted == "'é' has no key to type it with"
+    assert (entry.events, entry.pasted) == (gestures.paste(), "café 😀")
+    assert entry.why_pasted == "'é' has no key on a US keyboard"
+
+
+async def test_a_new_line_is_return_on_any_layout() -> None:
+    entry = await text_entry("a\na", "auto", FakeKeyboard(keys=AZERTY))
+    assert entry.events == gestures.typed("a\na", AZERTY) and entry.pasted == ""
 
 
 @pytest.mark.parametrize(

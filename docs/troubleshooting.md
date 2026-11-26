@@ -17,9 +17,9 @@ input actually arrives.
 
 ## How typed text arrives
 
-Text from the viewer or an agent's `type` step is **typed as key presses** when every character is on a US keyboard
-and the Mac's keyboard layout is US or ABC, and **pasted** otherwise -- `device.typing` (`auto`, `keys` or `paste`)
-changes that. Typed text needs no permission on any iOS, but iOS treats it as it treats a person's typing: in a field
+Text from the viewer or an agent's `type` step is **typed as key presses** with the keys the Mac's own keyboard layout
+has for it -- AZERTY, QWERTZ, US, Option and Shift included -- and **pasted** when a character has no key there (an
+emoji, an accent typed with a dead key) -- `device.typing` (`auto`, `keys` or `paste`) changes that. Typed text needs no permission on any iOS, but iOS treats it as it treats a person's typing: in a field
 that allows smart punctuation, `'` becomes `’` and `--` becomes `—`.
 
 - **Text with a character no key types** -- an accented letter, an emoji, another script -- is pasted whole.
@@ -38,9 +38,9 @@ touches and named keys never ask.
 iOS 27 refuses a paste Simtrail sends without asking -- the pasteboard holds the text and Cmd+V arrives, yet nothing
 appears (measured with Xcode 27.0, 27A266a, and idb_companion 1.5.7;
 [#27](https://github.com/Soflutionltd/simtrail/issues/27)). Text typed as keys arrives, so this happens only when the
-text is pasted: when it has a character no key types, when the Mac's layout is not US or ABC, or when `device.typing`
-is `paste`. An agent's step says so -- `pasted, since 'é' has no key to type it with, and iOS 27.0 refuses a paste
-without asking`. For such text, tap the on-screen keyboard.
+text is pasted: when it has a character the Mac's layout has no key for, when that layout cannot be read, or when
+`device.typing` is `paste`. An agent's step says so -- `pasted, since '😀' has no key on the Mac's
+com.apple.keylayout.French layout, and iOS 27.0 refuses a paste without asking`. For such text, tap the on-screen keyboard.
 
 ## Two Xcodes on one Mac
 

@@ -303,7 +303,7 @@ class ScreenRelay:
                     self._manager.changes(instance),
                     on_touch=lambda: self._manager.person_touched(instance),
                     typing=self._config.device_typing,
-                    keyboard_is_us=self._manager.keyboard_is_us,
+                    keyboard=self._manager.keyboard,
                     text=session.text,
                     buttons=session.pressable,
                     rotate=lambda direction: self._manager.rotate_by(instance, direction),

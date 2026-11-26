@@ -5,9 +5,10 @@ Every function here is pure and returns ``(at_seconds, HidEvent)`` pairs; `play`
 sink sends, sleeping until each one is due. The timing is the gesture: iOS reads a swipe's velocity from how far each
 move went since the last, so a drag sent all at once is a jump, not a fling.
 
-Text is typed as the keys a US keyboard has for it (`typed`), or pasted (`paste`) -- `core/text_entry.py` chooses.
-Keys go through the simulator's keyboard layout, which follows the Mac's input source, so "wifi" typed on a Ukrainian
-layout arrives as "цшаш": a key is only the character it looks like on a US-shaped layout.
+Text is typed as the keys a keyboard layout has for it (`typed`), or pasted (`paste`) -- `core/text_entry.py` chooses.
+Keys go through the simulator's keyboard layout, which follows the Mac's input source, so "wifi" typed with a US
+keyboard's keys on a Ukrainian layout arrives as "цшаш": each character is typed with the key the Mac's own layout
+has for it (`platform/keyboard.py`).
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from itertools import pairwise
 
 from simtrail.connectors.base import HidEvent
+from simtrail.platform.keyboard import LayoutKeys
 
 #: One move per displayed frame.
 STEP_S = 1 / 60
@@ -70,6 +72,8 @@ CHARACTER_KEYS: dict[str, tuple[int, bool]] = {
     "_": (45, True), "+": (46, True), "{": (47, True), "}": (48, True), "|": (49, True),
     ":": (51, True), '"': (52, True), "~": (53, True), "<": (54, True), ">": (55, True), "?": (56, True),
 }  # fmt: skip
+#: What a US keyboard types each character with: its key, Shift, and never Option.
+US_KEYS: LayoutKeys = {character: (code, shifted, False) for character, (code, shifted) in CHARACTER_KEYS.items()}
 #: The character each key types, alone or with Shift -- return aside, which is not text.
 _KEY_CHARACTERS = {key: character for character, key in CHARACTER_KEYS.items() if character != "\n"}
 
@@ -216,21 +220,21 @@ def struck(text: str) -> str:
     return "".join(_KEY_CHARACTERS.get((code, "shift" in held), "") for held, code in parsed if set(held) <= {"shift"})
 
 
-def typed(text: str, hold_s: float = KEY_HOLD_S) -> list[Timed] | None:
-    """Text as the key presses a US keyboard makes it with, one after another; None when a character has no key --
-    an accented letter, an emoji, a tab -- so the text is pasted whole rather than typed in part."""
+def typed(text: str, keys: LayoutKeys = US_KEYS, hold_s: float = KEY_HOLD_S) -> list[Timed] | None:
+    """Text as the key presses a keyboard layout makes it with -- a US keyboard's unless `keys` are another's --
+    one after another, Shift and Option held as each needs; None when a character has no key -- an emoji, a tab, a
+    dead key's accent -- so the text is pasted whole rather than typed in part. A new line is return on any layout."""
     events: list[Timed] = []
     at = 0.0
     for character in text:
-        key_of = CHARACTER_KEYS.get(character)
+        key_of = US_KEYS["\n"] if character == "\n" else keys.get(character)
         if key_of is None:
             return None
-        code, shifted = key_of
-        if shifted:
-            events.append((at, HidEvent.key(SHIFT_KEY, "down")))
+        code, shifted, option = key_of
+        held = [modifier for modifier, wanted in ((SHIFT_KEY, shifted), (OPTION_KEY, option)) if wanted]
+        events += [(at, HidEvent.key(modifier, "down")) for modifier in held]
         events += [(at, HidEvent.key(code, "down")), (at + hold_s, HidEvent.key(code, "up"))]
-        if shifted:
-            events.append((at + hold_s, HidEvent.key(SHIFT_KEY, "up")))
+        events += [(at + hold_s, HidEvent.key(modifier, "up")) for modifier in reversed(held)]
         at += hold_s
     return events
 

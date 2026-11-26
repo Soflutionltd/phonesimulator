@@ -78,7 +78,7 @@ class DeviceRig:
         signing: SigningTeams | None = None,
     ) -> None:
         self.root = root
-        #: The Mac's keyboard layout: not US-shaped unless a test says so, so text is pasted as it always was.
+        #: The Mac's keyboard: a layout whose keys could not be read unless a test says so, so text is pasted.
         self.keyboard = keyboard or FakeKeyboard()
         #: Simulator templates off unless a test turns them on, so every new device is one ``simctl create``.
         self.config = StaticConfig(max_booted=8, device_templates=False)
@@ -178,7 +178,7 @@ class DeviceRig:
             claims=self.claims,
             simctl_for=simctl_for,
             copy=self.copy,
-            keyboard_is_us=self.keyboard,
+            keyboard=self.keyboard,
             clock=self.clock,
             sleep=sleep,
             backends=backends,

@@ -137,9 +137,10 @@ async def test_a_character_with_no_key_is_not_named_when_the_text_is_a_password(
     r = Rigged(tmp_path)
     instance = await r.up()
     instance.runtime = "iOS 27.0"
+    r.rig.keyboard.us = True
     await r.call("sim_snapshot", {"mode": "full"})
     answer = await r.call("sim_act", {"steps": [{"type": "pässwörd", "into": "e2"}], "snapshot": "none"})
-    assert "pasted, since one of its characters has no key" in said(answer), said(answer)
+    assert "pasted, since one of its characters has no key on a US keyboard" in said(answer), said(answer)
     assert "'ä'" not in said(answer) and "pässwörd" not in said(answer)
 
 

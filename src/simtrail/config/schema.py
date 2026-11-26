@@ -598,10 +598,11 @@ SETTINGS: tuple[Setting, ...] = (
             "simulator is created blank.",
             effect="next_device"),
     Setting("device_typing", "device.typing", "auto", Choice(("auto", "keys", "paste")),
-            "How text reaches the device. `auto` types it as key presses when every character is on a US keyboard "
-            "and the Mac's keyboard layout is US or ABC, and pastes it otherwise; `keys` types whatever has keys, "
-            "for a US-shaped layout Simtrail does not know; `paste` always pastes, keeping every character exact -- "
-            "iOS 26 asks to Allow Paste, which Simtrail allows for its own paste, and iOS 27 refuses the paste.",
+            "How text reaches the device. `auto` types it as key presses with the keys the Mac's own keyboard layout "
+            "has for it -- AZERTY's, QWERTZ's, a US keyboard's -- and pastes it when a character has no key there (an "
+            "emoji, an accent typed with a dead key); `keys` types with a US keyboard's keys, for a US-shaped layout "
+            "Simtrail cannot read; `paste` always pastes, keeping every character exact -- iOS 26 asks to Allow Paste, "
+            "which Simtrail allows for its own paste, and iOS 27 refuses the paste.",
             effect="next_connection"),
     Setting("restore_changes", "device.restore_changes", "real_devices", Choice(("real_devices", "all", "off")),
             "What Simtrail changed about a device's look and place -- light or dark, text size, contrast, reduce "

@@ -74,7 +74,7 @@ def make(
         DeviceChanges().on(SimulatorControl(Simctl(xcrun)), BOOTED_UDID, remember=False),
         on_touch=lambda: touched.append(1),
         typing=typing,
-        keyboard_is_us=FakeKeyboard(us=us),
+        keyboard=FakeKeyboard(us=us),
         pointer=engine if pointer and isinstance(engine, PointerSink) else None,
     )
     return person, engine, xcrun, touched

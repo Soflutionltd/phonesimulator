@@ -765,11 +765,11 @@ async def test_a_paste_to_ios_27_says_it_may_have_been_refused_and_one_to_ios_26
     r.instance.runtime = "iOS 27.0"
     answer = await r.actions.act(r.instance, CALLER, [{"type": "Київ"}, {"type": "wifi"}], snapshot="none")
     refused = ", and iOS 27.0 refuses a paste without asking: check the field"
-    assert untimed(answer).splitlines() == [
-        f"ok type \"Київ\" -- pasted, since 'К' has no key to type it with{refused}",
-        f'ok type "wifi" -- pasted, since the Mac\'s keyboard layout is not US or ABC{refused}',
-    ]
+    unread = f"pasted, since the Mac's keyboard layout could not be read{refused}"
+    assert untimed(answer).splitlines() == [f'ok type "Київ" -- {unread}', f'ok type "wifi" -- {unread}']
     r.rig.keyboard.us = True
+    keyless = await r.actions.act(r.instance, CALLER, [{"type": "Київ"}], snapshot="none")
+    assert untimed(keyless) == f"ok type \"Київ\" -- pasted, since 'К' has no key on a US keyboard{refused}"
     assert untimed(await r.actions.act(r.instance, CALLER, [{"type": "wifi"}], snapshot="none")) == 'ok type "wifi"'
     r.instance.runtime = "iOS 26.5"
     assert untimed(await r.actions.act(r.instance, CALLER, [{"type": "Київ"}], snapshot="none")) == 'ok type "Київ"'

@@ -106,7 +106,7 @@ with `config`, `state`, `policy`, `memory`, `copy`, `usage`, `may_share` and `pa
 `manifest` a `tools` list of `name`, `description` and `inputSchema` with an `instructions` string, `call` a result's
 `content` (text and image parts), `isError` and, for some tools, `structuredContent` -- so a host can serve them from an MCP server of its own
 (`tests/unit/core/test_runtime.py` holds them to it). `build`'s other parameters (`registry`, `claims`, `tools`, `builds`, `xcrun`,
-`keyboard_is_us`, `hierarchy`, `clock`, `sleep`, `platform`) and `Runtime`'s fields are how Simtrail's own tests put
+`keyboard`, `hierarchy`, `clock`, `sleep`, `platform`) and `Runtime`'s fields are how Simtrail's own tests put
 one together, and are not. `SimConfig` is made by `SimConfig.defaults`, `from_flat`, `overlay` and `with_values`.
 
 **Nothing else in the package is public.** `simtrail.core`, `simtrail.connectors`, `simtrail.daemon` and the

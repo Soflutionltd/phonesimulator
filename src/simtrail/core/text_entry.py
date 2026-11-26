@@ -6,16 +6,19 @@ Both a viewer's text and an agent's ``type`` step come here, so they arrive the 
 
 * **Pasting** keeps every character exactly, but iOS 26 asks "Allow Paste" first, and iOS 27 refuses the paste
   silently -- the pasteboard holds the text and Cmd+V arrives, yet nothing appears.
-* **Typing keys** works on both without a prompt, and needs no permission. It types only what a US keyboard has keys
-  for, through the Mac's keyboard layout (`platform/keyboard.py`), and iOS applies the keyboard's own habits as it
-  would for a person: smart punctuation turns ``'`` into ``’`` and ``--`` into ``—`` in a field that allows it.
-  Neither iOS autocorrected or capitalized what was typed on the hardware keyboard.
+* **Typing keys** works on both without a prompt, and needs no permission. A key goes through the Mac's keyboard
+  layout, so each character is typed with the key that layout has for it -- AZERTY's, QWERTZ's, a US keyboard's
+  (`platform/keyboard.py`) -- and iOS applies the keyboard's own habits as it would for a person: smart punctuation
+  turns ``'`` into ``’`` and ``--`` into ``—`` in a field that allows it. Neither iOS autocorrected or capitalized what
+  was typed on the hardware keyboard.
 
 So ``device.typing`` decides, per scope:
 
-* ``auto`` (the default) types the text when every character has a key and the Mac's layout is US-shaped, and pastes
-  it otherwise;
-* ``keys`` always types what has keys -- for a layout Simtrail does not know is US-shaped -- and pastes the rest;
+* ``auto`` (the default) types the text when the Mac's layout has a key for every character -- read from the layout
+  itself, or a US keyboard's on a US or ABC layout whose keys could not be read -- and pastes it otherwise: an emoji,
+  an accent typed with a dead key;
+* ``keys`` always types with a US keyboard's keys -- for a US-shaped layout Simtrail cannot read -- and pastes the
+  rest;
 * ``paste`` always pastes, for text that must arrive character for character, on iOS 26 and earlier.
 
 On iOS 16 to 26 the "Allow Paste" prompt a simulator shows for Simtrail's own paste names where the text comes from,
@@ -31,7 +34,7 @@ from dataclasses import dataclass
 
 from simtrail.core import gestures
 from simtrail.perception.snapshot import Element
-from simtrail.platform.keyboard import KeyboardCheck
+from simtrail.platform.keyboard import KeyboardRead
 
 #: The first iOS that refuses a paste Simtrail sends, without asking the person.
 PASTE_REFUSED_FROM = 27
@@ -58,26 +61,34 @@ _IOS = re.compile(r"\AiOS (?P<major>\d+)")
 @dataclass(frozen=True)
 class TextEntry:
     """The events that enter the text, the text to put on the pasteboard first -- "" when it is typed -- and why it
-    is pasted, said so an agent can tell what to change."""
+    is pasted, said so an agent can tell what to change; when a character had no key, the keyboard it had none on,
+    so a password's answer can say so without naming the character."""
 
     events: list[gestures.Timed]
     pasted: str = ""
     why_pasted: str = ""
+    keyless_on: str = ""
 
 
-async def text_entry(text: str, typing: str, keyboard_is_us: KeyboardCheck) -> TextEntry:
+async def text_entry(text: str, typing: str, keyboard: KeyboardRead) -> TextEntry:
     """How `text` goes in, under the scope's ``device.typing``. The Mac's layout is only asked about when it decides."""
-    keys = gestures.typed(text)
-    if keys is None:
-        keyless = next(character for character in text if character not in gestures.CHARACTER_KEYS)
-        why = f"{keyless!r} has no key to type it with"
-    elif typing == "paste":
-        why = "device.typing says to paste"
-    elif typing == "keys" or await keyboard_is_us():
-        return TextEntry(keys)
+    if typing == "paste":
+        return TextEntry(gestures.paste(), text, "device.typing says to paste")
+    if typing == "keys":
+        layout, keys = gestures.US_KEYS, "a US keyboard"
     else:
-        why = "the Mac's keyboard layout is not US or ABC"
-    return TextEntry(gestures.paste(), text, why)
+        board = await keyboard()
+        if board.keys is not None:
+            layout, keys = board.keys, f"the Mac's {board.layout} layout"
+        elif board.us:
+            layout, keys = gestures.US_KEYS, "a US keyboard"
+        else:
+            return TextEntry(gestures.paste(), text, "the Mac's keyboard layout could not be read")
+    events = gestures.typed(text, layout)
+    if events is not None:
+        return TextEntry(events)
+    keyless = next(character for character in text if character != "\n" and character not in layout)
+    return TextEntry(gestures.paste(), text, f"{keyless!r} has no key on {keys}", keys)
 
 
 def paste_refused(runtime: str) -> bool:
