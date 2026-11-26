@@ -6,6 +6,15 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.11.4] - 2026-11-26
+
+### Fixed
+
+- Text is typed with the keys of the Mac's own keyboard layout -- AZERTY, QWERTZ, US, Shift and Option included --
+  instead of pasted wherever the layout was not US or ABC: no more "Allow Paste" prompt at every word on iOS 26, and
+  no more paste refused on iOS 27. Only a character the layout has no key for (an emoji, an accent typed with a dead
+  key) is still pasted.
+
 ## [3.11.3] - 2026-11-26
 
 ### Fixed
