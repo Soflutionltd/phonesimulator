@@ -238,6 +238,15 @@ class Simctl:
             raise SimctlError(f"simctl create answered with no device id: {result.message}", result)
         return udid
 
+    async def clone(self, udid: str, name: str) -> str:
+        """Copy a shut-down device, with everything its first boot set up, as a new device named `name`; answers the
+        new device's id. simctl refuses to copy one that is not shut down."""
+        result = await self._run("clone", _udid(udid), _text(name, "device name"), timeout=120.0)
+        copied = result.out.strip()
+        if not is_udid(copied):
+            raise SimctlError(f"simctl clone answered with no device id: {result.message}", result)
+        return copied
+
     async def boot(self, udid: str) -> None:
         await self._run("boot", _udid(udid), timeout=120.0, tolerate=("current state: Booted",))
 

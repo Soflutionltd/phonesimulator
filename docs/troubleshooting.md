@@ -264,6 +264,22 @@ never deleted, nor one another project still uses, nor any while `device.shutdow
 For those already left, `simtrail devices prune` deletes every simulator Simtrail created that nothing runs and that
 holds no app, and says how much space it freed; `--all` deletes those with apps too, and `--dry-run` only lists them.
 
+## A new project's simulator takes long to be ready, or a "template" simulator appeared
+
+A blank simulator's first boot sets itself up, which takes most of the wait: on a Mac with Xcode 26 and iOS 26.5,
+creating and booting an iPhone 17 Pro until it is ready took 27 s, against 12 s for a copy of one already booted once.
+So while `device.templates` is on (the default), Simtrail keeps one such simulator for each runtime and device type,
+named `Simtrail · template · <device type> · <runtime>`, and copies it (`simctl clone`) for each new project.
+
+The first project on a runtime and device type still gets a blank simulator, as fast as before; its template is
+prepared in the background meanwhile -- created, booted once, shut down -- and only while fewer than
+`device.max_booted` simulators run, else it is tried again a minute later. A template that cannot be prepared is
+logged, and the next device is created blank. Each template is one more simulator kept on disk, 2 to 3 GB. It is
+never a project's device, never offered in a picker, and never deleted by the idle clean-up or by `simtrail devices
+prune`, `--all` included. To get the space back, delete it in Xcode or with `xcrun simctl delete <udid>`: Simtrail
+forgets it and prepares another the next time it needs one -- unless `device.templates` is `false`, which creates
+every new simulator blank, as before.
+
 ## A device is "in use by" another session
 
 Sessions of one project share its devices: a call is refused only while another session changed the device within

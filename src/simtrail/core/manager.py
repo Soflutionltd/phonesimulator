@@ -205,6 +205,8 @@ class DeviceManager:
     ) -> None:
         self.availability = availability
         self.directory = directory
+        # A simulator template is booted only while these leave room under ``device.max_booted``.
+        directory.running = self._running_here
         #: Each kind of device, and how it is listed, brought up and put away: simulators unless told otherwise.
         self.backends: Mapping[DeviceKind, DeviceBackend] = backends or {
             "simulator": SimulatorBackend(simctl_for, directory)
@@ -669,6 +671,10 @@ class DeviceManager:
         if instance is None or not instance.live:
             return True
         return all(self._may_share(scope, member) for member in instance.members.values())
+
+    def _running_here(self) -> set[str]:
+        """The UDIDs of the devices this host runs on this Mac: what counts against ``device.max_booted``."""
+        return {instance.udid for instance in self._instances.values() if instance.live and self.runs_here(instance)}
 
     async def _make_room(self, limit: int) -> None:
         """End the least recently used idle simulator while as many run as ``device.max_booted`` allows."""
@@ -1343,6 +1349,8 @@ class DeviceManager:
                     ended.append(instance.udid)
                     if shutdown:
                         await self._delete_idle(instance, verdict.config)
+        # A simulator template left unbooted for want of room is tried again while there may be some now.
+        self.directory.retry_templates()
         for instance in withdrawn:
             # One whose session is being started over is not waited for: the reaper runs again in a minute.
             if not instance.session_lock.locked():
@@ -1510,7 +1518,9 @@ class DeviceManager:
         return done
 
     async def shutdown(self) -> None:
-        """Let go of every device's session, leaving the devices themselves running for the next start."""
+        """Let go of every device's session, leaving the devices themselves running for the next start -- and stop
+        preparing simulator templates."""
+        await self.directory.close()
         async with self._lock:
             for instance in list(self._instances.values()):
                 await self._end(instance, shutdown=False)

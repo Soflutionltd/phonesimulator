@@ -8,16 +8,6 @@ All notable changes to Simtrail are documented here. The format follows
 
 ### Added
 
-- `agent.warm_up` (on by default): `simtrail mcp` asks the daemon, on a thread of its own as it starts, to attach the
-  project's simulator before the agent's first call -- with `--scope-from-roots`, each project's as its token is made
-  -- so that call no longer waits a second or two for the native helper. Only a simulator the project already has and
-  that is already booted is attached: nothing is booted, created or ended for it (`device.max_booted` is respected),
-  a simulator another process drives is left alone, a real device, an Android device or a Mac app is never touched,
-  and the device is not held for the agent -- left unused, it idles out like any other. Nothing waits for it, and a
-  failure is only logged.
-- `POST /api/v1/agent/warm`: what `simtrail mcp` asks, with an agent token, answering `warming`, `running` or
-  `skipped` and why (`Warm` in the protocol).
-
 ### Changed
 
 - A tool's structured content carries its text too (`text`), unless the text is that content as JSON: a client that

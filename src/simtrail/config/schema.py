@@ -589,6 +589,14 @@ SETTINGS: tuple[Setting, ...] = (
             "it whatever it holds, `never` keeps it. A simulator a person picked, a real device or an Android "
             "emulator is never deleted, nor one another scope still uses, nor any while `device.shutdown_on_idle` is "
             "off. The scope's next call creates a fresh one. `simtrail devices prune` deletes those already left."),
+    Setting("device_templates", "device.templates", True, Flag(),
+            "Whether a new simulator is copied from a template -- one Simtrail created and booted once, for each "
+            "runtime and device type -- rather than created blank: it is ready in about half the time, since its "
+            "first boot is already done. The first device of a runtime and type is created as before while its "
+            "template is prepared in the background. Each template is one more simulator kept on disk (2-3 GB); it is "
+            "never given to a scope, nor deleted by the idle clean-up or `simtrail devices prune`. Off: every new "
+            "simulator is created blank.",
+            effect="next_device"),
     Setting("device_typing", "device.typing", "auto", Choice(("auto", "keys", "paste")),
             "How text reaches the device. `auto` types it as key presses when every character is on a US keyboard "
             "and the Mac's keyboard layout is US or ABC, and pastes it otherwise; `keys` types whatever has keys, "

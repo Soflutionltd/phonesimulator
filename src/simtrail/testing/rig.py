@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """A real `DeviceManager` over a fake Mac, for Simtrail's tests and a host's.
 
-simctl lists the fixture's devices and -- like a real one -- those it creates, booted and shut down as it is told
-(`set_state` is a person doing it from Simulator.app); the connectors are fakes over a
+simctl lists the fixture's devices and -- like a real one -- those it creates or clones, booted and shut down as it is
+told (`set_state` is a person doing it from Simulator.app); the connectors are fakes over a
 `FakeEngine` (`idb` with full control, `simctl` view-only, and a `native` one before them when a test gives it);
 settings, state and policy are in memory; the clock is a hand-moved one. Nothing boots, nothing is spawned, and every
 seam can be changed by a test.
@@ -80,7 +80,8 @@ class DeviceRig:
         self.root = root
         #: The Mac's keyboard layout: not US-shaped unless a test says so, so text is pasted as it always was.
         self.keyboard = keyboard or FakeKeyboard()
-        self.config = StaticConfig(max_booted=8)
+        #: Simulator templates off unless a test turns them on, so every new device is one ``simctl create``.
+        self.config = StaticConfig(max_booted=8, device_templates=False)
         self.state = MemoryStateStore(root)
         #: The `DeviceMemory` a test builds a runtime with -- `Runtime.build` asks for one rather than assuming a file.
         self.memory = JsonDeviceMemory(self.state.devices_file())
@@ -104,6 +105,20 @@ class DeviceRig:
                 )
             return XcrunResult(0, udid + "\n", "")
 
+        def clone(args: tuple[str, ...]) -> XcrunResult:
+            source = next(
+                ((runtime, entry) for runtime, entries in self.devices["devices"].items() for entry in entries
+                 if entry["udid"] == args[2]),
+                None,
+            )  # fmt: skip
+            if source is None:
+                return XcrunResult(1, "", "Invalid device: " + args[2])
+            if source[1]["state"] != "Shutdown":
+                return XcrunResult(1, "", f"Unable to clone device in current state: {source[1]['state']}")
+            udid = made(next(counter))
+            self.devices["devices"][source[0]].append({**source[1], "udid": udid, "name": args[3]})
+            return XcrunResult(0, udid + "\n", "")
+
         def to(state: str) -> Callable[[tuple[str, ...]], XcrunResult]:
             def done(args: tuple[str, ...]) -> XcrunResult:
                 self.set_state(args[2], state)
@@ -116,6 +131,7 @@ class DeviceRig:
             .with_lists()
             .on("simctl", "list", "devices", "-j", then=lambda args: XcrunResult(0, json.dumps(self.devices), ""))
             .on("simctl", "create", then=create)
+            .on("simctl", "clone", then=clone)
             .on("simctl", "boot", then=to("Booted"))
             .on("simctl", "shutdown", then=to("Shutdown"))
         )
