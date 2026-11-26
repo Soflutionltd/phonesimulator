@@ -98,6 +98,7 @@ def test_what_the_server_builds_matches_the_schemas() -> None:
         "reason": None,
         "since_ms": 12,
         "viewers": 1,
+        "projects": ["demo"],
         "busy": None,
         "created": True,
         "booted_by_us": True,

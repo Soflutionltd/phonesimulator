@@ -100,6 +100,11 @@
         },
         "since_ms": { "type": "integer", "minimum": 0, "description": "How long the device has been in this state." },
         "viewers": { "type": "integer", "minimum": 0, "description": "How many screen sockets watch the device." },
+        "projects": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The names of the projects using the device now, sorted: more than one when sessions of several projects or worktrees share it."
+        },
         "busy": {
           "type": ["string", "null"],
           "description": "What the device is kept for while agents' gestures would get in its way, such as a test run; null otherwise."
@@ -137,7 +142,7 @@
           "description": "Which way the device is turned, as Rocketwright last turned it -- by a person's Rotate in a viewer or an agent's sim_device rotate; portrait until it turns it. A viewer draws the device turned so, and turns a person's touches back onto the portrait screen. An older server does not send it: read it as portrait."
         }
       },
-      "required": ["udid", "name", "runtime", "state", "reason", "since_ms", "viewers", "busy", "created", "booted_by_us", "screen", "app_hierarchy", "kind", "connection", "buttons", "recording", "appearance", "orientation"]
+      "required": ["udid", "name", "runtime", "state", "reason", "since_ms", "viewers", "projects", "busy", "created", "booted_by_us", "screen", "app_hierarchy", "kind", "connection", "buttons", "recording", "appearance", "orientation"]
     },
     "RecordingState": {
       "description": "A recording of a device's screen under way.",

@@ -224,6 +224,7 @@ class DeviceInstance:
             "reason": self.reason,
             "since_ms": max(0, round((now - self.since) * 1000)),
             "viewers": self.viewers,
+            "projects": sorted({member.label for member in self.members.values()}),
             "busy": self.busy,
             "created": self.created,
             "booted_by_us": self.booted_by_us,

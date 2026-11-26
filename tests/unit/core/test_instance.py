@@ -37,6 +37,7 @@ def test_a_device_describes_its_state_and_screen_as_the_protocol_does() -> None:
         "reason": None,
         "since_ms": 250,
         "viewers": 0,
+        "projects": ["demo"],
         "busy": None,
         "created": False,
         "booted_by_us": False,
@@ -67,3 +68,10 @@ def test_a_device_describes_its_state_and_screen_as_the_protocol_does() -> None:
 def test_only_what_rocketwright_booted_or_made_may_be_shut_down() -> None:
     assert not instance().may_shut_down
     assert instance(booted_by_us=True).may_shut_down and instance(created=True).may_shut_down
+
+
+def test_a_device_names_every_project_using_it_once_and_sorted() -> None:
+    shared = instance()
+    shared.members["b"] = Scope(id="b", group="team", label="Courly")
+    shared.members["c"] = Scope(id="c", group="team", label="Courly")
+    assert shared.describe(10.0)["projects"] == ["Courly", "demo"]

@@ -302,6 +302,9 @@ export interface Device {
   since_ms: number
   // How many screen sockets watch the device.
   viewers: number
+  // The names of the projects using the device now, sorted: more than one when sessions of several projects or
+  // worktrees share it.
+  projects: string[]
   // What the device is kept for while agents' gestures would get in its way, such as a test run; null otherwise.
   busy: string | null
   // Whether Rocketwright created this device.

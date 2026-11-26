@@ -29,6 +29,8 @@ export interface StatusParts {
   name: HTMLElement
   /** The chip that says a device is a real one or an Android one, and how it is connected. */
   kind: HTMLElement
+  /** The chip that says other projects use the device too, naming them on hover. */
+  shared: HTMLElement
   state: HTMLElement
   mode: HTMLElement
   app: HTMLElement
@@ -57,7 +59,7 @@ export function readDevice(message: Record<string, unknown>): Device | null {
   return valid ? (message as unknown as Device) : null
 }
 
-export function createStatusView(parts: StatusParts, t: Translate): StatusView {
+export function createStatusView(parts: StatusParts, t: Translate, project = ''): StatusView {
   let device: Device | null = null
   /** The state the pill shows, and what the empty screen says, as last asked: said again when the language changes. */
   let state: DeviceState = 'stopped'
@@ -92,6 +94,17 @@ export function createStatusView(parts: StatusParts, t: Translate): StatusView {
       parts.badge.style.removeProperty('--ac-color')
       parts.badge.style.removeProperty('--ac-text')
     }
+  }
+
+  /** Other projects on the same device -- sessions of several worktrees or projects sharing one simulator -- said as a
+   * chip, the others named in its tooltip. Set as text, never as markup. */
+  function paintShared(): void {
+    const projects = device?.projects ?? []
+    const others = projects.filter((name) => name !== project)
+    const shared = projects.length > 1
+    parts.shared.hidden = !shared
+    parts.shared.textContent = shared ? t('device.shared', { count: projects.length }) : ''
+    parts.shared.title = shared ? t('device.sharedWith', { names: (others.length ? others : projects).join(', ') }) : ''
   }
 
   /** The app sharing its view hierarchy, by the name the app gives: always set as text, never as markup. */
@@ -138,6 +151,7 @@ export function createStatusView(parts: StatusParts, t: Translate): StatusView {
     const chip = kindChip(device, t)
     parts.kind.hidden = !chip
     parts.kind.textContent = chip
+    paintShared()
     paintBadge()
     paintApp()
   }

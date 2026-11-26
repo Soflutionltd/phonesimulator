@@ -45,6 +45,8 @@ export const fr: Messages = {
 
   'device.unnamed': 'Simulateur iOS',
   'device.busy': 'Occupé\u00a0: {what}',
+  'device.shared': 'Partagé · {count} projets',
+  'device.sharedWith': 'Aussi ouvert dans\u00a0: {names}',
   'device.unusable': 'Impossible d’utiliser cet appareil.',
   'devices.choose': 'Choisir un appareil',
   'devices.chooseSr': 'Choisir un appareil\u00a0: ',

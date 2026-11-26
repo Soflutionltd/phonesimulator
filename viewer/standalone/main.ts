@@ -117,6 +117,7 @@ export async function boot(root: HTMLElement, env: PageEnv): Promise<ViewHandle 
     }),
     placement: 'page',
     device: place.device,
+    project: env.project ?? null,
     // A tab says which device it shows, so two tabs side by side are told apart.
     onState: ({ device }) => {
       const next = device ? `${project} · ${device.name}` : titled

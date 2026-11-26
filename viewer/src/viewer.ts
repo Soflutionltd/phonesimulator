@@ -70,6 +70,8 @@ export interface ViewerOptions {
    * transport (`use`) -- and come back to it after a restart. Absent, or through a transport that cannot show one, the
    * view follows the scope's own device. */
   device?: string | null
+  /** What this view's project is called: the others sharing its device are named beside it, not it. */
+  project?: string | null
   /** Told when a person picks what this view shows: a device's UDID, or null to follow the scope's own again -- for a
    * page to keep it in its address. */
   onDevice?(udid: string | null): void
@@ -164,8 +166,9 @@ export function createViewer(host: HTMLElement | ShadowRoot, options: ViewerOpti
   })
   const status = createStatusView({
     canvas, empty: q('[data-smv-empty]'), badge: q('[data-smv-badge]'), name: q('[data-smv-name]'),
-    kind: q('[data-smv-kind]'), state: q('[data-smv-state]'), mode: q('[data-smv-mode]'), app: q('[data-smv-app]'),
-  }, t)
+    kind: q('[data-smv-kind]'), shared: q('[data-smv-shared]'), state: q('[data-smv-state]'),
+    mode: q('[data-smv-mode]'), app: q('[data-smv-app]'),
+  }, t, options.project ?? '')
   /** The screen's shape: the device's points once it says, the canvas's until then. */
   const unitsOf = () => stream.device?.screen?.points ?? { w: canvas.width, h: canvas.height }
   /** Where the device's screen is drawn inside the overlay. */

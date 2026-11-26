@@ -63,6 +63,7 @@ export function barMarkup(icon: IconRenderer, t: Translate): string {
           data-smv-name>${said(t, 'device.unnamed')}</span><span class="smv-chevron">${icon('chevron')}</span></button>
         <span class="smv-state" data-smv-state data-state="stopped">${said(t, 'state.stopped')}</span>
         <span class="smv-kind" data-smv-kind hidden></span>
+        <span class="smv-shared" data-smv-shared hidden></span>
         <button type="button" class="smv-mode" data-smv="mode" data-smv-mode hidden>${said(t, 'mode.viewOnly')}</button>
         <span class="smv-app" data-smv-app hidden></span>
         <span class="smv-rec" data-smv-rec hidden></span>

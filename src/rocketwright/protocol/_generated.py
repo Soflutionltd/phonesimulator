@@ -621,6 +621,9 @@ class Device(TypedDict):
     since_ms: int
     #: How many screen sockets watch the device.
     viewers: int
+    #: The names of the projects using the device now, sorted: more than one when sessions of several projects or
+    #: worktrees share it.
+    projects: list[str]
     #: What the device is kept for while agents' gestures would get in its way, such as a test run; null otherwise.
     busy: str | None
     #: Whether Rocketwright created this device.

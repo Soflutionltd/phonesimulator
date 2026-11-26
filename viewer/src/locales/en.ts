@@ -41,6 +41,8 @@ export const en = {
 
   'device.unnamed': 'iOS Simulator',
   'device.busy': 'Busy: {what}',
+  'device.shared': 'Shared · {count} projects',
+  'device.sharedWith': 'Also open in: {names}',
   'device.unusable': 'That device could not be used.',
   'devices.choose': 'Choose a device',
   'devices.chooseSr': 'Choose a device: ',

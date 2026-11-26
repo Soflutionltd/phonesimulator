@@ -101,6 +101,7 @@ def test_events_carry_their_type_and_every_field() -> None:
         "reason": None,
         "since_ms": 0,
         "viewers": 1,
+        "projects": ["demo"],
         "busy": None,
         "created": False,
         "booted_by_us": True,
