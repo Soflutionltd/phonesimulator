@@ -63,6 +63,8 @@ class FlutterRig:
             open_run=self.run,
             xcrun=self.sim.xcrun,
             signal_group=self.signal,
+            # Its own clock: a reload's time is said, and real time makes it 0.1s on a busy machine.
+            clock=lambda: 100.0,
         )
         self.runner = BuildRunner(
             self.sim.state,
