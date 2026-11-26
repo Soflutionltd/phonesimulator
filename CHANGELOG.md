@@ -26,6 +26,11 @@ All notable changes to Rocketwright -- called Simtrail until 3.12.0 -- are docum
   macOS 10.10 (three build warnings). It posts `Rocketwright.accessibilityWanted` instead -- `userInfo["wanted"]` true
   as it starts, false as it stops -- for an app embedding a web engine to turn its accessibility on.
 
+### Security
+
+- The Tauri example's `url` 2.5.9 (a stack overflow on nested `blob:` URLs) and `cookie` 0.18.3, and the viewer's
+  eslint and typescript-eslint chain (`npm audit`: 0); patch and minor updates only.
+
 ## [3.11.8] - 2026-11-26
 
 ### Changed
