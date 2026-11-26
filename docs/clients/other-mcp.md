@@ -5,7 +5,7 @@ Simtrail is an MCP server over stdio. Any client that starts one and lists its t
 | Field | Value |
 |---|---|
 | Command | `uvx` (or `simtrail` if it is installed on `PATH`) |
-| Arguments | `--from simtrail==3.11.5 simtrail mcp` (or just `mcp`) |
+| Arguments | `--from simtrail==3.11.6 simtrail mcp` (or just `mcp`) |
 | Optional arguments | `--scope NAME` for a scope other than the folder's; `--root DIR`, repeatable, for the folders installs and builds may reach |
 | Environment | None needed |
 | Transport | stdio, newline-delimited JSON-RPC |

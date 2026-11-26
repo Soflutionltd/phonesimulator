@@ -6,6 +6,14 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.11.6] - 2026-11-26
+
+### Added
+
+- `device.template_keep` ("iPhone 17 Pro" by default): the templates of the device types it names, on the newest iOS
+  installed, are made ahead of any demand, made again when they went away, and never deleted by
+  `device.template_days`. Every other template is still made on demand and deleted after its days unused.
+
 ## [3.11.5] - 2026-11-26
 
 ### Added
