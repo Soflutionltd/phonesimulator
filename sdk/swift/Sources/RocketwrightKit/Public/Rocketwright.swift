@@ -11,6 +11,15 @@ public enum Rocketwright {
     /// The version of Rocketwright this SDK came with.
     public static let sdkVersion = "3.12.0"
 
+    /// Posted on the main thread when a native macOS Debug app starts answering Rocketwright -- `userInfo["wanted"]` is
+    /// `true` -- and when it stops (`false`). An app that embeds a web engine which builds its accessibility tree only
+    /// when asked -- CEF, a Chromium host -- turns it on here, so Rocketwright reads the page as well as the app:
+    ///
+    ///     NotificationCenter.default.addObserver(forName: Rocketwright.accessibilityWanted, object: nil, queue: .main) {
+    ///         if $0.userInfo?["wanted"] as? Bool == true { browser.enableAccessibility() }
+    ///     }
+    public static let accessibilityWanted = Notification.Name("RocketwrightAccessibilityWanted")
+
     /// Starts answering Rocketwright. Calling it again while it runs changes nothing; call `stop()` first to use other
     /// options.
     @MainActor

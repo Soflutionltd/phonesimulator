@@ -104,6 +104,10 @@ It restores only attributes it changed from a readable previous value, and never
 Electron's convention is not a guarantee for CEF: a windowed CEF browser exposes no web subtree until its host turns
 renderer accessibility on. A CEF 149 desktop host inspected for this work exposed native UI only.
 
+An AppKit app built with RocketwrightKit is told when to turn such an engine's accessibility on: the SDK posts
+`Rocketwright.accessibilityWanted` as it starts answering Rocketwright (`userInfo["wanted"]` true) and as it stops
+(false), and the app enables its engine's renderer accessibility there.
+
 For CEF hosts, the [Debug CEF host adapter](../sdk/cef/README.md) covers both gaps. Its accessibility hook (step 1,
 for every build) lets VoiceOver and Mode B read the page. Its Debug bridge serves Mode C with trusted in-process input:
 CEF mouse events, and DevTools input over `ExecuteDevToolsMethod`, with no remote-debugging port. Keys, chords, text,

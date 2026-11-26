@@ -31,7 +31,6 @@
         private var server: LoopbackServer?
         private var writer: DiscoveryWriter?
         private var listing: Listing?
-        private var previousAccessibility: Any?
         private var activity: NSObjectProtocol?
         private let bundle: Bundle
         private let home: String
@@ -95,22 +94,22 @@
             guard writer.write(listing) != nil else { server.stop(); return }
             activity = ProcessInfo.processInfo.beginActivity(
                 options: .userInitiatedAllowingIdleSystemSleep, reason: "Rocketwright Debug app session")
-            previousAccessibility = NSApp.accessibilityAttributeValue(
-                NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
-            NSApp.accessibilitySetValue(
-                true, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
             self.server = server; self.writer = writer; self.listing = listing
+            // A web engine in the app builds its accessibility tree once asked (`Rocketwright.accessibilityWanted`).
+            NotificationCenter.default.post(
+                name: Rocketwright.accessibilityWanted, object: nil, userInfo: ["wanted": true])
         }
         func stop() {
+            let wasRunning = server != nil
             server?.stop()
             if let activity { ProcessInfo.processInfo.endActivity(activity) }
             activity = nil
             if let listing { writer?.remove(listing) }
-            if let previousAccessibility {
-                NSApp.accessibilitySetValue(
-                    previousAccessibility, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
+            server = nil; listing = nil; writer = nil
+            if wasRunning {
+                NotificationCenter.default.post(
+                    name: Rocketwright.accessibilityWanted, object: nil, userInfo: ["wanted": false])
             }
-            server = nil; listing = nil; writer = nil; previousAccessibility = nil
         }
         static func respond(_ request: HTTPRequest, options: Rocketwright.Options, windows: [NSWindow]? = nil)
             -> HTTPResponse

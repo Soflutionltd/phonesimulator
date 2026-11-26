@@ -20,6 +20,12 @@ All notable changes to Rocketwright -- called Simtrail until 3.12.0 -- are docum
   settings, remembered devices, tokens and the helper's signing kept -- leaving a link where each was.
 - A WebDriverAgent copy prepared for real iPhones is prepared again once, since its marker file was renamed.
 
+### Fixed
+
+- RocketwrightKit no longer sets `AXEnhancedUserInterface` through AppKit's accessibility API Apple deprecated in
+  macOS 10.10 (three build warnings). It posts `Rocketwright.accessibilityWanted` instead -- `userInfo["wanted"]` true
+  as it starts, false as it stops -- for an app embedding a web engine to turn its accessibility on.
+
 ## [3.11.8] - 2026-11-26
 
 ### Changed

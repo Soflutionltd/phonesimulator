@@ -8,6 +8,7 @@ let package = Package(
     dependencies: [.package(name: "Rocketwright", path: "../..")],
     targets: [
         .executableTarget(
-            name: "MacAppSDK", dependencies: [.product(name: "RocketwrightKit", package: "Rocketwright")], path: "Sources")
+            name: "MacAppSDK", dependencies: [.product(name: "RocketwrightKit", package: "Rocketwright")],
+            path: "Sources")
     ]
 )

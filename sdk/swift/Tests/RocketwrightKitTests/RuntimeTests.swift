@@ -197,7 +197,10 @@ struct DiscoveryTests {
                 ({ $0.bundlePath = "/Apps/Tests.app/PlugIns/Widget.appex" }, "not in an app extension"),
                 ({ $0.environment["SIMULATOR_UDID"] = nil }, "SIMULATOR_UDID is not set, so this is not a simulator"),
                 ({ $0.bundleID = nil }, "the app has no bundle identifier Rocketwright can name its listing after"),
-                ({ $0.bundleID = "bad/id" }, "the app has no bundle identifier Rocketwright can name its listing after"),
+                (
+                    { $0.bundleID = "bad/id" },
+                    "the app has no bundle identifier Rocketwright can name its listing after"
+                ),
             ]
             for (change, reason) in refusals {
                 let lines = Lines()
@@ -322,8 +325,10 @@ struct DiscoveryTests {
     struct PublicAPITests {
         @Test func optionsDefaultToAnyPortThreeThousandViewsValuesAndNoDebugData() {
             let options = Rocketwright.Options()
-            #expect(options == Rocketwright.Options(port: 0, maxNodes: 3000, redactValues: false, swiftUIDebugData: false))
-            #expect(Rocketwright.Kind.navigationBar.rawValue == "navigation_bar" && Rocketwright.Kind.allCases.count == 21)
+            #expect(
+                options == Rocketwright.Options(port: 0, maxNodes: 3000, redactValues: false, swiftUIDebugData: false))
+            #expect(
+                Rocketwright.Kind.navigationBar.rawValue == "navigation_bar" && Rocketwright.Kind.allCases.count == 21)
             #expect(Rocketwright.sdkVersion.range(of: #"^\d+\.\d+\.\d+"#, options: .regularExpression) != nil)
         }
 

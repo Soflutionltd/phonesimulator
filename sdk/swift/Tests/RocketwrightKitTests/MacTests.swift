@@ -339,6 +339,14 @@
             #expect(!MacCapture(options: options, osMajor: 26).capture(window, limit: 100).notes.isEmpty)
         }
 
+        /// What `Rocketwright.accessibilityWanted` said, in order, from whichever thread posted it.
+        final class WantedLog: @unchecked Sendable {
+            private let lock = NSLock()
+            private var said: [Bool?] = []
+            func add(_ value: Bool?) { lock.lock(); said.append(value); lock.unlock() }
+            var values: [Bool?] { lock.lock(); defer { lock.unlock() }; return said }
+        }
+
         @Test func runtimeOwnsItsPrivateListingAndAuthenticatesBeforeReading() async throws {
             let folder = try TemporaryFolder()
             let appPath = folder.path + "/Sample.app"
@@ -349,15 +357,22 @@
             try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0).write(
                 to: URL(fileURLWithPath: appPath + "/Contents/Info.plist"))
             let bundle = try #require(Bundle(path: appPath))
+            let wanted = WantedLog()
+            let observer = NotificationCenter.default.addObserver(
+                forName: Rocketwright.accessibilityWanted, object: nil, queue: nil
+            ) { wanted.add($0.userInfo?["wanted"] as? Bool) }
+            defer { NotificationCenter.default.removeObserver(observer) }
             let runtime = MacRuntime(bundle: bundle, home: folder.path, environment: [:], osMajor: 26)
             runtime.start(.init(swiftUIDebugData: true))
             #expect(runtime.isRunning)
             runtime.start(.init())
+            #expect(wanted.values == [true], "asked once as it starts, not again while it runs")
             defer { runtime.stop() }
             let path = folder.path + "/Library/Application Support/Rocketwright/apps/dev.rocketwright.Tests.json"
             let listing = try JSONDecoder().decode(Listing.self, from: Data(contentsOf: URL(fileURLWithPath: path)))
             #expect(listing.pid == getpid() && listing.platform == "macos")
-            #expect(folder.mode(of: "Library/Application Support/Rocketwright/apps/dev.rocketwright.Tests.json") == 0o600)
+            let listed = "Library/Application Support/Rocketwright/apps/dev.rocketwright.Tests.json"
+            #expect(folder.mode(of: listed) == 0o600)
             func ask(_ auth: String, _ origin: String = "", host: String? = nil) async -> RawClient.Answer? {
                 await RawClient.send(
                     Data(
@@ -371,6 +386,7 @@
             runtime.stop()
             #expect(!runtime.isRunning && !FileManager.default.fileExists(atPath: path))
             runtime.stop()
+            #expect(wanted.values == [true, false], "let go once as it stops, and not by a stop that stops nothing")
             let preview = MacRuntime(
                 bundle: bundle, home: folder.path, environment: ["XCODE_RUNNING_FOR_PREVIEWS": "1"])
             preview.start(.init()); #expect(!preview.isRunning)
