@@ -24,12 +24,14 @@ from simtrail.connectors.native.helper import (
     PROGRAM,
     HelperVersion,
     built_helper,
+    helper_permissions,
     helper_version,
     install_helper,
     locate_helper,
 )
 from simtrail.host_copy import HostCopy
 from simtrail.platform.local_signing import LocalSigning, SigningError
+from simtrail.platform.macos import open_in_mac, show_in_finder
 from simtrail.platform.swiftpm import build_package
 from simtrail.storage.app_support import helpers_dir, installed_helper_dir, signing_dir
 from simtrail.storage.private import ensure_private_dir
@@ -54,12 +56,19 @@ def register(commands: Any) -> None:
         help='a code-signing identity of yours, such as "Developer ID Application: …", kept for every later install; '
         "an empty one goes back to this Mac's own certificate",
     )
+    actions.add_parser(
+        "allow",
+        help="show where System Settings allows the helper (Accessibility, Screen Recording) and show the helper "
+        "in the Finder, to drag it in; needed only to drive macOS apps",
+    )
     command.set_defaults(handler=run, action="status", json=False, force=False, scope=None, signing=None, identity=None)
 
 
 def run(args: argparse.Namespace, ctx: CliContext) -> int:
     if args.action == "sign":
         return _sign(args, ctx)
+    if args.action == "allow":
+        return asyncio.run(_allow(ctx))
     return asyncio.run(_build(args, ctx) if args.action == "build" else _status(args, ctx))
 
 
@@ -112,6 +121,8 @@ async def _status(args: argparse.Namespace, ctx: CliContext) -> int:
     binary, version, usable = found.binary, found.version, found.usable
     reason = found.reason(HostCopy(), config.native_helper_path)
     sources = ctx.helper_sources()
+    # Asked of the helper that runs, since a grant is kept for one signed program: none to ask when it cannot run.
+    granted = await helper_permissions(binary, ctx.run) if binary and usable else None
     if args.json:
         ctx.say(json.dumps({
             "path": binary,
@@ -123,6 +134,7 @@ async def _status(args: argparse.Namespace, ctx: CliContext) -> int:
             "built": str(built),
             "installed": str(place),
             "signed_by": signing.signer() or None,
+            "permissions": granted,
             "sources": str(sources) if sources else None,
         }, indent=2))  # fmt: skip
     else:
@@ -132,8 +144,9 @@ async def _status(args: argparse.Namespace, ctx: CliContext) -> int:
         ctx.say(f"native helper: {binary or 'none'}{described}")
         ctx.say("usable: yes" if usable else f"usable: no -- {reason}")
         ctx.say(f"built for this version: {built}" + ("" if built.is_file() else " (not built)"))
-        allow = " (allow this one in Privacy & Security)" if installed else " (not installed)"
-        ctx.say(f"installed at: {place}{allow}")
+        ctx.say(f"installed at: {place}" + ("" if installed else " (not installed)"))
+        if granted is not None:
+            ctx.say(_permissions_line(granted))
         signer = signing.signer()
         ctx.say(
             f"signed by: {signer}"
@@ -143,6 +156,60 @@ async def _status(args: argparse.Namespace, ctx: CliContext) -> int:
         )
         ctx.say(f"Swift sources: {sources or 'not in this install'}")
     return 0 if usable else 1
+
+
+#: What each permission is called in System Settings > Privacy & Security.
+PERMISSION_PANES = {"accessibility": "Accessibility", "screen_recording": "Screen Recording"}
+
+
+def _permissions_line(granted: dict[str, bool]) -> str:
+    """Which permissions the helper holds, and where to allow the ones it lacks -- needed only to drive macOS apps."""
+    named = {PERMISSION_PANES.get(name, name): ok for name, ok in granted.items()}
+    held = ", ".join(f"{pane} {'allowed' if ok else 'not allowed'}" for pane, ok in named.items())
+    missing = [pane for pane, ok in named.items() if not ok]
+    if not missing:
+        return f"permissions: {held}"
+    where = " and ".join(missing)
+    return (
+        f"permissions: {held} -- allow the helper in System Settings > Privacy & Security > {where} "
+        "(`simtrail helper allow` opens them); simulators need neither, macOS apps need both"
+    )
+
+
+#: Where System Settings shows each permission's list.
+PERMISSION_URLS = {
+    "accessibility": "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+    "screen_recording": "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+}
+
+
+async def _allow(ctx: CliContext) -> int:
+    """Open the panes of the permissions the installed helper lacks, and show it in the Finder: macOS lets only a person
+    grant them, so this goes as far as it can and says what is left to do."""
+    place = installed_helper_dir(ctx.env, ctx.home) / PROGRAM
+    if not place.is_file():
+        ctx.complain("simtrail: no helper is installed yet: run `simtrail helper status` (or `simtrail helper build`)")
+        return 1
+    granted = await helper_permissions(str(place), ctx.run)
+    if granted is None:
+        ctx.complain(f"simtrail: the helper at {place} did not say which permissions it holds")
+        return 1
+    missing = [name for name, ok in granted.items() if not ok]
+    if not missing:
+        ctx.say("the helper already holds every permission it needs")
+        return 0
+    for name in missing:
+        code, out = await open_in_mac(PERMISSION_URLS.get(name, PERMISSION_URLS["accessibility"]), ctx.run)
+        if code != 0:
+            ctx.complain(f"simtrail: System Settings did not open: {out.strip()[:200]}")
+            return 1
+    await show_in_finder(place, ctx.run)
+    panes = " and ".join(PERMISSION_PANES.get(name, name) for name in missing)
+    ctx.say(
+        f"opened Privacy & Security > {panes}, and showed the helper in the Finder: drag simtrail-helper into each "
+        "list (or + and pick it), turn it on, then run `simtrail helper status` to check"
+    )
+    return 0
 
 
 async def _build(args: argparse.Namespace, ctx: CliContext) -> int:

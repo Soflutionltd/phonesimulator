@@ -212,6 +212,22 @@ async def helper_version(binary: str, run: Runner = process.run) -> HelperVersio
         return None
 
 
+async def helper_permissions(binary: str, run: Runner = process.run) -> dict[str, bool] | None:
+    """What a helper says of the macOS permissions it holds -- ``accessibility`` and ``screen_recording``, each
+    granted or not -- or None when it cannot be run or says nothing readable. It asks for itself: the helper disclaims
+    the process that started it, so the answer is the helper's own grant, not its parent's."""
+    code, out = await run((binary, "permissions"))
+    if code != 0:
+        return None
+    try:
+        data: object = json.loads(out)
+        if not isinstance(data, dict) or not isinstance(data.get("parts"), list):
+            return None
+        return {str(part["name"]): bool(part["ok"]) for part in data["parts"]}
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
 AskVersion = Callable[[str], Awaitable[HelperVersion | None]]
 
 

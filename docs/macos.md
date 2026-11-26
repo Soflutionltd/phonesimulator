@@ -16,7 +16,9 @@ another. `sim_device health` checks the selected app's capture, hierarchy and in
 The native helper needs **Screen Recording** in System Settings → Privacy & Security. **Accessibility** is needed
 for apps without the SDK. Grant these to the installed helper,
 `~/Library/Application Support/Simtrail/helper/simtrail-helper` (`simtrail helper status` and `simtrail doctor`
-name it), rather than to Python or to a copy inside a package cache. Every Simtrail version copies its helper to that
+name it, with which permissions it holds), rather than to Python or to a copy inside a package cache. `simtrail helper
+allow` opens the two lists in System Settings and shows the helper in the Finder, to drag it in: macOS lets only a
+person grant them. Every Simtrail version copies its helper to that
 one path, replacing the previous copy in a single rename.
 
 macOS keeps a grant for a program's path *and* its designated requirement. The helper Simtrail ships is signed ad hoc,

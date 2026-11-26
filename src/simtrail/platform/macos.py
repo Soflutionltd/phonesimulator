@@ -209,3 +209,13 @@ LAYOUT_QUERY = ("defaults", "read", "com.apple.HIToolbox", "AppleCurrentKeyboard
 async def keyboard_layout(run: Runner = process.run) -> tuple[int, str]:
     """Read the active keyboard preference; this module is the sole owner of defaults."""
     return await run(LAYOUT_QUERY)
+
+
+async def open_in_mac(target: str, run: Runner = process.run) -> tuple[int, str]:
+    """Hand a URL -- a System Settings pane, say -- to the app macOS opens it with, and what ``open`` answers."""
+    return await run(("open", target))
+
+
+async def show_in_finder(path: Path, run: Runner = process.run) -> tuple[int, str]:
+    """Show a file selected in a Finder window, and what ``open`` answers."""
+    return await run(("open", "-R", str(path)))

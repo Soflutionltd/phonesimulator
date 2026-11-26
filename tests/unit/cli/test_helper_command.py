@@ -27,6 +27,11 @@ class Here:
     def __init__(self, root: Path, *, sources: Path | None = None) -> None:
         self.root = root
         self.versions: dict[str, tuple[int, str]] = {}
+        #: What each helper says of its permissions, by path; one with none cannot say.
+        self.permissions: dict[str, tuple[int, str]] = {}
+        #: What was opened with `open`, and what it answers.
+        self.opened: list[tuple[str, ...]] = []
+        self.open_answers: tuple[int, str] = (0, "")
         self.xcrun = FakeXcrun()
         self.out, self.err = io.StringIO(), io.StringIO()
         state = root / "state"
@@ -46,7 +51,15 @@ class Here:
         )
 
     async def run(self, argv: Sequence[str]) -> tuple[int, str]:
-        return self.versions.get(argv[0], (127, "")) if argv[1:] == ["version"] or argv[1:] == ("version",) else (1, "")
+        asked = tuple(argv[1:])
+        if argv[0] == "open":
+            self.opened.append(asked)
+            return self.open_answers
+        if asked == ("version",):
+            return self.versions.get(argv[0], (127, ""))
+        if asked == ("permissions",):
+            return self.permissions.get(argv[0], (1, ""))
+        return (1, "")
 
     def __call__(self, *argv: str) -> int:
         return main(list(argv), ctx=self.ctx)
@@ -80,7 +93,8 @@ def test_status_names_the_installed_helper_and_its_version_as_text_or_json(tmp_p
     said = here.said()
     assert here.installed.read_bytes() == here.built.read_bytes(), "the built helper is installed at the one path"
     assert f"native helper: {here.installed} ({__version__}, wire 1, CoreSimulator 1171.7)" in said
-    assert f"installed at: {here.installed} (allow this one in Privacy & Security)" in said
+    assert f"installed at: {here.installed}\n" in said
+    assert "permissions:" not in said, "a helper that cannot say which it holds is not said to lack any"
     assert "usable: yes" in said and f"built for this version: {here.built}\n" in said
     assert "Swift sources: not in this install" in said
     here.out.truncate(0)
@@ -208,3 +222,60 @@ def test_sign_with_an_identity_of_yours_keeps_it_and_makes_no_certificate(
     assert here("helper", "sign", "--identity", "Developer ID Application: A (TEAM)") == 0
     assert signing.configured == "Developer ID Application: A (TEAM)"
     assert not any("making this Mac's helper-signing certificate" in line for line in here.said())
+
+
+def permissions(accessibility: bool, screen_recording: bool) -> tuple[int, str]:
+    parts = [{"name": "accessibility", "ok": accessibility}, {"name": "screen_recording", "ok": screen_recording}]
+    return (0, json.dumps({"ok": accessibility and screen_recording, "parts": parts}))
+
+
+def test_status_says_which_permissions_the_helper_holds_and_where_to_allow_the_others(tmp_path: Path) -> None:
+    here = Here(tmp_path)
+    executable(here.built)
+    here.versions[str(here.installed)] = (0, THIS)
+    here.permissions[str(here.installed)] = permissions(True, False)
+    assert here("helper", "status") == 0
+    assert (
+        "permissions: Accessibility allowed, Screen Recording not allowed -- allow the helper in System Settings > "
+        "Privacy & Security > Screen Recording (`simtrail helper allow` opens them)"
+    ) in here.said()
+    here.out.truncate(0)
+    here.out.seek(0)
+    here.permissions[str(here.installed)] = permissions(True, True)
+    assert here("helper", "status") == 0
+    assert "permissions: Accessibility allowed, Screen Recording allowed\n" in here.said()
+    here.out.truncate(0)
+    here.out.seek(0)
+    assert here("helper", "status", "--json") == 0
+    assert json.loads(here.said())["permissions"] == {"accessibility": True, "screen_recording": True}
+    here.permissions[str(here.installed)] = (0, "[]")
+    here.out.truncate(0)
+    here.out.seek(0)
+    assert here("helper", "status", "--json") == 0
+    assert json.loads(here.said())["permissions"] is None
+
+
+def test_allow_opens_the_panes_of_the_permissions_missing_and_shows_the_helper(tmp_path: Path) -> None:
+    here = Here(tmp_path)
+    assert here("helper", "allow") == 1 and "no helper is installed yet" in here.err.getvalue()
+    executable(here.built)
+    here.versions[str(here.installed)] = (0, THIS)
+    here("helper", "status")
+    assert here("helper", "allow") == 1 and "did not say which permissions it holds" in here.err.getvalue()
+    here.permissions[str(here.installed)] = permissions(False, False)
+    here.out.truncate(0)
+    here.out.seek(0)
+    assert here("helper", "allow") == 0
+    assert here.opened == [
+        ("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",),
+        ("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",),
+        ("-R", str(here.installed)),
+    ]
+    assert "opened Privacy & Security > Accessibility and Screen Recording" in here.said()
+    here.opened.clear()
+    here.permissions[str(here.installed)] = permissions(True, True)
+    assert here("helper", "allow") == 0 and here.opened == []
+    assert "already holds every permission" in here.said()
+    here.permissions[str(here.installed)] = permissions(False, True)
+    here.open_answers = (1, "LSOpenURLsWithRole() failed")
+    assert here("helper", "allow") == 1 and "System Settings did not open: LSOpenURLsWithRole" in here.err.getvalue()

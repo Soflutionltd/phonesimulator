@@ -30,6 +30,7 @@ from simtrail.connectors.native.helper import (
     find_helper,
     helper_able,
     helper_argv,
+    helper_permissions,
     helper_sources,
     helper_version,
     self_check,
@@ -89,6 +90,32 @@ async def test_a_helpers_version_is_what_it_prints(code: int, out: str, version:
 
     assert await helper_version("/bin/h", run=run) == version
     assert seen == [("/bin/h", "version")]
+
+
+@pytest.mark.parametrize(
+    ("code", "out", "granted"),
+    [
+        (0, json.dumps({"ok": False, "parts": [{"name": "accessibility", "ok": True},
+                                               {"name": "screen_recording", "ok": False}]}),
+         {"accessibility": True, "screen_recording": False}),
+        (1, "", None),
+        (0, "not json", None),
+        (0, "[]", None),
+        (0, json.dumps({"parts": "none"}), None),
+        (0, json.dumps({"parts": [{"ok": True}]}), None),
+    ],
+)  # fmt: skip
+async def test_a_helper_says_which_permissions_it_holds_or_nothing(
+    code: int, out: str, granted: dict[str, bool] | None
+) -> None:
+    seen: list[tuple[str, ...]] = []
+
+    async def run(argv: Sequence[str]) -> tuple[int, str]:
+        seen.append(tuple(argv))
+        return code, out
+
+    assert await helper_permissions("/bin/h", run=run) == granted
+    assert seen == [("/bin/h", "permissions")]
 
 
 def test_only_a_helper_of_this_version_and_wire_is_usable() -> None:
