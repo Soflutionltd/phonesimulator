@@ -562,6 +562,15 @@ export interface Lease {
   agent_idle_s: number
 }
 
+// POST an agent's warm-up: its scope's simulator, when already booted, attached in the background before the
+// agent's first call -- warming -- or found running already, or skipped, and why. Nothing is booted, created or
+// held for the agent.
+export interface Warm {
+  scope: string
+  warm: 'warming' | 'running' | 'skipped'
+  reason: string | null
+}
+
 // GET, PUT or DELETE a scope's pause: whether a person has paused agents' gestures on the device the scope uses,
 // and for how much longer. It lifts by itself when it runs out.
 export interface Pause {

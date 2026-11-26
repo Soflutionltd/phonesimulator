@@ -81,6 +81,7 @@ class SimConfig:
     stream_quality: int
     stream_max_width: int
     agent_tools: bool
+    agent_warm_up: bool
     agent_cursor: bool
     #: ``#rrggbb``, or empty for the viewer's accent (`config.schema.Color`).
     cursor_color: str

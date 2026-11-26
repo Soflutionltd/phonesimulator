@@ -7,7 +7,8 @@
     /api/v1/scopes/{scope}/settings            the settings panel's (`server.settings_routes`), with a settings store
     /api/v1/scopes/{scope}/embed-tickets       a frame's way in, for a host's backend with its token
     /api/v1/scopes/{scope}/pause               a person's pause on agents' gestures, with an expiry (`daemon.pauses`)
-    /api/v1/agent/manifest|call|lease          an agent's routes, and its lease (`daemon.lease`)
+    /api/v1/agent/manifest|call|lease|warm     an agent's routes, its lease (`daemon.lease`), and its device made
+                                               ready before its first call (`DeviceManager.warm`)
     /api/v1/auth/exchange                      a code or an embed ticket, spent for a viewer token
     /api/v1/admin/reload|login-codes|tokens    the admin token's routes, and the settings changes waiting to be
     /api/v1/admin/settings-confirmations       confirmed, with their codes (`daemon.confirmations`), and which
@@ -340,6 +341,18 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         daemon.leases.renew(caller.scope.id, caller.key)
         idle_s = daemon.config.get(caller.scope).agent_idle_minutes * 60
         return ok({"scope": caller.scope.id, "expires_in_s": LEASE_S, "agent_idle_s": idle_s})
+
+    @app.post(AGENT + "/warm")
+    async def agent_warm(request: Request) -> dict[str, Any]:
+        """Get this agent's scope's simulator ready before its first tool call -- ``simtrail mcp`` asks as it starts --
+        when that is free: only a simulator already booted is attached, in the background, and nothing is held for
+        the agent (`DeviceManager.warm`). Answers at once, whatever it did."""
+        try:
+            caller = await auth.agent(request)
+        except Refused as exc:
+            raise HTTPException(exc.status, exc.message) from exc
+        outcome, reason = await daemon.runtime.manager.warm(caller.scope)
+        return ok({"scope": caller.scope.id, "warm": outcome, "reason": reason})
 
     @app.post(ADMIN + "/reload")
     async def reload(request: Request) -> dict[str, Any]:

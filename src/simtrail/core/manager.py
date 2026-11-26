@@ -65,6 +65,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 from simtrail.config.model import SimConfig
 from simtrail.connectors.base import (
@@ -133,6 +134,12 @@ SESSION_ENDED_NOTE = (
     "Its session ended -- WebDriverAgent stopped, or its cable was pulled; the next call starts it again."
 )
 
+
+#: What `DeviceManager.warm` did: started attaching the scope's simulator, found it running already, or left it.
+WarmOutcome = Literal["warming", "running", "skipped"]
+WARM_STARTED: WarmOutcome = "warming"
+WARM_RUNNING: WarmOutcome = "running"
+WARM_SKIPPED: WarmOutcome = "skipped"
 
 #: A connector a device may be attached with, and what it reported; None when it was not probed this time.
 Choice = tuple[Connector, ConnectorReport | None]
@@ -424,6 +431,46 @@ class DeviceManager:
         instance, running = held
         # Once the manager's lock is let go: starting a session over waits on this device alone.
         return await self._revived(instance) if running else instance
+
+    async def warm(self, scope: Scope) -> tuple[WarmOutcome, str | None]:
+        """Attach the scope's own simulator's session ahead of its agent's first call -- `simtrail mcp` asks as it
+        starts (``agent.warm_up``) -- so that call does not wait for it. Only what is free to do: the device the scope
+        remembers, when it is a simulator that is booted already, not run by Simtrail yet, not claimed by another
+        process, and with room under ``device.max_booted`` without ending another -- while ``agent.warm_up`` and
+        ``agent.tools`` are on. Nothing is booted, created or ended for it; a real device, an Android device or a Mac
+        app is never touched; and the device is not held for any agent -- no lease, binding or driver: left unused, it
+        idles out like any other (`reap`). Answers what was done -- ``warming``, being attached in the background;
+        ``running``, already; ``skipped`` -- and why, when it was skipped. Never raises."""
+        config = self._config.get(scope)
+        if not config.agent_warm_up or not config.agent_tools:
+            return WARM_SKIPPED, "agent.warm_up or agent.tools is off"
+        if (current := self.instance(scope)) is not None and current.live:
+            return WARM_RUNNING, None
+        udid = self._remembered(scope, config)
+        if udid is None:
+            return WARM_SKIPPED, "the scope has no device yet"
+        backend = self.backends.get("simulator")
+        if kind_of(udid) != "simulator" or not isinstance(backend, SimulatorBackend):
+            return WARM_SKIPPED, "the scope's device is not a simulator"
+        running = self._instances.get(udid)
+        if running is not None and running.live:
+            # Another scope's session on it: the first call joins it without waiting.
+            return WARM_RUNNING, None
+        live = [instance for instance in self._instances.values() if instance.live and self.runs_here(instance)]
+        if len(live) >= config.max_booted:
+            return WARM_SKIPPED, "as many devices run as device.max_booted allows"
+        try:
+            if (await self.availability.check(scope, "simulator")).reason:
+                return WARM_SKIPPED, "the scope cannot have a simulator now"
+            if await self.holder(udid) is not None:
+                return WARM_SKIPPED, "another process drives the simulator"
+            if not await backend.booted(udid, config):
+                return WARM_SKIPPED, "the simulator is not booted"
+            await self.ensure(scope)
+        except (SimulatorUnavailable, DeviceControlError) as exc:
+            return WARM_SKIPPED, str(exc)
+        logger.info("attaching the simulator %s ahead of %s's first call", udid, scope.label)
+        return WARM_STARTED, None
 
     def _is_default(self, scope: Scope, udid: str, config: SimConfig) -> bool:
         """Whether this device is the scope's own: the one it runs, else -- running none -- the one it remembers."""

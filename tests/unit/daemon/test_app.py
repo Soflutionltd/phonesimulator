@@ -267,6 +267,28 @@ async def test_an_agent_calls_tools_for_its_scope_and_holds_its_device_with_a_le
         )
 
 
+async def test_an_agent_s_simulator_is_warmed_up_before_its_first_call_holding_nothing_for_it(tmp_path: Path) -> None:
+    here = site(tmp_path)
+    async with here.http() as http:
+        agent = await here.token(http, "agent", "tp-1")
+        skipped = (await http.post("/api/v1/agent/warm", headers=bearer(agent))).json()
+        assert skipped == {"ok": True, "data": {"scope": "tp-1", "warm": "skipped",
+                                                "reason": "the scope has no device yet"}}  # fmt: skip
+        here.rig.memory.choose(TP1, False, BOOTED_UDID)
+        warming = (await http.post("/api/v1/agent/warm", headers=bearer(agent))).json()
+        assert warming["data"] == {"scope": "tp-1", "warm": "warming", "reason": None}
+        instance = here.daemon.runtime.manager.instance(TP1)
+        assert instance is not None and instance.task is not None
+        await instance.task
+        again = (await http.post("/api/v1/agent/warm", headers=bearer(agent))).json()
+        assert again["data"]["warm"] == "running"
+        assert not here.daemon.leases.held("tp-1") and here.daemon.runtime.selections.on(BOOTED_UDID) == []
+        assert instance.driver is None, "no lease, binding or driver for anyone"
+        assert detail(await http.post("/api/v1/agent/warm")) == (401, AUTHENTICATION_REQUIRED)
+        viewer = await here.token(http, "viewer", "tp-1")
+        assert detail(await http.post("/api/v1/agent/warm", headers=bearer(viewer))) == (403, NOT_AN_AGENT)
+
+
 @dataclass
 class Asking:
     headers: Headers

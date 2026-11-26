@@ -908,6 +908,16 @@ class Lease(TypedDict):
     agent_idle_s: float
 
 
+class Warm(TypedDict):
+    """POST an agent's warm-up: its scope's simulator, when already booted, attached in the background before the
+    agent's first call -- warming -- or found running already, or skipped, and why. Nothing is booted, created or
+    held for the agent.
+    """
+    scope: str
+    warm: Literal["warming", "running", "skipped"]
+    reason: str | None
+
+
 class Pause(TypedDict):
     """GET, PUT or DELETE a scope's pause: whether a person has paused agents' gestures on the device the scope uses,
     and for how much longer. It lifts by itself when it runs out.
