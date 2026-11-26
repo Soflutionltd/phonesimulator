@@ -98,6 +98,7 @@ async def test_a_helpers_version_is_what_it_prints(code: int, out: str, version:
         (0, json.dumps({"ok": False, "parts": [{"name": "accessibility", "ok": True},
                                                {"name": "screen_recording", "ok": False}]}),
          {"accessibility": True, "screen_recording": False}),
+        (1, json.dumps({"ok": False, "parts": [{"name": "accessibility", "ok": False}]}), {"accessibility": False}),
         (1, "", None),
         (0, "not json", None),
         (0, "[]", None),

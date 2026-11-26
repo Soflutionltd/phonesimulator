@@ -215,10 +215,9 @@ async def helper_version(binary: str, run: Runner = process.run) -> HelperVersio
 async def helper_permissions(binary: str, run: Runner = process.run) -> dict[str, bool] | None:
     """What a helper says of the macOS permissions it holds -- ``accessibility`` and ``screen_recording``, each
     granted or not -- or None when it cannot be run or says nothing readable. It asks for itself: the helper disclaims
-    the process that started it, so the answer is the helper's own grant, not its parent's."""
-    code, out = await run((binary, "permissions"))
-    if code != 0:
-        return None
+    the process that started it, so the answer is the helper's own grant, not its parent's. It exits 1 while one is
+    missing, and says which all the same: what it prints is read whatever its exit code."""
+    _, out = await run((binary, "permissions"))
     try:
         data: object = json.loads(out)
         if not isinstance(data, dict) or not isinstance(data.get("parts"), list):

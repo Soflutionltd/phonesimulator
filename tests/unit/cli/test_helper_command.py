@@ -226,7 +226,11 @@ def test_sign_with_an_identity_of_yours_keeps_it_and_makes_no_certificate(
 
 def permissions(accessibility: bool, screen_recording: bool) -> tuple[int, str]:
     parts = [{"name": "accessibility", "ok": accessibility}, {"name": "screen_recording", "ok": screen_recording}]
-    return (0, json.dumps({"ok": accessibility and screen_recording, "parts": parts}))
+    # The helper exits 1 while one is missing, as it does on a Mac.
+    return (
+        0 if accessibility and screen_recording else 1,
+        json.dumps({"ok": accessibility and screen_recording, "parts": parts}),
+    )
 
 
 def test_status_says_which_permissions_the_helper_holds_and_where_to_allow_the_others(tmp_path: Path) -> None:
