@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
 import signal
 import threading
@@ -33,6 +34,7 @@ from simtrail.mcp.launcher import (
     older,
     reviver,
     run,
+    warm_up,
 )
 from simtrail.scope import Scope
 from simtrail.testing.daemon import Daemon
@@ -91,6 +93,7 @@ class FakeDaemon:
             ("POST", "/api/v1/admin/tokens"): {"ok": True, "data": {"id": "t1", "token": "agent-token"}},
             ("DELETE", "/api/v1/admin/tokens/t1"): {"ok": True, "data": {"revoked": True}},
             ("POST", "/api/v1/agent/lease"): {"ok": True, "data": {"scope": "tp-1", "agent_idle_s": 600}},
+            ("POST", "/api/v1/agent/warm"): {"ok": True, "data": {"scope": "tp-1", "warm": "warming", "reason": None}},
             ("GET", "/api/v1/agent/manifest"): {"tools": [{"name": "sim_device"}], "instructions": "look first"},
             ("POST", "/api/v1/agent/call"): {"content": [{"type": "text", "text": "ok"}], "isError": False},
         }
@@ -574,3 +577,71 @@ def test_mcp_scope_from_roots_serves_each_project_from_its_own_token(tmp_path: P
     scopes = [body["scopes"] for _auth, body in daemon.made("POST", "/api/v1/admin/tokens")]
     assert scopes == [["tp-1"], [Scope.for_folder(folder).id]], "its own, then the called project's"
     assert len(daemon.made("DELETE", "/api/v1/admin/tokens/t1")) == 2, "both revoked when it closes"
+
+
+def test_mcp_asks_once_in_the_background_for_its_project_s_simulator_to_be_warmed_up(tmp_path: Path) -> None:
+    daemon = FakeDaemon()
+    asked, release, answered = threading.Event(), threading.Event(), threading.Event()
+
+    def opener(request: urllib.request.Request, timeout: float) -> Response:
+        if not request.full_url.endswith("/agent/warm"):
+            return daemon(request, timeout)
+        asked.set()
+        assert release.wait(5)
+        try:
+            return daemon(request, timeout)
+        finally:
+            answered.set()
+
+    call = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "sim_device", "arguments": {}}}
+    stdout = io.StringIO()
+    served = run(
+        Scope.named("tp-1"), [tmp_path], client=DaemonClient(URL, ADMIN, opener=opener),
+        start_daemon=lambda: pytest.fail("the daemon was up"), env={}, stdin=io.StringIO(json.dumps(call) + "\n"),
+        stdout=stdout, opener=opener,
+    )  # fmt: skip
+    assert served == 0 and json.loads(stdout.getvalue())["result"]["content"][0]["text"] == "ok"
+    assert asked.wait(5) and not answered.is_set(), "the client was served without waiting for the warm-up"
+    release.set()
+    assert answered.wait(5)
+    assert daemon.made("POST", "/api/v1/agent/warm") == [("Bearer agent-token", {})], "once, as the agent"
+
+
+def test_a_warm_up_answers_what_the_daemon_did_and_never_fails() -> None:
+    daemon = Daemon(admin=lambda: ADMIN)
+    client = DaemonClient(URL, ADMIN, opener=daemon)
+    path = "/api/v1/agent/warm"
+    daemon.answers[("POST", path)] = {"scope": "tp-1", "warm": "skipped", "reason": "the simulator is not booted"}
+    assert client.warm("agent-token") == "skipped"
+    daemon.answers[("POST", path)] = ["no", "outcome"]
+    assert client.warm("agent-token") is None
+    daemon.refuse.add(path)
+    assert client.warm("agent-token") is None, "a daemon too old to know the route, or one refusing the token"
+    daemon.up = False
+    assert client.warm("agent-token") is None
+    assert DaemonClient(URL, ADMIN, opener=FakeDaemon(impostor=True)).warm("agent-token") is None
+
+
+def test_whatever_a_warm_up_fails_with_is_only_logged(caplog: pytest.LogCaptureFixture) -> None:
+    class Broken:
+        def warm(self, token: str) -> str | None:
+            raise RuntimeError("boom")
+
+    with caplog.at_level(logging.DEBUG, logger="simtrail.mcp.launcher"):
+        thread = warm_up(Broken(), "agent-token")  # type: ignore[arg-type]
+        thread.join(5)
+    assert not thread.is_alive() and thread.daemon and "the warm-up failed" in caplog.text
+
+
+def test_a_shared_relay_warms_up_each_project_s_simulator_as_its_token_is_made(tmp_path: Path) -> None:
+    daemon = FakeDaemon()
+    projects = ProjectTokens(DaemonClient(URL, ADMIN, opener=daemon), "label", every_s=0.01)
+    notes, mail = tmp_path / "Notes", tmp_path / "Mail"
+    for folder in (notes, mail, notes):
+        projects.headers(str(folder), "call")
+    for folder in (notes, mail):
+        for thread in threading.enumerate():
+            if thread.name == f"simtrail-warm-{Scope.for_folder(folder).id}":
+                thread.join(5)
+    projects.close()
+    assert daemon.made("POST", "/api/v1/agent/warm") == [("Bearer agent-token", {})] * 2, "once for each project"

@@ -65,6 +65,9 @@ screenshots.
   and install from.
 - The first tool call created a simulator for the scope, named `Simtrail · project-<folder name>-<short hash>` (the scope's id), booted it and attached
   Simtrail's native helper to it. A second project gets a device of its own, so agents never tap on each other's apps.
+- Once that simulator exists and is booted, the next `simtrail mcp` for this project attaches it in the background as
+  it starts, so the agent's first call does not wait for it (`agent.warm_up`). It never boots or creates a simulator
+  for that, never touches a real or Android device, and does not hold the device for the agent.
 - `simtrail open` asked the daemon for a one-shot code and opened the viewer with it; the code was spent for a
   viewer token that lives only in that tab.
 - A device nobody watches, no agent holds and nothing builds on is stopped after 15 minutes.

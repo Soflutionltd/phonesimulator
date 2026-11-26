@@ -230,6 +230,16 @@
       },
       "required": ["scope", "expires_in_s", "agent_idle_s"]
     },
+    "Warm": {
+      "description": "POST an agent's warm-up: its scope's simulator, when already booted, attached in the background before the agent's first call -- warming -- or found running already, or skipped, and why. Nothing is booted, created or held for the agent.",
+      "type": "object",
+      "properties": {
+        "scope": { "type": "string" },
+        "warm": { "enum": ["warming", "running", "skipped"] },
+        "reason": { "type": ["string", "null"] }
+      },
+      "required": ["scope", "warm", "reason"]
+    },
     "Pause": {
       "description": "GET, PUT or DELETE a scope's pause: whether a person has paused agents' gestures on the device the scope uses, and for how much longer. It lifts by itself when it runs out.",
       "type": "object",

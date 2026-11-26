@@ -760,6 +760,12 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("stream_max_width", "stream.max_width", 900, Whole(320, 1600),
             "The widest a streamed frame is, in pixels."),
     Setting("agent_tools", "agent.tools", True, Flag(), "Whether agents are offered the simulator's MCP tools."),
+    Setting("agent_warm_up", "agent.warm_up", True, Flag(),
+            "Whether `simtrail mcp` gets the project's simulator ready for its agent as it starts, so the agent's "
+            "first tool call does not wait for it: the simulator's session is attached in the background -- only "
+            "when the project's own simulator is already booted. Nothing is booted or created for it, a real "
+            "device, an Android device or a Mac app is never touched, and the device is not held for the agent: "
+            "left unused, it idles out like any other."),
     Setting("agent_cursor", "agent.cursor", True, Flag(),
             "Whether viewers draw the agent's pointer, touches and trails."),
     Setting("cursor_color", "agent.cursor_color", "", Color(),

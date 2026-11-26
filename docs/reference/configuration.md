@@ -105,6 +105,7 @@ max_width = 900
 
 [agent]
 tools = true
+warm_up = true
 cursor = true
 cursor_color = ""
 cursor_park_after_s = 30
@@ -899,6 +900,17 @@ Whether agents are offered the simulator's MCP tools.
 - Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
 - Environment: `SIMTRAIL_AGENT_TOOLS`
 - Key in a host's flat settings: `agent_tools`
+
+### `agent.warm_up`
+
+Whether `simtrail mcp` gets the project's simulator ready for its agent as it starts, so the agent's first tool call does not wait for it: the simulator's session is attached in the background -- only when the project's own simulator is already booted. Nothing is booted or created for it, a real device, an Android device or a Mac app is never touched, and the device is not held for the agent: left unused, it idles out like any other.
+
+- Default: `true`
+- Allowed: `true` or `false`
+- Takes effect: at once
+- Set for: the whole daemon, or one scope in its `[scopes."<scope id>"]` table
+- Environment: `SIMTRAIL_AGENT_WARM_UP`
+- Key in a host's flat settings: `agent_warm_up`
 
 ### `agent.cursor`
 

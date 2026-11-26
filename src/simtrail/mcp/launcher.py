@@ -26,12 +26,17 @@
    each start waits for the run folder's start lock. A daemon started again may listen on another port -- its config
    changed -- so where it listens is read again each time it is looked for (`daemon.json`, else the config), and the
    relay's calls follow it there once what answers proved it is this user's daemon (`follower`).
+6. **A warm-up** (`warm_up`): once the token is made, the daemon is asked, on a thread of its own, to attach the
+   project's simulator before the client's first call -- only when it is booted already (``agent.warm_up``,
+   `DeviceManager.warm`) -- so that call does not wait for it. Nothing waits for the answer, and a failure is only
+   logged. With ``--scope-from-roots``, each project's token is followed by a warm-up of its own.
 """
 
 from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import signal
 import threading
@@ -52,9 +57,12 @@ from simtrail.scope import Scope
 from simtrail.storage.private import file_lock
 
 HEALTH_WAIT_S = 10.0
-HEALTH_POLL_S = 0.2
+#: How often a daemon being started is looked for: a refused connection on the loopback costs next to nothing, and a
+#: daemon comes up in about a second, so the wait after it is ready stays short.
+HEALTH_POLL_S = 0.05
 REQUEST_TIMEOUT_S = 5.0
 AGENT_PATH = "/api/v1/agent"
+WARM_PATH = f"{AGENT_PATH}/warm"
 URL_ENV, TOKEN_ENV, SCOPE_ENV = "SIMTRAIL_URL", "SIMTRAIL_TOKEN", "SIMTRAIL_SCOPE"
 TOKEN_HEADER, SCOPE_HEADER, CLIENT_HEADER = "X-Simtrail-Token", "X-Simtrail-Scope", "X-Simtrail-Client"
 ROOTS_HEADER = "X-Simtrail-Roots"
@@ -74,6 +82,8 @@ STOPPED_ON_PURPOSE = (
     "Simtrail was stopped by `simtrail stop --daemon`, so this call was not made. Call again to start it, or "
     "reconnect this MCP server."
 )
+
+logger = logging.getLogger(__name__)
 
 
 def version_of(server: object) -> tuple[int, ...] | None:
@@ -292,6 +302,20 @@ class DaemonClient:
             return None
         return answer if isinstance(answer, dict) else {}
 
+    def warm(self, token: str) -> str | None:
+        """Ask the daemon to get this agent token's scope's simulator ready before its first call
+        (`DeviceManager.warm`), answering what it did -- ``warming``, ``running`` or ``skipped`` -- or None when it
+        could not be asked: a daemon that is gone, refuses, or is too old to know how. Never raises."""
+        try:
+            data = self.request("POST", WARM_PATH, {}, token=token)
+        except (NotTheDaemon, urllib.error.URLError, OSError, ValueError) as exc:
+            logger.debug("the daemon was not asked to warm up: %s", exc)
+            return None
+        outcome = data.get("warm") if isinstance(data, Mapping) else None
+        reason = data.get("reason") if isinstance(data, Mapping) else None
+        logger.debug("warm-up: %s%s", outcome, f" ({reason})" if reason else "")
+        return outcome if isinstance(outcome, str) else None
+
     def renew_lease(self, token: str, scope_id: str) -> bool:
         """Whether the lease was renewed."""
         try:
@@ -460,6 +484,23 @@ class LeaseKeeper:
                 return
 
 
+def warm_up(client: DaemonClient, token: str, name: str = "simtrail-warm") -> threading.Thread:
+    """Ask the daemon, on a thread of its own, to get the token's scope's simulator ready before the client's first
+    call (`DaemonClient.warm`): nothing waits for it, and whatever it answers -- or fails with -- changes nothing."""
+
+    def ask() -> None:
+        try:
+            client.warm(token)
+        except Exception:
+            # Only ever a head start: whatever went wrong, the first call brings the device up as it always did.
+            # Never fatal to the session it speeds up, but never silent either: said where a person looks.
+            logger.warning("the warm-up failed", exc_info=True)
+
+    thread = threading.Thread(target=ask, name=name, daemon=True)
+    thread.start()
+    return thread
+
+
 def session_label(given: str | None, env: Mapping[str, str]) -> str:
     """The label this session goes by: the one given with ``--label``, else ``SIMTRAIL_AGENT_LABEL``, on one line;
     empty for none."""
@@ -503,8 +544,8 @@ class ProjectTokens:
     that serves several sessions -- a hub that starts one server for all of them -- names each call's folder, and the
     call acts for that folder's project, as `simtrail mcp` started there would: its device, its settings, its builds,
     and an agent of its own for the other agents to see. Each token is made at the first call from its project -- a git
-    worktree given its main checkout's device first (`adopt_main_device`) -- holds its lease while calls come, and is
-    revoked when the relay closes."""
+    worktree given its main checkout's device first (`adopt_main_device`), and its simulator warmed up after
+    (`warm_up`) -- holds its lease while calls come, and is revoked when the relay closes."""
 
     def __init__(self, client: DaemonClient, label: str, *, every_s: float = RENEW_S) -> None:
         self._client = client
@@ -530,6 +571,7 @@ class ProjectTokens:
                 keeper = threading.Thread(target=lease.run, name=f"simtrail-lease-{scope.id}", daemon=True)
                 keeper.start()
                 made = self._made[scope.id] = (token_id, token, lease, keeper)
+                warm_up(self._client, token, f"simtrail-warm-{scope.id}")
         _token_id, token, lease, _keeper = made
         if path == relay.CALL_PATH.strip("/"):
             lease.called()
@@ -607,6 +649,7 @@ def run(
     lease = LeaseKeeper(client, token, every_s=every_s)
     keeper = threading.Thread(target=lease.run, name="simtrail-lease", daemon=True)
     keeper.start()
+    warm_up(client, token)
     projects = ProjectTokens(client, token_label, every_s=every_s) if scope_from_roots else None
     try:
         environment = os.environ if env is None else env

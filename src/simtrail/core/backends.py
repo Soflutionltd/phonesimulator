@@ -132,6 +132,12 @@ class SimulatorBackend:
     async def resolve(self, scope: Scope, remembered: str | None, config: SimConfig) -> DeviceRef:
         return await self.directory.resolve(self.simctl_for(config.developer_dir), scope, config)
 
+    async def booted(self, udid: str, config: SimConfig) -> bool:
+        """Whether this simulator exists, can be used and is booted now, as simctl lists it -- asked before anything is
+        attached to it ahead of a call (`DeviceManager.warm`). Raises `DeviceControlError`."""
+        device = await self.simctl_for(config.developer_dir).device(udid)
+        return device is not None and device.available and device.booted
+
     async def prepare(self, instance: DeviceInstance, config: SimConfig) -> None:
         simctl = self.simctl_for(instance.developer_dir)
         device = await simctl.device(instance.udid)
