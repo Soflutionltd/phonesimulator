@@ -37,19 +37,33 @@ def _one_line(text: str) -> str:
     return " ".join(text.split())[:LABEL_MAX]
 
 
-def project_name(folder: Path) -> str:
-    """What a person calls the project in `folder`: the folder's name -- or, for a git worktree, its repository's, so a
-    worktree named after a branch reads as the project it is a copy of. Read from the worktree's ``.git`` file, which
-    names ``<repository>/.git/worktrees/<name>``; no git is run."""
-    marker = folder / ".git"
+def _repository_name(top: Path) -> str | None:
+    """The name of the repository whose top is `top` -- the folder holding ``.git`` -- or None when it holds none: the
+    folder's own name, or for a git worktree, whose ``.git`` file names ``<repository>/.git/worktrees/<name>``, its
+    repository's. No git is run."""
+    marker = top / ".git"
+    if marker.is_dir():
+        return top.name or None
     try:
         text = marker.read_text(encoding="utf-8") if marker.is_file() else ""
     except OSError:
-        text = ""
-    if text.startswith("gitdir:"):
-        gitdir = Path(os.path.normpath(folder / text.removeprefix("gitdir:").strip()))
-        if gitdir.parent.name == "worktrees" and gitdir.parent.parent.name == ".git":
-            return gitdir.parents[2].name or folder.name
+        return None
+    if not text.startswith("gitdir:"):
+        return None
+    gitdir = Path(os.path.normpath(top / text.removeprefix("gitdir:").strip()))
+    if gitdir.parent.name == "worktrees" and gitdir.parent.parent.name == ".git":
+        return gitdir.parents[2].name or top.name
+    return top.name
+
+
+def project_name(folder: Path) -> str:
+    """What a person calls the project in `folder`: its repository's name -- a worktree named after a branch reads as
+    the project it is a copy of -- followed by the folder's own when it is inside it (``courly · mobile``), else the
+    folder's name."""
+    for top in (folder, *folder.parents):
+        repository = _repository_name(top)
+        if repository is not None:
+            return repository if top == folder else f"{repository} · {folder.name}"
     return folder.name or "root"
 
 

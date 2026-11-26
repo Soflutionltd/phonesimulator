@@ -91,3 +91,16 @@ def test_an_unreadable_git_file_leaves_the_folders_name(tmp_path: Path, monkeypa
 
     monkeypatch.setattr(Path, "read_text", refuse)
     assert project_name(folder) == "app"
+
+
+def test_a_folder_inside_a_repository_is_called_by_the_repository_and_its_own_name(tmp_path: Path) -> None:
+    repository = tmp_path / "courly"
+    (repository / ".git").mkdir(parents=True)
+    app = repository / "mobile"
+    app.mkdir()
+    assert (project_name(repository), project_name(app)) == ("courly", "courly · mobile")
+    worktree = tmp_path / "worktrees" / "flutter-mobile"
+    (worktree / "mobile").mkdir(parents=True)
+    (repository / ".git" / "worktrees" / "flutter-mobile").mkdir(parents=True)
+    (worktree / ".git").write_text(f"gitdir: {repository / '.git' / 'worktrees' / 'flutter-mobile'}\n")
+    assert project_name(worktree / "mobile") == "courly · mobile"
