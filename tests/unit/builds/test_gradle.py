@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.build import gradle
-from simtrail.build.gradle import (
+from rocketwright.build import gradle
+from rocketwright.build.gradle import (
     LEAVE_INSTALLED,
     GradleToolchain,
     app_modules,
@@ -23,15 +23,15 @@ from simtrail.build.gradle import (
     task,
     variant_of,
 )
-from simtrail.build.runner import Build, BuildRefused, Runner
-from simtrail.build.source import Source
-from simtrail.build.stamp import APK_STAMP, apk_stamp
-from simtrail.platform.adb import AdbError
-from simtrail.platform.java import Jdk
-from simtrail.platform.process import CANNOT_RUN
-from simtrail.testing.fakes import MemoryStateStore, fixture
-from simtrail.testing.gradle import EXAMPLE_PACKAGE, EXAMPLE_TEST, FakeGradle, Play, android_project, junit_results
-from simtrail.testing.rig import scope
+from rocketwright.build.runner import Build, BuildRefused, Runner
+from rocketwright.build.source import Source
+from rocketwright.build.stamp import APK_STAMP, apk_stamp
+from rocketwright.platform.adb import AdbError
+from rocketwright.platform.java import Jdk
+from rocketwright.platform.process import CANNOT_RUN
+from rocketwright.testing.fakes import MemoryStateStore, fixture
+from rocketwright.testing.gradle import EXAMPLE_PACKAGE, EXAMPLE_TEST, FakeGradle, Play, android_project, junit_results
+from rocketwright.testing.rig import scope
 
 SCOPE = scope("topic-1", "ws")
 UDID = "avd-Pixel-9-fa39dd"
@@ -210,7 +210,7 @@ async def test_a_build_that_does_not_compile_answers_with_its_errors(rig: Rig) -
     assert build.state == "failed" and build.app is None
     assert said[:2] == [
         "build FAILED · app (debug) · 0s · 1 error, 0 warnings",
-        "error app/src/main/kotlin/dev/simtrail/example/MainActivity.kt:21:26 Initializer type mismatch: expected "
+        "error app/src/main/kotlin/dev/rocketwright/example/MainActivity.kt:21:26 Initializer type mismatch: expected "
         "'Int', actual 'String'.",
     ]
     # A log that is gone says nothing but that Gradle failed.
@@ -336,13 +336,13 @@ async def test_results_an_earlier_run_left_are_not_read_as_this_ones(rig: Rig) -
 
 
 async def test_a_test_run_held_to_an_app_builds_it_first_and_stops_on_another(rig: Rig) -> None:
-    rig.gradle.then(Play(apk=True, package="dev.simtrail.other"))
+    rig.gradle.then(Play(apk=True, package="dev.rocketwright.other"))
     build, said = await rig.answer("test", expected_bundle_id=EXAMPLE_PACKAGE)
     assert rig.args() == [("--console=plain", ":app:assembleDebug")] and build.state == "failed"
     assert said[0] == (
-        "test FAILED · app (debug) builds dev.simtrail.other, not dev.simtrail.example, the app "
+        "test FAILED · app (debug) builds dev.rocketwright.other, not dev.rocketwright.example, the app "
         "build.expected_bundle_id names, so the tests were not run and nothing was installed: name the variant that "
-        "builds dev.simtrail.example with configuration, or change build.expected_bundle_id"
+        "builds dev.rocketwright.example with configuration, or change build.expected_bundle_id"
     )
     rig.gradle.then(Play(apk=True)).then(Play(results=junit_results(("startsEmpty", None))))
     build, said = await rig.answer("test", expected_bundle_id=EXAMPLE_PACKAGE)
@@ -380,7 +380,7 @@ async def test_an_emulators_apk_is_stamped_beside_it_and_a_phones_is_not(rig: Ri
     build.udid = PHONE
     assert await rig.runner.stamped(build) == (
         build.app,
-        "not stamped: Simtrail writes nothing to an Android phone but the app it installs",
+        "not stamped: Rocketwright writes nothing to an Android phone but the app it installs",
     )
     build.udid, build.commit = UDID, None
     assert (await rig.runner.stamped(build))[1] == f"not stamped: git named no commit for {rig.folder}"

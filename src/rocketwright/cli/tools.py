@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+"""``rocketwright tools``: the agent tools this install offers, one line each -- or the whole manifest as JSON."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from typing import Any
+
+from rocketwright.cli.context import CliContext
+from rocketwright.daemon.app import SERVER_SCOPE
+from rocketwright.tools.registry import ToolRegistry
+
+
+def register(commands: Any) -> None:
+    command = commands.add_parser("tools", help="list the agent tools this install offers")
+    command.add_argument("--json", action="store_true", help="print the manifest an MCP client receives")
+    command.set_defaults(handler=run)
+
+
+def run(args: argparse.Namespace, ctx: CliContext) -> int:
+    manifest = ToolRegistry().manifest(ctx.config().get(SERVER_SCOPE))
+    if args.json:
+        ctx.say(json.dumps(manifest, indent=2))
+        return 0
+    for tool in manifest["tools"]:
+        first = tool["description"].split(". ", 1)[0].rstrip(".")
+        ctx.say(f"{tool['name']}: {first}.")
+    return 0

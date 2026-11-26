@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import Foundation
 
-/// What `simtrail-helper capture` is asked to serve: a cabled real device's screen, read the way QuickTime reads it.
+/// What `rocketwright-helper capture` is asked to serve: a cabled real device's screen, read the way QuickTime reads it.
 public struct CaptureOptions: Equatable, Sendable {
-    /// The device's hardware UDID, as Simtrail knows it.
+    /// The device's hardware UDID, as Rocketwright knows it.
     public let udid: String
     /// The device's name, which is what its screen is called among the Mac's capture devices.
     public let name: String
     public let socket: String
     /// The screen as devicectl measures it: its pixels and scale. The capture's own pixels may differ by one.
     public let screen: ScreenGeometry
-    /// The capture device Simtrail found this device to be before, tried first.
+    /// The capture device Rocketwright found this device to be before, tried first.
     public let captureId: String?
     /// A picture of the screen taken another way, to tell apart devices that share a name.
     public let reference: String?
@@ -142,7 +142,7 @@ public enum Likeness {
     }
 }
 
-/// Whether a captured picture is turned from the portrait Simtrail serves: a device held on its side sends its
+/// Whether a captured picture is turned from the portrait Rocketwright serves: a device held on its side sends its
 /// screen wider than tall, and it is turned back a quarter so points map onto it as they do in portrait.
 public enum CaptureTurn: Equatable, Sendable {
     case none
@@ -194,7 +194,7 @@ public struct CaptureDemand: Equatable, Sendable {
 /// agent, which has not asked for the Camera and never will, so the capture quietly gets no pictures. Started again
 /// with its responsibility disclaimed, the helper is its own responsible process and asks for itself.
 public enum Disclaim {
-    public static let variable = "SIMTRAIL_HELPER_DISCLAIMED"
+    public static let variable = "ROCKETWRIGHT_HELPER_DISCLAIMED"
 
     public static func needed(_ environment: [String: String]) -> Bool {
         environment[variable] != "1"

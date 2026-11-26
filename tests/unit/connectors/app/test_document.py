@@ -9,17 +9,17 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.app import wire
-from simtrail.connectors.app.document import AppDocument, SharedApp, document_from_app
-from simtrail.connectors.app.errors import AppSdkError
-from simtrail.connectors.base import Screen
-from simtrail.perception.model import DESTRUCTIVE, Modal, ScreenTree
-from simtrail.perception.readers import MergedReader, NamingReader, tree_from_document
-from simtrail.perception.snapshot import build
-from simtrail.testing.fakes import fixture_json
+from rocketwright.connectors.app import wire
+from rocketwright.connectors.app.document import AppDocument, SharedApp, document_from_app
+from rocketwright.connectors.app.errors import AppSdkError
+from rocketwright.connectors.base import Screen
+from rocketwright.perception.model import DESTRUCTIVE, Modal, ScreenTree
+from rocketwright.perception.readers import MergedReader, NamingReader, tree_from_document
+from rocketwright.perception.snapshot import build
+from rocketwright.testing.fakes import fixture_json
 
 EXAMPLES = Path(__file__).resolve().parents[4] / "protocol" / "app-sdk" / "v1" / "examples"
-BUNDLE = "com.soflution.simtrail.appsdk"
+BUNDLE = "com.soflution.rocketwright.appsdk"
 PID = 4242
 SCREEN = Screen(1206, 2622, 402, 874, 3.0)
 

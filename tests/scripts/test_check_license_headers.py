@@ -52,8 +52,8 @@ def test_a_source_file_without_the_header_is_named(tmp_path: Path) -> None:
 def test_other_file_kinds_generated_stubs_and_bundles_are_not_its_business(tmp_path: Path) -> None:
     files = [
         _write(tmp_path, "README.md", "# no header\n"),
-        _write(tmp_path, "src/simtrail/connectors/idb/proto/idb_pb2.py", "# generated\n"),
-        _write(tmp_path, "src/simtrail/server/static/viewer/app.js", "minified\n"),
+        _write(tmp_path, "src/rocketwright/connectors/idb/proto/idb_pb2.py", "# generated\n"),
+        _write(tmp_path, "src/rocketwright/server/static/viewer/app.js", "minified\n"),
         _write(tmp_path, "viewer/dist/index.js", "built\n"),
     ]
     assert check.missing(tmp_path, files) == []

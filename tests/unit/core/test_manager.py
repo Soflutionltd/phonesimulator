@@ -13,19 +13,19 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Shot
-from simtrail.core.availability import ONLY_ON_A_MAC
-from simtrail.core.control import SimulatorControl
-from simtrail.core.frames import StreamSettings
-from simtrail.core.instance import BOOTING, FAILED, READY, STOPPED, DeviceInstance
-from simtrail.core.manager import BOOT_TIMEOUT_S, GONE_CHECK_S, RESTART_S, SimulatorUnavailable
-from simtrail.core.signing import SigningTeams
-from simtrail.platform.errors import DeviceControlError
-from simtrail.platform.keychain import Team
-from simtrail.protocol import CLOSE_FORBIDDEN, CLOSE_RESTARTING, CLOSE_STOPPED, AppHierarchy
-from simtrail.storage.claims import Claims
-from simtrail.testing.fakes import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Shot
+from rocketwright.core.availability import ONLY_ON_A_MAC
+from rocketwright.core.control import SimulatorControl
+from rocketwright.core.frames import StreamSettings
+from rocketwright.core.instance import BOOTING, FAILED, READY, STOPPED, DeviceInstance
+from rocketwright.core.manager import BOOT_TIMEOUT_S, GONE_CHECK_S, RESTART_S, SimulatorUnavailable
+from rocketwright.core.signing import SigningTeams
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.platform.keychain import Team
+from rocketwright.protocol import CLOSE_FORBIDDEN, CLOSE_RESTARTING, CLOSE_STOPPED, AppHierarchy
+from rocketwright.storage.claims import Claims
+from rocketwright.testing.fakes import (
     BOOTED_UDID,
     JPEG,
     PHONE_UDID,
@@ -36,7 +36,7 @@ from simtrail.testing.fakes import (
     fixture_udid,
     made,
 )
-from simtrail.testing.rig import DeviceRig, closer_log, scope, settle
+from rocketwright.testing.rig import DeviceRig, closer_log, scope, settle
 
 SHUTDOWN_UDID = fixture_udid("iPhone 17 Pro Max")
 TP1 = scope("tp-1")
@@ -56,7 +56,7 @@ async def test_why_a_scope_cannot_have_a_simulator(tmp_path: Path) -> None:
     assert await rig.manager.unavailable(TP1) == "The iOS Simulator is not available here."
     rig.policy.area = True
     rig.config.set(enabled=False)
-    assert await rig.manager.unavailable(TP1) == "The iOS Simulator is off for this project (`simtrail config`)."
+    assert await rig.manager.unavailable(TP1) == "The iOS Simulator is off for this project (`rocketwright config`)."
     rig.config.set(enabled=True)
     rig.idb.available = rig.simctl_connector.available = False
     assert (await rig.manager.unavailable(TP1) or "").startswith("No connector can reach a simulator here.")
@@ -69,7 +69,7 @@ async def test_a_scope_gets_its_device_at_once_and_it_is_brought_up_in_the_backg
         BOOTING,
         made(1),
         True,
-        "Simtrail · alpha · tp-1",
+        "Rocketwright · alpha · tp-1",
     )
     assert instance.session is None and instance.connector == "idb" and instance.fallback_reason is None
     events = instance.events.subscribe()
@@ -149,7 +149,9 @@ async def test_screens_are_told_when_an_app_in_front_starts_or_stops_sharing_its
     assert events.get_nowait()["app_hierarchy"] is None and instance.app_hierarchy is None
 
 
-async def test_a_device_simtrail_made_is_shut_down_when_idle_even_if_an_earlier_run_booted_it(tmp_path: Path) -> None:
+async def test_a_device_rocketwright_made_is_shut_down_when_idle_even_if_an_earlier_run_booted_it(
+    tmp_path: Path,
+) -> None:
     rig = DeviceRig(tmp_path)
     rig.config.set(idle_minutes=5)
     rig.manager.directory.memory.choose(scope("tp-2"), False, BOOTED_UDID)
@@ -175,7 +177,7 @@ async def test_a_shared_group_puts_every_scope_on_one_device_until_the_last_lets
     rig.config.set(device_mode="shared")
     first = await rig.up("tp-1")
     second = await rig.manager.ensure(scope("tp-2"))
-    assert second is first and first.scopes == {"tp-1", "tp-2"} and first.name == "Simtrail · alpha"
+    assert second is first and first.scopes == {"tp-1", "tp-2"} and first.name == "Rocketwright · alpha"
     assert await rig.manager.stop(scope("tp-1")) is True
     assert first.state == READY and rig.manager.instance(scope("tp-2")) is first
     assert await rig.manager.stop(scope("tp-2")) is True and first.state == STOPPED
@@ -258,7 +260,7 @@ async def test_a_device_another_process_is_driving_is_refused_saying_who(tmp_pat
     assert instance.state == FAILED and rig.idb.attached == []
     assert instance.reason == (
         "Another Host on this Mac (pid 9999) is already showing this simulator. "
-        "Stop it there, or give this Simtrail a different device."
+        "Stop it there, or give this Rocketwright a different device."
     )
     assert await other.holder(BOOTED_UDID) is None and await rig.claims.holder(BOOTED_UDID) is not None
     await other.release(BOOTED_UDID)
@@ -376,7 +378,7 @@ async def test_changed_settings_apply_at_once_to_that_groups_devices(tmp_path: P
     rig.manager.attach(running, close)
     rig.config.set(enabled=False)
     await rig.manager.reconcile("alpha")
-    off = "The iOS Simulator is off for this project (`simtrail config`)."
+    off = "The iOS Simulator is off for this project (`rocketwright config`)."
     assert running.state == STOPPED and booting.state == STOPPED and rig.manager.instances() == [elsewhere]
     assert closed == [(CLOSE_FORBIDDEN, off)] and running.reason == off
     await rig.manager.reconcile()
@@ -496,7 +498,7 @@ async def test_a_server_stopping_tells_its_viewers_to_come_back_to_the_device_it
     assert closed == [(CLOSE_RESTARTING, "the simulator is restarting")] and rig.manager.instance(TP1) is None
 
 
-async def test_a_watched_simulator_shut_down_outside_simtrail_is_ended_as_its_screen_fails(tmp_path: Path) -> None:
+async def test_a_watched_simulator_shut_down_outside_rocketwright_is_ended_as_its_screen_fails(tmp_path: Path) -> None:
     engine = FakeEngine()
     rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=engine))
     instance = await rig.up()
@@ -662,7 +664,7 @@ async def test_the_picker_lists_this_macs_ios_simulators_and_a_pick_is_kept(tmp_
     }
     assert choice in listed
     instance = await rig.up()
-    mine = {**choice, "udid": made(1), "name": "Simtrail · alpha · tp-1", "state": "Booted", "created": True}
+    mine = {**choice, "udid": made(1), "name": "Rocketwright · alpha · tp-1", "state": "Booted", "created": True}
     assert mine in await rig.manager.devices(TP1)
     await rig.manager.choose(TP1, BOOTED_UDID)
     assert instance.state == STOPPED and rig.manager.directory.memory.assigned(TP1, False) == BOOTED_UDID
@@ -709,7 +711,7 @@ async def test_a_scope_that_cannot_have_a_simulator_lists_and_picks_no_devices(t
     assert not any(args[:3] == ("simctl", "list", "devices") for args in rig.argv())
 
 
-async def test_a_device_ended_while_it_boots_is_shut_down_as_one_simtrail_booted(tmp_path: Path) -> None:
+async def test_a_device_ended_while_it_boots_is_shut_down_as_one_rocketwright_booted(tmp_path: Path) -> None:
     rig = DeviceRig(tmp_path)
     rig.manager.directory.memory.choose(TP1, False, SHUTDOWN_UDID)
     real, booting = rig.xcrun, asyncio.Event()
@@ -728,7 +730,7 @@ async def test_a_device_ended_while_it_boots_is_shut_down_as_one_simtrail_booted
     assert instance.state == STOPPED and ("simctl", "shutdown", SHUTDOWN_UDID) in real.argv()
 
 
-async def test_a_device_simtrail_booted_is_still_its_to_shut_down_after_a_start_that_failed(tmp_path: Path) -> None:
+async def test_a_device_rocketwright_booted_is_still_its_to_shut_down_after_a_start_that_failed(tmp_path: Path) -> None:
     rig = DeviceRig(tmp_path, idb=FakeConnector("idb", fail=ConnectorUnavailable("not now")))
     rig.manager.directory.memory.choose(TP1, False, SHUTDOWN_UDID)
     failed = await rig.up()
@@ -753,7 +755,7 @@ async def test_a_scope_switched_off_on_a_shared_device_lets_go_of_it_and_the_oth
     rig.manager.attach(shared, second, "tp-2")
     rig.config.set_for("tp-1", enabled=False)
     await rig.manager.reconcile()
-    off = "The iOS Simulator is off for this project (`simtrail config`)."
+    off = "The iOS Simulator is off for this project (`rocketwright config`)."
     assert shared.state == READY and first_closed == [(CLOSE_FORBIDDEN, off)] and second_closed == []
     assert shared.owner.id == "tp-2" and shared.scopes == {"tp-2"} and set(shared.members) == {"tp-2"}
     assert rig.manager.instance(scope("tp-1")) is None and shared.viewers == 1
@@ -979,7 +981,7 @@ class Held:
 LIST = ("simctl", "list", "devices", "-j")
 
 
-async def test_a_simulator_shut_down_outside_simtrail_has_its_session_ended_though_an_agent_holds_it(
+async def test_a_simulator_shut_down_outside_rocketwright_has_its_session_ended_though_an_agent_holds_it(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     rig = DeviceRig(tmp_path)
@@ -994,7 +996,7 @@ async def test_a_simulator_shut_down_outside_simtrail_has_its_session_ended_thou
         assert await rig.manager.reap() == [mine.udid]
     assert (mine.state, mine.reason) == (STOPPED, "the simulator was shut down")
     assert closed == [(CLOSE_STOPPED, "the simulator was shut down")] and rig.idb.closed == [mine.udid]
-    assert "shut down outside Simtrail" in caplog.text
+    assert "shut down outside Rocketwright" in caplog.text
     assert ("simctl", "shutdown", mine.udid) not in rig.argv(), "it is already off"
     assert persons.state == READY and rig.manager.instance(scope("tp-2")) is persons
     again = await rig.up("tp-1")
@@ -1174,7 +1176,7 @@ async def test_a_device_an_agent_chose_that_is_gone_or_cannot_be_used_is_refused
     again.state = FAILED
     again.booted_by_us = True
     third = await rig.manager.ensure(TP1, PHONE_UDID)
-    assert third.booted_by_us, "what an instance that failed had booted is still Simtrail's to shut down"
+    assert third.booted_by_us, "what an instance that failed had booted is still Rocketwright's to shut down"
 
 
 async def test_a_scope_that_may_not_share_a_device_another_runs_is_refused_it_by_udid(tmp_path: Path) -> None:

@@ -104,7 +104,7 @@ def test_the_page_is_told_why_there_is_no_ticket_or_library(tmp_path: Path) -> N
         status, _, body = fetch(base + host.TICKET_PATH, "POST")
         missing = fetch(base + host.LIBRARY_PATH)
     assert status == 502
-    assert json.loads(body) == {"error": "Simtrail refused the ticket (HTTP 401): authentication required"}
+    assert json.loads(body) == {"error": "Rocketwright refused the ticket (HTTP 401): authentication required"}
     assert missing[0] == 404 and json.loads(missing[2]) == {"error": host.NOT_BUILT}
 
 
@@ -131,7 +131,7 @@ def test_a_scope_is_quoted_into_the_path() -> None:
 
 def test_main_needs_a_token_and_a_page(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert host.main(["--page", str(page(tmp_path / "page"))], env={}) == 2
-    assert "simtrail token create --kind viewer --scope demo" in capsys.readouterr().err
+    assert "rocketwright token create --kind viewer --scope demo" in capsys.readouterr().err
     assert host.main(["--page", str(tmp_path / "empty")], env={host.TOKEN_ENV: "t"}) == 2
     assert "holds no index.html" in capsys.readouterr().err
 

@@ -12,11 +12,11 @@ from typing import Any
 
 import pytest
 
-from simtrail.build import stamp
-from simtrail.build.source import Source
-from simtrail.build.stamp import DIRTY_KEY, SHA_KEY, STAMPED, Stamp, StampRefused, compared, stamp_app, stamp_of
-from simtrail.platform.codesign import RESIGN_TIMEOUT_S, resign_adhoc
-from simtrail.testing.fakes import FakeXcrun
+from rocketwright.build import stamp
+from rocketwright.build.source import Source
+from rocketwright.build.stamp import DIRTY_KEY, SHA_KEY, STAMPED, Stamp, StampRefused, compared, stamp_app, stamp_of
+from rocketwright.platform.codesign import RESIGN_TIMEOUT_S, resign_adhoc
+from rocketwright.testing.fakes import FakeXcrun
 
 COMMIT = "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d"
 LATER = "9f8e7d6c5b4a39281706f5e4d3c2b1a098f7e6d5"
@@ -122,7 +122,7 @@ def test_a_clone_is_made_in_one_call_where_the_mac_can(tmp_path: Path, monkeypat
     assert not stamp._clonefile(app, tmp_path / "Other.app")
 
 
-def test_a_stamp_is_read_only_as_simtrail_writes_one() -> None:
+def test_a_stamp_is_read_only_as_rocketwright_writes_one() -> None:
     assert stamp_of({SHA_KEY: COMMIT, DIRTY_KEY: True}) == Stamp(COMMIT, dirty=True)
     assert stamp_of({SHA_KEY: COMMIT, DIRTY_KEY: "yes"}) == Stamp(COMMIT)
     assert stamp_of({SHA_KEY: "1a2b3c4"}) is None and stamp_of({SHA_KEY: 7}) is None and stamp_of({}) is None

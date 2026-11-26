@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: Apache-2.0
+"""``rocketwright token``: make, list and revoke the daemon's scoped tokens.
+
+The command reads the token file directly -- it runs as the person who installed Rocketwright -- and the daemon reads it
+on every request, so a revoked token stops working at once. A token is revoked through the daemon while it runs, so
+what its agent held is let go with it. A new token is printed once, on stdout, and never again.
+
+A ``host`` token is for an application sharing the daemon: ``--scope 'notes:*'`` gives it the scopes whose ids start
+``notes:``, and ``--root`` the folders its agents may reach. Revoking it revokes every token it made.
+
+``sign-out`` ends every page's session (``rocketwright open``, a host's frame), which outlives a restart of the daemon
+(`daemon.passes`): each open page needs a new code to get in again.
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+from typing import Any
+
+from rocketwright.cli.context import CliContext
+from rocketwright.daemon.passes import VIEWER_SESSIONS_FILE, ViewerSessions
+from rocketwright.daemon.tokens import KINDS
+
+
+def register(commands: Any) -> None:
+    command = commands.add_parser("token", help="make, list or revoke the daemon's scoped tokens")
+    actions = command.add_subparsers(dest="action", metavar="ACTION", required=True)
+    making = actions.add_parser("create", help="make a token; it is printed only this once")
+    making.add_argument("--kind", choices=KINDS, required=True)
+    making.add_argument(
+        "--scope",
+        action="append",
+        required=True,
+        help="a scope id, a namespace such as notes:*, or * for all; repeatable",
+    )
+    making.add_argument("--label", default="", help="what the token is for")
+    making.add_argument(
+        "--root", action="append", default=[], help="a folder an agent or host token may reach; repeatable"
+    )
+    actions.add_parser("list", help="list the scoped tokens")
+    revoking = actions.add_parser("revoke", help="stop accepting a token")
+    revoking.add_argument("id")
+    actions.add_parser("sign-out", help="end every viewer page's session; each needs `rocketwright open` again")
+    command.set_defaults(handler=run)
+
+
+def run(args: argparse.Namespace, ctx: CliContext) -> int:
+    store = ctx.tokens()
+    if args.action == "create":
+        roots = [str(Path(root).expanduser().resolve()) for root in args.root]
+        record, token = store.create(args.kind, args.scope, label=args.label, roots=roots)
+        ctx.say(token)
+        ctx.complain(f"made {record.kind} token {record.id} for {', '.join(record.scopes)}; it is shown only this once")
+        return 0
+    if args.action == "list":
+        records = store.records()
+        if not records:
+            ctx.say("no scoped tokens")
+        for record in records:
+            label = f"  {record.label}" if record.label else ""
+            maker = f"  (made by host {record.host})" if record.host else ""
+            ctx.say(f"{record.id}  {record.kind}  {', '.join(record.scopes)}{label}{maker}")
+        return 0
+    if args.action == "sign-out":
+        client = ctx.client()
+        if client.healthy():
+            ended = int(client.admin("DELETE", "/api/v1/admin/viewer-sessions")["ended"])
+        else:
+            ended = ViewerSessions(path=store.path.with_name(VIEWER_SESSIONS_FILE)).end_all()
+        ctx.say(f"ended {ended} viewer session{'' if ended == 1 else 's'}")
+        return 0
+    made = [record.id for record in store.records() if record.host == args.id]
+    if revoke(args.id, ctx):
+        also = f", and the tokens it made: {', '.join(made)}" if made else ""
+        ctx.say(f"revoked {args.id}{also}")
+        return 0
+    ctx.complain(f"there is no token {args.id}")
+    return 1
+
+
+def revoke(token_id: str, ctx: CliContext) -> bool:
+    """Revoke a token through the daemon when it runs, so the devices its agent worked on and drove are let go at once
+    -- else in the token file, which a daemon started later reads. Whether there was such a token."""
+    client = ctx.client()
+    if client.healthy():
+        return bool(client.admin("DELETE", f"/api/v1/admin/tokens/{token_id}").get("revoked"))
+    return ctx.tokens().revoke(token_id)

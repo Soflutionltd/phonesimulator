@@ -6,12 +6,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from simtrail.connectors.mcpbridge.hierarchy import document_from_hierarchy
-from simtrail.perception.model import PIXELS, ElementNode, Frame, ScreenTree
-from simtrail.perception.occlusion import BAR, KEYBOARD, Cover, Placement, covers, place
-from simtrail.perception.readers import tree_from_document
-from simtrail.perception.snapshot import build, diff
-from simtrail.testing.fakes import SCREEN, fixture, fixture_json
+from rocketwright.connectors.mcpbridge.hierarchy import document_from_hierarchy
+from rocketwright.perception.model import PIXELS, ElementNode, Frame, ScreenTree
+from rocketwright.perception.occlusion import BAR, KEYBOARD, Cover, Placement, covers, place
+from rocketwright.perception.readers import tree_from_document
+from rocketwright.perception.snapshot import build, diff
+from rocketwright.testing.fakes import SCREEN, fixture, fixture_json
 
 #: The bottom of the screen a tab bar takes on a 402x874 iPhone.
 TAB_BAR = Frame(0, 790, 402, 84)

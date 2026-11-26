@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// The library build -- `dist/index.js` for `npm i @soflution/simtrail` -- and the tests.
+// The library build -- `dist/index.js` for `npm i @soflution/rocketwright` -- and the tests.
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""A Python host application embedding Simtrail: its own FastAPI app, its own sign-in, Simtrail's routers under its
-own paths.
+"""A Python host application embedding Rocketwright: its own FastAPI app, its own sign-in, Rocketwright's routers under
+its own paths.
 
     EXAMPLE_KEY=change-me uv run uvicorn --factory app:create_app --port 7484
 
-Everything a host decides is a seam (`simtrail.api`). Here settings are Simtrail's embedded defaults with the
-simulator switched on; state lives under ``~/.simtrail-example``; every project may have a simulator but none may run
-commands; and a request is let in by a shared key in ``X-Example-Key``. A real host checks its own session there.
+Everything a host decides is a seam (`rocketwright.api`). Here settings are Rocketwright's embedded defaults with the
+simulator switched on; state lives under ``~/.rocketwright-example``; every project may have a simulator but none may
+run commands; and a request is let in by a shared key in ``X-Example-Key``. A real host checks its own session there.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from starlette.requests import Request
 from starlette.websockets import WebSocket
 
-from simtrail.api import (
+from rocketwright.api import (
     Admission,
     Caller,
     JsonDeviceMemory,
@@ -44,8 +44,8 @@ GROUP = "example"
 #: Where a person's viewer reaches a project's simulator, and where agents call tools.
 PROJECTS = "/api/projects/{scope_id}/simulator"
 AGENT = "/api/agent/simulator"
-STATE_ROOT = Path.home() / ".simtrail-example"
-#: Device claims are shared by every host on the Mac, so two hosts never drive one device. Asking Simtrail where
+STATE_ROOT = Path.home() / ".rocketwright-example"
+#: Device claims are shared by every host on the Mac, so two hosts never drive one device. Asking Rocketwright where
 #: they go, rather than writing the path out, is what makes a standalone daemon and this example see each other's.
 SHARED_CLAIMS = claims_dir(os.environ)
 
@@ -59,7 +59,7 @@ def project(scope_id: str) -> Scope:
 
 
 class ExampleConfig:
-    """Simtrail's embedded defaults -- the simulator off, build tools on -- with the simulator switched on."""
+    """Rocketwright's embedded defaults -- the simulator off, build tools on -- with the simulator switched on."""
 
     def __init__(self) -> None:
         self.config = SimConfig.defaults("embedded").with_values(enabled=True)
@@ -77,7 +77,7 @@ class ExampleState:
 
     @property
     def owner_tag(self) -> str:
-        return "SimtrailExample"
+        return "RocketwrightExample"
 
     def builds_dir(self, scope: Scope) -> Path:
         return self.root / "builds" / scope.id
@@ -138,12 +138,12 @@ class SharedKey:
 
     async def admit_socket(self, websocket: WebSocket, scope_id: str) -> Admission:
         # A browser cannot put headers on a WebSocket. What lets a screen socket in is its one-shot ticket, which
-        # Simtrail checks next, and which only a person let in by `person` could have been given.
+        # Rocketwright checks next, and which only a person let in by `person` could have been given.
         return Admission(project(scope_id))
 
 
 def build_runtime(state: ExampleState | None = None) -> Runtime:
-    # `memory` says where a scope's device is remembered. This example takes the one Simtrail ships, over a file of
+    # `memory` says where a scope's device is remembered. This example takes the one Rocketwright ships, over a file of
     # its own; a host with a database puts it there instead by passing its own `DeviceMemory`, and then implements
     # nothing about files at all.
     state = state or ExampleState()
@@ -156,7 +156,7 @@ def build_runtime(state: ExampleState | None = None) -> Runtime:
 
 
 def create_app(runtime: Runtime | None = None, *, key: str | None = None) -> FastAPI:
-    """The application. Simtrail starts with it -- ending what an earlier run left -- and stops with it."""
+    """The application. Rocketwright starts with it -- ending what an earlier run left -- and stops with it."""
     simulators = runtime or build_runtime()
     auth = SharedKey(os.environ.get(KEY_ENV, "") if key is None else key)
 
@@ -168,7 +168,7 @@ def create_app(runtime: Runtime | None = None, *, key: str | None = None) -> Fas
         finally:
             await simulators.close()
 
-    app = FastAPI(title="Simtrail embedded in an application", lifespan=lifespan)
+    app = FastAPI(title="Rocketwright embedded in an application", lifespan=lifespan)
 
     def source() -> Runtime:
         return simulators

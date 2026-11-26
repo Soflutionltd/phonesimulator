@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The relay `simtrail mcp` runs, against the real daemon app with nothing faked between them: the headers the
+"""The relay `rocketwright mcp` runs, against the real daemon app with nothing faked between them: the headers the
 launcher gives the relay are the ones the daemon reads."""
 
 from __future__ import annotations
@@ -14,13 +14,13 @@ from pathlib import Path
 
 import httpx
 
-from simtrail.daemon import auth
-from simtrail.daemon.app import build_daemon, create_app
-from simtrail.daemon.tokens import TokenStore
-from simtrail.mcp import launcher, relay
-from simtrail.testing.asgi import HOST
-from simtrail.testing.fakes import no_wait
-from simtrail.testing.rig import DeviceRig
+from rocketwright.daemon import auth
+from rocketwright.daemon.app import build_daemon, create_app
+from rocketwright.daemon.tokens import TokenStore
+from rocketwright.mcp import launcher, relay
+from rocketwright.testing.asgi import HOST
+from rocketwright.testing.fakes import no_wait
+from rocketwright.testing.rig import DeviceRig
 
 
 class Answer:

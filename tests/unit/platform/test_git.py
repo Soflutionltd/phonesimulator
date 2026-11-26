@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.platform import process
-from simtrail.platform.git import Checkout, checkout, parse_status
+from rocketwright.platform import process
+from rocketwright.platform.git import Checkout, checkout, parse_status
 
 COMMIT = "5c26caa6e037d40155a39a9f95fe468a0a676595"
 CLEAN = (

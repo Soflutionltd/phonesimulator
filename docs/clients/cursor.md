@@ -1,13 +1,13 @@
 # Cursor
 
-Add Simtrail to your project's `.cursor/mcp.json`:
+Add Rocketwright to your project's `.cursor/mcp.json`:
 
 ```json
 {
   "mcpServers": {
-    "simtrail": {
+    "rocketwright": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/Soflutionltd/simtrail", "simtrail", "mcp"]
+      "args": ["--from", "git+https://github.com/Soflutionltd/rocketwright", "rocketwright", "mcp"]
     }
   }
 }
@@ -15,9 +15,9 @@ Add Simtrail to your project's `.cursor/mcp.json`:
 
 and enable the server in Cursor's MCP settings.
 
-- **Which project**: `simtrail mcp` uses the folder it starts in. If the tools act on the wrong project, append
+- **Which project**: `rocketwright mcp` uses the folder it starts in. If the tools act on the wrong project, append
   `"--scope", "my-app", "--root", "/absolute/path/to/my-app"` to `args`.
-- **Watch**: `simtrail open` in the same folder.
+- **Watch**: `rocketwright open` in the same folder.
 
 A copy of this configuration is in [examples/cursor](../../examples/cursor/).
 

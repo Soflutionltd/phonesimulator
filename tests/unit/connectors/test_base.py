@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from simtrail.connectors.base import (
+from rocketwright.connectors.base import (
     INPUT_CAPABILITIES,
     IOS_BUTTONS,
     Capability,
@@ -15,8 +15,8 @@ from simtrail.connectors.base import (
     HidEvent,
     button_refusal,
 )
-from simtrail.protocol import CAPABILITIES
-from simtrail.testing.fakes import FakeEngine
+from rocketwright.protocol import CAPABILITIES
+from rocketwright.testing.fakes import FakeEngine
 
 
 def test_the_capabilities_are_the_protocols_own_in_its_order() -> None:

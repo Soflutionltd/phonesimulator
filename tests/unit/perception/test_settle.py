@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Settling by what the screen shows: animations that never stop are let go, real changes are not, and a slow fade is
-not taken for stillness. The exact way Simtrail 1.0 settled is pinned in test_wait.py."""
+not taken for stillness. The exact way Rocketwright 1.0 settled is pinned in test_wait.py."""
 
 from __future__ import annotations
 
@@ -9,20 +9,20 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import Crop
-from simtrail.perception.orientation import Orientation
-from simtrail.perception.readers import tree_from_document
-from simtrail.perception.settle import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import Crop
+from rocketwright.perception.orientation import Orientation
+from rocketwright.perception.readers import tree_from_document
+from rocketwright.perception.settle import (
     ExactStillness,
     PerceptualStillness,
     ScreenshotSettle,
     Stillness,
     stillness_for,
 )
-from simtrail.perception.snapshot import Snapshot, build
-from simtrail.testing.fakes import SCREEN, ManualClock
-from simtrail.testing.pictures import HEIGHT, WIDTH, Box, PictureEngine, picture
+from rocketwright.perception.snapshot import Snapshot, build
+from rocketwright.testing.fakes import SCREEN, ManualClock
+from rocketwright.testing.pictures import HEIGHT, WIDTH, Box, PictureEngine, picture
 
 TITLE: Box = (10, 20, 100, 12, 20)
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/common.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/common.schema.json",
   "description": "Definitions the screen socket's messages and the HTTP routes share.",
   "$defs": {
     "Capability": {
@@ -104,12 +104,12 @@
           "type": ["string", "null"],
           "description": "What the device is kept for while agents' gestures would get in its way, such as a test run; null otherwise."
         },
-        "created": { "type": "boolean", "description": "Whether Simtrail created this device." },
-        "booted_by_us": { "type": "boolean", "description": "Whether Simtrail booted this device, and so may shut it down." },
+        "created": { "type": "boolean", "description": "Whether Rocketwright created this device." },
+        "booted_by_us": { "type": "boolean", "description": "Whether Rocketwright booted this device, and so may shut it down." },
         "screen": { "oneOf": [{ "$ref": "#/$defs/Screen" }, { "type": "null" }] },
         "app_hierarchy": {
           "oneOf": [{ "$ref": "#/$defs/AppHierarchy" }, { "type": "null" }],
-          "description": "The app in front sharing its view hierarchy through Simtrail's debug SDK, as an agent's last snapshot read it; null when none does. An older server does not send it."
+          "description": "The app in front sharing its view hierarchy through Rocketwright's debug SDK, as an agent's last snapshot read it; null when none does. An older server does not send it."
         },
         "kind": {
           "$ref": "#/$defs/DeviceKind",
@@ -130,11 +130,11 @@
         },
         "appearance": {
           "oneOf": [{ "$ref": "client-input.schema.json#/$defs/Appearance" }, { "type": "null" }],
-          "description": "Whether the device is light or dark, as Simtrail last read or set it; null until it knows. An older server does not send it."
+          "description": "Whether the device is light or dark, as Rocketwright last read or set it; null until it knows. An older server does not send it."
         },
         "orientation": {
           "$ref": "#/$defs/Orientation",
-          "description": "Which way the device is turned, as Simtrail last turned it -- by a person's Rotate in a viewer or an agent's sim_device rotate; portrait until it turns it. A viewer draws the device turned so, and turns a person's touches back onto the portrait screen. An older server does not send it: read it as portrait."
+          "description": "Which way the device is turned, as Rocketwright last turned it -- by a person's Rotate in a viewer or an agent's sim_device rotate; portrait until it turns it. A viewer draws the device turned so, and turns a person's touches back onto the portrait screen. An older server does not send it: read it as portrait."
         }
       },
       "required": ["udid", "name", "runtime", "state", "reason", "since_ms", "viewers", "busy", "created", "booted_by_us", "screen", "app_hierarchy", "kind", "connection", "buttons", "recording", "appearance", "orientation"]
@@ -151,7 +151,7 @@
       "required": ["id", "since_ms", "by", "max_ms"]
     },
     "AppHierarchy": {
-      "description": "An app sharing its view hierarchy through Simtrail's debug SDK, so snapshots read what accessibility leaves out.",
+      "description": "An app sharing its view hierarchy through Rocketwright's debug SDK, so snapshots read what accessibility leaves out.",
       "type": "object",
       "properties": {
         "name": { "type": "string", "description": "The app's name as the home screen shows it." },

@@ -13,8 +13,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.platform.lockdown import SYSLOG_RELAY, Lockdown, LockdownError, open_syslog, tls_context
-from simtrail.platform.usbmux import (
+from rocketwright.platform.lockdown import SYSLOG_RELAY, Lockdown, LockdownError, open_syslog, tls_context
+from rocketwright.platform.usbmux import (
     HEADER,
     USBMUXD,
     USBMUXD_ENV,
@@ -25,9 +25,9 @@ from simtrail.platform.usbmux import (
     socket_path,
     unix_socket,
 )
-from simtrail.testing.fakes import PHONE_UDID
-from simtrail.testing.native import short_run_dir
-from simtrail.testing.usbmux import PAIR_RECORD, FakeMuxd, FakeService, plain_tls
+from rocketwright.testing.fakes import PHONE_UDID
+from rocketwright.testing.native import short_run_dir
+from rocketwright.testing.usbmux import PAIR_RECORD, FakeMuxd, FakeService, plain_tls
 
 
 def mux(muxd: FakeMuxd) -> Usbmux:
@@ -39,8 +39,8 @@ def test_a_request_is_its_header_and_its_property_list_and_the_socket_can_be_mov
     length, version, kind, tag = HEADER.unpack(sent[: HEADER.size])
     assert (length, version, kind, tag) == (len(sent), 1, 8, 7)
     assert plistlib.loads(sent[HEADER.size :]) == {
-        "ClientVersionString": "simtrail",
-        "ProgName": "simtrail",
+        "ClientVersionString": "rocketwright",
+        "ProgName": "rocketwright",
         "MessageType": "ListDevices",
     }
     assert socket_path({}) == USBMUXD == "/var/run/usbmuxd" and socket_path({USBMUXD_ENV: "/tmp/m"}) == "/tmp/m"

@@ -4,7 +4,7 @@ import Testing
 
 @testable import HelperCore
 
-/// The frames Simtrail's Python side is tested against too, so the two cannot drift apart.
+/// The frames Rocketwright's Python side is tested against too, so the two cannot drift apart.
 struct WireVectors: Decodable {
     struct Vector: Decodable {
         let name: String
@@ -84,9 +84,9 @@ func bytes(_ hex: String) -> Data {
         #expect(WireError.jsonOverruns(5).description.contains("5 bytes"))
     }
 
-    @Test func theHelperIsSimtrailsVersion() throws {
+    @Test func theHelperIsRocketwrightsVersion() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let python = try String(contentsOf: root.appendingPathComponent("src/simtrail/_version.py"), encoding: .utf8)
+        let python = try String(contentsOf: root.appendingPathComponent("src/rocketwright/_version.py"), encoding: .utf8)
         #expect(python.contains("\"\(HelperVersion.current)\""))
     }
 }

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The app SDK protocol's single source holds: its schemas are valid, every example follows them, every property is
 always sent, and what version 1 requires stays required -- the promise an app built with one SDK makes to every
-Simtrail that reads it."""
+Rocketwright that reads it."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
-from simtrail.connectors.app import document
+from rocketwright.connectors.app import document
 
 APP_SDK = Path(__file__).resolve().parents[2] / "protocol" / "app-sdk" / "v1"
 SCHEMAS = {path.name: json.loads(path.read_text()) for path in sorted(APP_SDK.glob("*.schema.json"))}

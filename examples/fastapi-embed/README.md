@@ -1,11 +1,11 @@
 # FastAPI embed
 
-A Python application with Simtrail inside it: [app.py](app.py). No daemon runs; the application builds Simtrail's
+A Python application with Rocketwright inside it: [app.py](app.py). No daemon runs; the application builds Rocketwright's
 `Runtime` from its own seams and mounts the three routers under its own paths.
 
 ```sh
 cd examples/fastapi-embed
-EXAMPLE_KEY=change-me uv run --with "git+https://github.com/Soflutionltd/simtrail" \
+EXAMPLE_KEY=change-me uv run --with "git+https://github.com/Soflutionltd/rocketwright" \
   uvicorn --factory app:create_app --port 7484
 ```
 
@@ -19,19 +19,19 @@ curl -H "X-Example-Key: change-me" -H "X-Example-Project: demo" http://127.0.0.1
 
 | Seam | Here | A real host |
 |---|---|---|
-| `ConfigSource` | Simtrail's `embedded` defaults, simulator on | its settings, read on every call so a change applies at once |
-| `StateStore` | `~/.simtrail-example`, claims shared with every host | its own folders; keep the run folder's path short (unix sockets) |
+| `ConfigSource` | Rocketwright's `embedded` defaults, simulator on | its settings, read on every call so a change applies at once |
+| `StateStore` | `~/.rocketwright-example`, claims shared with every host | its own folders; keep the run folder's path short (unix sockets) |
 | `Policy` | every project, no commands | who may have a simulator, run builds, install from where |
 | `Authenticator` | a shared key header | its own sign-in; `Refused(status, message)` when not |
-| `HostCopy` | Simtrail's wording | its own words for where settings are |
+| `HostCopy` | Rocketwright's wording | its own words for where settings are |
 
 ## Giving agents the tools
 
-An MCP client talks to the agent routes through Simtrail's relay, which reads the URL and each credential from the
+An MCP client talks to the agent routes through Rocketwright's relay, which reads the URL and each credential from the
 environment, never from its command line:
 
 ```python
-from simtrail.api import relay_command
+from rocketwright.api import relay_command
 
 argv = relay_command(
     url_env="EXAMPLE_TOOLS_URL",  # http://127.0.0.1:7484/api/agent/simulator

@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import pytest
 
-from simtrail.config import observe_languages
-from simtrail.config.observe_languages import LANGUAGES, base, words_in
-from simtrail.config.schema import OBSERVE_WORDS, find
-from simtrail.core.refusals import (
+from rocketwright.config import observe_languages
+from rocketwright.config.observe_languages import LANGUAGES, base, words_in
+from rocketwright.config.schema import OBSERVE_WORDS, find
+from rocketwright.core.refusals import (
     DESTRUCTIVE,
     ROW,
     SWITCH,
@@ -18,8 +18,8 @@ from simtrail.core.refusals import (
     spelled,
     touch_refusal,
 )
-from simtrail.perception.model import Frame
-from simtrail.perception.snapshot import Element
+from rocketwright.perception.model import Frame
+from rocketwright.perception.snapshot import Element
 
 
 def test_an_element_nothing_covers_may_be_touched() -> None:

@@ -9,12 +9,12 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError
-from simtrail.connectors.mcpbridge.client import BridgeClient, BridgeError
-from simtrail.connectors.mcpbridge.hierarchy import document_from_hierarchy
-from simtrail.connectors.mcpbridge.reader import BridgeReader
-from simtrail.host_copy import HostCopy
-from simtrail.testing.fakes import BOOTED_UDID, FakeBridge, fixture, fixture_json
+from rocketwright.connectors.base import ConnectorError
+from rocketwright.connectors.mcpbridge.client import BridgeClient, BridgeError
+from rocketwright.connectors.mcpbridge.hierarchy import document_from_hierarchy
+from rocketwright.connectors.mcpbridge.reader import BridgeReader
+from rocketwright.host_copy import HostCopy
+from rocketwright.testing.fakes import BOOTED_UDID, FakeBridge, fixture, fixture_json
 
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
 BRIDGE = f"{XCODE_27}/usr/bin/mcpbridge"
@@ -42,7 +42,7 @@ async def test_reads_share_one_session_and_leave_none_of_xcodes_files_behind(tmp
     first = await reader.accessibility()
     second = await reader.accessibility()
     assert first == second == document_from_hierarchy(fixture("mcpbridge-hierarchy-settings.txt"))
-    key = "Simtrail D946616B t1"
+    key = "Rocketwright D946616B t1"
     assert bridge.calls == [
         ("DeviceInteractionStartSession", {"deviceIdentifier": BOOTED_UDID, "sessionIdentifier": key}),
         ("DeviceInteractionSynthesize", {"interactSessionKey": key}),
@@ -77,7 +77,7 @@ async def test_a_session_left_without_reads_is_ended_so_xcode_can_give_the_devic
     wake.clear()
     await reader.accessibility()
     starts = [arguments["sessionIdentifier"] for tool, arguments in bridge.calls if tool.endswith("StartSession")]
-    assert starts == ["Simtrail D946616B t1", "Simtrail D946616B t2"] and len(bridge.processes) == 2
+    assert starts == ["Rocketwright D946616B t1", "Rocketwright D946616B t2"] and len(bridge.processes) == 2
     await reader.close()
     assert bridge.tools().count("DeviceInteractionEndSession") == 2
 
@@ -89,7 +89,7 @@ async def test_a_session_xcode_lost_is_opened_again_under_a_new_name_once(tmp_pa
     bridge.refuse("DeviceInteractionSynthesize", "Session not found. It may have already been closed")
     await reader.accessibility()
     starts = [arguments["sessionIdentifier"] for tool, arguments in bridge.calls if tool.endswith("StartSession")]
-    assert starts == ["Simtrail D946616B t1", "Simtrail D946616B t2"]
+    assert starts == ["Rocketwright D946616B t1", "Rocketwright D946616B t2"]
     bridge.refuse("DeviceInteractionSynthesize", "Session not found.")
     bridge.refuse("DeviceInteractionStartSession", "This session identifier is currently in use or was recently used.")
     with pytest.raises(ConnectorError, match="Xcode could not keep a session on this device: This session identifier"):
@@ -103,20 +103,20 @@ IN_USE = (
 )
 
 
-async def test_a_session_simtrail_left_on_the_device_is_ended_and_another_agents_is_left_be(tmp_path: Path) -> None:
+async def test_a_session_rocketwright_left_on_the_device_is_ended_and_another_agents_is_left_be(tmp_path: Path) -> None:
     bridge = FakeBridge(folder=tmp_path)
-    bridge.refuse("DeviceInteractionStartSession", IN_USE.format(key="Simtrail D946616B 68b057fe"))
+    bridge.refuse("DeviceInteractionStartSession", IN_USE.format(key="Rocketwright D946616B 68b057fe"))
     reader = reader_on(bridge)
     await reader.accessibility()
     assert bridge.calls[:3] == [
         (
             "DeviceInteractionStartSession",
-            {"deviceIdentifier": BOOTED_UDID, "sessionIdentifier": "Simtrail D946616B t1"},
+            {"deviceIdentifier": BOOTED_UDID, "sessionIdentifier": "Rocketwright D946616B t1"},
         ),
-        ("DeviceInteractionEndSession", {"interactionSessionKey": "Simtrail D946616B 68b057fe"}),
+        ("DeviceInteractionEndSession", {"interactionSessionKey": "Rocketwright D946616B 68b057fe"}),
         (
             "DeviceInteractionStartSession",
-            {"deviceIdentifier": BOOTED_UDID, "sessionIdentifier": "Simtrail D946616B t2"},
+            {"deviceIdentifier": BOOTED_UDID, "sessionIdentifier": "Rocketwright D946616B t2"},
         ),
     ]
     await reader.close()
@@ -132,7 +132,7 @@ async def test_a_session_simtrail_left_on_the_device_is_ended_and_another_agents
     await reader.close()
     twice = FakeBridge(folder=tmp_path)
     for _ in range(2):
-        twice.refuse("DeviceInteractionStartSession", IN_USE.format(key="Simtrail D946616B old"))
+        twice.refuse("DeviceInteractionStartSession", IN_USE.format(key="Rocketwright D946616B old"))
     reader = reader_on(twice)
     with pytest.raises(ConnectorError, match="already have a session on this simulator"):
         await reader.accessibility()
@@ -218,9 +218,9 @@ def capture(**paths: str) -> dict[str, Any]:
     "paths",
     [
         {},
-        {"hierarchyPath": "relative/Simtrail D946616B t1-hierarchy.txt"},
+        {"hierarchyPath": "relative/Rocketwright D946616B t1-hierarchy.txt"},
         {"hierarchyPath": "/somewhere/else-hierarchy.txt"},
-        {"hierarchyPath": "/somewhere/Simtrail D946616B t1-hierarchy.json"},
+        {"hierarchyPath": "/somewhere/Rocketwright D946616B t1-hierarchy.json"},
     ],
 )
 async def test_a_capture_that_names_no_hierarchy_of_this_session_is_refused_and_nothing_is_removed(
@@ -234,7 +234,7 @@ async def test_a_capture_that_names_no_hierarchy_of_this_session_is_refused_and_
 
 
 async def test_only_files_of_this_capture_beside_the_hierarchy_are_removed(tmp_path: Path) -> None:
-    key = "Simtrail D946616B t1"
+    key = "Rocketwright D946616B t1"
     folder = tmp_path / "DeviceInteractionSynthesize"
     elsewhere = tmp_path / "elsewhere"
     folder.mkdir()
@@ -263,7 +263,7 @@ async def test_only_files_of_this_capture_beside_the_hierarchy_are_removed(tmp_p
 
 
 async def test_a_hierarchy_that_cannot_be_read_is_refused_and_its_files_still_removed(tmp_path: Path) -> None:
-    key = "Simtrail D946616B t1"
+    key = "Rocketwright D946616B t1"
     missing = tmp_path / f"{key}-1-hierarchy.txt"
     screenshot = tmp_path / f"{key}-1-screenshot.png"
     screenshot.write_bytes(b"")

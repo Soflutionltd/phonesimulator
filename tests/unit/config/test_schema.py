@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.config import schema
-from simtrail.config.schema import (
+from rocketwright.config import schema
+from rocketwright.config.schema import (
     SETTINGS,
     AbsolutePath,
     Choice,
@@ -163,10 +163,10 @@ def test_unknown_keys_are_named_together_and_refusals_default_to_the_path() -> N
 def test_a_setting_is_found_by_key_or_path_and_names_its_environment_variable() -> None:
     fps = schema.find("stream_fps")
     assert fps is not None and fps is schema.find("stream.fps") and schema.find("nope") is None
-    assert fps.env == "SIMTRAIL_STREAM_FPS"
+    assert fps.env == "ROCKETWRIGHT_STREAM_FPS"
     companion = schema.BY_KEY["companion_path"]
-    assert companion.env == "SIMTRAIL_CONNECTORS_IDB_COMPANION_PATH"
-    assert schema.BY_KEY["enabled"].env == "SIMTRAIL_ENABLED"
+    assert companion.env == "ROCKETWRIGHT_CONNECTORS_IDB_COMPANION_PATH"
+    assert schema.BY_KEY["enabled"].env == "ROCKETWRIGHT_ENABLED"
     assert repr(schema.SAME) == "the standalone default"
 
 
@@ -183,7 +183,7 @@ def test_a_setting_is_found_by_key_or_path_and_names_its_environment_variable() 
         (schema.BundleId(), " com.example.Notes ", "com.example.Notes"),
         (Origins(), "http://a.test, ,http://b.test:8080", ("http://a.test", "http://b.test:8080")),
         (Origins(), "", ()),
-        # The form `simtrail config get` prints a list in is taken too; text that only looks like one is split.
+        # The form `rocketwright config get` prints a list in is taken too; text that only looks like one is split.
         (Origins(), ' ["http://a.test", " http://b.test:8080", ""] ', ("http://a.test", "http://b.test:8080")),
         (Origins(), "[]", ()),
         (Origins(), '["http://a.test"', ('["http://a.test"',)),
@@ -303,10 +303,10 @@ def test_each_path_setting_shows_a_path_of_its_own_kind() -> None:
         setting.path: setting.rule.spec()["example"] for setting in SETTINGS if isinstance(setting.rule, AbsolutePath)
     }
     assert examples == {
-        "connectors.native.helper_path": "/usr/local/bin/simtrail-helper",
+        "connectors.native.helper_path": "/usr/local/bin/rocketwright-helper",
         "connectors.idb.companion_path": "/opt/homebrew/bin/idb_companion",
         "device.developer_dir": "/Applications/Xcode.app/Contents/Developer",
-        "recording.folder": "/Users/you/Movies/Simtrail",
+        "recording.folder": "/Users/you/Movies/Rocketwright",
         "real_devices.developer_dir": "/Applications/Xcode.app/Contents/Developer",
         "real_devices.wda.path": "/Users/you/src/WebDriverAgent",
         "android.sdk_path": "/Users/you/Library/Android/sdk",

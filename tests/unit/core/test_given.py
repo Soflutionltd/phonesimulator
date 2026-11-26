@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Logins handed to the daemon by ``simtrail login``: kept for one scope and app, taken once, dropped when late."""
+"""Logins handed to the daemon by ``rocketwright login``: kept for one scope and app, taken once, dropped when late."""
 
 from __future__ import annotations
 
 import asyncio
 
-from simtrail.core.given import GIVEN, GIVEN_MAX, GIVEN_S, GivenLogins, GivenSource
-from simtrail.platform.passwords import Credentials
-from simtrail.testing.fakes import ManualClock
+from rocketwright.core.given import GIVEN, GIVEN_MAX, GIVEN_S, GivenLogins, GivenSource
+from rocketwright.platform.passwords import Credentials
+from rocketwright.testing.fakes import ManualClock
 
 
 def test_a_login_given_is_taken_once_for_its_scope_and_app_and_reveals_what_was_given() -> None:

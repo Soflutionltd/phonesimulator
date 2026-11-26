@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from simtrail.build import checkouts
-from simtrail.build.checkouts import POINTER_MAX, Checkout, build_folder_for, checkout_of, twin_in_main
-from simtrail.testing.checkouts import linked_worktree, main_checkout, separate_main_checkout
+from rocketwright.build import checkouts
+from rocketwright.build.checkouts import POINTER_MAX, Checkout, build_folder_for, checkout_of, twin_in_main
+from rocketwright.testing.checkouts import linked_worktree, main_checkout, separate_main_checkout
 
 
 def layout(tmp_path: Path) -> tuple[Path, Path]:

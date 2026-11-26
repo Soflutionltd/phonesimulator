@@ -12,21 +12,21 @@ import httpx
 import pytest
 from fastapi import FastAPI, Request, WebSocket
 
-from simtrail.connectors.base import Capability
-from simtrail.core.recordings import Recordings
-from simtrail.core.runtime import Runtime
-from simtrail.protocol import CLOSE_BAD_GATEWAY, CLOSE_FORBIDDEN, CLOSE_RESTARTING, CLOSE_UNAUTHORIZED
-from simtrail.scope import Scope
-from simtrail.seams import Admission, Caller, Person, Refused
-from simtrail.server.agent_routes import BODY_MAX, create_agent_router
-from simtrail.server.envelope import NOT_RUNNING
-from simtrail.server.http_routes import create_http_router
-from simtrail.server.socket_routes import BAD_TICKET, create_socket_router
-from simtrail.testing.asgi import HOST, AsgiSocket
-from simtrail.testing.fakes import BOOTED_UDID, fixture_udid, no_wait
-from simtrail.testing.recording import FakeRenderer, SimctlRecorder
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.tools.device import VERSION_LINE
+from rocketwright.connectors.base import Capability
+from rocketwright.core.recordings import Recordings
+from rocketwright.core.runtime import Runtime
+from rocketwright.protocol import CLOSE_BAD_GATEWAY, CLOSE_FORBIDDEN, CLOSE_RESTARTING, CLOSE_UNAUTHORIZED
+from rocketwright.scope import Scope
+from rocketwright.seams import Admission, Caller, Person, Refused
+from rocketwright.server.agent_routes import BODY_MAX, create_agent_router
+from rocketwright.server.envelope import NOT_RUNNING
+from rocketwright.server.http_routes import create_http_router
+from rocketwright.server.socket_routes import BAD_TICKET, create_socket_router
+from rocketwright.testing.asgi import HOST, AsgiSocket
+from rocketwright.testing.fakes import BOOTED_UDID, fixture_udid, no_wait
+from rocketwright.testing.recording import FakeRenderer, SimctlRecorder
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.tools.device import VERSION_LINE
 
 PREFIX = "/api/v1/scopes/{scope_id}"
 OWN = "http://127.0.0.1:7466"
@@ -156,7 +156,7 @@ async def test_a_person_picks_a_device_from_this_macs_simulators(tmp_path: Path)
 async def test_a_scope_that_cannot_have_a_simulator_is_refused_with_why(tmp_path: Path) -> None:
     site = served(tmp_path)
     site.rig.config.set(enabled=False)
-    off = {"detail": "The iOS Simulator is off for this project (`simtrail config`)."}
+    off = {"detail": "The iOS Simulator is off for this project (`rocketwright config`)."}
     async with site.http() as http:
         for answer in (
             await http.post("/api/v1/scopes/tp-1"),
@@ -232,7 +232,7 @@ async def test_a_socket_is_accepted_once_whoever_accepts_it_and_then_told_why_it
     site.rig.config.set(enabled=False)
     async with site.screen("forged") as off:
         assert await off.accepted() and await off.text() is None
-        assert off.closed == (CLOSE_FORBIDDEN, "The iOS Simulator is off for this project (`simtrail config`).")
+        assert off.closed == (CLOSE_FORBIDDEN, "The iOS Simulator is off for this project (`rocketwright config`).")
     site.running = False
     async with site.screen("forged") as idle:
         assert await idle.accepted() and await idle.text() is None

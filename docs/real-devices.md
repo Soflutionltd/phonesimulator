@@ -1,12 +1,12 @@
 # Real devices
 
-An iPhone or iPad connected to your Mac shows up in Simtrail beside the simulators: in the viewer's device picker, in
-`simtrail devices`, and to an agent once you pick it. What Simtrail can do with it depends on what is there:
+An iPhone or iPad connected to your Mac shows up in Rocketwright beside the simulators: in the viewer's device picker, in
+`rocketwright devices`, and to an agent once you pick it. What Rocketwright can do with it depends on what is there:
 
 | | Needs | Gives |
 |---|---|---|
 | **Tier 1** | Xcode, and the device trusted and in Developer Mode | The device listed and picked; a screenshot about once a second; apps installed, launched and ended; its look and place changed; its log, over the cable |
-| **The cable screen** | The device plugged in by cable, and the Camera permission for Simtrail's helper | The live screen as H.264, like a simulator's |
+| **The cable screen** | The device plugged in by cable, and the Camera permission for Rocketwright's helper | The live screen as H.264, like a simulator's |
 | **Tier 2** | WebDriverAgent, set up once with your signing team (**Set up touch** in the viewer) | Touching, typing, buttons, and the element tree for `sim_snapshot` |
 
 Without tier 2 the device is view-only: an agent has `sim_screenshot`, `sim_app`, `sim_device`, `sim_record` and a
@@ -18,7 +18,7 @@ back. With `real_devices.wda.enabled` off, `sim_act` is listed too, and refused 
 `sim_device health` checks the device now rather than what was set up: a screenshot taken, its screen read once,
 and whether WebDriverAgent answers -- one `key: value` line each, after `verdict: ready to drive` or `not ready to
 drive`, with the text reader's state, the device's note even when touch works, and the last error of what drives it.
-An agent calls it before a run of steps on a real device, and a harness can use it as its preflight; `simtrail wda
+An agent calls it before a run of steps on a real device, and a harness can use it as its preflight; `rocketwright wda
 status` and the doctor's `touch now` check ask WebDriverAgent whether it answers too, for every real device the
 daemon drives.
 
@@ -28,22 +28,22 @@ A person picks a real device -- in the viewer's picker, where it is listed under
 connected (USB or Wi-Fi) and what stands in its way, or with
 
 ```sh
-simtrail devices choose <udid>
+rocketwright devices choose <udid>
 ```
 
 An agent can pick one too: `sim_device list` shows the simulators and connected devices it could use, and `sim_device
 choose` switches to one -- a real device while `real_devices.agents_choose` is on, as it is unless a host that embeds
-Simtrail turns it off. The choice moves only that agent; the project's own device moves with it while it is the only
+Rocketwright turns it off. The choice moves only that agent; the project's own device moves with it while it is the only
 agent at work in the project, or when it passes `default: true`. A viewer tab follows the project's own device, unless
-it was opened on one with `?device=` (`simtrail open --device <udid>`); see
+it was opened on one with `?device=` (`rocketwright open --device <udid>`); see
 [several sessions at once](clients/claude-code-cli.md#several-sessions-at-once).
 
 A device that is not connected is refused with why, never replaced by a simulator. Letting it go (the viewer's power
 button, or choosing another device) leaves it running; a real device is never shut down. `real_devices.enabled` turns
 the whole thing off -- a device being driven when it is turned off has its session ended there and then, its screens
-told why -- and a host that embeds Simtrail has it off unless it turns it on.
+told why -- and a host that embeds Rocketwright has it off unless it turns it on.
 
-Simtrail never powers a real device on, restarts it or shuts it down, and its tools say so. `sim_device boot` opens a
+Rocketwright never powers a real device on, restarts it or shuts it down, and its tools say so. `sim_device boot` opens a
 session on it: the screen, its log, and touch where WebDriverAgent is set up. `sim_device restart` starts that session
 over -- the cable screen, WebDriverAgent and the log attached again, whoever watches kept watching, what was changed on
 it left as it is -- and answers `reconnected`, saying the device itself was not restarted; one that cannot be reached
@@ -54,11 +54,11 @@ down and boots it again.
 
 An agent waits for a person: before its gestures, for the person's hand to have been still for a moment, and refuses
 with why after two seconds of it not being still. That hand is **the person's input through a viewer**. A finger on
-the phone's own screen reaches no viewer, and nothing the phone tells the Mac says it is there, so Simtrail cannot
+the phone's own screen reaches no viewer, and nothing the phone tells the Mac says it is there, so Rocketwright cannot
 wait for it: an agent's tap can land while someone is holding the phone. Keep your hands off a phone an agent is
 driving, or stop the agent first.
 
-A host that embeds Simtrail and knows better -- its person pressed "I'm using the phone", say -- tells agents so by
+A host that embeds Rocketwright and knows better -- its person pressed "I'm using the phone", say -- tells agents so by
 passing an `InputPause` to `Runtime.build` ([embedding](embedding/python-fastapi.md#the-seams)); a host sharing the
 daemon pauses a scope's device for so many seconds, at most ten minutes, with `PUT /api/v1/scopes/{scope}/pause`
 (`DaemonHost.pause`), and it lifts by itself when they run out
@@ -69,14 +69,14 @@ looks are not touches, and go ahead. The tools stay offered while it lasts, and 
 
 ## Tier 1: devicectl
 
-Simtrail reaches a device through Xcode's `devicectl`, with the Xcode in `real_devices.developer_dir` (else
+Rocketwright reaches a device through Xcode's `devicectl`, with the Xcode in `real_devices.developer_dir` (else
 `device.developer_dir`). Nothing is installed on the device for this.
 
 - **The screen**: a screenshot about once a second when there is no cable screen (0.75 s each over Wi-Fi).
 - **Apps** (`sim_app`, `sim_build_run`): installing a built app, launching, ending and opening URLs. A build for a real
   device keeps its project's own signing, and Xcode registers the device with the project's team; a project that names
   no team is signed by the [team found for it](#which-team-signs-it).
-- **How it looks and where it is** (`sim_device`, the viewer's **Display** menu, `simtrail device`): light or dark,
+- **How it looks and where it is** (`sim_device`, the viewer's **Display** menu, `rocketwright device`): light or dark,
   text size, increased contrast, reduce motion, and a simulated location or route. Each is offered only when the
   device says it can do it; the phones tested cannot simulate a status bar, which the cable screen shows as 9:41
   anyway.
@@ -88,9 +88,9 @@ Simtrail reaches a device through Xcode's `devicectl`, with the Xcode in `real_d
 
 ## The cable screen
 
-With the device plugged in, Simtrail's native helper reads its screen the way QuickTime does and serves it as a
+With the device plugged in, Rocketwright's native helper reads its screen the way QuickTime does and serves it as a
 simulator's: screenshots, and H.264 at the viewer's frame rate. The first time, macOS asks whether
-**simtrail-helper** may use the Camera -- that is how macOS names reading a device's screen -- and Simtrail uses
+**rocketwright-helper** may use the Camera -- that is how macOS names reading a device's screen -- and Rocketwright uses
 screenshots until you allow it. A cable that could not show the screen -- the Camera not yet allowed, the device
 locked -- is tried again by itself, 15 seconds later, a minute after that, then every five minutes until it does,
 beside the session that shows screenshots meanwhile; `sim_device restart` tries at once. While the screen is read, the device's status bar shows 9:41; the capture runs only
@@ -104,7 +104,7 @@ or repeatedly retry a denied request. See [Apple's code identity explanation](ht
 
 Apple's separate **A software update is required to connect** alert concerns the Mac's support for the phone.
 Choosing **Not Now** leaves it pending; reconnecting or restarting cable capture can show it again. Stop repeated
-reconnect attempts and let the person resolve the update. Simtrail does not install it or suppress Apple's updater.
+reconnect attempts and let the person resolve the update. Rocketwright does not install it or suppress Apple's updater.
 If an update completed successfully and the alert returns, collect the macOS/iOS versions and update error for
 Apple's support guidance rather than repeating installation or resetting trust/permissions.
 See [Apple's device-support update instructions](https://support.apple.com/en-us/102671).
@@ -131,27 +131,27 @@ shows devicectl's.
 ## Tier 2: WebDriverAgent
 
 [WebDriverAgent](https://github.com/appium/WebDriverAgent) is Appium's open-source XCTest runner (BSD-3-Clause). It
-drives the device the way Xcode's UI tests do. Simtrail never ships it: it fetches one pinned release, checks it, and
+drives the device the way Xcode's UI tests do. Rocketwright never ships it: it fetches one pinned release, checks it, and
 builds it on your Mac with your team.
 
 ### Setting it up, once
 
 1. **Pick the device**, plugged in and unlocked. While it can only be watched, its bar says **Set up touch**.
-2. **Press Set up touch**, then **Set up touch** in the note that opens. Simtrail fetches release 16.12.10 (commit
+2. **Press Set up touch**, then **Set up touch** in the note that opens. Rocketwright fetches release 16.12.10 (commit
    `00c38220c3e84906c965b996ffc4c12d09fef62f`), refuses it unless its SHA-256 is
    `27343e6064b204f7a1bff20096597d5f318564465d91e2fee66ea71bc1ddc222`, makes [two changes](#safety), and builds it with
-   `xcodebuild` as `dev.simtrail.<team>.WebDriverAgentRunner` for the device -- which lets Xcode register the device
+   `xcodebuild` as `dev.rocketwright.<team>.WebDriverAgentRunner` for the device -- which lets Xcode register the device
    with your team, so the profile covers it. The first build takes a minute or two; the note follows it, and the
-   device can be touched once it is done. From a terminal, `simtrail wda setup --device <udid>` does the same. Xcode
+   device can be touched once it is done. From a terminal, `rocketwright wda setup --device <udid>` does the same. Xcode
    must be signed in to your developer account.
 3. **On the device, the first time**, trust your developer in Settings › General › VPN & Device Management if it asks,
    and turn on Settings › Developer › **Enable UI Automation**.
 
-That is the only time you are asked. After that Simtrail builds it again by itself when it has to -- for a new Xcode,
+That is the only time you are asked. After that Rocketwright builds it again by itself when it has to -- for a new Xcode,
 or another device the team signs for -- and starts it whenever the device is picked. A build that fails is shown with
 why, and tried again only when you press **Try again**.
 
-`real_devices.wda.enabled` (on) turns WebDriverAgent off, leaving real devices view only; a host that embeds Simtrail
+`real_devices.wda.enabled` (on) turns WebDriverAgent off, leaving real devices view only; a host that embeds Rocketwright
 has it off unless it turns it on. Turned off while a device is driven, it is view only there and then: its session is
 started over without touch -- the device itself left as it is -- its viewers come back to a screen they can only watch,
 and an agent's `sim_act`, one under way included, is refused saying WebDriverAgent is off. With `real_devices.screen`
@@ -160,8 +160,8 @@ otherwise. A runner that ends by itself -- killed on the device or by `devicectl
 next tool call on the device, or a viewer opened on it, which waits for it to come up -- as long as
 `real_devices.wda.startup_timeout` gives it, and a few seconds more, rather than the 45 seconds a tool call otherwise
 waits for a device; other calls on the same device wait for that start too rather than starting it again, and nothing
-on other devices waits for it. `simtrail wda
-status` says what is set up; `simtrail wda uninstall <udid>` removes the runner from a
+on other devices waits for it. `rocketwright wda
+status` says what is set up; `rocketwright wda uninstall <udid>` removes the runner from a
 device (Settings › General › VPN & Device Management also lists it).
 
 ### Which team signs it
@@ -177,8 +177,8 @@ WebDriverAgent, and a build of your app for a real device, are signed by a devel
 
 So several projects, each with its own team -- a company's and your own, say -- use one phone side by side: each builds
 and runs WebDriverAgent under its own team and bundle id. Registering the device takes one of the team's device slots,
-and a person with the right to register devices in that team (usually its Admin or Account Holder). `simtrail wda
-teams` lists the teams this Mac signs for. Nothing of Simtrail's needs setting up in the developer portal: Xcode
+and a person with the right to register devices in that team (usually its Admin or Account Holder). `rocketwright wda
+teams` lists the teams this Mac signs for. Nothing of Rocketwright's needs setting up in the developer portal: Xcode
 makes the App ID and profile it needs.
 
 A finger's stroke goes as one request once it lifts, replayed at the speed it was made so a drag stays a drag and a
@@ -208,7 +208,7 @@ For a BLE or Wi-Fi accessory, a useful walkthrough is:
 3. Return to the app and check its disconnected state.
 4. Re-enable the connection, return to the app and check whether it reconnects; stop the recording.
 
-Keep the USB cable connected so Simtrail's control connection does not depend on the Wi-Fi connection being tested.
+Keep the USB cable connected so Rocketwright's control connection does not depend on the Wi-Fi connection being tested.
 Use `sim_snapshot` to read each screen; where a control has no usable ref, use a screenshot and a coordinate gesture.
 
 Control Center's Wi-Fi and Bluetooth buttons **disconnect connections rather than fully turn off the radios**;
@@ -216,32 +216,32 @@ some services and accessories remain available. To test with either radio fully 
 Airplane mode can retain Wi-Fi or Bluetooth according to the phone's previous choices, so check the resulting state.
 See [Apple's explanation of Control Center connectivity](https://support.apple.com/en-us/102412).
 Restore the connection settings after the walkthrough: changes made by tapping the phone's UI are not covered by
-Simtrail's automatic restoration of appearance and location settings.
+Rocketwright's automatic restoration of appearance and location settings.
 
 Switching a driven device between light and dark (`sim_device appearance`) can send the app in front to the
-background. With WebDriverAgent driving it, Simtrail reads which app is in front before the change and for a second
+background. With WebDriverAgent driving it, Rocketwright reads which app is in front before the change and for a second
 and a half after it, launches one sent to the background again -- without ending it -- and says so in its answer.
 
 ## Safety
 
-A real device is usually someone's own phone. Simtrail treats it that way:
+A real device is usually someone's own phone. Rocketwright treats it that way:
 
 - **What is installed**: nothing for tier 1 and the cable screen. With WebDriverAgent, one test-runner app you build
   yourself, sandboxed like any other. While it runs it sees and drives what is on the screen -- any app's, as UI tests
   do -- and it cannot read other apps' stored data, photos, messages or keychain.
 - **Nothing leaves the Mac.** WebDriverAgent's API is told to listen only on the device's own loopback
   (`USE_IP=127.0.0.1`), which the Mac reaches through the cable by usbmuxd; nothing on the device's network can reach
-  it. Its MJPEG screen stream listens on every interface in the upstream source, so Simtrail changes that one line to
-  bind it where the API is. The change is made by exact text and refused when the file is not as Simtrail knows it; a
+  it. Its MJPEG screen stream listens on every interface in the upstream source, so Rocketwright changes that one line to
+  bind it where the API is. The change is made by exact text and refused when the file is not as Rocketwright knows it; a
   checkout of your own in `real_devices.wda.path` must carry the same change, or it is refused. WebDriverAgent is
-  reached only over the cable. The release's download is the only request Simtrail makes for any of this.
+  reached only over the cable. The release's download is the only request Rocketwright makes for any of this.
 - **Quicker, not different.** The other change only makes touches quicker: upstream looks every point of a touch up
-  against the app on screen, an accessibility round trip of about 240 ms a point, and Simtrail uses a point where it
+  against the app on screen, an accessibility round trip of about 240 ms a point, and Rocketwright uses a point where it
   is given, since an iPhone's app fills the screen. A tap took 0.68 s before and 0.34 s after on an iPhone 14 Pro. A
   checkout of your own need not carry it; a change to either is built again by itself.
-- **Read-only by default.** Listing, the lock state, the screen and the log are reads. Simtrail reuses the pairing the
+- **Read-only by default.** Listing, the lock state, the screen and the log are reads. Rocketwright reuses the pairing the
   Mac already has; it never pairs, unpairs, changes trust or touches the passcode.
-- **Every change is put back.** What Simtrail changes -- light or dark, text size, contrast, reduce motion, the status
+- **Every change is put back.** What Rocketwright changes -- light or dark, text size, contrast, reduce motion, the status
   bar, a simulated location -- is read first and put back when the device is let go (`device.restore_changes`, on for
   real devices by default). It is also written down, private to you (`device-changes.json` in the run folder, 0600),
   so if the daemon crashes or is killed, the next start puts it back; what cannot be put back then, with the device
@@ -266,8 +266,8 @@ A real device is usually someone's own phone. Simtrail treats it that way:
 - A screen WebDriverAgent cannot read within 5 seconds (`real_devices.wda.source_timeout_ms`) -- a busy web page in
   Safari, a table of hundreds of rows -- is read from its pixels instead. See [long screens](#long-screens).
 - Logs, the cable screen and WebDriverAgent need the cable; over Wi-Fi a device has tier 1 without its log.
-- A device Xcode also reaches over the network is still connected with its cable out, and Simtrail keeps it at tier
-  1 over Wi-Fi. It is refused as not connected only once it cannot be reached either way. While it is, Simtrail
+- A device Xcode also reaches over the network is still connected with its cable out, and Rocketwright keeps it at tier
+  1 over Wi-Fi. It is refused as not connected only once it cannot be reached either way. While it is, Rocketwright
   listens to usbmuxd for the cable, and as it goes back in attaches a second session beside the first -- the cable
   screen and WebDriverAgent with it -- which takes the first one's place once it is up. A device not yet reachable
   the moment its cable is back keeps the session it had, and is tried again; `sim_device restart` starts it over at
@@ -275,11 +275,11 @@ A real device is usually someone's own phone. Simtrail treats it that way:
 
 ### Long screens
 
-WebDriverAgent serves one request at a time: every route runs on its main queue. A tree Simtrail stops waiting for
+WebDriverAgent serves one request at a time: every route runs on its main queue. A tree Rocketwright stops waiting for
 is still built to its end, and everything sent after it -- the next tree, a tap, `/status`, a screenshot -- waits
 behind it: a snapshot that asked for the tree again would time out in turn, and so would every one after it. So:
 
-- **The tree is asked for less.** WebDriverAgent leaves out of each element what Simtrail never reads (its
+- **The tree is asked for less.** WebDriverAgent leaves out of each element what Rocketwright never reads (its
   `excluded_attributes`: `accessible`, `nativeAccessibilityElement`, `focused`, `traits`, `frame`, `nativeFrame`,
   `placeholderValue`, `minValue`, `maxValue`), and reads at most `real_devices.wda.source_max_children` children of
   each element (200), 50 levels deep. A table lists every row, those scrolled off screen too, so a long one is read
@@ -325,18 +325,18 @@ are put back. See the [configuration reference](reference/configuration.md).
 | It says | Do |
 |---|---|
 | `… is not connected: plug it in and unlock it` | Connect the device, unlock it, and choose Trust if it asks |
-| `… cannot touch or read this device now. … WebDriverAgent is reached only over the device's cable` | Plug the device straight into the Mac (not through a hub) and unlock it: it is attached again by itself within seconds, or at once with `sim_device restart`. `simtrail wda status` says how touch stands on the device now |
+| `… cannot touch or read this device now. … WebDriverAgent is reached only over the device's cable` | Plug the device straight into the Mac (not through a hub) and unlock it: it is attached again by itself within seconds, or at once with `sim_device restart`. `rocketwright wda status` says how touch stands on the device now |
 | `WebDriverAgent was started on the device but does not answer now` | Unlock the device and check its cable; `sim_device restart` starts WebDriverAgent over |
 | `WebDriverAgent did not build the element tree within 5 s` | The screen was read from its pixels, and is until WebDriverAgent is done ([long screens](#long-screens)). Raise `real_devices.wda.source_timeout_ms` to wait longer, or lower `real_devices.wda.source_max_children` for a shorter tree |
 | `WebDriverAgent is still building an element tree an earlier read gave up on; the touch was not sent` | Nothing was done on the device. Call again in a moment, or wait for a snapshot that reads the tree again ([long screens](#long-screens)) |
 | `WebDriverAgent closed the connection without answering; it may have restarted` | A read was asked once more already. If it keeps happening, `sim_device health` says whether WebDriverAgent still runs |
 | `the text reader did not answer a reading of the screen within 5 seconds` | It is started again for the next reading. If it keeps happening, look in `daemon.log` for `the event loop was held` or `reading the screen took`, which say whether the daemon or Vision was slow; `perception.ocr_timeout_ms` gives a reading longer |
-| `Its cable could not show the screen (… Camera …)` | Allow simtrail-helper in System Settings › Privacy & Security › Camera, then pick the device again |
+| `Its cable could not show the screen (… Camera …)` | Allow rocketwright-helper in System Settings › Privacy & Security › Camera, then pick the device again |
 | `no screen of a cabled device called … is among this Mac's capture devices` | Unplug and plug the cable back in with the device unlocked |
-| `Its profile does not cover this device` | `simtrail wda setup --device <udid>` |
+| `Its profile does not cover this device` | `rocketwright wda setup --device <udid>` |
 | `Your development team has reached the maximum number of registered iPhone devices` | A personal team registers only a few devices: remove one in your developer account, or use a team that has room |
 | `WebDriverAgent ended as it started` | On the device, trust your developer and turn on Enable UI Automation; the message names its log |
-| `WebDriverAgent is signed by a development team, and none is known here` | Set `real_devices.team_id`: `simtrail wda teams` lists the teams this Mac signs for |
+| `WebDriverAgent is signed by a development team, and none is known here` | Set `real_devices.team_id`: `rocketwright wda teams` lists the teams this Mac signs for |
 | `WebDriverAgent could not be set up` | Sign in to Xcode › Settings › Accounts if it says the account was refused, then press **Try again** |
 
-`simtrail doctor` checks all of this: [the doctor](doctor.md).
+`rocketwright doctor` checks all of this: [the doctor](doctor.md).

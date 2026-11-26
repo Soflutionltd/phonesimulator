@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import Foundation
 
-/// One input event, as Simtrail sends it: a finger at a point, a hardware button or a keyboard key, down or up.
+/// One input event, as Rocketwright sends it: a finger at a point, a hardware button or a keyboard key, down or up.
 /// Points are the screen's own portrait points, whichever way an app's interface is turned: so is a simulator's digitizer.
 public struct HIDEvent: Equatable, Sendable, Codable {
     public enum Kind: String, Sendable, Codable { case touch, button, key }
@@ -96,7 +96,7 @@ public enum TransportPolicy {
     }
 }
 
-/// Turns Simtrail's events into a transport's steps: points into fractions of the screen, a contact's downs into its
+/// Turns Rocketwright's events into a transport's steps: points into fractions of the screen, a contact's downs into its
 /// start and moves, and buttons into HID usages.
 public final class InputDriver: @unchecked Sendable {
     public let transport: HIDTransport

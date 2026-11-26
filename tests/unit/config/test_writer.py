@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""simtrail config set/unset: one value changed, the person's file otherwise as it was, and a bad value refused
+"""rocketwright config set/unset: one value changed, the person's file otherwise as it was, and a bad value refused
 before anything is written."""
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.config.writer import Changed, ConfigError, ConfigRefused, ConfigWriter
+from rocketwright.config.writer import Changed, ConfigError, ConfigRefused, ConfigWriter
 
 
 def test_setting_values_makes_the_file_and_its_tables(tmp_path: Path) -> None:
@@ -57,7 +57,7 @@ def test_unsetting_removes_the_value_and_the_tables_it_leaves_empty(tmp_path: Pa
 @pytest.mark.parametrize(
     ("name", "raw", "scope", "says"),
     [
-        ("zoom", "2", None, "zoom is not a setting; `simtrail config list` shows them all"),
+        ("zoom", "2", None, "zoom is not a setting; `rocketwright config list` shows them all"),
         ("stream.fps", "fast", None, "stream.fps must be a whole number between 5 and 60"),
         ("stream.fps", "200", None, "stream.fps must be a whole number between 5 and 60"),
         ("enabled", "maybe", None, "enabled must be true or false"),

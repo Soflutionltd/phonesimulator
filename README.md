@@ -1,12 +1,14 @@
-<!-- mcp-name: io.github.Soflutionltd/simtrail -->
+<!-- mcp-name: io.github.Soflutionltd/rocketwright -->
 
-# Simtrail
+# Rocketwright
 
 **Mirror and drive iOS Simulators, real iPhones and Android devices from Claude Code, CLI agents and the browser.**
 
-[![CI](https://github.com/Soflutionltd/simtrail/actions/workflows/ci.yml/badge.svg)](https://github.com/Soflutionltd/simtrail/actions/workflows/ci.yml)
+*Formerly Simtrail: the `simtrail` command still works, and an existing install is taken up as it is.*
+
+[![CI](https://github.com/Soflutionltd/rocketwright/actions/workflows/ci.yml/badge.svg)](https://github.com/Soflutionltd/rocketwright/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/Soflutionltd/simtrail?include_prereleases&sort=semver)](https://github.com/Soflutionltd/simtrail/releases)
+[![Release](https://img.shields.io/github/v/release/Soflutionltd/rocketwright?include_prereleases&sort=semver)](https://github.com/Soflutionltd/rocketwright/releases)
 
 <img src="docs/media/hero.gif" width="100%"
   alt="A Claude Code session driving a calendar app on an iPhone 17 simulator in the viewer: it opens an event, scrolls
@@ -20,9 +22,9 @@ text instead of screenshots. Record any screen as an MP4 or a GIF for a pull req
 Cursor and any other MCP client.
 
 
-## Why Simtrail
+## Why Rocketwright
 
-- **See the simulator anywhere.** A live H.264 or JPEG stream in a Chrome tab, an iframe or a `<simtrail>` web
+- **See the simulator anywhere.** A live H.264 or JPEG stream in a Chrome tab, an iframe or a `<rocketwright>` web
   component, with touch, scrolling, typing, hardware buttons and light and dark mode.
 - **Watch what the agent does.** Every agent gesture is announced before it lands, and the viewer's cursor glides to
   the spot first -- so you can follow along, and step in: an agent waits for your hand to be still.
@@ -31,7 +33,7 @@ Cursor and any other MCP client.
 - **Read screens accessibility cannot.** A game or a canvas reads from its pixels, and an app under development can
   share its own views, so icon-only buttons and hand-drawn controls read by name.
 - **Test on a real iPhone.** Plug it in and it sits beside the simulators: live over the cable at up to 60 fps, touched
-  and typed on from the browser or by an agent, and given back everything Simtrail changed on it.
+  and typed on from the browser or by an agent, and given back everything Rocketwright changed on it.
 - **Check connection recovery.** Open Control Center on a real iPhone to manage Wi-Fi and Bluetooth connections or
   toggle airplane mode, then return to your app to check how it reconnects to a BLE or Wi-Fi accessory.
   See [the connectivity workflow](docs/real-devices.md#connectivity-workflows).
@@ -40,40 +42,40 @@ Cursor and any other MCP client.
 
 ## Install
 
-**Claude Code**, with the plugin (tools, a skill that teaches snapshot-first use, and `/simtrail:open`):
+**Claude Code**, with the plugin (tools, a skill that teaches snapshot-first use, and `/rocketwright:open`):
 
 ```
-/plugin marketplace add Soflutionltd/simtrail
-/plugin install simtrail@simtrail
+/plugin marketplace add Soflutionltd/rocketwright
+/plugin install rocketwright@rocketwright
 ```
 
 **Any MCP client**, as a stdio server:
 
 ```sh
-claude mcp add simtrail -- uvx --from git+https://github.com/Soflutionltd/simtrail simtrail mcp
+claude mcp add rocketwright -- uvx --from git+https://github.com/Soflutionltd/rocketwright rocketwright mcp
 ```
 
 Configurations for [Codex](docs/clients/codex.md), [Cursor](docs/clients/cursor.md) and
 [other clients](docs/clients/other-mcp.md).
 The plugin includes four [workflow skills](docs/clients/skills.md); the release also packages them for Codex and Cursor.
 
-**The command**, for `simtrail open`, `doctor` and the rest:
+**The command**, for `rocketwright open`, `doctor` and the rest:
 
 ```sh
-uv tool install git+https://github.com/Soflutionltd/simtrail
+uv tool install git+https://github.com/Soflutionltd/rocketwright
 ```
 
 **The viewer library**, for your own pages, is in [`viewer/`](viewer/README.md).
 
 **Requirements:** an Apple Silicon Mac, Xcode 26 or later, and [uv](https://docs.astral.sh/uv/). Nothing
-else: Simtrail drives a simulator with its own helper, which comes in the package. A real iPhone needs Developer Mode,
+else: Rocketwright drives a simulator with its own helper, which comes in the package. A real iPhone needs Developer Mode,
 and an Apple development team to be touched. Details in [Installation](docs/installation.md).
 
 ## Quickstart
 
 ```sh
-simtrail doctor     # check this Mac, ending with a real tap on a simulator
-simtrail open       # this project's simulator, live in a browser tab
+rocketwright doctor     # check this Mac, ending with a real tap on a simulator
+rocketwright open       # this project's simulator, live in a browser tab
 ```
 
 Then ask your agent:
@@ -115,28 +117,28 @@ unless the call confirms it. See [Security](docs/security.md).
 text macOS's Vision finds in it, with refs to tap and text to wait for, and the viewer can outline what was read
 (`perception.ocr`). See [Read from pixels](docs/screen-understanding.md#read-from-pixels).
 
-**App SDK.** An app under development can link **SimtrailKit**, a small Swift package, and call `Simtrail.start()`:
+**App SDK.** An app under development can link **RocketwrightKit**, a small Swift package, and call `Rocketwright.start()`:
 in a Debug build on the simulator it shares its own UIKit and SwiftUI views, so an icon-only button, a card with a tap
-gesture or a hand-drawn control reads by name, and `.simtrail("Settings")` names a SwiftUI view. Optional, and nothing
+gesture or a hand-drawn control reads by name, and `.rocketwright("Settings")` names a SwiftUI view. Optional, and nothing
 of it is in a Release build. See [The app SDK](docs/app-sdk.md).
 
 **Real devices.** A cabled iPhone or iPad shows up beside the simulators, and an agent can switch to it
 (`sim_device list` and `choose`): its live screen over the cable; its apps, logs, look and
 location through Xcode's `devicectl`; and touching, typing and its element tree through WebDriverAgent, set up once
 with a click and signed by your project's own team -- a tap lands in about a third of a second. It is reached only over
-the cable, and what Simtrail changes on it is put back when it is let go. See [Real devices](docs/real-devices.md).
+the cable, and what Rocketwright changes on it is put back when it is let go. See [Real devices](docs/real-devices.md).
 
 **Android.** Android emulators and phones sit beside the simulators, with the same viewer, cursor and tools: adb
 lists, starts and drives them, scrcpy's server -- set up once with a click -- shows the screen live, UI Automator reads
 it for snapshots, and `sim_build_run` and `sim_test` build a Gradle project with its own wrapper. A phone is never
-started or shut down, and what Simtrail changes on it is put back. See [Android](docs/android.md).
+started or shut down, and what Rocketwright changes on it is put back. See [Android](docs/android.md).
 
 **Flutter.** A Flutter app is built, tested and installed by the same tools -- `flutter build`, `flutter test` and
 its integration tests on the device, with a flavor and dart-defines kept off the command line -- and `sim_flutter`
 keeps it running for hot reload: each saved change on the device in about a second, or each compile error as
 `file:line` while the app keeps the code it had. See [Flutter](docs/flutter.md).
 
-**Recording.** The viewer's Record button, `sim_record` or `simtrail record` keep a device's screen as an MP4, a GIF
+**Recording.** The viewer's Record button, `sim_record` or `rocketwright record` keep a device's screen as an MP4, a GIF
 or both, with each touch drawn where it landed and a 9:41 status bar, and `preset: "pr"` keeps one small enough for
 a pull request. See [Recording](docs/recording.md).
 
@@ -151,18 +153,18 @@ kept, and the answer says each value as its name.
 and playing a saved flow first. Each screenshot is saved in one folder beside a captioned contact sheet, every device
 gets back the look it had, and one another agent holds is skipped unless the call steals it.
 
-**Connectors.** Simtrail's own native helper gives full control with nothing to install; idb_companion still can,
+**Connectors.** Rocketwright's own native helper gives full control with nothing to install; idb_companion still can,
 and the simctl connector mirrors the screen view-only when neither is there, and says why. `auto` uses the fastest that
 works and falls back when one fails. More connectors plug in through an entry point. See
 [Connectors](docs/connectors.md).
 
 **Embedding.** An [iframe](docs/embedding/iframe.md) with a one-shot ticket, the
-[`<simtrail>` element](docs/embedding/web-component.md) themed with CSS custom properties, or Simtrail
+[`<rocketwright>` element](docs/embedding/web-component.md) themed with CSS custom properties, or Rocketwright
 [inside a Python application](docs/embedding/python-fastapi.md) with its own sign-in.
 
-**Settings panel.** `simtrail open --settings` puts every setting a click away in the viewer, a tab per section,
+**Settings panel.** `rocketwright open --settings` puts every setting a click away in the viewer, a tab per section,
 saved for one project or all of them and applied before it says so. Settings that decide what runs or who may reach
-the daemon wait for a code from `simtrail settings confirm`. See [The settings panel](docs/settings.md).
+the daemon wait for a code from `rocketwright settings confirm`. See [The settings panel](docs/settings.md).
 
 **Doctor.** Checks Xcode, its Simulator frameworks, runtimes, the native helper and idb_companion, Device Hub and the
 desktop session, the text reader and an app's shared hierarchy, then proves a tap reaches a simulator. See [the doctor](docs/doctor.md).
@@ -179,14 +181,14 @@ See [Signing in](docs/login.md).
 **Build and test.** `sim_build_run` and `sim_test` build with xcodebuild for the agent's simulator, install and
 launch, and answer with only what failed and where -- each failing test named so it can be run again alone, and on
 another simulator when asked -- and with the folder, branch and commit they built. They build the git worktree the
-agent works in, with the configuration its scheme runs. Off by default, since they run commands: `simtrail config
+agent works in, with the configuration its scheme runs. Off by default, since they run commands: `rocketwright config
 set build.tools true`.
 
 ## Measure the token cost
 
 `benchmarks/tool_budget.py` calls each read-only tool through the same MCP relay a client uses and prints each answer's
 bytes, estimated tokens and latency on your own screens; see [the token budget example](examples/token-budget/).
-Measured with Simtrail 2.4.0 on an iOS simulator using the native connector, showing Settings → General:
+Measured with Rocketwright 2.4.0 on an iOS simulator using the native connector, showing Settings → General:
 30 calls per tool after a separate initial round and 3 warmup rounds (2026-10-29). Host and device details are omitted
 from the public report for privacy.
 
@@ -222,7 +224,7 @@ baseline. Different connectors and environments make these separate observations
 Rows checked on real hardware are marked verified, with the date, in [Compatibility](docs/compatibility.md).
 
 From 1.0 the tools, the protocol, the embedding API, the viewer package, settings and the command line are held to
-[what Simtrail promises not to break](docs/stability.md): a release adds, and never breaks; 2.0 broke nothing.
+[what Rocketwright promises not to break](docs/stability.md): a release adds, and never breaks; 2.0 broke nothing.
 Connectors are the exception, and pin a minor version.
 
 ## Documentation
@@ -233,17 +235,17 @@ the [command line](docs/reference/cli.md) and the [protocol](docs/reference/prot
 
 ## Roadmap
 
-How Simtrail relates to other tools is in [Comparison](docs/comparison.md).
+How Rocketwright relates to other tools is in [Comparison](docs/comparison.md).
 
 ## Contributing
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md); AI
 coding agents read [AGENTS.md](AGENTS.md). Report security issues privately as described in [SECURITY.md](SECURITY.md).
-Questions go to [Discussions](https://github.com/Soflutionltd/simtrail/discussions).
+Questions go to [Discussions](https://github.com/Soflutionltd/rocketwright/discussions).
 
 ## License
 
 [Apache-2.0](LICENSE). See [NOTICE](NOTICE) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
-Simtrail is an independent project, not affiliated with Apple or Anthropic. iOS, iPhone, Xcode and Simulator are
+Rocketwright is an independent project, not affiliated with Apple or Anthropic. iOS, iPhone, Xcode and Simulator are
 trademarks of Apple Inc.; Claude and Claude Code are trademarks of Anthropic PBC.

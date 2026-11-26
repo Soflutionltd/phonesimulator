@@ -4,7 +4,7 @@ import Foundation
 import HelperCore
 
 /// Starting this program again as its own responsible process, so macOS asks it -- not the terminal or agent that
-/// started Simtrail -- for the Camera (`Disclaim`).
+/// started Rocketwright -- for the Camera (`Disclaim`).
 ///
 /// `responsibility_spawnattrs_setdisclaim` is how Xcode and other developer tools start a program that asks for
 /// permissions of its own; it is looked up at run time, and a Mac without it runs the program as it is.

@@ -22,7 +22,7 @@ These results measure tool calls through the MCP relay and local daemon, on Sett
 page, in portrait. They are observations on these devices and screens, not latency guarantees or a controlled
 comparison with an older release.
 
-- Library: Simtrail 2.4.0, source commit `c39f22af1bf5e0e3c8e19991408224c5cbaad188`; the benchmark's report and
+- Library: Rocketwright 2.4.0, source commit `c39f22af1bf5e0e3c8e19991408224c5cbaad188`; the benchmark's report and
   warmup options were added in the measurement PR. No library performance changes were made for this run.
 - Simulator: iOS simulator, native connector, release helper built from this checkout.
 - Physical device: iOS device over USB, WebDriverAgent and the live cable screen. The device health

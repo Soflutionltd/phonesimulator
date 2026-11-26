@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.iphone import wda_source as module
-from simtrail.connectors.iphone.wda_source import (
+from rocketwright.connectors.iphone import wda_source as module
+from rocketwright.connectors.iphone.wda_source import (
     MARKER,
     MJPEG_ON_LOOPBACK,
     PINNED,
@@ -27,7 +27,7 @@ from simtrail.connectors.iphone.wda_source import (
     stamp,
     wda_source,
 )
-from simtrail.testing.wda import ACTIONS, COMMIT, FOLDER, SERVER, wda_archive
+from rocketwright.testing.wda import ACTIONS, COMMIT, FOLDER, SERVER, wda_archive
 
 GOOD = wda_archive(
     (FOLDER, None),
@@ -85,7 +85,7 @@ def test_a_release_is_fetched_checked_and_unpacked_once_then_kept(tmp_path: Path
 
 def test_an_archive_that_is_not_the_pinned_one_is_never_unpacked(tmp_path: Path) -> None:
     pinned = WdaRelease("1.0.0", COMMIT, "0" * 64)
-    with pytest.raises(WdaSourceError, match="is not the one Simtrail pins: its SHA-256 is"):
+    with pytest.raises(WdaSourceError, match="is not the one Rocketwright pins: its SHA-256 is"):
         wda_source(tmp_path, pinned, fetch=Fetches(GOOD))
     assert not tmp_path.joinpath(FOLDER).exists()
 
@@ -99,7 +99,7 @@ def test_an_archive_that_is_not_the_pinned_one_is_never_unpacked(tmp_path: Path)
         (wda_archive((FOLDER, None), link="/etc/passwd"), "/escape', which is not unpacked"),
         (b"not an archive", "could not be unpacked"),
         (wda_archive((FOLDER, None), (f"{FOLDER}/README.md", b"no project")), f"holds no {PROJECT}"),
-        (wda_archive((FOLDER, None), (f"{FOLDER}/{PROJECT}", None)), "FBWebServer.m is not as Simtrail knows it"),
+        (wda_archive((FOLDER, None), (f"{FOLDER}/{PROJECT}", None)), "FBWebServer.m is not as Rocketwright knows it"),
     ],
 )
 def test_an_archive_with_anything_outside_its_folder_or_not_a_file_is_refused_whole(
@@ -119,7 +119,7 @@ def test_a_checkout_of_the_persons_own_must_hold_the_project_with_the_stream_kep
     server = tmp_path / MJPEG_ON_LOOPBACK.path
     server.parent.mkdir(parents=True)
     server.write_bytes(SERVER)
-    with pytest.raises(WdaSourceError, match="is not as Simtrail knows it"):
+    with pytest.raises(WdaSourceError, match="is not as Rocketwright knows it"):
         patched(tmp_path)
     actions = tmp_path / SYNTHESIZER
     actions.parent.mkdir(parents=True)
@@ -127,7 +127,7 @@ def test_a_checkout_of_the_persons_own_must_hold_the_project_with_the_stream_kep
     patched(tmp_path)
     assert configured(str(tmp_path)) == tmp_path
     patched(tmp_path)
-    assert server.read_text().count("Simtrail:") == 1, "a change is made once"
+    assert server.read_text().count("Rocketwright:") == 1, "a change is made once"
     actions.write_bytes(ACTIONS)
     assert configured(str(tmp_path)) == tmp_path, "a checkout that is only slower is used as it is"
     with pytest.raises(WdaSourceError, match=f"holds no {PROJECT}"):

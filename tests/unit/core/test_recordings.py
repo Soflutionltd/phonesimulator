@@ -13,9 +13,9 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import Capability
-from simtrail.core.recordings import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import Capability
+from rocketwright.core.recordings import (
     RecordingOptions,
     RecordingRefused,
     Recordings,
@@ -24,10 +24,10 @@ from simtrail.core.recordings import (
     default_folder,
     recording_stem,
 )
-from simtrail.platform.errors import DeviceControlError
-from simtrail.testing.fakes import PHONE_UDID, FakeConnector, FakeControl, FakePhoneBackend
-from simtrail.testing.recording import FakeRenderer, SimctlRecorder
-from simtrail.testing.rig import VIEW_ONLY, DeviceRig, scope
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.testing.fakes import PHONE_UDID, FakeConnector, FakeControl, FakePhoneBackend
+from rocketwright.testing.recording import FakeRenderer, SimctlRecorder
+from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
 
 TP1 = scope("tp-1")
 WHEN = datetime(2026, 9, 29, 1, 15, 30, tzinfo=timezone.utc)
@@ -86,7 +86,7 @@ async def test_a_simulator_is_recorded_by_simctl_its_touches_noted_and_it_is_kep
     ]
     assert job.touches[0].t == 1.25 and job.touches[1].t == 1.0 and job.touches[1].duration == 0.5
     local = WHEN.astimezone()
-    assert kept["id"] == recording_stem(local, instance.name) == f"{local:%Y%m%d-%H%M%S}-simtrail-alpha-tp-1"
+    assert kept["id"] == recording_stem(local, instance.name) == f"{local:%Y%m%d-%H%M%S}-rocketwright-alpha-tp-1"
     assert kept["started_at"] == "2026-09-29T01:15:30Z" and kept["duration_ms"] == 2500 and kept["notes"] == []
     assert [(f["format"], f["bytes"], f["width"]) for f in kept["files"]] == [("mp4", 1500, 400), ("gif", 1500, 400)]
     folder = tmp_path / "recordings"
@@ -103,7 +103,7 @@ async def test_a_simulator_is_recorded_by_simctl_its_touches_noted_and_it_is_kep
 async def test_a_gif_too_big_for_github_to_show_inline_says_how_to_make_it_smaller(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("simtrail.core.recordings.GIF_INLINE_MAX", 1000)
+    monkeypatch.setattr("rocketwright.core.recordings.GIF_INLINE_MAX", 1000)
     rig = DeviceRig(tmp_path)
     instance = await rig.up()
     config = rig.config.get(TP1)
@@ -147,7 +147,7 @@ async def test_a_real_device_is_recorded_from_its_stream_which_needs_the_helper(
     instance = await rig.up()
     config = rig.config.get(TP1)
     missing = recordings_over(rig, FakeRenderer(missing="it is not built"), tmp_path, tool=SimctlRecorder(), now=[0.0])
-    with pytest.raises(RecordingRefused, match="needs Simtrail's native helper: it is not built"):
+    with pytest.raises(RecordingRefused, match="needs Rocketwright's native helper: it is not built"):
         await missing.start(instance, config, rig.manager.control(instance), by="Ann", options=options(config))
     renderer = FakeRenderer()
     recordings = recordings_over(rig, renderer, tmp_path, tool=SimctlRecorder(), now=[0.0])
@@ -275,7 +275,7 @@ async def test_the_helper_is_asked_for_the_mp4s_width_and_quality(tmp_path: Path
 async def test_an_mp4_too_big_for_a_pull_request_says_how_to_make_it_smaller(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("simtrail.core.recordings.VIDEO_INLINE_MAX", 1000)
+    monkeypatch.setattr("rocketwright.core.recordings.VIDEO_INLINE_MAX", 1000)
     rig = DeviceRig(tmp_path)
     instance = await rig.up()
     config = rig.config.get(TP1)
@@ -316,7 +316,7 @@ async def test_the_oldest_recordings_go_beyond_the_ones_kept_and_a_stray_note_is
 
 
 def test_recordings_are_kept_in_the_movies_folder_unless_the_setting_names_one() -> None:
-    assert default_folder(SimConfig.defaults()) == Path.home() / "Movies" / "Simtrail"
+    assert default_folder(SimConfig.defaults()) == Path.home() / "Movies" / "Rocketwright"
     assert default_folder(SimConfig.defaults().with_values(recording_folder="/tmp/demos")) == Path("/tmp/demos")
 
 
@@ -430,7 +430,7 @@ async def test_a_copy_can_be_asked_for_on_stop_and_a_wrong_one_stops_nothing(tmp
 async def test_a_full_size_movie_with_a_copy_beside_it_is_not_told_to_be_smaller(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("simtrail.core.recordings.VIDEO_INLINE_MAX", 1000)
+    monkeypatch.setattr("rocketwright.core.recordings.VIDEO_INLINE_MAX", 1000)
     rig = DeviceRig(tmp_path)
     instance = await rig.up()
     config = rig.config.get(TP1)

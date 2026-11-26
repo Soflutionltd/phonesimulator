@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """A recording's pictures: from the device's own tool, which says when it starts and finalizes on SIGINT, or from the
-frames Simtrail streams, each written with its time."""
+frames Rocketwright streams, each written with its time."""
 
 from __future__ import annotations
 
@@ -12,10 +12,10 @@ from typing import Any
 
 import pytest
 
-from simtrail.core.frames import FrameHub, StreamSettings
-from simtrail.core.recording_sources import FRAME_FILE_MAGIC, FRAME_HEADER, StreamRecording, ToolRecording
-from simtrail.platform.errors import DeviceControlError
-from simtrail.testing.fakes import SCREEN, FakeEngine, FakeProcess, ManualClock
+from rocketwright.core.frames import FrameHub, StreamSettings
+from rocketwright.core.recording_sources import FRAME_FILE_MAGIC, FRAME_HEADER, StreamRecording, ToolRecording
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.testing.fakes import SCREEN, FakeEngine, FakeProcess, ManualClock
 
 KEY_FRAME = b"\x00\x00\x00\x01\x67\x42\x00\x00\x00\x01\x68\xce\x00\x00\x00\x01\x65\x88"
 FRAME = b"\x00\x00\x00\x01\x41\x9a"

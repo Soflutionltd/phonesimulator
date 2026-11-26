@@ -1,34 +1,34 @@
 # Agent workflows
 
-Simtrail ships four short skills. Each loads only when its task applies; platform-specific details are bundled
+Rocketwright ships four short skills. Each loads only when its task applies; platform-specific details are bundled
 references. The live MCP schemas and results remain authoritative.
 
 | Skill | Request |
 |---|---|
 | `simulator` | Navigate, fill forms, inspect layout or walk through an app |
-| `simtrail-setup` | Install, update or diagnose tools, scopes, viewer and device readiness |
-| `simtrail-build-test` | Build the intended checkout, run tests, install/launch and verify source |
-| `simtrail-capture` | Save screenshots or record completed local evidence |
+| `rocketwright-setup` | Install, update or diagnose tools, scopes, viewer and device readiness |
+| `rocketwright-build-test` | Build the intended checkout, run tests, install/launch and verify source |
+| `rocketwright-capture` | Save screenshots or record completed local evidence |
 
 ## Install and update
 
-The [Claude plugin](claude-code-cli.md) includes all four and `/simtrail:open`. Update the marketplace and plugin
+The [Claude plugin](claude-code-cli.md) includes all four and `/rocketwright:open`. Update the marketplace and plugin
 through `/plugin`, then reconnect or start a fresh session. Automatic updates depend on the client's settings;
 publishing a version does not replace the tools already loaded by a running session.
 
-For [Codex](codex.md) or [Cursor](cursor.md), download `simtrail-skills-3.9.0.zip` from the
-[3.9.0 release](https://github.com/Soflutionltd/simtrail/releases/tag/v3.9.0), extract it into a temporary folder,
+For [Codex](codex.md) or [Cursor](cursor.md), download `rocketwright-skills-3.9.0.zip` from the
+[3.9.0 release](https://github.com/Soflutionltd/rocketwright/releases/tag/v3.9.0), extract it into a temporary folder,
 and copy its four skill directories into your app project's `.agents/skills/`. Include their `references/` folders.
 Review existing same-named skills before replacing them. Keep one installed copy of each skill and configure
 [MCP separately](other-mcp.md) at the same release. Updating the archive does not update MCP or vice versa.
 
-The canonical source is [plugins/simtrail/skills](../../plugins/simtrail/skills/). You can also copy its four
-directories from the matching release checkout. These are workflows for apps using Simtrail, so install them in
+The canonical source is [plugins/rocketwright/skills](../../plugins/rocketwright/skills/). You can also copy its four
+directories from the matching release checkout. These are workflows for apps using Rocketwright, so install them in
 the app project rather than assuming this source repository is your app.
 
 [Codex](https://learn.chatgpt.com/docs/customization/overview) and
 [Cursor](https://cursor.com/help/customization/skills) document `.agents/skills` discovery. Restart/reload the client
-if new skills are not visible. Local Simtrail still needs a Mac with access to the target device; syncing a skill
+if new skills are not visible. Local Rocketwright still needs a Mac with access to the target device; syncing a skill
 to a remote agent does not connect that agent to your Mac.
 
 Verify both parts: the client lists the four skills and discovers `sim_*` tools; `sim_device info` identifies the

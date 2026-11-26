@@ -10,7 +10,7 @@ import pytest
 
 import gen_docs
 from gen_docs import SourceError, allowed, argument_type, compatibility_page, main, table
-from simtrail.config import schema
+from rocketwright.config import schema
 
 REPO = Path(__file__).resolve().parents[2]
 VALID_MATRIX = """
@@ -62,7 +62,7 @@ def test_every_setting_is_in_the_configuration_page() -> None:
     for setting in schema.SETTINGS:
         assert f"### `{setting.path}`" in text and f"`{setting.env}`" in text
     assert "## `[stream]`" in text and "## Top level" in text
-    assert "- Default: `true` (a host embedding Simtrail: `false`)" in text
+    assert "- Default: `true` (a host embedding Rocketwright: `false`)" in text
     assert "- Default: `[]`" in text and "- Default: empty" in text
     assert '[stream]\nencoding = "auto"' in text
 
@@ -80,10 +80,10 @@ def test_every_command_and_flag_is_in_the_cli_page() -> None:
         "tools",
         "version",
     ):
-        assert f"## `simtrail {command}`" in text
+        assert f"## `rocketwright {command}`" in text
     assert "| `--no-tap` |" in text and "| `--kind KIND` |" in text and "(one of: agent, viewer, admin, host)" in text
     assert "| `UDID` |" in text
-    assert "## `simtrail serve`\n\nRun the Simtrail daemon on 127.0.0.1." in text
+    assert "## `rocketwright serve`\n\nRun the Rocketwright daemon on 127.0.0.1." in text
 
 
 def test_the_protocol_page_lists_close_codes_and_constants() -> None:

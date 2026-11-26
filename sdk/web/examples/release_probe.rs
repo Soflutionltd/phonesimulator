@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 fn main() {
-    println!("{}", simtrail_web::script());
-    let _server = simtrail_web::Server::start(
-        simtrail_web::Options {
-            bundle_id: "dev.simtrail.Probe".into(),
+    println!("{}", rocketwright_web::script());
+    let _server = rocketwright_web::Server::start(
+        rocketwright_web::Options {
+            bundle_id: "dev.rocketwright.Probe".into(),
             name: "Probe".into(),
             home: std::env::temp_dir(),
             windows: vec![1],

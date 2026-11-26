@@ -1,8 +1,8 @@
 # Flutter
 
-A folder whose `pubspec.yaml` depends on flutter is a Flutter app, and Simtrail's build tools build it with flutter
+A folder whose `pubspec.yaml` depends on flutter is a Flutter app, and Rocketwright's build tools build it with flutter
 rather than xcodebuild or Gradle -- for an iOS simulator or an Android emulator or phone, whichever the agent works on.
-Nothing to turn on but the build tools themselves: `simtrail config set build.tools true`.
+Nothing to turn on but the build tools themselves: `rocketwright config set build.tools true`.
 
 | Tool | Runs | Answers |
 |---|---|---|
@@ -49,14 +49,14 @@ as usual.
 
 One app runs this way on each device: a new `run`, or a build or integration test installed there, stops the one
 before. It is stopped when the agent's session ends, when the build tools are switched off or commands no longer
-allowed, and when Simtrail stops -- flutter is asked to stop the app first, then ended if it does not go. Its whole
+allowed, and when Rocketwright stops -- flutter is asked to stop the app first, then ended if it does not go. Its whole
 output is in the run's log, which `status` names.
 
 ## The flutter command
 
-Simtrail uses the flutter `build.flutter_path` names -- the command, or the Flutter SDK folder -- else the one on its own
+Rocketwright uses the flutter `build.flutter_path` names -- the command, or the Flutter SDK folder -- else the one on its own
 `PATH`, else `/opt/homebrew/share/flutter/bin/flutter`, `~/flutter/bin/flutter` or `~/development/flutter/bin/flutter`:
-a daemon started at login often has a shorter `PATH` than your shell. `simtrail doctor` says which it found and its
+a daemon started at login often has a shorter `PATH` than your shell. `rocketwright doctor` says which it found and its
 version. flutter runs with its own folder, then Homebrew's, on its `PATH`, which an iOS build of a plugin needs for
 CocoaPods.
 

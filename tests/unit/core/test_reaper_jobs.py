@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.core.reaper import Reaper
-from simtrail.testing.rig import DeviceRig
+from rocketwright.core.reaper import Reaper
+from rocketwright.testing.rig import DeviceRig
 
 
 async def test_the_reaper_runs_its_jobs_after_each_reap_and_logs_one_that_fails(

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* The Simtrail viewer. A host themes it with --simtrail-* custom properties, which pass into a shadow root by
+/* The Rocketwright viewer. A host themes it with --rocketwright-* custom properties, which pass into a shadow root by
    inheritance; every one has a default. The device keeps its shape inside the stage, and what an agent does is drawn
    over it -- never with the machine's own pointer. */
 /* The viewer's own colours, light and dark: the system's unless the viewer is told one (data-theme). A host's
-   --simtrail-* properties win over both. */
+   --rocketwright-* properties win over both. */
 .smv,
 .smv[data-theme="dark"] {
   --smv-t-accent: #0a84ff;
@@ -63,34 +63,34 @@
 
 :host,
 .smv {
-  --smv-accent: var(--simtrail-accent, var(--smv-t-accent, #0a84ff));
-  --smv-on-accent: var(--simtrail-on-accent, #ffffff);
-  --smv-cursor: var(--simtrail-cursor, var(--smv-accent));
-  --smv-cursor-text: var(--simtrail-cursor-text, var(--smv-on-accent));
-  --smv-surface: var(--simtrail-surface, var(--smv-t-surface, #1c1c1e));
-  --smv-surface-sunken: var(--simtrail-surface-sunken, var(--smv-t-surface-sunken, #111113));
-  --smv-raised: var(--simtrail-raised, var(--smv-t-raised, #2c2c2e));
-  --smv-border: var(--simtrail-border, var(--smv-t-border, rgb(255 255 255 / 0.12)));
-  --smv-text: var(--simtrail-text, var(--smv-t-text, #f5f5f7));
-  --smv-text-muted: var(--simtrail-text-muted, var(--smv-t-text-muted, #a1a1a6));
-  --smv-success: var(--simtrail-success, var(--smv-t-success, #30d158));
-  --smv-warning: var(--simtrail-warning, var(--smv-t-warning, #ffd60a));
-  --smv-danger: var(--simtrail-danger, var(--smv-t-danger, #ff453a));
-  --smv-screen-text: var(--simtrail-screen-text, var(--smv-t-screen-text, #bf5af2));
-  --smv-device: var(--simtrail-device, var(--smv-t-device, #000000));
-  --smv-device-edge: var(--simtrail-device-edge, var(--smv-t-device-edge, #4a4a4e));
+  --smv-accent: var(--rocketwright-accent, var(--smv-t-accent, #0a84ff));
+  --smv-on-accent: var(--rocketwright-on-accent, #ffffff);
+  --smv-cursor: var(--rocketwright-cursor, var(--smv-accent));
+  --smv-cursor-text: var(--rocketwright-cursor-text, var(--smv-on-accent));
+  --smv-surface: var(--rocketwright-surface, var(--smv-t-surface, #1c1c1e));
+  --smv-surface-sunken: var(--rocketwright-surface-sunken, var(--smv-t-surface-sunken, #111113));
+  --smv-raised: var(--rocketwright-raised, var(--smv-t-raised, #2c2c2e));
+  --smv-border: var(--rocketwright-border, var(--smv-t-border, rgb(255 255 255 / 0.12)));
+  --smv-text: var(--rocketwright-text, var(--smv-t-text, #f5f5f7));
+  --smv-text-muted: var(--rocketwright-text-muted, var(--smv-t-text-muted, #a1a1a6));
+  --smv-success: var(--rocketwright-success, var(--smv-t-success, #30d158));
+  --smv-warning: var(--rocketwright-warning, var(--smv-t-warning, #ffd60a));
+  --smv-danger: var(--rocketwright-danger, var(--smv-t-danger, #ff453a));
+  --smv-screen-text: var(--rocketwright-screen-text, var(--smv-t-screen-text, #bf5af2));
+  --smv-device: var(--rocketwright-device, var(--smv-t-device, #000000));
+  --smv-device-edge: var(--rocketwright-device-edge, var(--smv-t-device-edge, #4a4a4e));
   --smv-shadow: var(--smv-t-shadow, rgb(0 0 0 / 0.5));
-  --smv-radius: var(--simtrail-radius, 8px);
-  --smv-radius-full: var(--simtrail-radius-full, 999px);
-  --smv-space-1: var(--simtrail-space-1, 2px);
-  --smv-space-2: var(--simtrail-space-2, 4px);
-  --smv-space-3: var(--simtrail-space-3, 6px);
-  --smv-space-4: var(--simtrail-space-4, 8px);
-  --smv-space-5: var(--simtrail-space-5, 12px);
-  --smv-space-6: var(--simtrail-space-6, 16px);
-  --smv-space-7: var(--simtrail-space-7, 24px);
-  --smv-font: var(--simtrail-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif);
-  --smv-font-size: var(--simtrail-font-size, 13px);
+  --smv-radius: var(--rocketwright-radius, 8px);
+  --smv-radius-full: var(--rocketwright-radius-full, 999px);
+  --smv-space-1: var(--rocketwright-space-1, 2px);
+  --smv-space-2: var(--rocketwright-space-2, 4px);
+  --smv-space-3: var(--rocketwright-space-3, 6px);
+  --smv-space-4: var(--rocketwright-space-4, 8px);
+  --smv-space-5: var(--rocketwright-space-5, 12px);
+  --smv-space-6: var(--rocketwright-space-6, 16px);
+  --smv-space-7: var(--rocketwright-space-7, 24px);
+  --smv-font: var(--rocketwright-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif);
+  --smv-font-size: var(--rocketwright-font-size, 13px);
   /* What floats over the stage -- the toolbar, a menu, a popover -- lifted by a soft, layered shadow and a hairline. */
   --smv-float: 0 0 0 0.5px var(--smv-border), 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px -6px var(--smv-shadow);
   --smv-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -1206,7 +1206,7 @@ button.smv-home-button:hover {
    `scale` it grows by is applied before a transform, so a translate in one would be scaled too, and the ring would
    sweep in from the overlay's corner and on past where it was meant to be. */
 /* Its colour: the scope's agent.cursor_color, set on the element when there is one; else the host's
-   --simtrail-cursor, else the accent. */
+   --rocketwright-cursor, else the accent. */
 .smv .ac {
   --ac-color: var(--smv-cursor);
   --ac-text: var(--smv-cursor-text);

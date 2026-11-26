@@ -115,7 +115,7 @@
     "windowID"
   ],
   "additionalProperties": false,
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/app-sdk/v1/input.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/app-sdk/v1/input.schema.json",
   "allOf": [
     {
       "if": {

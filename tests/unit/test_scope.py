@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.scope import LABEL_MAX, STANDALONE_GROUP, InvalidScope, Scope, project_name
+from rocketwright.scope import LABEL_MAX, STANDALONE_GROUP, InvalidScope, Scope, project_name
 
 
 def test_a_scope_takes_a_url_safe_id_a_group_and_a_one_line_label() -> None:

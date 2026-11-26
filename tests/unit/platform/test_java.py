@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from simtrail.platform.java import JAVA_HOME_TOOL, STUDIO_JDK, Jdk, find_jdk
+from rocketwright.platform.java import JAVA_HOME_TOOL, STUDIO_JDK, Jdk, find_jdk
 
 
 def _jdk(folder: Path, version: str | None = "21.0.9") -> Path:

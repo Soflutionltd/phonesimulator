@@ -1,0 +1,413 @@
+# SPDX-License-Identifier: Apache-2.0
+"""A device's screen, streamed to however many viewers watch it.
+
+One `FrameHub` per running device. A viewer subscribes for JPEG or for H.264; the first subscriber of a kind starts
+that kind's source, and the source stops `LINGER_S` after the last one leaves -- so a device nobody watches costs
+nothing, and a window that reconnects within a moment does not restart anything.
+
+* **JPEG** polls the connector's `screenshot` at the stream's frame rate, sized and encoded by the connector. A frame
+  that hashes the same as the last is not sent, so a still screen is silent on the wire. A viewer holds only the
+  newest frame: a slow one skips frames rather than falling behind, and one that joins is handed the frame already on
+  screen. **A still screen is asked for less often**: once nothing has changed for `IDLE_AFTER_S` it is polled
+  `IDLE_FPS` times a second, back at the full rate on the first change, on a person's input (`wake`) and while a
+  recording runs -- each screenshot is a picture encoded, which a still device paid ~3-4% of a CPU for at 60 fps.
+* **H.264** relays the connector's Annex-B stream, which repeats its parameter sets and a key frame every
+  `KEY_FRAME_S` while the screen changes. A viewer's first chunk is always one of those sync points: one that joins is
+  handed the pictures since the last one, so it shows the screen at once -- a still screen sends no key frames to wait
+  for. A viewer that falls `QUEUE_MAX` chunks behind drops everything until the next one rather than decoding
+  garbage.
+
+A source that fails reports why through `on_trouble` and tries again after `RETRY_S`; the first frame after that
+reports that the trouble is over.
+
+**Boosted while recorded.** A recording made from the stream -- a real device's, an Android device's -- needs it faster
+and wider than a viewer does: at the recording's own rate and at the width it is kept at. While one runs it `boost`s
+the hub, which streams at the fastest and widest anything asked for -- never slower or narrower than the settings --
+and back as the settings say once it lets go. Viewers see the boosted stream too: it is the one stream.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import hashlib
+import time
+from collections import deque
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Literal
+
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import ConnectorError, Screen, ScreenSource
+
+Kind = Literal["jpeg", "h264"]
+KINDS: tuple[Kind, ...] = ("jpeg", "h264")
+LINGER_S = 10.0
+KEY_FRAME_S = 1.0
+#: Bits per second an H.264 stream aims for, per megapixel streamed.
+BITRATE_PER_MEGAPIXEL = 3_000_000
+QUEUE_MAX = 120
+#: How long a failing source waits before trying again: after the first failure, the second, and every one after.
+RETRY_S = (1.0, 5.0, 30.0)
+
+#: How long a JPEG stream's screen stays the same before it is polled at `IDLE_FPS`, and that rate. A change is
+#: noticed within 1 / IDLE_FPS of happening; a person's input notices it at once (`FrameHub.wake`).
+IDLE_AFTER_S = 1.0
+IDLE_FPS = 10
+
+#: NAL unit type of a sequence parameter set, which every sync point in the stream starts with.
+NAL_SPS = 7
+
+
+@dataclass(frozen=True)
+class StreamSettings:
+    fps: int
+    quality: int
+    max_width: int
+
+    @classmethod
+    def from_config(cls, config: SimConfig, fps_limit: int | None = None) -> StreamSettings:
+        """A config's stream settings, no faster than the connector can stream."""
+        fps = config.stream_fps if fps_limit is None else min(config.stream_fps, fps_limit)
+        return cls(fps=fps, quality=config.stream_quality, max_width=config.stream_max_width)
+
+
+@dataclass(frozen=True)
+class Frame:
+    kind: Kind
+    data: bytes
+    width: int = 0
+    height: int = 0
+
+
+def nal_types(chunk: bytes) -> set[int]:
+    """The NAL unit types that follow an Annex-B start code in this chunk."""
+    found: set[int] = set()
+    index = chunk.find(b"\x00\x00\x01")
+    while 0 <= index < len(chunk) - 3:
+        found.add(chunk[index + 3] & 0x1F)
+        index = chunk.find(b"\x00\x00\x01", index + 3)
+    return found
+
+
+def is_sync_point(chunk: bytes) -> bool:
+    """Whether a decoder can start at this chunk: it carries a sequence parameter set."""
+    return NAL_SPS in nal_types(chunk)
+
+
+class _Subscriber:
+    def __init__(self, kind: Kind) -> None:
+        self.kind: Kind = kind
+        self._ready = asyncio.Event()
+        self._closed = False
+
+    def close(self) -> None:
+        self._closed = True
+        self._ready.set()
+
+
+class LatestFrame(_Subscriber):
+    """A JPEG viewer: only ever the newest frame."""
+
+    def __init__(self) -> None:
+        super().__init__("jpeg")
+        self._frame: Frame | None = None
+
+    def offer(self, frame: Frame) -> None:
+        self._frame = frame
+        self._ready.set()
+
+    async def next(self) -> Frame | None:
+        """The newest frame not yet taken, waiting for one; None once closed."""
+        while self._frame is None and not self._closed:
+            self._ready.clear()
+            await self._ready.wait()
+        frame, self._frame = self._frame, None
+        return None if self._closed else frame
+
+
+class KeyFrameQueue(_Subscriber):
+    """An H.264 viewer: every chunk, in order, starting at a sync point."""
+
+    def __init__(self, limit: int = QUEUE_MAX) -> None:
+        super().__init__("h264")
+        self._limit = limit
+        self._chunks: deque[Frame] = deque()
+        self._waiting = True
+
+    def offer(self, frame: Frame) -> None:
+        if len(self._chunks) >= self._limit:
+            self._chunks.clear()
+            self._waiting = True
+        if self._waiting and not is_sync_point(frame.data):
+            return
+        self._waiting = False
+        self._chunks.append(frame)
+        self._ready.set()
+
+    async def next(self) -> Frame | None:
+        while not self._chunks and not self._closed:
+            self._ready.clear()
+            await self._ready.wait()
+        return None if self._closed else self._chunks.popleft()
+
+
+Subscriber = LatestFrame | KeyFrameQueue
+
+
+class FrameHub:
+    """One device's screen sources and the viewers they feed."""
+
+    def __init__(
+        self,
+        source: ScreenSource,
+        screen: Screen,
+        settings: StreamSettings,
+        *,
+        on_trouble: Callable[[str | None], None] = lambda reason: None,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> None:
+        self._source = source
+        self._screen = screen
+        #: What the settings ask for; `_settings` is that, boosted (`boost`).
+        self._base = settings
+        self._settings = settings
+        #: What each boost under way asks for: the fastest frame rate and the widest frame.
+        self._boosts: list[tuple[int, int]] = []
+        self._on_trouble = on_trouble
+        self._clock = clock
+        self._sleep = sleep
+        self._subscribers: dict[Kind, set[Subscriber]] = {kind: set() for kind in KINDS}
+        self._sources: dict[Kind, asyncio.Task[None]] = {}
+        self._stops: dict[Kind, asyncio.Task[None]] = {}
+        self._latest_jpeg: Frame | None = None
+        #: The H.264 pictures since the last sync point, for a viewer that joins.
+        self._pictures: list[Frame] = []
+        self._troubled = False
+        #: Polls asked for since the hub was made, and frames published -- what `stats` reports.
+        self._polls = 0
+        self._published = 0
+        #: Set by `wake`: the next poll is at once and at the full rate, however long the screen was still.
+        self._woken = False
+        #: Once closing, nothing new is started: a viewer letting go while the hub awaits its tasks must not leave a
+        #: stop behind that outlives it.
+        self._closed = False
+
+    @property
+    def settings(self) -> StreamSettings:
+        return self._settings
+
+    @property
+    def viewers(self) -> int:
+        return sum(len(subscribers) for subscribers in self._subscribers.values())
+
+    def wake(self) -> None:
+        """Something is about to change the screen -- a person's touch or key: poll at the full rate again now."""
+        self._woken = True
+
+    @property
+    def stats(self) -> dict[str, int]:
+        """Screenshots asked for and frames sent to viewers since the hub was made, for measuring a stream."""
+        return {"polls": self._polls, "frames": self._published}
+
+    def running(self, kind: Kind) -> bool:
+        return kind in self._sources
+
+    def subscribe(self, kind: str) -> Subscriber:
+        if kind not in KINDS:
+            raise ValueError(f"not a stream kind: {kind!r}")
+        subscriber: Subscriber = LatestFrame() if kind == "jpeg" else KeyFrameQueue()
+        self._subscribers[subscriber.kind].add(subscriber)
+        stop = self._stops.pop(subscriber.kind, None)
+        if stop is not None:
+            stop.cancel()
+        if subscriber.kind not in self._sources:
+            self._start(subscriber.kind)
+        elif isinstance(subscriber, LatestFrame) and self._latest_jpeg is not None:
+            subscriber.offer(self._latest_jpeg)
+        elif isinstance(subscriber, KeyFrameQueue):
+            for picture in self._pictures:
+                subscriber.offer(picture)
+        return subscriber
+
+    def unsubscribe(self, subscriber: Subscriber) -> None:
+        subscribers = self._subscribers[subscriber.kind]
+        subscribers.discard(subscriber)
+        subscriber.close()
+        if self._closed or subscribers or subscriber.kind not in self._sources or subscriber.kind in self._stops:
+            return
+        self._stops[subscriber.kind] = asyncio.get_running_loop().create_task(self._stop_later(subscriber.kind))
+
+    def reconfigure(self, settings: StreamSettings) -> None:
+        """Use new stream settings, restarting whatever is streaming so viewers see them at once."""
+        self._base = settings
+        self._apply()
+
+    def boost(self, fps: int, max_width: int) -> Callable[[], None]:
+        """Stream at least `fps` frames a second and `max_width` pixels wide -- whatever the settings say -- until the
+        answer is called. Restarts whatever is streaming when that changes it; letting go twice is letting go once."""
+        wanted = (fps, max_width)
+        self._boosts.append(wanted)
+        self._apply()
+
+        def let_go() -> None:
+            if wanted in self._boosts:
+                self._boosts.remove(wanted)
+                self._apply()
+
+        return let_go
+
+    def _apply(self) -> None:
+        """Stream as the settings say, boosted as asked, restarting what streams when that changed."""
+        base = self._base
+        settings = StreamSettings(
+            fps=max([base.fps, *(fps for fps, _ in self._boosts)]),
+            quality=base.quality,
+            max_width=max([base.max_width, *(width for _, width in self._boosts)]),
+        )
+        if settings == self._settings:
+            return
+        self._settings = settings
+        if self._closed:
+            return
+        for kind in list(self._sources):
+            self._halt(kind)
+            self._start(kind)
+
+    def rebind(self, source: ScreenSource, screen: Screen) -> None:
+        """Take frames from a new source, restarting whatever is streaming; viewers stay subscribed."""
+        self._source, self._screen = source, screen
+        for kind in list(self._sources):
+            self._halt(kind)
+            self._start(kind)
+
+    async def close(self) -> None:
+        self._closed = True
+        tasks = [*self._stops.values(), *self._sources.values()]
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await task
+        self._stops.clear()
+        self._sources.clear()
+        for subscribers in self._subscribers.values():
+            for subscriber in subscribers:
+                subscriber.close()
+            subscribers.clear()
+
+    # -- sources ------------------------------------------------------------------------------------------------
+
+    def _start(self, kind: Kind) -> None:
+        source = self._jpeg() if kind == "jpeg" else self._h264()
+        self._sources[kind] = asyncio.get_running_loop().create_task(source)
+
+    def _halt(self, kind: Kind) -> None:
+        self._sources.pop(kind).cancel()
+        if kind == "jpeg":
+            self._latest_jpeg = None
+        else:
+            self._pictures.clear()
+
+    async def _stop_later(self, kind: Kind) -> None:
+        # A viewer that comes back cancels this (`subscribe`), so reaching the end means nobody did.
+        await self._sleep(LINGER_S)
+        self._stops.pop(kind, None)
+        self._halt(kind)
+
+    def _publish(self, frame: Frame) -> None:
+        self._published += 1
+        if self._troubled:
+            self._troubled = False
+            self._on_trouble(None)
+        if frame.kind == "h264":
+            self._keep(frame)
+        for subscriber in list(self._subscribers[frame.kind]):
+            subscriber.offer(frame)
+
+    def _keep(self, frame: Frame) -> None:
+        """Keep the pictures since the last sync point, for a viewer that joins: none once there are more than a
+        viewer would hold, as it would start again from the next sync point anyway."""
+        if is_sync_point(frame.data):
+            self._pictures = [frame]
+        elif self._pictures and len(self._pictures) < QUEUE_MAX:
+            self._pictures.append(frame)
+        else:
+            self._pictures.clear()
+
+    def _trouble(self, exc: ConnectorError, failures: int) -> float:
+        self._troubled = True
+        self._on_trouble(str(exc))
+        return RETRY_S[min(failures, len(RETRY_S) - 1)]
+
+    async def _jpeg(self) -> None:
+        last: bytes | None = None
+        failures = 0
+        #: When the screen last changed, and the ticks passed over since it was last asked for while still.
+        changed = due = self._clock()
+        passed = 0
+        while True:
+            started = self._clock()
+            settings = self._settings
+            still = not self._boosts and not self._woken and started - changed >= IDLE_AFTER_S
+            # Counted in ticks, not read off the clock, so a still screen is asked for on schedule however the clock
+            # moves: one tick in every fps / IDLE_FPS.
+            if still and passed < max(1, round(settings.fps / IDLE_FPS)) - 1:
+                # Still: this tick asks for nothing, and the next comes at the full rate, so a wake is soon noticed.
+                passed += 1
+                await self._sleep(1.0 / settings.fps)
+                continue
+            passed = 0
+            if self._woken:
+                self._woken = False
+                changed = started
+            self._polls += 1
+            try:
+                shot = await self._source.screenshot(max_width=settings.max_width, quality=settings.quality)
+            except ConnectorError as exc:
+                wait = self._trouble(exc, failures)
+                failures += 1
+                last = None
+                # A screen that fails is no still screen: once it is back it is asked for at the full rate.
+                changed = started + wait
+            else:
+                failures = 0
+                digest = hashlib.blake2b(shot.jpeg, digest_size=8).digest()
+                if digest != last:
+                    last = digest
+                    changed = started
+                    self._latest_jpeg = Frame("jpeg", shot.jpeg, shot.width, shot.height)
+                    self._publish(self._latest_jpeg)
+                # Polls keep to a schedule, not to a pause after each: a screenshot that took longer than a frame is
+                # made up by the next ones' shorter waits, so 60 a second is 60 while screenshots take 14 ms on
+                # average and 22 now and then -- a pause after each settled at 52-55. More than a frame behind,
+                # the schedule starts again from now rather than racing to catch up.
+                interval = 1.0 / settings.fps
+                now = self._clock()
+                due = max(due + interval, now - interval) if started - due < interval else started + interval
+                wait = due - now
+            if wait > 0:
+                await self._sleep(wait)
+
+    def h264_scale(self) -> float:
+        """The fraction of the screen's pixels an H.264 stream carries, so it is no wider than `max_width`."""
+        return min(1.0, self._settings.max_width / self._screen.width_px) if self._screen.width_px else 1.0
+
+    async def _h264(self) -> None:
+        failures = 0
+        while True:
+            settings = self._settings
+            scale = self.h264_scale()
+            megapixels = self._screen.width_px * self._screen.height_px * scale * scale / 1_000_000
+            bitrate = max(250_000, int(megapixels * BITRATE_PER_MEGAPIXEL))
+            try:
+                async for chunk in self._source.h264(fps=settings.fps, scale=scale, key_frame_s=KEY_FRAME_S,
+                                                     bitrate=bitrate):  # fmt: skip
+                    failures = 0
+                    self._publish(Frame("h264", chunk))
+                raise ConnectorError("the video stream ended")
+            except ConnectorError as exc:
+                wait = self._trouble(exc, failures)
+                failures += 1
+            await self._sleep(wait)

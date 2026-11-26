@@ -7,17 +7,17 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import Capability, ConnectorUnavailable
-from simtrail.connectors.mcpbridge.client import BridgeClient
-from simtrail.connectors.mcpbridge.connector import CAPABILITIES, NAME, McpBridgeConnector, create
-from simtrail.connectors.mcpbridge.reader import BridgeReader
-from simtrail.connectors.registry import ConnectorContext
-from simtrail.connectors.simctl import connector as simctl
-from simtrail.connectors.simctl.capture import SimctlScreen
-from simtrail.host_copy import HostCopy
-from simtrail.platform.simctl import Simctl
-from simtrail.testing.fakes import BOOTED_UDID, FakeBridge, FakeXcrun, MemoryStateStore
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import Capability, ConnectorUnavailable
+from rocketwright.connectors.mcpbridge.client import BridgeClient
+from rocketwright.connectors.mcpbridge.connector import CAPABILITIES, NAME, McpBridgeConnector, create
+from rocketwright.connectors.mcpbridge.reader import BridgeReader
+from rocketwright.connectors.registry import ConnectorContext
+from rocketwright.connectors.simctl import connector as simctl
+from rocketwright.connectors.simctl.capture import SimctlScreen
+from rocketwright.host_copy import HostCopy
+from rocketwright.platform.simctl import Simctl
+from rocketwright.testing.fakes import BOOTED_UDID, FakeBridge, FakeXcrun, MemoryStateStore
 
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
 CONFIG = SimConfig.defaults().with_values(connector=NAME, developer_dir=XCODE_27)
@@ -54,7 +54,7 @@ async def test_without_xcode_27_it_cannot_be_used_and_says_so_with_where_to_chan
     report = await connector.probe(CONFIG)
     assert not report.available and report.reasons == (
         f"Reading the screen through Xcode needs Xcode 27 or later; the Xcode in use at {XCODE_27} is older, or has no "
-        "mcpbridge (`simtrail config`).",
+        "mcpbridge (`rocketwright config`).",
     )
     with pytest.raises(ConnectorUnavailable) as refused:
         await connector.attach(BOOTED_UDID, CONFIG)

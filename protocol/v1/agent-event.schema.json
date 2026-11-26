@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/agent-event.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/agent-event.schema.json",
   "title": "AgentEvent",
   "description": "What an agent is about to do on the device, whether it worked, and that it is still working. A viewer draws the intent with its own pointer, and keeps it while the agent works.",
   "oneOf": [{ "$ref": "#/$defs/AgentIntent" }, { "$ref": "#/$defs/AgentDone" }, { "$ref": "#/$defs/AgentWorking" }],

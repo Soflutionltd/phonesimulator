@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.perception import backtracking
-from simtrail.perception.backtracking import ALIKE, NESTED, STACKED, hazard
+from rocketwright.perception import backtracking
+from rocketwright.perception.backtracking import ALIKE, NESTED, STACKED, hazard
 
 #: What a parser given here says a repeat with no bound matches at most.
 MAXREPEAT = 2**32 - 1
@@ -98,9 +98,9 @@ def test_case_decides_whether_alternatives_begin_alike() -> None:
 def test_a_python_without_the_parser_or_with_one_read_otherwise_lets_the_pattern_through(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(backtracking, "PARSERS", ("simtrail.no_such_parser", *backtracking.PARSERS))
+    monkeypatch.setattr(backtracking, "PARSERS", ("rocketwright.no_such_parser", *backtracking.PARSERS))
     assert backtracking.parser() is not None and hazard(r"(a+)+$", ignore_case=False) == NESTED
-    monkeypatch.setattr(backtracking, "PARSERS", ("simtrail.no_such_parser",))
+    monkeypatch.setattr(backtracking, "PARSERS", ("rocketwright.no_such_parser",))
     assert backtracking.parser() is None and hazard(r"(a+)+$", ignore_case=False) is None
 
     def unknown(pattern: str, flags: int) -> Any:

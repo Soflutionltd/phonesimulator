@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import Foundation
 
-/// An agent event Simtrail hands the overlay drawn over a macOS app's window: the screen socket's own agent event
+/// An agent event Rocketwright hands the overlay drawn over a macOS app's window: the screen socket's own agent event
 /// (`protocol/v1/agent-event.schema.json`), read for what the overlay draws. Its points are shares of the window.
 public struct OverlayEvent: Equatable, Sendable, Decodable {
     public enum Phase: String, Sendable, Decodable { case intent, done, working }

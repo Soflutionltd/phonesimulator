@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The daemon's own viewer pages: ``/viewer/<scope>#code=…`` for a browser tab (``simtrail open``) and
+ * The daemon's own viewer pages: ``/viewer/<scope>#code=…`` for a browser tab (``rocketwright open``) and
  * ``/embed/<scope>#ticket=…`` for a frame a host's page shows.
  *
  * The code or ticket sits in the URL's fragment, which a browser never sends to a server. It is spent once: it leaves
@@ -11,7 +11,7 @@
  * them otherwise; a framed page does not.
  *
  * A page shows the scope's own device, and follows it when a person or an agent picks another -- unless its address
- * names one of the scope's devices, ``?device=<udid>`` (``simtrail open --device``): then it shows that one, and comes
+ * names one of the scope's devices, ``?device=<udid>`` (``rocketwright open --device``): then it shows that one, and comes
  * back to it after a restart, whichever the scope's own is. Its picker's Show in this tab and Follow the project keep
  * the address in step, without reloading, and its title names the device it shows.
  *
@@ -23,7 +23,7 @@ import { createI18n } from '../src/i18n'
 import { readPreferences } from '../src/preferences'
 import { createViewer, type ViewHandle } from '../src/viewer'
 
-export const APP_ID = 'simtrail-app'
+export const APP_ID = 'rocketwright-app'
 export const EXCHANGE_PATH = '/api/v1/auth/exchange'
 
 export interface Place {
@@ -41,7 +41,7 @@ export interface PageEnv {
   title(text: string): void
   /** Told the language the page speaks, by its tag, as it starts and whenever it changes. */
   lang?(tag: string): void
-  /** What the page's scope is called -- its project's name, from the page's `simtrail-project` meta -- if anything. */
+  /** What the page's scope is called -- its project's name, from the page's `rocketwright-project` meta -- if anything. */
   project?: string | null
 }
 
@@ -108,7 +108,7 @@ export async function boot(root: HTMLElement, env: PageEnv): Promise<ViewHandle 
   }
   // The project's name when the server knows it, its id otherwise.
   const project = env.project || place.scope
-  let titled = `${project} · Simtrail`
+  let titled = `${project} · Rocketwright`
   env.title(titled)
   const view = createViewer(root, {
     transport: createHttpTransport({
@@ -143,6 +143,6 @@ export function start(doc: Document = document, win: Window = window): Promise<V
     lang: (tag) => {
       doc.documentElement.lang = tag
     },
-    project: doc.querySelector('meta[name="simtrail-project"]')?.getAttribute('content') ?? null,
+    project: doc.querySelector('meta[name="rocketwright-project"]')?.getAttribute('content') ?? null,
   })
 }

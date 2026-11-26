@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError, Crop, Screen, Shot
-from simtrail.connectors.simctl.capture import SimctlScreen, estimated_scale, jpeg_size
-from simtrail.platform.simctl import Simctl
-from simtrail.testing.fakes import BOOTED_UDID, FakeXcrun, tiny_jpeg
+from rocketwright.connectors.base import ConnectorError, Crop, Screen, Shot
+from rocketwright.connectors.simctl.capture import SimctlScreen, estimated_scale, jpeg_size
+from rocketwright.platform.simctl import Simctl
+from rocketwright.testing.fakes import BOOTED_UDID, FakeXcrun, tiny_jpeg
 
 PHONE = tiny_jpeg(1206, 2622)
 

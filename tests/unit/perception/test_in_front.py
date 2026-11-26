@@ -5,11 +5,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from simtrail.perception.in_front import NAVIGATION_BAND_PT, asked, judged
-from simtrail.perception.model import Frame
-from simtrail.perception.readers import node_from, tree_from_document
-from simtrail.perception.snapshot import Element, build
-from simtrail.testing.fakes import SCREEN, fixture_json, point_key
+from rocketwright.perception.in_front import NAVIGATION_BAND_PT, asked, judged
+from rocketwright.perception.model import Frame
+from rocketwright.perception.readers import node_from, tree_from_document
+from rocketwright.perception.snapshot import Element, build
+from rocketwright.testing.fakes import SCREEN, fixture_json, point_key
 
 
 def element(y: float, height: float = 52, covered: str | None = None, frame: bool = True) -> Element:

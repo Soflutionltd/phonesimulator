@@ -19,7 +19,7 @@ import type { IconRenderer } from './icons'
 import type { Note } from './note'
 import { createPopover, type Layers } from './popover'
 import type { Device, Recording, RecordingFile, RecordingState } from './protocol.generated'
-import type { RecordingAsk, SimtrailTransport, StoppedRecording } from './transport'
+import type { RecordingAsk, RocketwrightTransport, StoppedRecording } from './transport'
 
 const TICK_MS = 1000
 /** How long the viewer waits before it first looks for a recording still being rendered, and at most between looks. */
@@ -32,8 +32,8 @@ const STILL_RENDERING = 'still being rendered'
 
 /** The recording calls the control needs, and `recordings`, to be told when one still being rendered is kept. */
 export type RecordingTransport = Required<
-  Pick<SimtrailTransport, 'startRecording' | 'stopRecording' | 'recordingFile'>
-> & Pick<SimtrailTransport, 'recordings'>
+  Pick<RocketwrightTransport, 'startRecording' | 'stopRecording' | 'recordingFile'>
+> & Pick<RocketwrightTransport, 'recordings'>
 
 /** How Record keeps the next recording. */
 export type RecordingSize = 'full' | 'pr' | 'both'

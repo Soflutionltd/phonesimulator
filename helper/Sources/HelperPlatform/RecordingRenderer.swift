@@ -9,9 +9,9 @@ import ImageIO
 import UniformTypeIdentifiers
 import VideoToolbox
 
-/// Renders a recording as Simtrail asks (`RenderJob`): an MP4 and a GIF, each at a steady rate in its own time (`Ticks`),
+/// Renders a recording as Rocketwright asks (`RenderJob`): an MP4 and a GIF, each at a steady rate in its own time (`Ticks`),
 /// each frame the recording's picture at that moment with the touches that were landing then drawn over it
-/// (`TouchMarks`). The recording is a movie the device's own tool wrote, or Simtrail's frame file of H.264 access units
+/// (`TouchMarks`). The recording is a movie the device's own tool wrote, or Rocketwright's frame file of H.264 access units
 /// or JPEGs -- all read forward once for each file written. Each file runs as long as the recording ran by the clock,
 /// its last picture held to the end (`RenderJob.length`), cut to the part of the screen the job keeps (`RecordingCrop`).
 /// An MP4 is written at the job's rate, its index first so a browser plays it before it has all of it. Each file says
@@ -93,7 +93,7 @@ struct MoviePictures: PictureSource {
     }
 }
 
-/// Simtrail's frame file's pictures: H.264 decoded by VideoToolbox, JPEGs by ImageIO.
+/// Rocketwright's frame file's pictures: H.264 decoded by VideoToolbox, JPEGs by ImageIO.
 struct FramePictures: PictureSource {
     let width: Int
     let height: Int

@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from simtrail.core.masking import CODE_S, MASK, PASSWORD_S, SecretMask
+from rocketwright.core.masking import CODE_S, MASK, PASSWORD_S, SecretMask
 
 PASSWORD = "p@ss word/1"
 

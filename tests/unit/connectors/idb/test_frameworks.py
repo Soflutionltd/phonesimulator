@@ -6,7 +6,7 @@ from __future__ import annotations
 import plistlib
 from pathlib import Path
 
-from simtrail.connectors.idb import frameworks
+from rocketwright.connectors.idb import frameworks
 
 
 def _xcode(tmp_path: Path, *, shared: bool, private: bool) -> Path:

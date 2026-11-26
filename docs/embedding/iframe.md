@@ -12,7 +12,7 @@ The daemon tells browsers which pages may frame it (`Content-Security-Policy: fr
 origins in `security.frame_ancestors`.
 
 ```toml
-# config.toml (simtrail config path)
+# config.toml (rocketwright config path)
 [security]
 frame_ancestors = ["https://my-app.example"]
 ```
@@ -23,7 +23,7 @@ Your backend keeps a token and never sends it to the page. For each page view it
 ticket:
 
 ```sh
-simtrail token create --kind viewer --scope demo --label "my app"    # once; printed only this once
+rocketwright token create --kind viewer --scope demo --label "my app"    # once; printed only this once
 ```
 
 ```http
@@ -55,7 +55,7 @@ document.querySelector('iframe').src = embed_url
 A ticket works once, within a minute. Reloading the frame alone asks you to reload the page that shows it, which mints
 a new one.
 
-![A page on its own origin with Simtrail's embed page framed inside it, the device live](../media/iframe.png)
+![A page on its own origin with Rocketwright's embed page framed inside it, the device live](../media/iframe.png)
 
 ## Limits and choices
 

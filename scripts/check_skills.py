@@ -13,10 +13,10 @@ from pathlib import Path
 from _repo import REPO_ROOT
 from check_distribution import frontmatter
 from check_links import EXTERNAL, links_in
-from simtrail.tools.schemas import SCHEMAS
+from rocketwright.tools.schemas import SCHEMAS
 
-SKILLS = "plugins/simtrail/skills"
-NAMES = frozenset({"simulator", "simtrail-setup", "simtrail-build-test", "simtrail-capture"})
+SKILLS = "plugins/rocketwright/skills"
+NAMES = frozenset({"simulator", "rocketwright-setup", "rocketwright-build-test", "rocketwright-capture"})
 WORD_LIMIT = 500
 TOOL = re.compile(r"\bsim_[a-z][a-z_]+\b")
 

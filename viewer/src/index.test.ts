@@ -7,9 +7,9 @@ describe('the package', () => {
     expect(typeof viewer.createViewer).toBe('function')
     expect(typeof viewer.createHttpTransport).toBe('function')
     expect(typeof viewer.TransportError).toBe('function')
-    expect(typeof viewer.defineSimtrailElement).toBe('function')
-    expect(typeof viewer.SimtrailElement).toBe('function')
-    expect(viewer.ELEMENT_NAME).toBe('sim-trail')
+    expect(typeof viewer.defineRocketwrightElement).toBe('function')
+    expect(typeof viewer.RocketwrightElement).toBe('function')
+    expect(viewer.ELEMENT_NAME).toBe('rocket-wright')
     expect(viewer.ICON_NAMES.length).toBeGreaterThan(0)
     expect(typeof viewer.lucideSvg).toBe('function')
     // Tests load CSS as empty text (vitest's css off); the builds inline styles.css itself.

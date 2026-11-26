@@ -1,0 +1,174 @@
+# SPDX-License-Identifier: Apache-2.0
+"""A scope's settings as one typed, immutable value.
+
+`SimConfig` has one attribute per setting in `schema.SETTINGS`, named by its flat key. It is always whole and always
+valid: `from_flat` starts from a profile's defaults and keeps each given value its rule allows, so a refused value reads
+as its default and never breaks the rest.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, fields
+from typing import Any, Literal
+
+from rocketwright.config import schema
+from rocketwright.config.schema import Profile
+
+
+@dataclass(frozen=True)
+class SimConfig:
+    enabled: bool
+    #: ``auto``, or a connector's name.
+    connector: str
+    native_helper_path: str
+    native_hid_transport: Literal["auto", "dtuhid", "indigo"]
+    native_startup_timeout: int
+    native_idle_key_frames: bool
+    companion_path: str
+    mcpbridge_merge: bool
+    app_merge: bool
+    app_name_unlabeled: bool
+    app_timeout_ms: int
+    app_max_nodes: int
+    developer_dir: str
+    device_type: str
+    runtime: str
+    device_mode: Literal["per_scope", "shared"]
+    device_name_prefix: str
+    max_booted: int
+    idle_minutes: int
+    agent_idle_minutes: int
+    shutdown_on_idle: bool
+    delete_created: Literal["empty", "idle", "never"]
+    device_templates: bool
+    template_days: int
+    #: Device type names separated by commas, such as ``iPhone 17 Pro`` (`core.devices.kept_types`).
+    template_keep: str
+    device_typing: Literal["auto", "keys", "paste"]
+    restore_changes: Literal["real_devices", "all", "off"]
+    device_selection: Literal["agent", "scope"]
+    agent_default: Literal["scope", "free"]
+    device_exclusive: Literal["real_devices", "all", "off"]
+    demo_status_bar: Literal["off", "demo"]
+    real_devices: bool
+    real_devices_agents_choose: bool
+    real_devices_developer_dir: str
+    real_devices_screen: Literal["auto", "usb", "wda", "screenshot"]
+    real_devices_capture_timeout: int
+    real_devices_log_buffer_mb: int
+    real_devices_team_id: str
+    wda_enabled: bool
+    wda_path: str
+    wda_startup_timeout: int
+    wda_keep_running: bool
+    wda_source_timeout_ms: int
+    wda_source_max_children: int
+    mac_apps: bool
+    mac_agents_choose: bool
+    mac_accessibility: bool
+    mac_keys_to_process: bool
+    mac_overlay: bool
+    android: bool
+    android_sdk_path: str
+    android_phones: bool
+    android_agents_choose: bool
+    android_emulator_window: bool
+    android_emulator_gpu: Literal["auto", "host", "swiftshader_indirect"]
+    android_emulator_cold_boot: bool
+    android_boot_timeout: int
+    scrcpy: bool
+    scrcpy_path: str
+    android_java_home: str
+    stream_encoding: Literal["auto", "jpeg", "h264"]
+    stream_fps: int
+    stream_quality: int
+    stream_max_width: int
+    agent_tools: bool
+    agent_warm_up: bool
+    agent_cursor: bool
+    #: ``#rrggbb``, or empty for the viewer's accent (`config.schema.Color`).
+    cursor_color: str
+    cursor_park_after_s: int
+    cursor_lead_ms: int
+    cursor_linger_s: int
+    screenshot_width: int
+    snapshot_max_elements: int
+    agent_observe: bool
+    #: Words and phrases separated by commas (`core.refusals.observe_words`).
+    agent_observe_words: str
+    #: Language codes separated by commas (`config.observe_languages`), or empty.
+    agent_observe_languages: str
+    ocr_mode: Literal["off", "fallback", "merge"]
+    ocr_level: Literal["accurate", "fast"]
+    #: Language codes separated by commas (`schema.language_codes`), or empty.
+    ocr_languages: str
+    ocr_correction: bool
+    ocr_min_confidence: int
+    ocr_timeout_ms: int
+    ocr_overlay: bool
+    settle_mode: Literal["perceptual", "exact"]
+    settle_tolerance: int
+    settle_grid: int
+    #: ``1password``, ``bitwarden`` and ``command:/path`` entries, in the order they are tried.
+    login_sources: tuple[str, ...]
+    login_onepassword_path: str
+    login_bitwarden_path: str
+    login_timeout: int
+    login_real_devices: bool
+    build_tools: bool
+    build_configuration: str
+    #: The flutter command a Flutter app is built with, or empty to find one.
+    flutter_path: str
+    #: A bundle identifier, or empty for any.
+    build_expected_bundle_id: str
+    build_stamp_source: bool
+    build_derived_data: Literal["scope", "checkout"]
+    build_timeout_minutes: int
+    build_test_diagnostics: bool
+    recording_folder: str
+    recording_format: Literal["mp4", "gif", "both"]
+    recording_codec: Literal["h264", "hevc"]
+    recording_mp4_width: int
+    recording_mp4_quality: Literal["low", "medium", "high"]
+    recording_fps: Literal["30", "60", "120"]
+    recording_do_not_disturb: bool
+    recording_max_seconds: int
+    recording_touches: bool
+    recording_speed: Literal["1", "1.5", "2", "4"]
+    recording_gif_fps: int
+    recording_gif_width: int
+    recording_status_bar: bool
+    recording_keep: int
+    server_host: str
+    server_port: int
+    allowed_origins: tuple[str, ...]
+    frame_ancestors: tuple[str, ...]
+
+    @classmethod
+    def defaults(cls, profile: Profile = "standalone") -> SimConfig:
+        return cls.from_flat({}, profile)
+
+    @classmethod
+    def from_flat(cls, values: Mapping[str, Any], profile: Profile = "standalone") -> SimConfig:
+        """A profile's defaults, with every value in `values` its rule allows. Keys that are no setting are ignored."""
+        return cls(**schema.defaults(profile)).overlay(values)
+
+    def overlay(self, values: Mapping[str, Any]) -> SimConfig:
+        """This config with every value in `values` its rule allows; a refused value leaves the current one."""
+        chosen = self.to_flat()
+        for setting in schema.SETTINGS:
+            if setting.key not in values:
+                continue
+            value = values[setting.key]
+            value = tuple(value) if isinstance(value, list) else value
+            if not setting.errors(value):
+                chosen[setting.key] = value
+        return SimConfig(**chosen)
+
+    def to_flat(self) -> dict[str, Any]:
+        return {field.name: getattr(self, field.name) for field in fields(self)}
+
+    def with_values(self, **changes: Any) -> SimConfig:
+        """This config with some values changed, each still checked by its rule."""
+        return self.overlay(changes)

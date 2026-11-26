@@ -4,10 +4,10 @@ working on a device, told of another at most every two minutes, and forgotten wh
 
 from __future__ import annotations
 
-from simtrail.core.selections import IDLE_S, TELL_EVERY_S, Selections
-from simtrail.seams import Caller
-from simtrail.testing.fakes import ManualClock, StaticConfig
-from simtrail.testing.rig import scope
+from rocketwright.core.selections import IDLE_S, TELL_EVERY_S, Selections
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import ManualClock, StaticConfig
+from rocketwright.testing.rig import scope
 
 A = Caller(scope("tp-1"), key="agent-a", title="Claude Code #aaaa")
 B = Caller(scope("tp-1"), key="agent-b", title="Codex #bbbb")

@@ -11,7 +11,7 @@ import pytest
 from check_wheel import SOURCES, UNIVERSAL_MAGIC, main, problems, wheel_tags
 from hatch_build import BINARY_TARGET, MAC_TAG
 
-WHEEL_METADATA = "simtrail-1.0.0.dist-info/WHEEL"
+WHEEL_METADATA = "rocketwright-1.0.0.dist-info/WHEEL"
 
 
 def wheel(

@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FakeSocket } from '../test-support/fake-socket'
 import { flush, live, setup } from '../test-support/viewer-harness'
-import { defineSimtrailElement, ELEMENT_NAME, SimtrailElement } from './element'
-import type { SimtrailTransport } from './transport'
+import { defineRocketwrightElement, ELEMENT_NAME, RocketwrightElement } from './element'
+import type { RocketwrightTransport } from './transport'
 
 const titles = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>('[data-smv-menu]')].map((menu) => menu.textContent)
 
@@ -38,7 +38,7 @@ describe('the language the viewer speaks', () => {
   })
 
   it('is English whatever a host or a past pick asks for', () => {
-    localStorage.setItem('simtrail.viewer', JSON.stringify({ lang: 'fr' }))
+    localStorage.setItem('rocketwright.viewer', JSON.stringify({ lang: 'fr' }))
     expect(titles(setup().view.el)[0]).toBe('Edit')
     expect(titles(setup({ lang: 'fr-CA' }).view.el)[0]).toBe('Edit')
     expect(titles(setup({ lang: 'auto' }).view.el)[0]).toBe('Edit')
@@ -55,16 +55,16 @@ describe('the language the viewer speaks', () => {
   })
 })
 
-describe('<sim-trail lang>', () => {
+describe('<rocket-wright lang>', () => {
   const transport = () => ({
     status: vi.fn(), start: vi.fn(async () => ({ device: null, ticket: 'tk' })), stop: vi.fn(async () => true),
     devices: vi.fn(async () => []), choose: vi.fn(), socketUrl: vi.fn(() => 'ws://host/screen'),
-  }) as unknown as SimtrailTransport
+  }) as unknown as RocketwrightTransport
 
   it('is still observed, and a language the viewer does not speak leaves it in English', async () => {
-    defineSimtrailElement()
-    expect(SimtrailElement.observedAttributes).toContain('lang')
-    const el = document.createElement(ELEMENT_NAME) as SimtrailElement
+    defineRocketwrightElement()
+    expect(RocketwrightElement.observedAttributes).toContain('lang')
+    const el = document.createElement(ELEMENT_NAME) as RocketwrightElement
     el.setAttribute('lang', 'fr')
     el.transport = transport()
     document.body.appendChild(el)

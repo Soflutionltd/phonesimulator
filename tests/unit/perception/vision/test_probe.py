@@ -7,7 +7,7 @@ from io import BytesIO
 
 from PIL import Image
 
-from simtrail.perception.vision.probe import PROBE_SIZE, PROBE_TEXT, probe_picture
+from rocketwright.perception.vision.probe import PROBE_SIZE, PROBE_TEXT, probe_picture
 
 
 def test_the_test_picture_is_a_jpeg_of_dark_text_on_a_light_screen_with_room_around_it() -> None:

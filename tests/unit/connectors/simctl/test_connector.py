@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import Capability, ConnectorUnavailable
-from simtrail.connectors.registry import ConnectorContext
-from simtrail.connectors.simctl.capture import SimctlScreen
-from simtrail.connectors.simctl.connector import CAPABILITIES, FPS_LIMIT, SimctlConnector, create
-from simtrail.host_copy import HostCopy
-from simtrail.platform.simctl import Simctl
-from simtrail.testing.fakes import BOOTED_UDID, FakeXcrun, MemoryStateStore
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import Capability, ConnectorUnavailable
+from rocketwright.connectors.registry import ConnectorContext
+from rocketwright.connectors.simctl.capture import SimctlScreen
+from rocketwright.connectors.simctl.connector import CAPABILITIES, FPS_LIMIT, SimctlConnector, create
+from rocketwright.host_copy import HostCopy
+from rocketwright.platform.simctl import Simctl
+from rocketwright.testing.fakes import BOOTED_UDID, FakeXcrun, MemoryStateStore
 
 CONFIG = SimConfig.defaults()
 

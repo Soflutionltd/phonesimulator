@@ -1,5 +1,5 @@
 name: Compatibility report
-description: Tell us how Simtrail works with your Mac, Xcode, runtime, client or browser.
+description: Tell us how Rocketwright works with your Mac, Xcode, runtime, client or browser.
 labels: ["type:compat-report"]
 body:
   - type: markdown
@@ -34,7 +34,7 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: Output of `simtrail doctor --json`
+      label: Output of `rocketwright doctor --json`
       description: Includes macOS, Xcode, runtimes, idb_companion and the connector in use.
       render: json
     validations:

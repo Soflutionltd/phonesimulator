@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.daemon import scope_names
-from simtrail.daemon.scope_names import ScopeNames
-from simtrail.scope import Scope
+from rocketwright.daemon import scope_names
+from rocketwright.daemon.scope_names import ScopeNames
+from rocketwright.scope import Scope
 
 
 def test_a_name_is_kept_privately_and_read_again(tmp_path: Path) -> None:

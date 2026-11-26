@@ -11,12 +11,12 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import Capability, ConnectorError
-from simtrail.core.actions import TURN_WAIT_S, ActionError, AgentActions, Turned
-from simtrail.core.instance import DeviceInstance
-from simtrail.seams import Caller
-from simtrail.testing.fakes import FULL_CONTROL, FakeConnector, FakeEngine, fixture_json
-from simtrail.testing.rig import DeviceRig, scope
+from rocketwright.connectors.base import Capability, ConnectorError
+from rocketwright.core.actions import TURN_WAIT_S, ActionError, AgentActions, Turned
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import FULL_CONTROL, FakeConnector, FakeEngine, fixture_json
+from rocketwright.testing.rig import DeviceRig, scope
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code")
 OTHER = Caller(scope("tp-1"), key="agent-2", title="Codex")

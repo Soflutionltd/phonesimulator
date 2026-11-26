@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/app-sdk/v1/hierarchy.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/app-sdk/v1/hierarchy.schema.json",
   "title": "Hierarchy",
-  "description": "What an app built with Simtrail's debug SDK answers to GET /v1/hierarchy?max_nodes=<n> on 127.0.0.1:<port>, sent with Authorization: Bearer <secret>: its views as it sees them, with a label worked out for each. Every other answer is an ErrorBody.",
+  "description": "What an app built with Rocketwright's debug SDK answers to GET /v1/hierarchy?max_nodes=<n> on 127.0.0.1:<port>, sent with Authorization: Bearer <secret>: its views as it sees them, with a label worked out for each. Every other answer is an ErrorBody.",
   "type": "object",
   "properties": {
     "protocol": { "type": "integer", "minimum": 1, "description": "The app SDK protocol version the app speaks." },
@@ -141,7 +141,7 @@
       "enum": ["selected", "editing", "destructive"]
     },
     "NodeSource": {
-      "description": "What the node was read from: a UIKit view, SwiftUI's debug data, or a .simtrail tag the developer put on a view.",
+      "description": "What the node was read from: a UIKit view, SwiftUI's debug data, or a .rocketwright tag the developer put on a view.",
       "enum": ["uikit", "swiftui", "tag", "appkit", "web"]
     },
     "ErrorBody": {

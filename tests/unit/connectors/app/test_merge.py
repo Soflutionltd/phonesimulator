@@ -7,15 +7,15 @@ import os
 from pathlib import Path
 from typing import Any
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.app.discovery import AppListing
-from simtrail.connectors.app.document import SharedApp
-from simtrail.connectors.app.merge import AppHierarchyMerge, as_hierarchy
-from simtrail.connectors.app.reader import AppReader
-from simtrail.perception.readers import NamingReader
-from simtrail.platform.device_data import DEVICES_DIR_ENV
-from simtrail.protocol import AppHierarchy
-from simtrail.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.app.discovery import AppListing
+from rocketwright.connectors.app.document import SharedApp
+from rocketwright.connectors.app.merge import AppHierarchyMerge, as_hierarchy
+from rocketwright.connectors.app.reader import AppReader
+from rocketwright.perception.readers import NamingReader
+from rocketwright.platform.device_data import DEVICES_DIR_ENV
+from rocketwright.protocol import AppHierarchy
+from rocketwright.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
 
 UDID = "7A4C5B2E-9E2B-4C43-9F3A-2D0C3F0B6E11"
 ON = SimConfig.defaults()

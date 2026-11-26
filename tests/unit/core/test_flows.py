@@ -9,8 +9,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.core.actions import MAX_STEPS
-from simtrail.core.flows import (
+from rocketwright.core.actions import MAX_STEPS
+from rocketwright.core.flows import (
     BATCHES_MAX,
     STEPS_MAX,
     VARIABLES_MAX,
@@ -26,9 +26,9 @@ from simtrail.core.flows import (
     with_refs,
     with_values,
 )
-from simtrail.perception.snapshot import Element, Snapshot
-from simtrail.testing.fakes import MemoryStateStore
-from simtrail.testing.rig import scope
+from rocketwright.perception.snapshot import Element, Snapshot
+from rocketwright.testing.fakes import MemoryStateStore
+from rocketwright.testing.rig import scope
 
 SCOPE = scope("tp-1")
 
@@ -101,7 +101,7 @@ def test_a_target_is_found_by_what_it_said_nearest_where_it_was() -> None:
 
 def _document(**changes: Any) -> dict[str, Any]:
     document: dict[str, Any] = {
-        "simtrail_flow": 1,
+        "rocketwright_flow": 1,
         "batches": [{"steps": [{"tap": "e1"}]}],
         "targets": {"e1": {"kind": "button", "label": "Add", "identifier": "", "x": 1, "y": 2}},
     }
@@ -111,8 +111,8 @@ def _document(**changes: Any) -> dict[str, Any]:
 @pytest.mark.parametrize(
     ("document", "said"),
     [
-        ([], "f is not a flow this Simtrail reads (simtrail_flow 1)"),
-        (_document(simtrail_flow=2), "f is not a flow this Simtrail reads (simtrail_flow 1)"),
+        ([], "f is not a flow this Rocketwright reads (rocketwright_flow 1)"),
+        (_document(rocketwright_flow=2), "f is not a flow this Rocketwright reads (rocketwright_flow 1)"),
         (_document(description=4), "f: description is text"),
         (_document(targets=[]), "f: targets is an object of refs"),
         (_document(targets={"e1": "Add"}), "f: a target is an object"),
@@ -136,7 +136,7 @@ def test_flows_are_kept_beside_the_scope_s_builds_one_file_each(tmp_path: Path) 
     path = store.save(SCOPE, flow, replace=False)
     assert json.loads(path.read_text(encoding="utf-8"))["name"] == "add"
     assert [kept.name for kept in store.listing(SCOPE) if isinstance(kept, Flow)] == ["add"]
-    (path.parent / "odd.json").write_text(json.dumps({"simtrail_flow": 9}), encoding="utf-8")
+    (path.parent / "odd.json").write_text(json.dumps({"rocketwright_flow": 9}), encoding="utf-8")
     assert "odd is not a flow" in next(kept for kept in store.listing(SCOPE) if isinstance(kept, str))
     path.unlink()
     path.mkdir()

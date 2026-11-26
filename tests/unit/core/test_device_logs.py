@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import threading
 
-from simtrail.core.device_logs import DeviceLogBook, LogBuffer, Reader, process_of, wanted
-from simtrail.testing.fakes import PHONE_UDID, ManualClock
+from rocketwright.core.device_logs import DeviceLogBook, LogBuffer, Reader, process_of, wanted
+from rocketwright.testing.fakes import PHONE_UDID, ManualClock
 
 NOTES = "Sep 29 00:47:18 Test-iPhone Notes(CoreData)[4321] <Notice>: saved draft"
 FAILED = "Sep 29 00:47:19 Test-iPhone Notes[4321] <Error>: save failed"

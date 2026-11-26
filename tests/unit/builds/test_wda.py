@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""WebDriverAgent built for any iPhone under a bundle id of Simtrail's own, and run on the device's loopback."""
+"""WebDriverAgent built for any iPhone under a bundle id of Rocketwright's own, and run on the device's loopback."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import plistlib
 from pathlib import Path
 from typing import Any
 
-from simtrail.build.wda import (
+from rocketwright.build.wda import (
     BUILD_TIMEOUT_S,
     build_argv,
     build_wda,
@@ -19,7 +19,7 @@ from simtrail.build.wda import (
     start_wda,
     xctestrun,
 )
-from simtrail.testing.fakes import PHONE_UDID, FakeXcrun
+from rocketwright.testing.fakes import PHONE_UDID, FakeXcrun
 
 TEAM = "9Q48L5C2K5"
 XCODE = "/Applications/Xcode.app/Contents/Developer"
@@ -32,13 +32,13 @@ def made(derived: Path, name: str = "WebDriverAgentRunner_iphoneos26.0-arm64.xct
     return products / name
 
 
-def test_the_runner_is_built_for_any_iphone_under_a_bundle_id_of_simtrails_own(tmp_path: Path) -> None:
-    assert runner_bundle_id(TEAM) == "dev.simtrail.9q48l5c2k5.WebDriverAgentRunner"
+def test_the_runner_is_built_for_any_iphone_under_a_bundle_id_of_rocketwrights_own(tmp_path: Path) -> None:
+    assert runner_bundle_id(TEAM) == "dev.rocketwright.9q48l5c2k5.WebDriverAgentRunner"
     assert build_argv(tmp_path / "wda", tmp_path / "derived", TEAM) == (
         "xcodebuild", "build-for-testing", "-project", str(tmp_path / "wda" / "WebDriverAgent.xcodeproj"),
         "-scheme", "WebDriverAgentRunner", "-destination", "generic/platform=iOS",
         "-derivedDataPath", str(tmp_path / "derived"), "-allowProvisioningUpdates", "CODE_SIGN_STYLE=Automatic",
-        f"DEVELOPMENT_TEAM={TEAM}", "PRODUCT_BUNDLE_IDENTIFIER=dev.simtrail.9q48l5c2k5.WebDriverAgentRunner",
+        f"DEVELOPMENT_TEAM={TEAM}", "PRODUCT_BUNDLE_IDENTIFIER=dev.rocketwright.9q48l5c2k5.WebDriverAgentRunner",
     )  # fmt: skip
 
 
@@ -54,7 +54,7 @@ async def test_a_build_answers_what_it_left_to_run_from(tmp_path: Path) -> None:
     fake = FakeXcrun()
     built = await build_wda(tmp_path / "wda", derived, TEAM, XCODE, xcrun=fake)
     assert built.xctestrun == expected and built.failure == "" and xctestrun(tmp_path) is None
-    made(derived, "WebDriverAgentRunner_iphoneos26.0-arm64.00008120-0011223344556677.simtrail.xctestrun")
+    made(derived, "WebDriverAgentRunner_iphoneos26.0-arm64.00008120-0011223344556677.rocketwright.xctestrun")
     assert xctestrun(derived) == expected, "a copy made for a run is not what a build left"
     (call,) = fake.calls
     assert call.args[1] == "build-for-testing" and call.timeout == BUILD_TIMEOUT_S and call.developer_dir == XCODE
@@ -122,7 +122,7 @@ async def test_the_runner_serves_only_on_the_devices_loopback(tmp_path: Path) ->
     log = tmp_path / "wda.log"
     assert await start_wda(built, PHONE_UDID, TEAM, XCODE, log, start=start) == "process"
     run = Path(seen["args"][3])
-    assert run.parent == built.parent and run.name.endswith(f".{PHONE_UDID}.simtrail.xctestrun")
+    assert run.parent == built.parent and run.name.endswith(f".{PHONE_UDID}.rocketwright.xctestrun")
     assert seen["args"] == run_argv(run, PHONE_UDID) and seen["log_path"] == log and seen["developer_dir"] == XCODE
     assert environments(run) == [{"TERM": "dumb", **run_env(TEAM)}]
     assert environments(built) == [{"USE_IP": "", "TERM": "dumb"}], "what the build left is left as it was"

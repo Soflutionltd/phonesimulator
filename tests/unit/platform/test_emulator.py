@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The Android emulator: how it is started, how Simtrail knows the ones it started, and its console."""
+"""The Android emulator: how it is started, how Rocketwright knows the ones it started, and its console."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from simtrail.platform.emulator import (
+from rocketwright.platform.emulator import (
     EmulatorConsole,
     EmulatorError,
     EmulatorOptions,
@@ -22,7 +22,7 @@ from simtrail.platform.emulator import (
     port_of,
     read_token,
 )
-from simtrail.testing.adb import FakeEmulatorConsole
+from rocketwright.testing.adb import FakeEmulatorConsole
 
 EMULATOR = Path("/sdk/emulator/emulator")
 

@@ -2,7 +2,7 @@
 /** The viewer's styles, put where a viewer is drawn: into its shadow root, or once into the document's head. */
 import css from './styles.css?inline'
 
-export const STYLE_ID = 'simtrail-styles'
+export const STYLE_ID = 'rocketwright-styles'
 export const VIEWER_CSS: string = css
 
 const adopted = new WeakSet<Document | ShadowRoot>()

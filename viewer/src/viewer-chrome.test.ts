@@ -119,7 +119,7 @@ describe('the viewer around the device', () => {
     expect(level.textContent).toMatch(/^\d+% · fitted$/)
     expect(level.getAttribute('aria-label')).toMatch(/^Actual size, reduced to \d+% to fit the window$/)
     expect($('[data-smv="zoom-actual"]').getAttribute('aria-pressed')).toBe('true')
-    expect(JSON.parse(localStorage.getItem('simtrail.viewer')!).zoom).toBe('actual')
+    expect(JSON.parse(localStorage.getItem('rocketwright.viewer')!).zoom).toBe('actual')
     canvas.dispatchEvent(key({ key: '0', metaKey: true }))
     expect([level.dataset.reduced, $('[data-smv="zoom-fit"]').getAttribute('aria-pressed')]).toEqual(['false', 'true'])
     document.body.innerHTML = ''

@@ -3,7 +3,7 @@
  * What the viewer says about the device: its name, whether it is a real device or an Android one and how it is
  * connected, the state pill, what an agent is doing or the device is busy with, whether the mirror can only show the
  * screen -- or, on an Android device without scrcpy, show it only a few times a second -- which app in front shares its
- * view hierarchy through Simtrail's debug SDK, and -- when there is no screen to show -- why, with a way on.
+ * view hierarchy through Rocketwright's debug SDK, and -- when there is no screen to show -- why, with a way on.
  */
 import { textOn } from './agent-cursor'
 import { deviceNoun, isReal, kindChip } from './device-kind'
@@ -41,7 +41,7 @@ export interface StatusView {
   showState(state: DeviceState): void
   applyDevice(device: Device | null): void
   /** An agent is using the device, by this title, doing this -- '' when it says nothing more -- and drawn in this colour
-   * ('' for the viewer's own, `--simtrail-cursor`); null when none is. The pill is that colour too. */
+   * ('' for the viewer's own, `--rocketwright-cursor`); null when none is. The pill is that colour too. */
   setAgent(title: string | null, activity?: string, color?: string): void
   /** What the server said it offers: a mirror whose connector cannot touch the screen says so. */
   setMode(hello: ServerHello | null): void

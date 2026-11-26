@@ -31,7 +31,7 @@ import { createSettingsPanel, type SettingsPanel } from './settings-panel'
 import { createTouchSetup, type TouchSetupControl } from './touch-setup'
 import type { Capability, Device, DeviceChoice, PanelButton, ServerHello } from './protocol.generated'
 import type { StatusView } from './status-view'
-import type { SimtrailTransport } from './transport'
+import type { RocketwrightTransport } from './transport'
 import type { ViewerInput } from './viewer-input'
 import type { ViewerStream } from './viewer-stream'
 
@@ -120,7 +120,7 @@ export interface ControlsOptions {
   note: HTMLElement
   /** Where the settings panel is drawn. */
   settingsPanel: HTMLElement
-  transport: SimtrailTransport
+  transport: RocketwrightTransport
   stream: ViewerStream
   status: StatusView
   input: ViewerInput

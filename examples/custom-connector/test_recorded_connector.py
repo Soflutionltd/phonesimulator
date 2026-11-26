@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The recorded connector keeps Simtrail's connector contract, and says why when it cannot be used."""
+"""The recorded connector keeps Rocketwright's connector contract, and says why when it cannot be used."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from typing import Any
 import pytest
 from recorded_connector import FRAMES_ENV, NAME, RecordedConnector, create, jpeg_size, load_frames
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import ConnectorUnavailable
-from simtrail.testing.contract import check_connector
-from simtrail.testing.fakes import tiny_jpeg
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import ConnectorUnavailable
+from rocketwright.testing.contract import check_connector
+from rocketwright.testing.fakes import tiny_jpeg
 
 CONFIG = SimConfig.defaults()
 

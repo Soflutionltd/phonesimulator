@@ -28,7 +28,7 @@ viewer/dist/
 viewer/coverage/
 *.tgz
 
-# The committed standalone viewer bundle lives in src/simtrail/server/static/viewer/ and is not ignored.
+# The committed standalone viewer bundle lives in src/rocketwright/server/static/viewer/ and is not ignored.
 
 # macOS and editors
 .DS_Store
@@ -38,4 +38,4 @@ viewer/coverage/
 *.profraw
 
 # Test fixtures that are build logs: kept, whatever a global ignore of *.log says.
-!src/simtrail/testing/fixtures/*.log
+!src/rocketwright/testing/fixtures/*.log

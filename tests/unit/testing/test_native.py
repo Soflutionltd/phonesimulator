@@ -8,10 +8,10 @@ import signal
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-from simtrail.connectors.base import Screen
-from simtrail.connectors.native import wire
-from simtrail.testing.fakes import KEY_FRAME, FakeEngine
-from simtrail.testing.native import FakeHelper, FakeHelperProcess, FakeHelperSpawn, short_run_dir
+from rocketwright.connectors.base import Screen
+from rocketwright.connectors.native import wire
+from rocketwright.testing.fakes import KEY_FRAME, FakeEngine
+from rocketwright.testing.native import FakeHelper, FakeHelperProcess, FakeHelperSpawn, short_run_dir
 
 
 async def ask(path: Path, *frames: bytes) -> list[wire.Frame]:

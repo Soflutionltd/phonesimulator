@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import pytest
 
-from simtrail.daemon import confirmations
-from simtrail.daemon.confirmations import (
+from rocketwright.daemon import confirmations
+from rocketwright.daemon.confirmations import (
     ALPHABET,
     ATTEMPTS,
     CONFIRM_TTL_S,
@@ -15,8 +15,8 @@ from simtrail.daemon.confirmations import (
     PendingChanges,
     normalized,
 )
-from simtrail.scope import Scope
-from simtrail.testing.fakes import ManualClock
+from rocketwright.scope import Scope
+from rocketwright.testing.fakes import ManualClock
 
 DEMO = Scope.named("demo")
 
@@ -29,7 +29,7 @@ def test_a_change_waits_with_one_code_and_asking_again_for_it_answers_the_same()
     pending = PendingChanges(clock=ManualClock())
     first = pending.request(DEMO, "digest-a", "demo: build.tools = true")
     assert pending.request(DEMO, "digest-a", "demo: build.tools = true") == first
-    assert first["command"] == "simtrail settings confirm" and first["expires_in_s"] == CONFIRM_TTL_S
+    assert first["command"] == "rocketwright settings confirm" and first["expires_in_s"] == CONFIRM_TTL_S
     (shown,) = pending.waiting()
     assert shown["scope"] == "demo" and shown["summary"] == "demo: build.tools = true" and shown["id"] == first["id"]
     code = str(shown["code"])

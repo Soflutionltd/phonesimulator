@@ -22,9 +22,9 @@ describe('preferences', () => {
   })
 
   it('ignores what it does not recognise', () => {
-    localStorage.setItem('simtrail.viewer', JSON.stringify({ theme: 'sepia', framed: 'yes', zoom: 40 }))
+    localStorage.setItem('rocketwright.viewer', JSON.stringify({ theme: 'sepia', framed: 'yes', zoom: 40 }))
     expect(readPreferences()).toEqual({ theme: null, framed: null, zoom: null, lang: null })
-    localStorage.setItem('simtrail.viewer', '{not json')
+    localStorage.setItem('rocketwright.viewer', '{not json')
     expect(readPreferences()).toEqual({ theme: null, framed: null, zoom: null, lang: null })
   })
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // This entire module is excluded from Release, including injection and the host callback.
 use serde_json::{json, Value};
-use simtrail_web::{Options, Request, Server};
+use rocketwright_web::{Options, Request, Server};
 use std::{io, sync::Mutex, time::Duration};
 use tauri::WebviewWindow;
 
@@ -12,7 +12,7 @@ pub fn start(window: WebviewWindow) -> Result<Mutex<Server>, Box<dyn std::error:
     let content = native.contentLayoutRect();
     let content_top = frame.size.height - content.origin.y - content.size.height;
     let options = Options {
-        bundle_id: "dev.simtrail.WebSample".into(),
+        bundle_id: "dev.rocketwright.WebSample".into(),
         name: "Mac web sample".into(),
         home: std::env::var_os("HOME")
             .ok_or_else(|| io::Error::other("home is missing"))?
@@ -32,16 +32,16 @@ pub fn start(window: WebviewWindow) -> Result<Mutex<Server>, Box<dyn std::error:
                     return Err("wrong window".into());
                 }
                 let options = json!({"maxNodes":max_nodes,"offset":offset,
-                    "app":{"bundle_id":"dev.simtrail.WebSample","name":"Mac web sample","pid":std::process::id(),"active":false},
+                    "app":{"bundle_id":"dev.rocketwright.WebSample","name":"Mac web sample","pid":std::process::id(),"active":false},
                     "screen":{"width_pt":outer.width as f64/scale,"height_pt":outer.height as f64/scale,"scale":scale,"orientation":"portrait"}});
-                format!("globalThis.__SimtrailWeb.capture({options})")
+                format!("globalThis.__RocketwrightWeb.capture({options})")
             }
             Request::Input(command) => {
-                format!("globalThis.__SimtrailWeb.input({command},{offset})")
+                format!("globalThis.__RocketwrightWeb.input({command},{offset})")
             }
         };
         // JSON serialization is the only interpolation of caller data. No secret is injected into the page.
-        let js=format!("(()=>{{try{{{};return {{ok:true,value:{expression}}};}}catch(e){{return {{ok:false,reason:String(e.message).slice(0,500)}};}}}})()",simtrail_web::script());
+        let js=format!("(()=>{{try{{{};return {{ok:true,value:{expression}}};}}catch(e){{return {{ok:false,reason:String(e.message).slice(0,500)}};}}}})()",rocketwright_web::script());
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         window
             .eval_with_callback(js, move |answer| {

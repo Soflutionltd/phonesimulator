@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.platform import flutter
-from simtrail.platform.flutter import (
+from rocketwright.platform import flutter
+from rocketwright.platform.flutter import (
     FlutterSdk,
     find_flutter,
     flutter_env,

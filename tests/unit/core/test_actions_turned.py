@@ -15,15 +15,15 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from simtrail.connectors.base import Crop, HidEvent, Screen, Shot
-from simtrail.core.actions import AgentActions
-from simtrail.core.instance import DeviceInstance
-from simtrail.perception.ocr import OcrReaders
-from simtrail.seams import Caller
-from simtrail.testing.fakes import SCREEN, FakeConnector, FakeEngine, fixture_json
-from simtrail.testing.pictures import picture
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.tools.device import device_line
+from rocketwright.connectors.base import Crop, HidEvent, Screen, Shot
+from rocketwright.core.actions import AgentActions
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.perception.ocr import OcrReaders
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import SCREEN, FakeConnector, FakeEngine, fixture_json
+from rocketwright.testing.pictures import picture
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.tools.device import device_line
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code")
 

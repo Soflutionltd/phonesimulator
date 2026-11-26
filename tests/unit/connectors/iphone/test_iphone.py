@@ -11,11 +11,11 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Crop
-from simtrail.connectors.iphone.cable import UsbCable
-from simtrail.connectors.iphone.capture import CableCapture, LiveScreen
-from simtrail.connectors.iphone.connector import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Crop
+from rocketwright.connectors.iphone.cable import UsbCable
+from rocketwright.connectors.iphone.capture import CableCapture, LiveScreen
+from rocketwright.connectors.iphone.connector import (
     ALWAYS,
     CABLE_WAIT_S,
     DRIVEN,
@@ -27,18 +27,18 @@ from simtrail.connectors.iphone.connector import (
     capabilities_of,
     create,
 )
-from simtrail.connectors.iphone.screen import FPS_LIMIT, DevicectlScreen, screen_of
-from simtrail.connectors.iphone.wda_client import WdaClient
-from simtrail.connectors.iphone.wda_roles import WdaInput, WdaReader, WdaShots, WdaText
-from simtrail.connectors.registry import ConnectorContext
-from simtrail.core.device_logs import DeviceLogBook
-from simtrail.host_copy import HostCopy
-from simtrail.platform.devicectl import Devicectl, DevicectlError, Display, PhysicalDevice
-from simtrail.platform.errors import DeviceControlError
-from simtrail.platform.lockdown import SYSLOG_RELAY
-from simtrail.platform.usbmux import Usbmux, UsbmuxError
-from simtrail.platform.xcrun import XcrunResult
-from simtrail.testing.fakes import (
+from rocketwright.connectors.iphone.screen import FPS_LIMIT, DevicectlScreen, screen_of
+from rocketwright.connectors.iphone.wda_client import WdaClient
+from rocketwright.connectors.iphone.wda_roles import WdaInput, WdaReader, WdaShots, WdaText
+from rocketwright.connectors.registry import ConnectorContext
+from rocketwright.core.device_logs import DeviceLogBook
+from rocketwright.host_copy import HostCopy
+from rocketwright.platform.devicectl import Devicectl, DevicectlError, Display, PhysicalDevice
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.platform.lockdown import SYSLOG_RELAY
+from rocketwright.platform.usbmux import Usbmux, UsbmuxError
+from rocketwright.platform.xcrun import XcrunResult
+from rocketwright.testing.fakes import (
     PHONE_UDID,
     FakeEngine,
     FakeXcrun,
@@ -47,9 +47,9 @@ from simtrail.testing.fakes import (
     fixture_json,
     tiny_jpeg,
 )
-from simtrail.testing.native import short_run_dir
-from simtrail.testing.usbmux import FakeMuxd, FakeService
-from simtrail.testing.wda import FakeWda
+from rocketwright.testing.native import short_run_dir
+from rocketwright.testing.usbmux import FakeMuxd, FakeService
+from rocketwright.testing.wda import FakeWda
 
 ON = SimConfig.defaults().with_values(real_devices=True, developer_dir="/X.app/Contents/Developer")
 DISPLAY = Display(1179, 2556, 3.0, "portrait")
@@ -340,7 +340,7 @@ async def test_a_cabled_device_shows_its_live_screen_and_is_offered_a_stream() -
     assert session.last_error is not None and session.last_error() is None, "its helper has said nothing wrong"
     await session.close()
     assert screens.closed == 1
-    screens.error = "macOS has not let simtrail-helper use the Camera"
+    screens.error = "macOS has not let rocketwright-helper use the Camera"
     camera = await cabled(screens).attach(PHONE_UDID, ON)
     assert camera.last_error is not None and camera.last_error() == screens.error, "what its helper said, when asked"
     screens.error = "Test iPhone has sent no picture of its screen in 15 seconds: is it unlocked?"
@@ -353,11 +353,11 @@ async def test_a_cabled_device_shows_its_live_screen_and_is_offered_a_stream() -
 
 
 async def test_a_cable_that_cannot_show_the_screen_leaves_screenshots_and_says_why() -> None:
-    session = await cabled(Screens(fail="macOS has not let simtrail-helper use the Camera")).attach(PHONE_UDID, ON)
+    session = await cabled(Screens(fail="macOS has not let rocketwright-helper use the Camera")).attach(PHONE_UDID, ON)
     assert isinstance(session.screen, DevicectlScreen) and session.fps_limit == FPS_LIMIT
     assert Capability.STREAM_H264 not in session.capabilities
     assert session.note is not None and session.note.startswith(
-        "Its cable could not show the screen (macOS has not let simtrail-helper use the Camera), so it shows"
+        "Its cable could not show the screen (macOS has not let rocketwright-helper use the Camera), so it shows"
     )
     unplugged = Screens()
     session = await cabled(unplugged, plugged=False).attach(PHONE_UDID, ON)

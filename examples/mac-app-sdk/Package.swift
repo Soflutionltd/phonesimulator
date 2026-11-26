@@ -5,9 +5,9 @@ import PackageDescription
 let package = Package(
     name: "MacAppSDK",
     platforms: [.macOS(.v14)],
-    dependencies: [.package(name: "Simtrail", path: "../..")],
+    dependencies: [.package(name: "Rocketwright", path: "../..")],
     targets: [
         .executableTarget(
-            name: "MacAppSDK", dependencies: [.product(name: "SimtrailKit", package: "Simtrail")], path: "Sources")
+            name: "MacAppSDK", dependencies: [.product(name: "RocketwrightKit", package: "Rocketwright")], path: "Sources")
     ]
 )

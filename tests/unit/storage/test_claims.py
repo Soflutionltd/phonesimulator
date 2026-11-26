@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.storage.claims import Claim, Claims, DeviceClaimed
-from simtrail.testing.fakes import BOOTED_UDID
+from rocketwright.storage.claims import Claim, Claims, DeviceClaimed
+from rocketwright.testing.fakes import BOOTED_UDID
 
 UDID = BOOTED_UDID
 
@@ -19,7 +19,7 @@ def claims(
     folder: Path,
     *,
     pid: int,
-    owner: str = "Simtrail",
+    owner: str = "Rocketwright",
     alive: Callable[[int], bool] = lambda pid: True,
     started: dict[int, str | None] | None = None,
 ) -> Claims:
@@ -32,15 +32,15 @@ def claims(
 
 
 async def test_a_device_is_claimed_once_and_the_second_process_is_told_who_has_it(tmp_path: Path) -> None:
-    first = claims(tmp_path, pid=100, owner="Simtrail")
+    first = claims(tmp_path, pid=100, owner="Rocketwright")
     second = claims(tmp_path, pid=200, owner="host")
     await first.acquire(UDID)
     await first.acquire(UDID)
     assert (tmp_path / f"{UDID}.json").exists()
     with pytest.raises(DeviceClaimed) as refused:
         await second.acquire(UDID)
-    assert refused.value.claim == Claim(udid=UDID, owner="Simtrail", pid=100, started="started-100", label="demo")
-    assert str(refused.value) == "Simtrail (pid 100) on this Mac is already using this simulator"
+    assert refused.value.claim == Claim(udid=UDID, owner="Rocketwright", pid=100, started="started-100", label="demo")
+    assert str(refused.value) == "Rocketwright (pid 100) on this Mac is already using this simulator"
     assert await second.holder(UDID) == refused.value.claim and await first.holder(UDID) is None
 
 
@@ -109,7 +109,7 @@ async def test_a_claim_that_keeps_changing_under_the_lock_is_refused_with_whoeve
 
 
 async def test_mac_claims_accept_only_the_bounded_app_identifier(tmp_path: Path):
-    from simtrail.platform.identifiers import mac_id
+    from rocketwright.platform.identifiers import mac_id
 
     first = claims(tmp_path, pid=100)
     identifier = mac_id("dev.example.Sample")

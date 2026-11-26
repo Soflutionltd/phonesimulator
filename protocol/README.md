@@ -1,10 +1,10 @@
-# Simtrail protocol
+# Rocketwright protocol
 
-This folder is the single definition of how a Simtrail viewer talks to a Simtrail server: the screen socket's
+This folder is the single definition of how a Rocketwright viewer talks to a Rocketwright server: the screen socket's
 messages, the shapes the HTTP routes answer with, the close codes and the constants. Everything else is generated from
 it or tested against it:
 
-- `src/simtrail/protocol/_generated.py` and `viewer/src/protocol.generated.ts` are written by
+- `src/rocketwright/protocol/_generated.py` and `viewer/src/protocol.generated.ts` are written by
   `scripts/gen_protocol.py` (`make generate`), and CI fails when either is stale.
 - The contract tests in `tests/contract/` validate every message the server builds against these schemas.
 
@@ -56,13 +56,13 @@ Human-readable reference: [`docs/reference/protocol.md`](../docs/reference/proto
 - Read enums as **open**: a new capability or encoding may appear within version 1, and a client is only ever sent an
   encoding it asked for in its hello.
 
-These rules bind from Simtrail 1.0, and `compat/surface-v3.json` holds every schema, constant and close code here to
+These rules bind from Rocketwright 1.0, and `compat/surface-v3.json` holds every schema, constant and close code here to
 them: `scripts/surface.py` fails when one is broken. What else is promised alongside them is
-[what Simtrail promises not to break](../docs/stability.md).
+[what Rocketwright promises not to break](../docs/stability.md).
 
 ## App SDK protocol, version 1
 
-`app-sdk/v1/` is how an app built with Simtrail's debug SDK hands Simtrail its view hierarchy, so a screen whose
+`app-sdk/v1/` is how an app built with Rocketwright's debug SDK hands Rocketwright its view hierarchy, so a screen whose
 controls have no accessibility labels still reads well. It is a protocol of its own, with its own version: an app
 speaks it, not a viewer. The Swift SDK and the daemon both test against these schemas and the examples beside them.
 
@@ -76,9 +76,9 @@ speaks it, not a viewer. The Swift SDK and the daemon both test against these sc
 
 1. A debug build of the app on a simulator starts listening on `127.0.0.1` on a port of its own, and writes a
    `Listing` -- its port, its process and a secret new each launch -- to
-   `<simulator data>/Library/Caches/Simtrail/apps/<bundle_id>.json`, readable by its owner only. It writes it again
+   `<simulator data>/Library/Caches/Rocketwright/apps/<bundle_id>.json`, readable by its owner only. It writes it again
    whenever it comes to the front or leaves it.
-2. To read the screen, Simtrail reads the listings in the simulator's data folder, and asks the apps in front
+2. To read the screen, Rocketwright reads the listings in the simulator's data folder, and asks the apps in front
    `GET /v1/hierarchy?max_nodes=<n>` with `Authorization: Bearer <secret>`, one request per connection.
 3. The app in front answers a `Hierarchy`: its windows' views as nodes, each with a kind, a label it worked out, and
    a frame in points on the screen held upright. An app that is not in front answers `409` at once. A request without
@@ -89,5 +89,5 @@ speaks it, not a viewer. The Swift SDK and the daemon both test against these sc
 
 The same as version 1's: every property is always sent, receivers ignore properties they do not know, enums are read
 as open, and what version 1 requires stays required (`tests/contract/test_app_sdk_schemas.py` holds it). The app SDK
-protocol is a preview in Simtrail and is not part of `compat/surface-v3.json`; a change that would break an app
+protocol is a preview in Rocketwright and is not part of `compat/surface-v3.json`; a change that would break an app
 built with an earlier SDK is its version 2.

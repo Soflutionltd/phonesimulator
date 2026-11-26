@@ -1727,7 +1727,7 @@ wheels = [
 ]
 
 [[package]]
-name = "simtrail"
+name = "rocketwright"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

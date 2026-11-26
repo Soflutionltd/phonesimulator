@@ -9,12 +9,12 @@ from dataclasses import replace
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import ConnectorError, Screen
-from simtrail.connectors.mcpbridge.hierarchy import document_from_hierarchy
-from simtrail.perception.model import DESTRUCTIVE, NAMED, PIXELS, ElementNode, Frame, Modal, ScreenTree
-from simtrail.perception.orientation import Orientation
-from simtrail.perception.readers import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import ConnectorError, Screen
+from rocketwright.connectors.mcpbridge.hierarchy import document_from_hierarchy
+from rocketwright.perception.model import DESTRUCTIVE, NAMED, PIXELS, ElementNode, Frame, Modal, ScreenTree
+from rocketwright.perception.orientation import Orientation
+from rocketwright.perception.readers import (
     ACCESSIBILITY_SAID_NOTHING,
     CombinedExtraReaders,
     DocumentReader,
@@ -28,8 +28,8 @@ from simtrail.perception.readers import (
     name_unlabeled,
     tree_from_document,
 )
-from simtrail.perception.snapshot import build
-from simtrail.testing.fakes import FakeEngine, fixture, fixture_json
+from rocketwright.perception.snapshot import build
+from rocketwright.testing.fakes import FakeEngine, fixture, fixture_json
 
 
 def test_a_document_reads_as_its_elements_depth_first() -> None:

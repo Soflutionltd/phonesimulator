@@ -1,0 +1,210 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Who is asking the daemon: the standalone `Authenticator`, over its tokens.
+
+A token comes as ``Authorization: Bearer …`` or ``X-Rocketwright-Token``. A person's routes take the admin token, a
+viewer or host token for the scope, or a page's viewer session for it; an agent's routes take only an agent token, for
+the scope it names in ``X-Rocketwright-Scope`` (or its only scope), its title -- what viewers show beside its cursor,
+and other agents are told -- from ``X-Rocketwright-Client`` and the label ``X-Rocketwright-Label`` gives its session
+(``ROCKETWRIGHT_AGENT_LABEL``), else four hex digits of its token's id so two sessions of one client are told apart, and
+the folders its client works in from ``X-Rocketwright-Roots``. A screen socket's credential
+is its ticket, so letting one in only checks its scope: the Host and the Origin were already checked
+(`server.security`).
+
+A scope in a host's namespace is in that host's group, named for the namespace -- so ``device.mode = "shared"`` gives
+each host one device of its own -- and every other scope is in the Mac's own group.
+
+Settings are read and changed only from the daemon's own pages: a request carrying any other Origin -- even one
+``security.allowed_origins`` lets call the API -- or a browser's cross-site ``Sec-Fetch-Site`` is refused, since an
+allowed origin gets CORS answers on every route. A ``settings`` session (``rocketwright open --settings``) may change
+settings but not the sensitive ones alone; a viewer session or viewer token may read them; an embed frame may not see
+them; and the admin token from outside any page -- the command line -- may change everything. A host token may change
+its own scopes' settings, one scope at a time and none of the sensitive ones without a person confirming.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import re
+from collections.abc import Callable, Mapping
+from pathlib import Path
+from urllib.parse import unquote
+
+from fastapi import Request, WebSocket
+
+from rocketwright.daemon.passes import ViewerSessions
+from rocketwright.daemon.tokens import ALL_SCOPES, TokenRecord, TokenStore
+from rocketwright.mcp.relay import ROOT_PATH_MAX, ROOTS_MAX
+from rocketwright.protocol import CLOSE_FORBIDDEN
+from rocketwright.scope import InvalidScope, Scope
+from rocketwright.seams import Admission, Caller, Person, Refused, SettingsEditor
+from rocketwright.server.security import origin_of
+
+#: The spelling `rocketwright mcp` gives its relay (`mcp.launcher`); header names are compared case-insensitively.
+TOKEN_HEADER = "x-rocketwright-token"
+SCOPE_HEADER = "x-rocketwright-scope"
+CLIENT_HEADER = "x-rocketwright-client"
+ROOTS_HEADER = "x-rocketwright-roots"
+LABEL_HEADER = "x-rocketwright-label"
+TITLE_MAX = 80
+#: The longest label a session's title keeps.
+LABEL_MAX = 40
+#: What an agent token's id looks like (`daemon.tokens`): its hex digits tell two sessions apart.
+TOKEN_ID = re.compile(r"t([0-9a-f]{4})[0-9a-f]*")
+DEFAULT_TITLE = "agent"
+
+AUTHENTICATION_REQUIRED = "authentication required"
+NOT_FOR_SCOPE = "this token is not for that scope"
+NOT_AN_AGENT = "this token is not an agent's"
+ADMIN_ONLY = "this needs the admin token"
+HOST_ONLY = "this needs a host token"
+NAME_THE_SCOPE = "this token is for several scopes; name one in X-Rocketwright-Scope"
+NO_SUCH_SCOPE = "there is no such scope"
+SETTINGS_OWN_PAGES = "settings are read and changed only from Rocketwright's own pages"
+SETTINGS_NOT_IN_A_FRAME = "a framed viewer cannot see settings; open them with `rocketwright open --settings`"
+#: What a browser says of a request from another site; `same-origin` and `none` (typed or bookmarked) are its own.
+CROSS_SITE = frozenset({"cross-site", "same-site"})
+
+
+def presented_token(headers: Mapping[str, str]) -> str | None:
+    authorization = headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        return authorization[7:].strip() or None
+    return headers.get(TOKEN_HEADER) or None
+
+
+def client_roots(value: str) -> tuple[Path, ...]:
+    """The folders an agent's client works in, as its relay sends them (`mcp.relay.encode_roots`): absolute paths
+    only, at most `ROOTS_MAX`. They are where it would like to build, and nothing more: the build tools decide whether
+    a build may run there."""
+    found: list[Path] = []
+    for part in value.split(",")[:ROOTS_MAX]:
+        path = unquote(part.strip())
+        if path.startswith("/") and len(path) <= ROOT_PATH_MAX and "\x00" not in path:
+            found.append(Path(path))
+    return tuple(found)
+
+
+def agent_title(client: str, label: str, token_id: str) -> str:
+    """What an agent is called: its client's name and its session's label -- ``Claude Code · ticket-123`` -- else the
+    first four hex digits of its token's id, ``Claude Code #3fa2``, so two sessions of one client are told apart."""
+    labelled, joint = " ".join(label.split())[:LABEL_MAX], " · "
+    if not labelled:
+        found = TOKEN_ID.fullmatch(token_id)
+        labelled = "#" + (found.group(1) if found else hashlib.blake2b(token_id.encode(), digest_size=2).hexdigest())
+        joint = " "
+    named = " ".join(client.split())[: TITLE_MAX - len(joint) - len(labelled)].rstrip() or DEFAULT_TITLE
+    return f"{named}{joint}{labelled}"
+
+
+def scope_named(scope_id: str, *, status: int = 404) -> Scope:
+    try:
+        return Scope.named(scope_id)
+    except InvalidScope as exc:
+        raise Refused(status, NO_SUCH_SCOPE) from exc
+
+
+class TokenAuthenticator:
+    def __init__(
+        self,
+        tokens: TokenStore,
+        viewers: ViewerSessions,
+        own_origins: Callable[[], frozenset[str]] = frozenset,
+        *,
+        names: Callable[[str], str | None] = lambda scope_id: None,
+    ) -> None:
+        self._tokens = tokens
+        self._viewers = viewers
+        self._own_origins = own_origins
+        #: What a scope is called, when what knows its folder named it (`daemon.scope_names`).
+        self._names = names
+
+    def scope(self, scope_id: str, *, status: int = 404) -> Scope:
+        """A scope by id, called by the name it was given, in its host's group when a host's namespace has it."""
+        scope = scope_named(scope_id, status=status)
+        label = self._names(scope.id) or scope.label
+        host = self._tokens.host_of(scope.id)
+        if host is None:
+            return Scope(scope.id, scope.group, label)
+        group = next(namespace for namespace in host.namespaces if scope.id.startswith(f"{namespace}:"))
+        return Scope(scope.id, group, label)
+
+    def _record(self, headers: Mapping[str, str]) -> tuple[str, TokenRecord | None]:
+        token = presented_token(headers)
+        if token is None:
+            raise Refused(401, AUTHENTICATION_REQUIRED)
+        return token, self._tokens.match(token)
+
+    def admin(self, request: Request) -> TokenRecord:
+        """The admin credential a request carries. Raises `Refused`."""
+        token, record = self._record(request.headers)
+        if record is None and self._viewers.scope_of(token) is None:
+            raise Refused(401, AUTHENTICATION_REQUIRED)
+        if record is None or record.kind != "admin":
+            raise Refused(403, ADMIN_ONLY)
+        return record
+
+    def host(self, request: Request) -> TokenRecord:
+        """The host token a request carries. Raises `Refused`."""
+        _, record = self._record(request.headers)
+        if record is None:
+            raise Refused(401, AUTHENTICATION_REQUIRED)
+        if record.kind != "host":
+            raise Refused(403, HOST_ONLY)
+        return record
+
+    async def person(self, request: Request, scope_id: str) -> Person:
+        scope = self.scope(scope_id)
+        token, record = self._record(request.headers)
+        session = self._viewers.scope_of(token)
+        if session == scope.id:
+            return Person(scope)
+        if record is None and session is None:
+            raise Refused(401, AUTHENTICATION_REQUIRED)
+        if record is None or record.kind == "agent" or not record.covers(scope.id):
+            raise Refused(403, NOT_FOR_SCOPE)
+        return Person(scope)
+
+    async def agent(self, request: Request) -> Caller:
+        _, record = self._record(request.headers)
+        if record is None:
+            raise Refused(401, AUTHENTICATION_REQUIRED)
+        if record.kind != "agent":
+            raise Refused(403, NOT_AN_AGENT)
+        named = request.headers.get(SCOPE_HEADER, "")
+        if not named:
+            if len(record.scopes) != 1 or record.scopes[0] == ALL_SCOPES:
+                raise Refused(400, NAME_THE_SCOPE)
+            named = record.scopes[0]
+        scope = self.scope(named)
+        if not record.covers(scope.id):
+            raise Refused(403, NOT_FOR_SCOPE)
+        title = agent_title(request.headers.get(CLIENT_HEADER, ""), request.headers.get(LABEL_HEADER, ""), record.id)
+        roots = client_roots(request.headers.get(ROOTS_HEADER, ""))
+        # Its own token's first folder is where it builds, not another session's of the same scope (`Policy`).
+        home = Path(record.roots[0]) if record.roots else None
+        return Caller(scope, key=record.id, title=title, roots=roots, home=home)
+
+    async def settings_editor(self, request: Request, scope_id: str) -> SettingsEditor:
+        scope = self.scope(scope_id)
+        origin = request.headers.get("origin")
+        if origin is not None and origin_of(origin) not in self._own_origins():
+            raise Refused(403, SETTINGS_OWN_PAGES)
+        if request.headers.get("sec-fetch-site", "").lower() in CROSS_SITE:
+            raise Refused(403, SETTINGS_OWN_PAGES)
+        token, record = self._record(request.headers)
+        session = self._viewers.session(token)
+        if session is not None and session.scope_id == scope.id:
+            if session.kind == "embed":
+                raise Refused(403, SETTINGS_NOT_IN_A_FRAME)
+            return SettingsEditor(scope, may_write=session.kind == "settings")
+        if record is None and session is None:
+            raise Refused(401, AUTHENTICATION_REQUIRED)
+        if record is None or record.kind == "agent" or not record.covers(scope.id):
+            raise Refused(403, NOT_FOR_SCOPE)
+        if record.kind == "host":
+            return SettingsEditor(scope, may_write=True, may_write_every_scope=False)
+        admin = record.kind == "admin"
+        return SettingsEditor(scope, may_write=admin, may_write_sensitive=admin and origin is None)
+
+    async def admit_socket(self, websocket: WebSocket, scope_id: str) -> Admission:
+        return Admission(self.scope(scope_id, status=CLOSE_FORBIDDEN))

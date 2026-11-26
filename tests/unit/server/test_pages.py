@@ -8,9 +8,9 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI
 
-from simtrail._version import __version__
-from simtrail.server.pages import NOT_BUILT, STATIC_VIEWER, create_page_router
-from simtrail.testing.asgi import HOST
+from rocketwright._version import __version__
+from rocketwright.server.pages import NOT_BUILT, STATIC_VIEWER, create_page_router
+from rocketwright.testing.asgi import HOST
 
 
 def served(static_dir: Path | None) -> httpx.AsyncClient:
@@ -63,13 +63,13 @@ async def test_a_page_names_its_assets_with_this_installs_version_so_no_older_sc
 
 
 async def test_a_named_scopes_page_carries_its_name_made_safe_for_its_title(tmp_path: Path) -> None:
-    (tmp_path / "index.html").write_text("<html><head><title>Simtrail</title></head><body></body></html>")
+    (tmp_path / "index.html").write_text("<html><head><title>Rocketwright</title></head><body></body></html>")
     names = {"project-notes-1a2b3c4d": 'Notes "beta" <app>'}
     app = FastAPI()
     app.include_router(create_page_router(tmp_path, name_of=names.get))
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=f"http://{HOST}") as http:
         named = await http.get("/viewer/project-notes-1a2b3c4d")
         unnamed = await http.get("/viewer/tp-1")
-    assert '<meta name="simtrail-project" content="Notes &quot;beta&quot; &lt;app&gt;" />' in named.text
-    assert named.text.index("simtrail-project") < named.text.index("</head>")
-    assert "simtrail-project" not in unnamed.text
+    assert '<meta name="rocketwright-project" content="Notes &quot;beta&quot; &lt;app&gt;" />' in named.text
+    assert named.text.index("rocketwright-project") < named.text.index("</head>")
+    assert "rocketwright-project" not in unnamed.text

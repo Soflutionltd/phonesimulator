@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import pytest
 
-from simtrail.core import gestures
-from simtrail.core.text_entry import paste_asked, paste_prompt_allow, paste_refused, text_entry
-from simtrail.perception.snapshot import Element
-from simtrail.platform.keyboard import LayoutKeys
-from simtrail.testing.fakes import FakeKeyboard
+from rocketwright.core import gestures
+from rocketwright.core.text_entry import paste_asked, paste_prompt_allow, paste_refused, text_entry
+from rocketwright.perception.snapshot import Element
+from rocketwright.platform.keyboard import LayoutKeys
+from rocketwright.testing.fakes import FakeKeyboard
 
 #: A few of AZERTY's keys, as HID keys: a where a US keyboard has q, é alone, { with Option.
 AZERTY: LayoutKeys = {"a": (20, False, False), "z": (26, False, False), "é": (31, False, False), "{": (34, False, True)}

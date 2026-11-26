@@ -13,15 +13,15 @@ from grpclib.const import Status
 from grpclib.exceptions import GRPCError, StreamTerminatedError
 from grpclib.testing import ChannelFor
 
-from simtrail.connectors.base import ConnectorError, Crop, HidEvent, Screen, Shot
-from simtrail.connectors.idb.engine import IdbEngine, to_proto
-from simtrail.connectors.idb.proto import idb_pb2 as pb
-from simtrail.connectors.idb.proto.idb_grpc import CompanionServiceBase
-from simtrail.core.actions import AgentActions
-from simtrail.perception.model import Frame
-from simtrail.seams import Caller
-from simtrail.testing.fakes import BOOTED_UDID, FakeConnector, FakeEngine, fixture, fixture_json, no_wait
-from simtrail.testing.rig import DeviceRig, scope
+from rocketwright.connectors.base import ConnectorError, Crop, HidEvent, Screen, Shot
+from rocketwright.connectors.idb.engine import IdbEngine, to_proto
+from rocketwright.connectors.idb.proto import idb_pb2 as pb
+from rocketwright.connectors.idb.proto.idb_grpc import CompanionServiceBase
+from rocketwright.core.actions import AgentActions
+from rocketwright.perception.model import Frame
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import BOOTED_UDID, FakeConnector, FakeEngine, fixture, fixture_json, no_wait
+from rocketwright.testing.rig import DeviceRig, scope
 
 H = pb.HIDEvent
 #: What idb_companion answers at a point with nothing there.

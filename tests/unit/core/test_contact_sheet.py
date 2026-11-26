@@ -8,7 +8,7 @@ import io
 import pytest
 from PIL import Image
 
-from simtrail.core.contact_sheet import CAPTION_MAX, CELL_HEIGHT, GAP, Cell, _caption, contact_sheet
+from rocketwright.core.contact_sheet import CAPTION_MAX, CELL_HEIGHT, GAP, Cell, _caption, contact_sheet
 
 
 def jpeg(width: int, height: int) -> bytes:

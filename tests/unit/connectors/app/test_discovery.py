@@ -10,9 +10,9 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.app import discovery, wire
-from simtrail.connectors.app.discovery import AppListing, find_listings, read_listing
-from simtrail.testing.app_sdk import BUNDLE_ID, SECRET, write_listing
+from rocketwright.connectors.app import discovery, wire
+from rocketwright.connectors.app.discovery import AppListing, find_listings, read_listing
+from rocketwright.testing.app_sdk import BUNDLE_ID, SECRET, write_listing
 
 UDID = "7A4C5B2E-9E2B-4C43-9F3A-2D0C3F0B6E11"
 UID = os.getuid()
@@ -173,10 +173,10 @@ def test_a_listing_gone_before_it_is_read_sorts_last(tmp_path: Path) -> None:
 
 
 def test_mac_listings_require_the_selected_process_platform_and_container(tmp_path: Path) -> None:
-    from simtrail.connectors.app.discovery import find_mac_listing
-    from simtrail.platform.identifiers import mac_id
+    from rocketwright.connectors.app.discovery import find_mac_listing
+    from rocketwright.platform.identifiers import mac_id
 
-    folder = tmp_path / "Library/Application Support/Simtrail/apps"
+    folder = tmp_path / "Library/Application Support/Rocketwright/apps"
     folder.mkdir(parents=True)
     path = folder / f"{BUNDLE_ID}.json"
     raw = listing(device_udid=mac_id(BUNDLE_ID), platform="macos")
@@ -189,7 +189,7 @@ def test_mac_listings_require_the_selected_process_platform_and_container(tmp_pa
         path.write_text(json.dumps({**raw, **change}))
         assert find_mac_listing(tmp_path, BUNDLE_ID, 4242, uid=UID) is None
     path.unlink()
-    container = tmp_path / "Library/Containers" / BUNDLE_ID / "Data/Library/Application Support/Simtrail/apps"
+    container = tmp_path / "Library/Containers" / BUNDLE_ID / "Data/Library/Application Support/Rocketwright/apps"
     container.mkdir(parents=True)
     path = container / f"{BUNDLE_ID}.json"
     path.write_text(json.dumps(raw))

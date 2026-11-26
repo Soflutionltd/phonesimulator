@@ -11,9 +11,9 @@ from typing import Any
 
 import pytest
 
-from simtrail.platform import json_lines
-from simtrail.platform.json_lines import JsonLines, LinesError, spawn_lines
-from simtrail.testing.fakes import FakeLineProcess, ManualClock
+from rocketwright.platform import json_lines
+from rocketwright.platform.json_lines import JsonLines, LinesError, spawn_lines
+from rocketwright.testing.fakes import FakeLineProcess, ManualClock
 
 
 class Echo:

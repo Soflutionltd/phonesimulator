@@ -1,52 +1,52 @@
 # Claude Code in a terminal
 
-Claude Code drives the simulator through Simtrail's MCP tools; you watch, and step in, in a browser tab.
+Claude Code drives the simulator through Rocketwright's MCP tools; you watch, and step in, in a browser tab.
 
 ## Install with the plugin
 
 ```
-/plugin marketplace add Soflutionltd/simtrail
-/plugin install simtrail@simtrail
+/plugin marketplace add Soflutionltd/rocketwright
+/plugin install rocketwright@rocketwright
 ```
 
 The plugin brings:
 
-- the tools, from `simtrail mcp` run with uvx at the release's tag;
+- the tools, from `rocketwright mcp` run with uvx at the release's tag;
 - four [workflow skills](skills.md): interaction, setup/recovery, builds/tests and evidence capture;
-- **`/simtrail:open`**, which opens this project's viewer.
+- **`/rocketwright:open`**, which opens this project's viewer.
 
-Its server is `device`, which Claude Code shows as `plugin:simtrail:device`, and its tools are named
-`mcp__plugin_simtrail_device__sim_snapshot` and so on. To try a local copy of the plugin
-instead, start Claude Code with `claude --plugin-dir plugins/simtrail`.
+Its server is `device`, which Claude Code shows as `plugin:rocketwright:device`, and its tools are named
+`mcp__plugin_rocketwright_device__sim_snapshot` and so on. To try a local copy of the plugin
+instead, start Claude Code with `claude --plugin-dir plugins/rocketwright`.
 
 ## Install without the plugin
 
 ```sh
-claude mcp add simtrail -- uvx --from git+https://github.com/Soflutionltd/simtrail simtrail mcp
+claude mcp add rocketwright -- uvx --from git+https://github.com/Soflutionltd/rocketwright rocketwright mcp
 ```
 
 `--scope project` (before the name) writes it to the project's `.mcp.json`, for everyone working on it. The tools are
-named `mcp__simtrail__sim_snapshot` and so on.
+named `mcp__rocketwright__sim_snapshot` and so on.
 
 ## Which project
 
-`simtrail mcp` gives the agent **the scope of the folder Claude Code runs in** -- its own simulator -- and that
+`rocketwright mcp` gives the agent **the scope of the folder Claude Code runs in** -- its own simulator -- and that
 folder as the only place `sim_app install` and the build tools may reach. To choose otherwise:
 
 ```sh
-claude mcp add simtrail -- uvx --from git+https://github.com/Soflutionltd/simtrail \
-  simtrail mcp --scope my-app --root /Users/me/Projects/my-app
+claude mcp add rocketwright -- uvx --from git+https://github.com/Soflutionltd/rocketwright \
+  rocketwright mcp --scope my-app --root /Users/me/Projects/my-app
 ```
 
 ### One server for several sessions
 
 A client that starts one MCP server for all its sessions -- a hub sharing its servers between windows -- would have them
-all act for the project `simtrail mcp` was started in. `simtrail mcp --scope-from-roots` acts instead, call by call,
+all act for the project `rocketwright mcp` was started in. `rocketwright mcp --scope-from-roots` acts instead, call by call,
 for the project of the folder each call comes from: as the client's roots say, or -- exactly, when several sessions
 call at once -- as each call's `_meta` says under the key `--roots-meta` names, in the shape of a `roots/list` answer:
 
 ```sh
-simtrail mcp --scope-from-roots --roots-meta com.example.hub/roots
+rocketwright mcp --scope-from-roots --roots-meta com.example.hub/roots
 ```
 
 Each project gets an agent token of its own at its first call -- a git worktree its main checkout's simulator first --
@@ -56,7 +56,7 @@ revoked when the server closes. A call that names no folder acts for the project
 ### Git worktrees
 
 A session started in a git worktree is a project of its own, with its own settings table, but it works on the
-simulator of the main checkout: `simtrail mcp` started in a worktree whose project has no device yet gives it the one
+simulator of the main checkout: `rocketwright mcp` started in a worktree whose project has no device yet gives it the one
 of the same folder in the main checkout, rather than a new blank simulator being created at its first call. Its
 sessions then share that simulator with the main checkout's, one driving at a time. `sim_device choose` gives the
 worktree a device of its own.
@@ -70,7 +70,7 @@ server started in:
    runs, `sim_app info` and the relative `save_to` paths of `sim_screenshot`, until it names another or its session
    ends;
 3. else the folder the client says it works in (its MCP roots), when the client offers them;
-4. else the folder `simtrail mcp` started in, or its first `--root`.
+4. else the folder `rocketwright mcp` started in, or its first `--root`.
 
 Claude Code's `EnterWorktree` moves its MCP roots into the worktree, but sends no `notifications/roots/list_changed`
 when it does (measured with Claude Code 2.1.301), so the relay asks the client for its roots again before every tool
@@ -105,31 +105,31 @@ worktrees costs a rebuild of what differs, but a folder per worktree costs more 
 worktree at a time. An iOS app's DerivedData is gigabytes -- its products, index, module cache and Swift packages --
 and agents make worktrees freely, one per task; each new one resolves and builds every package from nothing. One
 folder per scope keeps the packages and module cache warm, and since it runs one build at a time, sharing it is safe.
-When a stale product is suspected, delete the folder (`~/Library/Developer/Xcode/DerivedData/Simtrail-<scope>`); the
+When a stale product is suspected, delete the folder (`~/Library/Developer/Xcode/DerivedData/Rocketwright-<scope>`); the
 next build makes it again.
 
 Where several sessions build different worktrees at once, `build.derived_data = "checkout"` gives each checkout a
 DerivedData folder of its own, beside the scope's and named after it -- for the worktree
-`/work/demo-worktrees/feature-x`, `Simtrail-<scope>-feature-x-<hash of its path>` -- so their builds run side by side
+`/work/demo-worktrees/feature-x`, `Rocketwright-<scope>-feature-x-<hash of its path>` -- so their builds run side by side
 instead of one waiting for the other, and none undoes what another compiled. Each folder holds a
-`simtrail-checkout.txt` naming its checkout, and a build deletes the scope's folders whose checkout is gone, as
+`rocketwright-checkout.txt` naming its checkout, and a build deletes the scope's folders whose checkout is gone, as
 removing a worktree leaves it:
 
 ```sh
-simtrail config set build.derived_data checkout --scope project-demo-1a2b3c4d
+rocketwright config set build.derived_data checkout --scope project-demo-1a2b3c4d
 ```
 
 A build in a worktree runs with the settings of the folder it builds when that folder's project has settings of its
-own -- its `[scopes."<id>"]` table, as the settings panel of `simtrail open` run there writes it -- and with the
+own -- its `[scopes."<id>"]` table, as the settings panel of `rocketwright open` run there writes it -- and with the
 session's otherwise.
 
 A session started **in** a worktree is that worktree's scope, which has no settings of its own until someone gives it
-some. `simtrail doctor`, run in the worktree, says when its main checkout's scope has settings this one lacks, and
+some. `rocketwright doctor`, run in the worktree, says when its main checkout's scope has settings this one lacks, and
 gives the command that copies them -- for a `--separate-git-dir` main checkout, once its git folder names it back as
 above; it changes nothing itself:
 
 ```sh
-simtrail config copy --from project-app-1a2b3c4d --scope project-app-feature-5e6f7a8b
+rocketwright config copy --from project-app-1a2b3c4d --scope project-app-feature-5e6f7a8b
 ```
 
 A value the worktree's scope sets already is kept.
@@ -137,7 +137,7 @@ A value the worktree's scope sets already is kept.
 ### Several sessions at once
 
 Two Claude Code sessions in one project -- one per worktree, say, both started in the main checkout -- are one scope,
-but each `simtrail mcp` is its own agent connection, and each works on **a device of its own**
+but each `rocketwright mcp` is its own agent connection, and each works on **a device of its own**
 (`device.selection = "agent"`, the default):
 
 - An agent works on the device it chose with `sim_device choose`, else on the one its first call that needed a device
@@ -170,25 +170,25 @@ but each `simtrail mcp` is its own agent connection, and each works on **a devic
 
 A live agent is one with a call under way, or one made within `device.agent_idle_minutes` (30): it is named to the
 others and its device kept from idling out. Its connection ending -- stdin closed, SIGINT or SIGTERM -- forgets it at
-once, and so do `simtrail stop`, `simtrail stop --device` and `simtrail token revoke` for the devices and tokens they
-name. Each agent is named by its client and a label: `--label` or `SIMTRAIL_AGENT_LABEL` when its
+once, and so do `rocketwright stop`, `rocketwright stop --device` and `rocketwright token revoke` for the devices and tokens they
+name. Each agent is named by its client and a label: `--label` or `ROCKETWRIGHT_AGENT_LABEL` when its
 session was started with one, else four hex digits of its connection's token -- `Claude Code · ticket-123`,
 `Claude Code #3fa2`. While other agents work in the project too, `sim_device info` says what the asking agent is called
 and who else works on its device. A session started with `--root` builds in its own first `--root`, not in another
 session's of the same project. The label travels in a header, from the relay's environment, never on a command line:
 
 ```sh
-SIMTRAIL_AGENT_LABEL=ticket-123 claude
+ROCKETWRIGHT_AGENT_LABEL=ticket-123 claude
 ```
 
 #### Watching two devices side by side
 
 A viewer tab shows the project's own device and follows it. To watch each session's device, open one tab per device:
-`simtrail devices` lists the UDIDs, `sim_device list` says which device each agent works on, and
+`rocketwright devices` lists the UDIDs, `sim_device list` says which device each agent works on, and
 
 ```sh
-simtrail open --device 00000000-0000-0000-0000-000000000001
-simtrail open --device 00000000-0000-0000-0000-000000000002
+rocketwright open --device 00000000-0000-0000-0000-000000000001
+rocketwright open --device 00000000-0000-0000-0000-000000000002
 ```
 
 opens `/viewer/<scope>?device=<udid>` for each. A tab of its own device stays on it whatever an agent or a person
@@ -197,7 +197,7 @@ each device; picking a row shows that device in this tab only (Show in this tab,
 project** makes it the project's own -- the tabs following the project and the agents on the old one move to it -- and
 **Follow the project** turns the tab back into one that follows the project's own device.
 
-`simtrail config set device.selection scope` gives every agent of a scope its one shared device again, as before
+`rocketwright config set device.selection scope` gives every agent of a scope its one shared device again, as before
 3.9: a choose moves them all. `device.exclusive = "real_devices"` refuses another agent only on a real device, and
 `off` never; both still say who else works on the device.
 
@@ -205,32 +205,32 @@ project** makes it the project's own -- the tabs following the project and the a
 
 Every build answer ends with the `source` it built -- folder, branch, commit, `(dirty)` -- but the app on the device
 says nothing of where it came from. With `build.stamp_source` on, `sim_build_run` installs on a simulator a copy of
-the app whose `Info.plist` also holds `SIMTRAIL_SOURCE_SHA` (the commit) and `SIMTRAIL_SOURCE_DIRTY`, and
+the app whose `Info.plist` also holds `ROCKETWRIGHT_SOURCE_SHA` (the commit) and `ROCKETWRIGHT_SOURCE_DIRTY`, and
 `sim_app` `info` reads them back and compares them with the folder now:
 
 ```text
 com.example.notes · Notes 1.2 (7) · /Users/me/Library/Developer/CoreSimulator/Devices/…/Notes.app
-stamped 1a2b3c4 (SIMTRAIL_SOURCE_SHA)
+stamped 1a2b3c4 (ROCKETWRIGHT_SOURCE_SHA)
 the code in /Users/me/app-feature/ios: 1a2b3c4, with nothing uncommitted then or now
 ```
 
 The project needs no change, and the app in DerivedData is left as Xcode built it: no build setting can add a key to
 an `Info.plist` the project does not name, so the key goes into a copy -- a copy-on-write clone, made in an instant --
 that is signed again ad hoc, as Xcode signs every simulator app, installed, and removed. A real device's app is signed
-for it by your team, which Simtrail does not re-sign, so it is never stamped; nor is a build whose folder git names no
+for it by your team, which Rocketwright does not re-sign, so it is never stamped; nor is a build whose folder git names no
 commit for. Either way the app is installed as built, and the answer says why it carries no stamp.
 
 ## Permissions
 
 Claude Code asks before each new tool. To allow them all, add the server's rule to your permission settings:
-`mcp__simtrail` (or `mcp__plugin_simtrail_device` for the plugin). Up to 2.2 the plugin's server was named
-`simtrail`, shown as `plugin:simtrail:simtrail`: a rule or a hook that names `mcp__plugin_simtrail_simtrail`
-names `mcp__plugin_simtrail_device` now.
+`mcp__rocketwright` (or `mcp__plugin_rocketwright_device` for the plugin). Up to 2.2 the plugin's server was named
+`rocketwright`, shown as `plugin:rocketwright:rocketwright`: a rule or a hook that names `mcp__plugin_rocketwright_rocketwright`
+names `mcp__plugin_rocketwright_device` now.
 
 ## Watch it
 
 ```sh
-simtrail open                  # or /simtrail:open with the plugin
+rocketwright open                  # or /rocketwright:open with the plugin
 ```
 
 The viewer shows the device live; every agent gesture is drawn as a cursor just before it lands
@@ -247,7 +247,7 @@ agent waits for your hand to be still before its next gesture.
 `sim_build_run` and `sim_test` run commands, so they are off by default in a standalone install:
 
 ```sh
-simtrail config set build.tools true
+rocketwright config set build.tools true
 ```
 
 They build the project in the agent's root folder with xcodebuild for its simulator, install and launch it, and answer
@@ -257,5 +257,5 @@ with only what failed and where.
 
 - Ask for snapshots, not screenshots; see [Screen understanding](../screen-understanding.md) for why.
 - A tool that says its connector cannot do something means the device is shown view-only -- neither the native
-  helper nor idb_companion could be used: run `simtrail doctor`.
-- `simtrail tools` lists what this install offers.
+  helper nor idb_companion could be used: run `rocketwright doctor`.
+- `rocketwright tools` lists what this install offers.

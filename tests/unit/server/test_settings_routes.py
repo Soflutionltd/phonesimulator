@@ -14,14 +14,14 @@ from fastapi import FastAPI, Request
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from simtrail.config.provenance import SettingOrigin
-from simtrail.core.runtime import Runtime
-from simtrail.scope import Scope
-from simtrail.seams import Refused, SettingsEditor, SettingsRefused
-from simtrail.server.settings_routes import create_settings_router, digest_of
-from simtrail.testing.asgi import HOST
-from simtrail.testing.fakes import FakeConfirmations, MemorySettingsStore, no_wait
-from simtrail.testing.rig import DeviceRig, scope
+from rocketwright.config.provenance import SettingOrigin
+from rocketwright.core.runtime import Runtime
+from rocketwright.scope import Scope
+from rocketwright.seams import Refused, SettingsEditor, SettingsRefused
+from rocketwright.server.settings_routes import create_settings_router, digest_of
+from rocketwright.testing.asgi import HOST
+from rocketwright.testing.fakes import FakeConfirmations, MemorySettingsStore, no_wait
+from rocketwright.testing.rig import DeviceRig, scope
 
 PREFIX = "/api/v1/scopes/{scope_id}/settings"
 URL = "/api/v1/scopes/tp-1/settings"
@@ -122,7 +122,7 @@ async def test_every_setting_is_shown_as_the_scope_sees_it_and_the_daemons_own_a
     here = served(tmp_path)
     here.rig.config.set_for("tp-1", stream_fps=12)
     here.rig.config.set_for("daemon", server_port=7491)
-    here.store.locked["stream_quality"] = SettingOrigin("environment", "SIMTRAIL_STREAM_QUALITY")
+    here.store.locked["stream_quality"] = SettingOrigin("environment", "ROCKETWRIGHT_STREAM_QUALITY")
     here.store.locked["max_booted"] = SettingOrigin("command_line")
     answer = await here.call("GET")
     assert answer.status_code == 200
@@ -132,12 +132,12 @@ async def test_every_setting_is_shown_as_the_scope_sees_it_and_the_daemons_own_a
     assert [section["title"] for section in view["sections"]][:3] == ["General", "Connectors", "Device"]
     fps = entry(view, "stream.fps")
     assert (fps["value"], fps["default"], fps["effect"], fps["reach"], fps["locked"]) == (12, 30, "live", "scope", None)
-    assert fps["command"] == "simtrail config set stream.fps <value> --scope tp-1"
+    assert fps["command"] == "rocketwright config set stream.fps <value> --scope tp-1"
     port = entry(view, "server.port")
     assert (port["value"], port["sensitive"], port["reach"]) == (7491, True, "global")
-    assert port["command"] == "simtrail config set server.port <value>"
+    assert port["command"] == "rocketwright config set server.port <value>"
     assert entry(view, "stream.quality")["locked"] == (
-        "Set by SIMTRAIL_STREAM_QUALITY in the daemon's environment, which config.toml cannot override: "
+        "Set by ROCKETWRIGHT_STREAM_QUALITY in the daemon's environment, which config.toml cannot override: "
         "change it there."
     )
     assert entry(view, "device.max_booted")["locked"].startswith("Set by the daemon's command line")
@@ -147,7 +147,7 @@ async def test_every_setting_is_shown_as_the_scope_sees_it_and_the_daemons_own_a
     assert entry(view, "device.type")["rule"]["suggestions"] is None
     here.keys.may_write, here.keys.may_write_sensitive = False, False
     reader = (await here.call("GET")).json()["data"]
-    assert reader["access"] == "read" and reader["notice"].endswith("open them with `simtrail open --settings`.")
+    assert reader["access"] == "read" and reader["notice"].endswith("open them with `rocketwright open --settings`.")
     here.keys.may_write, here.keys.may_write_sensitive = True, True
     assert (await here.call("GET")).json()["data"]["access"] == "write_sensitive"
 
@@ -173,7 +173,7 @@ async def test_a_page_that_may_only_read_is_told_where_to_change_them_and_nothin
     assert answer.status_code == 403
     body = answer.json()
     conforms("SettingsRefusal", body)
-    assert "open them with `simtrail open --settings`" in body["detail"] and here.store.changes == []
+    assert "open them with `rocketwright open --settings`" in body["detail"] and here.store.changes == []
 
 
 async def test_a_change_with_anything_wrong_names_each_problem_and_writes_nothing(tmp_path: Path) -> None:
@@ -198,11 +198,11 @@ async def test_a_setting_something_above_the_file_sets_is_refused_since_writing_
     tmp_path: Path,
 ) -> None:
     here = served(tmp_path)
-    here.store.locked["stream_fps"] = SettingOrigin("environment", "SIMTRAIL_STREAM_FPS")
+    here.store.locked["stream_fps"] = SettingOrigin("environment", "ROCKETWRIGHT_STREAM_FPS")
     answer = await here.call("PATCH", change(("stream.fps", 12), ("stream.quality", 60)))
     assert answer.status_code == 409
     assert [problem["path"] for problem in answer.json()["errors"]] == ["stream.fps"]
-    assert "SIMTRAIL_STREAM_FPS in the daemon's environment" in answer.json()["detail"]
+    assert "ROCKETWRIGHT_STREAM_FPS in the daemon's environment" in answer.json()["detail"]
     here.store.locked = {"server_port": SettingOrigin("command_line")}
     assert (await here.call("PATCH", change(("server.port", 7481), target="all"))).status_code == 409
     assert here.store.changes == []
@@ -219,7 +219,7 @@ async def test_a_sensitive_change_waits_for_the_code_shown_at_the_terminal_and_t
     body = first.json()
     conforms("SettingsRefusal", body)
     assert body["detail"] == (
-        "Changing build.tools needs a person at the terminal: run `simtrail settings confirm` "
+        "Changing build.tools needs a person at the terminal: run `rocketwright settings confirm` "
         "and enter the code it shows for this change."
     )
     assert body["confirmation"]["id"] == "change-1"
@@ -250,7 +250,8 @@ async def test_one_who_may_change_sensitive_settings_needs_no_code_and_without_c
     answer = await alone.call("PATCH", change(("security.allowed_origins", ["http://localhost:3000"]), target="all"))
     assert answer.status_code == 403
     assert (
-        answer.json()["detail"] == "security.allowed_origins can only be changed at the terminal (`simtrail config`)."
+        answer.json()["detail"]
+        == "security.allowed_origins can only be changed at the terminal (`rocketwright config`)."
     )
 
 
@@ -281,7 +282,7 @@ async def test_a_store_that_refuses_and_a_host_that_refuses_are_both_said(tmp_pa
 
 
 def test_a_changes_digest_is_its_content_whatever_the_order_it_was_sent_in() -> None:
-    from simtrail.server.settings_routes import SettingsChangeBody
+    from rocketwright.server.settings_routes import SettingsChangeBody
 
     one = SettingsChangeBody.model_validate(change(("stream.fps", 12), ("build.tools", True), unset=("a", "b")))
     two = SettingsChangeBody.model_validate(change(("build.tools", True), ("stream.fps", 12), unset=("b", "a")))

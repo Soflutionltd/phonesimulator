@@ -13,9 +13,9 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import Capability
-from simtrail.core.recordings import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import Capability
+from rocketwright.core.recordings import (
     PRESETS,
     CaptureRate,
     RecordingOptions,
@@ -23,10 +23,10 @@ from simtrail.core.recordings import (
     Recordings,
     RenderJob,
 )
-from simtrail.platform.errors import DeviceControlError
-from simtrail.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend
-from simtrail.testing.recording import FakeRenderer, SimctlRecorder
-from simtrail.testing.rig import VIEW_ONLY, DeviceRig, scope
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend
+from rocketwright.testing.recording import FakeRenderer, SimctlRecorder
+from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
 
 TP1 = scope("tp-1")
 WHEN = datetime(2026, 10, 31, 9, 41, 0, tzinfo=timezone.utc)

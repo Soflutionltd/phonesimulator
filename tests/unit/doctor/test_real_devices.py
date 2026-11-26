@@ -11,12 +11,12 @@ from typing import Any
 
 import pytest
 
-from simtrail._version import __version__
-from simtrail.config.model import SimConfig
-from simtrail.connectors.iphone.wda_setup import derived_for
-from simtrail.connectors.registry import ConnectorRegistry
-from simtrail.doctor.checks import DoctorContext
-from simtrail.doctor.real_devices import (
+from rocketwright._version import __version__
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.iphone.wda_setup import derived_for
+from rocketwright.connectors.registry import ConnectorRegistry
+from rocketwright.doctor.checks import DoctorContext
+from rocketwright.doctor.real_devices import (
     CAMERA_FIX,
     TOUCH_FIX,
     check_cable_screen,
@@ -26,9 +26,9 @@ from simtrail.doctor.real_devices import (
     check_touch_now,
     check_webdriveragent,
 )
-from simtrail.platform.keychain import Team
-from simtrail.testing.fakes import PHONE_UDID, FakeXcrun, fixture, fixture_json
-from simtrail.testing.wda import left_built
+from rocketwright.platform.keychain import Team
+from rocketwright.testing.fakes import PHONE_UDID, FakeXcrun, fixture, fixture_json
+from rocketwright.testing.wda import left_built
 
 XCODE = "/Applications/Xcode27.app/Contents/Developer"
 PEM = fixture("development-certificate.pem")
@@ -37,7 +37,7 @@ PEM = fixture("development-certificate.pem")
 def context(
     tmp_path: Path, *features: str, xcrun: FakeXcrun | None = None, keychain: str = "", **settings: Any
 ) -> DoctorContext:
-    helper = tmp_path / "simtrail-helper"
+    helper = tmp_path / "rocketwright-helper"
     helper.write_text("#!/bin/sh\n")
     helper.chmod(0o755)
     said = json.dumps({"version": __version__, "wire": 1, "core_simulator": None, "features": list(features)})
@@ -54,7 +54,7 @@ def context(
         registry=ConnectorRegistry([]),
         run=run,
         xcrun=xcrun or FakeXcrun().with_devicectl(),
-        env={"SIMTRAIL_STATE_DIR": str(tmp_path / "state")},
+        env={"ROCKETWRIGHT_STATE_DIR": str(tmp_path / "state")},
         helper_candidates=lambda: (helper,),
     )
 
@@ -113,7 +113,7 @@ async def test_webdriveragent_is_checked_for_its_team_and_its_build(
         far = datetime(2126, 1, 1, tzinfo=timezone.utc)
         return [Team("TEAMAAAAA1", "One", far), Team("TEAMBBBBB2", "Two", far)]
 
-    monkeypatch.setattr("simtrail.doctor.real_devices.development_teams", several)
+    monkeypatch.setattr("rocketwright.doctor.real_devices.development_teams", several)
     each = await check_webdriveragent(context(tmp_path))
     assert each.status == "ok" and each.detail.startswith("signed by each project's own team")
 
@@ -170,7 +170,7 @@ async def test_the_camera_check_says_what_the_cable_screen_s_helper_last_said_in
     (logs / "native-aaaa.log").write_text("[info] serving SIM on /s\n[error] the simulator went away\n")
     assert (await check_camera(ctx)).detail == nothing.detail
     camera = (
-        "macOS has not let simtrail-helper use the Camera, which reading a cabled device's screen needs: allow it "
+        "macOS has not let rocketwright-helper use the Camera, which reading a cabled device's screen needs: allow it "
         "in System Settings > Privacy & Security > Camera"
     )
     phone = logs / "native-bbbb.log"
@@ -188,7 +188,7 @@ async def test_the_camera_check_says_what_the_cable_screen_s_helper_last_said_in
         f"[info] serving the screen of {PHONE_UDID} on /s\n[info] reading the screen of Test iPhone from capture x\n"
     )
     allowed = await check_camera(ctx)
-    read = "macOS lets simtrail-helper use the Camera: it read a cabled device"
+    read = "macOS lets rocketwright-helper use the Camera: it read a cabled device"
     assert (allowed.status, allowed.detail) == ("ok", read)
     locked = "Test iPhone has sent no picture of its screen in 15 seconds: is it unlocked?"
     phone.write_text(f"[info] serving the screen of {PHONE_UDID} on /s\n[error] {locked}\n")

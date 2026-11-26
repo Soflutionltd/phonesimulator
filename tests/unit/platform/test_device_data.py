@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.platform.device_data import DEVICES_DIR_ENV, device_data_dir, devices_dir, folder_size, user_apps
+from rocketwright.platform.device_data import DEVICES_DIR_ENV, device_data_dir, devices_dir, folder_size, user_apps
 
 UDID = "7A4C5B2E-9E2B-4C43-9F3A-2D0C3F0B6E11"
 

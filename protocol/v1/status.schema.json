@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/status.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/status.schema.json",
   "title": "StatusEvent",
   "description": "How the device stands: sent on the screen socket after the stream starts, and whenever that changes.",
   "allOf": [

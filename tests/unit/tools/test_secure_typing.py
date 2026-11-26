@@ -12,15 +12,15 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError
-from simtrail.core.actions import AgentActions
-from simtrail.core.instance import DeviceInstance
-from simtrail.seams import Caller
-from simtrail.testing.fakes import no_wait
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.tools.context import ToolContext
-from simtrail.tools.registry import ToolRegistry
-from simtrail.tools.results import Result
+from rocketwright.connectors.base import ConnectorError
+from rocketwright.core.actions import AgentActions
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import no_wait
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.tools.context import ToolContext
+from rocketwright.tools.registry import ToolRegistry
+from rocketwright.tools.results import Result
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 PASSWORD = "S3cr3t-hunter"
@@ -145,7 +145,7 @@ async def test_a_character_with_no_key_is_not_named_when_the_text_is_a_password(
 
 
 def test_a_context_with_no_mask_hides_nothing_and_does_not_fail(tmp_path: Path) -> None:
-    from simtrail.tools.act import hide_typed
+    from rocketwright.tools.act import hide_typed
 
     r = Rigged(tmp_path)
     assert r.ctx.secrets is None, "only the registry gives a call its mask"

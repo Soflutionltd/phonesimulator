@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.build import xctestplan
-from simtrail.build.schemes import plan_references, scheme_files
-from simtrail.build.xctestplan import chosen_plan, enabled_targets, plan_path, planned_targets
-from simtrail.testing.fakes import fixture
+from rocketwright.build import xctestplan
+from rocketwright.build.schemes import plan_references, scheme_files
+from rocketwright.build.xctestplan import chosen_plan, enabled_targets, plan_path, planned_targets
+from rocketwright.testing.fakes import fixture
 
 SCHEME = fixture("xcscheme-test-plans.xcscheme")
 UNITS_ONLY = fixture("xctestplan-units-only.xctestplan")

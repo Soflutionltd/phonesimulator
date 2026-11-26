@@ -1,12 +1,12 @@
 # Writing a connector
 
-A connector reaches a device, says what it can do there, and hands over the parts Simtrail drives. Read
+A connector reaches a device, says what it can do there, and hands over the parts Rocketwright drives. Read
 [Connectors](../connectors.md) first, and start from the
 [example connector](../../examples/custom-connector/), which is complete and tested.
 
 The connector interface is **not stable in 1.x** ([Stability](../stability.md#what-is-not-covered)): a native helper,
 real devices and Android will reshape it. A connector published outside this repository should pin a minor version of
-Simtrail, such as `simtrail>=1.0,<1.1`.
+Rocketwright, such as `rocketwright>=1.0,<1.1`.
 
 ## The protocol
 
@@ -31,7 +31,7 @@ cheap and side-effect free: look for binaries and versions, never start anything
 
 - Available: `ConnectorReport(name, True, capabilities, versions)`, with no reasons.
 - Not available: `ConnectorReport(name, False, reasons=(...))`, each reason something a person can act on ("the native
-  helper is not built for this install: simtrail helper build").
+  helper is not built for this install: rocketwright helper build").
 
 ### `attach(udid, config)`
 
@@ -51,7 +51,7 @@ Reach a **booted** device and answer a `DeviceSession`:
 
 Coordinates are the device's **points**, in portrait: the screen's own, which do not turn when an app does. A
 `ScreenReader` whose tree is in the points of an app turned on the screen says which way in its document's
-`orientation` (`portrait`, `portrait_upside_down`, `landscape_left`, `landscape_right`), and Simtrail turns what agents
+`orientation` (`portrait`, `portrait_upside_down`, `landscape_left`, `landscape_right`), and Rocketwright turns what agents
 see and do to match (`perception.orientation`). Raise `ConnectorUnavailable(message, status)` when the device
 cannot be reached.
 
@@ -68,7 +68,7 @@ def create(context: ConnectorContext) -> MyConnector:
 ```
 
 ```toml
-[project.entry-points."simtrail.connectors"]
+[project.entry-points."rocketwright.connectors"]
 mine = "my_package.connector:create"
 ```
 
@@ -86,7 +86,7 @@ logged and left out.
 
 ## Testing
 
-`simtrail.testing.contract.check_connector(connector, config, udid)` checks every promise at once -- the report, each
+`rocketwright.testing.contract.check_connector(connector, config, udid)` checks every promise at once -- the report, each
 role, closing twice, reaping -- against your own fakes, and lists everything broken:
 
 ```python
@@ -98,6 +98,6 @@ Never start a real simulator or helper from a test: fake the layer that starts p
 
 ## Contributing a connector here
 
-Open an issue first. A built-in connector lives in `src/simtrail/connectors/<name>/`, is added to
+Open an issue first. A built-in connector lives in `src/rocketwright/connectors/<name>/`, is added to
 `scripts/check_containment.py`'s allowed modules if it runs a program, passes `tests/contract/`, and gets rows in
 `compat/matrix.toml`.

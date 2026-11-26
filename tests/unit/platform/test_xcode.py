@@ -5,8 +5,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from simtrail.platform.xcode import VERSION_TIMEOUT_S, xcode_installed, xcode_version
-from simtrail.testing.fakes import FakeXcrun
+from rocketwright.platform.xcode import VERSION_TIMEOUT_S, xcode_installed, xcode_version
+from rocketwright.testing.fakes import FakeXcrun
 
 DEVELOPER = "/Applications/Xcode.app/Contents/Developer"
 

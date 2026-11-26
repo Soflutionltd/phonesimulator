@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/hello.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/hello.schema.json",
   "title": "Hello",
   "description": "The first message each way on a screen socket: the server says what it offers, and the client answers with the encodings it decodes, most preferred first.",
   "anyOf": [{ "$ref": "#/$defs/ServerHello" }, { "$ref": "#/$defs/ClientHello" }],
@@ -11,7 +11,7 @@
       "properties": {
         "type": { "const": "hello" },
         "v": { "const": 1 },
-        "server": { "type": "string", "description": "The server's name and version, such as simtrail/0.1.0." },
+        "server": { "type": "string", "description": "The server's name and version, such as rocketwright/0.1.0." },
         "encodings": {
           "type": "array",
           "items": { "$ref": "common.schema.json#/$defs/Encoding" },

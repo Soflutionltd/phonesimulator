@@ -18,7 +18,7 @@ fn main() {
                     })
                     .build()?;
             #[cfg(debug_assertions)]
-            if std::env::var_os("SIMTRAIL_WEB_BRIDGE").is_some() {
+            if std::env::var_os("ROCKETWRIGHT_WEB_BRIDGE").is_some() {
                 app.manage(mirror::start(window)?);
             }
             #[cfg(not(debug_assertions))]

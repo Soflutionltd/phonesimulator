@@ -31,19 +31,19 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import IO, Any
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.android.connector import AndroidConnector
-from simtrail.connectors.base import Capability, Connector, ConnectorError, DeviceSession, HidEvent, Screen
-from simtrail.connectors.registry import ConnectorContext, ConnectorRegistry
-from simtrail.core.android_control import AndroidControl
-from simtrail.core.android_devices import AndroidServices
-from simtrail.host_copy import HostCopy
-from simtrail.perception.model import ElementNode
-from simtrail.perception.readers import tree_from_document
-from simtrail.platform.errors import DeviceControlError
-from simtrail.platform.simctl import Simctl, SimctlError
-from simtrail.platform.xcrun import run_xcrun
-from simtrail.storage.app_support import AppSupportStateStore
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.android.connector import AndroidConnector
+from rocketwright.connectors.base import Capability, Connector, ConnectorError, DeviceSession, HidEvent, Screen
+from rocketwright.connectors.registry import ConnectorContext, ConnectorRegistry
+from rocketwright.core.android_control import AndroidControl
+from rocketwright.core.android_devices import AndroidServices
+from rocketwright.host_copy import HostCopy
+from rocketwright.perception.model import ElementNode
+from rocketwright.perception.readers import tree_from_document
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.platform.simctl import Simctl, SimctlError
+from rocketwright.platform.xcrun import run_xcrun
+from rocketwright.storage.app_support import AppSupportStateStore
 from tool_budget import percentile
 
 SETTINGS_APP = "com.apple.Preferences"

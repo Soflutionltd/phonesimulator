@@ -5,13 +5,13 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import Screen
-from simtrail.perception.model import ElementNode, Frame, ScreenTree
-from simtrail.perception.orientation import Interface
-from simtrail.perception.readers import DocumentReader, tree_from_document
-from simtrail.perception.snapshot import build
-from simtrail.perception.system_alert import as_drawn
-from simtrail.testing.fakes import SCREEN, FakeEngine, fixture_json
+from rocketwright.connectors.base import Screen
+from rocketwright.perception.model import ElementNode, Frame, ScreenTree
+from rocketwright.perception.orientation import Interface
+from rocketwright.perception.readers import DocumentReader, tree_from_document
+from rocketwright.perception.snapshot import build
+from rocketwright.perception.system_alert import as_drawn
+from rocketwright.testing.fakes import SCREEN, FakeEngine, fixture_json
 
 IPAD = Screen(width_px=2064, height_px=2752, width_pt=1032, height_pt=1376, scale=2.0)
 #: Recorded on iOS 26.5 with the device turned as Simulator.app turns it, through idb_companion and the native helper.

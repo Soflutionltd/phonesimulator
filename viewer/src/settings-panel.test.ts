@@ -195,8 +195,8 @@ describe('the settings panel', () => {
 
   it('asks for the terminal’s code for a sensitive change and sends the same change again with it', async () => {
     const refusal = {
-      detail: 'Changing server.port needs a person at the terminal: run `simtrail settings confirm`.', errors: [],
-      confirmation: { id: 'c1', summary: 'demo: server.port = 7481', command: 'simtrail settings confirm', expires_in_s: 300 },
+      detail: 'Changing server.port needs a person at the terminal: run `rocketwright settings confirm`.', errors: [],
+      confirmation: { id: 'c1', summary: 'demo: server.port = 7481', command: 'rocketwright settings confirm', expires_in_s: 300 },
     }
     const changeSettings = vi.fn()
       .mockRejectedValueOnce(new TransportError(refusal.detail, 428, refusal))

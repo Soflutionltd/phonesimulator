@@ -5,10 +5,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from simtrail._version import __version__
-from simtrail.doctor.macos import DEVICE_HUB_FIX, check_accessibility, check_device_hub, check_gui_session
-from simtrail.doctor.report import CheckResult, Report
-from simtrail.protocol import PROTOCOL_VERSION
+from rocketwright._version import __version__
+from rocketwright.doctor.macos import DEVICE_HUB_FIX, check_accessibility, check_device_hub, check_gui_session
+from rocketwright.doctor.report import CheckResult, Report
+from rocketwright.protocol import PROTOCOL_VERSION
 
 
 def runs(answers: dict[tuple[str, ...], tuple[int, str]]):  # type: ignore[no-untyped-def]
@@ -35,7 +35,7 @@ def test_a_report_fails_when_anything_failed_warns_when_something_warned_and_say
         "      fix: Install Xcode",
     ]
     assert report.to_dict() == {
-        "simtrail": __version__,
+        "rocketwright": __version__,
         "protocol": PROTOCOL_VERSION,
         "status": "fail",
         "checks": [
@@ -68,7 +68,7 @@ async def test_simulators_need_a_desktop_session_and_accessibility_is_never_aske
 
 
 def test_permissions_are_only_read_from_well_formed_helper_reports(tmp_path) -> None:
-    from simtrail.doctor.macos import check_permission
+    from rocketwright.doctor.macos import check_permission
 
     path = tmp_path / "native-app.log"
     assert check_permission("screen recording", tmp_path).status == "skip"
@@ -84,9 +84,9 @@ def test_permissions_are_only_read_from_well_formed_helper_reports(tmp_path) -> 
 
 
 def test_a_refused_permission_names_the_one_installed_helper_to_allow(tmp_path) -> None:
-    from simtrail.doctor.macos import SIGN_FIRST, check_permission
+    from rocketwright.doctor.macos import SIGN_FIRST, check_permission
 
-    installed = tmp_path / "state" / "helper" / "simtrail-helper"
+    installed = tmp_path / "state" / "helper" / "rocketwright-helper"
     (tmp_path / "native-app.log").write_text(
         'mac-permissions: {"parts":[{"name":"screen_recording","ok":false},{"name":"accessibility","ok":false}]}\n'
     )

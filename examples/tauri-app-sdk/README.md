@@ -8,12 +8,12 @@ make sdk-tauri-sample
 open -g -n examples/tauri-app-sdk/target/MacWebSample.app
 ```
 
-Mode B requires no bridge: choose the running app in Simtrail, then inspect its AX tree and the results of each action.
+Mode B requires no bridge: choose the running app in Rocketwright, then inspect its AX tree and the results of each action.
 
 For Mode C, quit the sample and run:
 
 ```sh
-open -g -n --env SIMTRAIL_WEB_BRIDGE=1 examples/tauri-app-sdk/target/MacWebSample.app
+open -g -n --env ROCKETWRIGHT_WEB_BRIDGE=1 examples/tauri-app-sdk/target/MacWebSample.app
 ```
 
  `src/mirror.rs` registers its own window,

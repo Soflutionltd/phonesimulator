@@ -9,12 +9,12 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from simtrail._version import __version__
-from simtrail.config.model import SimConfig
-from simtrail.connectors.app.discovery import AppListing
-from simtrail.connectors.base import Capability, ConnectorError, ConnectorUnavailable, HidEvent
-from simtrail.connectors.mac import connector as module
-from simtrail.connectors.mac.connector import (
+from rocketwright._version import __version__
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.app.discovery import AppListing
+from rocketwright.connectors.base import Capability, ConnectorError, ConnectorUnavailable, HidEvent
+from rocketwright.connectors.mac import connector as module
+from rocketwright.connectors.mac.connector import (
     CAPABILITIES,
     INPUT,
     OVERLAY_QUEUE,
@@ -24,14 +24,14 @@ from simtrail.connectors.mac.connector import (
     MacWindows,
     create,
 )
-from simtrail.connectors.native.helper import FoundHelper, HelperVersion
-from simtrail.connectors.registry import ConnectorContext
-from simtrail.core.gestures import KEYS
-from simtrail.host_copy import HostCopy
-from simtrail.platform.macos import MacApp
-from simtrail.testing.app_sdk import app_hierarchy, app_node
-from simtrail.testing.fakes import MemoryStateStore
-from simtrail.testing.macos import FakeMacOS
+from rocketwright.connectors.native.helper import FoundHelper, HelperVersion
+from rocketwright.connectors.registry import ConnectorContext
+from rocketwright.core.gestures import KEYS
+from rocketwright.host_copy import HostCopy
+from rocketwright.platform.macos import MacApp
+from rocketwright.testing.app_sdk import app_hierarchy, app_node
+from rocketwright.testing.fakes import MemoryStateStore
+from rocketwright.testing.macos import FakeMacOS
 
 APP = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
 CONFIG = SimConfig.defaults()
@@ -240,7 +240,7 @@ async def test_a_menu_the_bridge_has_no_hook_for_goes_to_the_menu_bar_through_ac
 
 def test_the_session_says_what_drives_the_app():
     assert module._note(None).startswith("App-scoped accessibility")
-    assert module._note(LISTING) == "App-scoped SimtrailKit input."
+    assert module._note(LISTING) == "App-scoped RocketwrightKit input."
     assert "debug bridge" in module._note(BRIDGE)
 
 

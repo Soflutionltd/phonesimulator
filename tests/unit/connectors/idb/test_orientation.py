@@ -7,11 +7,11 @@ import asyncio
 from collections.abc import Sequence
 from typing import Any
 
-from simtrail.connectors.base import Screen
-from simtrail.connectors.idb.orientation import Hit, candidates, find, frame_of, leaves
-from simtrail.perception.model import Frame
-from simtrail.perception.orientation import Interface, Orientation
-from simtrail.testing.fakes import SCREEN
+from rocketwright.connectors.base import Screen
+from rocketwright.connectors.idb.orientation import Hit, candidates, find, frame_of, leaves
+from rocketwright.perception.model import Frame
+from rocketwright.perception.orientation import Interface, Orientation
+from rocketwright.testing.fakes import SCREEN
 
 LANDSCAPE = Frame(0, 0, 874, 402)
 UPRIGHT = Frame(0, 0, 402, 874)

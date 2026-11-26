@@ -10,14 +10,14 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.core.backends import PhysicalBackend
-from simtrail.core.control import DisplayState, InstalledApp, NoDeviceLogs, PhysicalControl, bundle_executable
-from simtrail.core.devices import DeviceRef, NoDevice
-from simtrail.core.instance import DeviceInstance
-from simtrail.platform.devicectl import Devicectl, DevicectlError, PhysicalDevice
-from simtrail.testing.fakes import PHONE_UDID, FakeXcrun, fixture_json
-from simtrail.testing.rig import scope
+from rocketwright.config.model import SimConfig
+from rocketwright.core.backends import PhysicalBackend
+from rocketwright.core.control import DisplayState, InstalledApp, NoDeviceLogs, PhysicalControl, bundle_executable
+from rocketwright.core.devices import DeviceRef, NoDevice
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.platform.devicectl import Devicectl, DevicectlError, PhysicalDevice
+from rocketwright.testing.fakes import PHONE_UDID, FakeXcrun, fixture_json
+from rocketwright.testing.rig import scope
 
 SECOND = "00008150-0099887766554433"
 ON = SimConfig.defaults().with_values(real_devices=True, developer_dir="/X.app/Contents/Developer")

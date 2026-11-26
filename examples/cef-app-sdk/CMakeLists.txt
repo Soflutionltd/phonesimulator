@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Synthetic CEF host for Simtrail's CEF adapter. Configure with an extracted CEF binary distribution:
+# Synthetic CEF host for Rocketwright's CEF adapter. Configure with an extracted CEF binary distribution:
 #   cmake -S examples/cef-app-sdk -B <build> -G Ninja -DCEF_ROOT=<cef_binary_...> -DCMAKE_BUILD_TYPE=Debug
 cmake_minimum_required(VERSION 3.21)
-project(simtrail_cef_sample LANGUAGES C CXX OBJCXX)
+project(rocketwright_cef_sample LANGUAGES C CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,18 +18,18 @@ include(cef_macros)
 include(cef_variables)
 add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper)
 
-option(SIMTRAIL_CEF_BRIDGE "Compile Simtrail's Debug CEF bridge into the sample" ON)
+option(ROCKETWRIGHT_CEF_BRIDGE "Compile Rocketwright's Debug CEF bridge into the sample" ON)
 
-set(CEF_TARGET "simtrail_cef_sample")
+set(CEF_TARGET "rocketwright_cef_sample")
 SET_CEF_TARGET_OUT_DIR()
 set(CEF_APP "${CEF_TARGET_OUT_DIR}/CEF Sample.app")
-set(SAMPLE_HELPER_TARGET "simtrail_cef_sample_Helper")
+set(SAMPLE_HELPER_TARGET "rocketwright_cef_sample_Helper")
 set(SAMPLE_HELPER_NAME "CEF Sample Helper")
 set(SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../sdk/cef")
 
 set(SAMPLE_DEFINES)
-if(SIMTRAIL_CEF_BRIDGE)
-  list(APPEND SAMPLE_DEFINES SIMTRAIL_CEF_BRIDGE=1)
+if(ROCKETWRIGHT_CEF_BRIDGE)
+  list(APPEND SAMPLE_DEFINES ROCKETWRIGHT_CEF_BRIDGE=1)
 endif()
 
 add_executable(${CEF_TARGET} MACOSX_BUNDLE src/main_mac.mm src/sample_app.cc src/sample_app.h src/page.html)
@@ -41,7 +41,7 @@ set_source_files_properties(src/page.html PROPERTIES MACOSX_PACKAGE_LOCATION Res
 set_target_properties(${CEF_TARGET} PROPERTIES
   OUTPUT_NAME "CEF Sample"
   MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/macos/Info.plist.in"
-  MACOSX_BUNDLE_GUI_IDENTIFIER "dev.simtrail.CEFSample")
+  MACOSX_BUNDLE_GUI_IDENTIFIER "dev.rocketwright.CEFSample")
 COPY_MAC_FRAMEWORK("${CEF_TARGET}" "${CEF_BINARY_DIR}" "${CEF_APP}")
 
 foreach(_suffix_list ${CEF_HELPER_APP_SUFFIXES})

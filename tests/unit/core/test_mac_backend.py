@@ -8,13 +8,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.core.devices import NoDevice
-from simtrail.core.mac_backend import MacBackend, MacControl
-from simtrail.platform.errors import DeviceControlError
-from simtrail.platform.macos import MacApp
-from simtrail.testing.macos import FakeMacOS
-from simtrail.testing.rig import scope
+from rocketwright.config.model import SimConfig
+from rocketwright.core.devices import NoDevice
+from rocketwright.core.mac_backend import MacBackend, MacControl
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.platform.macos import MacApp
+from rocketwright.testing.macos import FakeMacOS
+from rocketwright.testing.rig import scope
 
 APP = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
 CONFIG = SimConfig.defaults()
@@ -91,7 +91,7 @@ async def test_control_is_bound_to_the_bundle_and_exact_path(tmp_path: Path) -> 
     [
         ("openurl", ("https://example.test",), "another app"),
         ("pbcopy", ("text",), "shared"),
-        ("appearance", ("dark",), "SimtrailKit"),
+        ("appearance", ("dark",), "RocketwrightKit"),
         ("text_size", ("large",), "system-wide"),
         ("contrast", (True,), "system-wide"),
         ("reduce_motion", (True,), "system-wide"),

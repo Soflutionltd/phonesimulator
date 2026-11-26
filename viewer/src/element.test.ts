@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeSocket } from '../test-support/fake-socket'
-import { defineSimtrailElement, ELEMENT_NAME, SimtrailElement } from './element'
+import { defineRocketwrightElement, ELEMENT_NAME, RocketwrightElement } from './element'
 import type { Started } from './protocol.generated'
 import { STYLE_ID } from './styles'
-import type { SimtrailTransport } from './transport'
+import type { RocketwrightTransport } from './transport'
 
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve() }
 
@@ -26,8 +26,8 @@ function transport() {
 
 const answering = () => vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ ok: true, data: STARTED }) }))
 
-function element(attributes: Record<string, string> = {}): SimtrailElement {
-  const el = document.createElement(ELEMENT_NAME) as SimtrailElement
+function element(attributes: Record<string, string> = {}): RocketwrightElement {
+  const el = document.createElement(ELEMENT_NAME) as RocketwrightElement
   for (const [name, value] of Object.entries(attributes)) el.setAttribute(name, value)
   return el
 }
@@ -36,7 +36,7 @@ beforeEach(() => {
   FakeSocket.reset()
   vi.stubGlobal('WebSocket', FakeSocket)
   HTMLCanvasElement.prototype.getContext = vi.fn(() => ({ drawImage: vi.fn() })) as never
-  defineSimtrailElement()
+  defineRocketwrightElement()
 })
 
 afterEach(() => {
@@ -44,13 +44,13 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('<simtrail>', () => {
+describe('<rocketwright>', () => {
   it('is defined once under its name, and a name already taken is left alone', () => {
     const registry = { get: vi.fn(() => undefined), define: vi.fn() }
-    defineSimtrailElement('simtrail-other', registry as unknown as CustomElementRegistry)
+    defineRocketwrightElement('rocketwright-other', registry as unknown as CustomElementRegistry)
     expect(registry.define).toHaveBeenCalledOnce()
-    const taken = { get: vi.fn(() => SimtrailElement), define: vi.fn() }
-    defineSimtrailElement(ELEMENT_NAME, taken as unknown as CustomElementRegistry)
+    const taken = { get: vi.fn(() => RocketwrightElement), define: vi.fn() }
+    defineRocketwrightElement(ELEMENT_NAME, taken as unknown as CustomElementRegistry)
     expect(taken.define).not.toHaveBeenCalled()
     expect(customElements.get(ELEMENT_NAME)).toBeDefined()
   })
@@ -84,10 +84,10 @@ describe('<simtrail>', () => {
 
   it('tells the page how the device stands, and when a person places or closes it', async () => {
     const el = element({ placement: 'dock' })
-    el.transport = transport() as unknown as SimtrailTransport
+    el.transport = transport() as unknown as RocketwrightTransport
     const heard: Array<[string, unknown]> = []
     for (const type of ['state', 'place', 'close']) {
-      el.addEventListener(`simtrail:${type}`, (event) => heard.push([type, (event as CustomEvent).detail]))
+      el.addEventListener(`rocketwright:${type}`, (event) => heard.push([type, (event as CustomEvent).detail]))
     }
     document.body.appendChild(el)
     await flush()
@@ -115,7 +115,7 @@ describe('<simtrail>', () => {
     vi.stubGlobal('fetch', fetcher)
     const el = element({ server: 'http://127.0.0.1:7466', scope: 'demo', device: 'U2' })
     const picked: unknown[] = []
-    el.addEventListener('simtrail:device', (event) => picked.push((event as CustomEvent).detail))
+    el.addEventListener('rocketwright:device', (event) => picked.push((event as CustomEvent).detail))
     document.body.appendChild(el)
     await flush()
     expect(fetcher).toHaveBeenCalledWith('http://127.0.0.1:7466/api/v1/scopes/demo?udid=U2', expect.anything())
@@ -147,12 +147,12 @@ describe('<simtrail>', () => {
     expect(el.view).toBeNull()
     expect(el.shadowRoot!.children).toHaveLength(0)
     const first = transport()
-    el.transport = first as unknown as SimtrailTransport
+    el.transport = first as unknown as RocketwrightTransport
     await flush()
     expect(el.view).not.toBeNull()
     expect(first.start).toHaveBeenCalledOnce()
     const second = transport()
-    el.transport = second as unknown as SimtrailTransport
+    el.transport = second as unknown as RocketwrightTransport
     await flush()
     expect(second.start).toHaveBeenCalledOnce()
     expect(el.transport).toBe(second)

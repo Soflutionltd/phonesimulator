@@ -2,7 +2,7 @@
 /**
  * How the viewer reaches its server: a scope's HTTP routes, and its screen socket's URL.
  *
- * `createHttpTransport` talks to a Simtrail daemon or any host that mounts Simtrail's routers. A host with its own
+ * `createHttpTransport` talks to a Rocketwright daemon or any host that mounts Rocketwright's routers. A host with its own
  * API client -- its own authentication, its own error handling -- passes an object of this shape instead.
  *
  * A transport speaks of the scope's own device -- the one a person's pick (`choose`) replaces -- unless it was told to
@@ -32,7 +32,7 @@ export interface RecordingAsk {
  * older server, leaves it out. */
 export type StoppedRecording = Recording & { rendering?: boolean }
 
-export interface SimtrailTransport {
+export interface RocketwrightTransport {
   /** A frozen device frame and the bounds a person can inspect without touching it. */
   captureScene?(): Promise<CaptureScene>
   /** Whether the scope can have a simulator, why not, and how its device stands. */

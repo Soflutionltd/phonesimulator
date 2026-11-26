@@ -7,12 +7,12 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import Screen
-from simtrail.connectors.mcpbridge import hierarchy
-from simtrail.connectors.mcpbridge.hierarchy import document_from_hierarchy
-from simtrail.perception.readers import tree_from_document
-from simtrail.perception.snapshot import build
-from simtrail.testing.fakes import fixture
+from rocketwright.connectors.base import Screen
+from rocketwright.connectors.mcpbridge import hierarchy
+from rocketwright.connectors.mcpbridge.hierarchy import document_from_hierarchy
+from rocketwright.perception.readers import tree_from_document
+from rocketwright.perception.snapshot import build
+from rocketwright.testing.fakes import fixture
 
 SCREEN = Screen(1206, 2622, 402, 874, 3.0)
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The composition root: Simtrail put together from seams, started and closed, told of changed settings, and the one
+"""The composition root: Rocketwright put together from seams, started and closed, told of changed settings, and the one
 answer to whether a scope's agents may use their tools now."""
 
 from __future__ import annotations
@@ -9,22 +9,22 @@ import dataclasses
 from pathlib import Path
 from types import SimpleNamespace
 
-from simtrail.build.xcodebuild import BuildRunner
-from simtrail.config.toml_source import TomlConfigSource
-from simtrail.connectors.app.merge import AppHierarchyMerge
-from simtrail.connectors.base import Capability
-from simtrail.connectors.mcpbridge.merge import HierarchyMerge
-from simtrail.core.android_backend import AndroidBackend
-from simtrail.core.android_devices import AndroidServices
-from simtrail.core.instance import DeviceInstance
-from simtrail.core.recordings import RecordingOptions
-from simtrail.core.runtime import Runtime, default_recordings
-from simtrail.core.screen_relay import ScreenRelay
-from simtrail.perception.readers import CombinedExtraReaders
-from simtrail.perception.vision.helper import VisionHelpers
-from simtrail.scope import Scope
-from simtrail.seams import Caller
-from simtrail.testing.fakes import (
+from rocketwright.build.xcodebuild import BuildRunner
+from rocketwright.config.toml_source import TomlConfigSource
+from rocketwright.connectors.app.merge import AppHierarchyMerge
+from rocketwright.connectors.base import Capability
+from rocketwright.connectors.mcpbridge.merge import HierarchyMerge
+from rocketwright.core.android_backend import AndroidBackend
+from rocketwright.core.android_devices import AndroidServices
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.core.recordings import RecordingOptions
+from rocketwright.core.runtime import Runtime, default_recordings
+from rocketwright.core.screen_relay import ScreenRelay
+from rocketwright.perception.readers import CombinedExtraReaders
+from rocketwright.perception.vision.helper import VisionHelpers
+from rocketwright.scope import Scope
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import (
     BOOTED_UDID,
     FakeConnector,
     FakeProcess,
@@ -34,9 +34,9 @@ from simtrail.testing.fakes import (
     fixture_udid,
     no_wait,
 )
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.testing.vision import FakeTextRecognizer, text_line
-from simtrail.tools.device import VERSION_LINE, device_line
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.testing.vision import FakeTextRecognizer, text_line
+from rocketwright.tools.device import VERSION_LINE, device_line
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Codex")
 
@@ -187,12 +187,12 @@ async def test_an_agent_is_offered_its_tools_only_while_the_simulator_and_its_ag
     said = await runtime.call(CALLER, "sim_device", {})
     assert said["content"][0]["text"] == f"No simulator is running here; sim_device boot starts one.\n{VERSION_LINE}"
     rig.config.set(agent_tools=False)
-    off = "The iOS Simulator's agent tools are off for this project (`simtrail config`)."
+    off = "The iOS Simulator's agent tools are off for this project (`rocketwright config`)."
     assert await runtime.manifest(CALLER.scope) == {"tools": [], "instructions": off}
     assert (await runtime.call(CALLER, "sim_device", {}))["isError"] is True
     rig.config.set(agent_tools=True, enabled=False)
     refused = await runtime.call(CALLER, "sim_device", {})
-    assert refused["content"][0]["text"] == "The iOS Simulator is off for this project (`simtrail config`)."
+    assert refused["content"][0]["text"] == "The iOS Simulator is off for this project (`rocketwright config`)."
 
 
 async def test_a_call_tells_the_screens_its_agent_is_working_before_and_after_it_runs(tmp_path: Path) -> None:

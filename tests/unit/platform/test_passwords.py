@@ -14,8 +14,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.platform import passwords
-from simtrail.platform.passwords import (
+from rocketwright.platform import passwords
+from rocketwright.platform.passwords import (
     Bitwarden,
     Command,
     Credentials,

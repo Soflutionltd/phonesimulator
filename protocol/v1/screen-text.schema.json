@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/screen-text.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/screen-text.schema.json",
   "title": "ScreenText",
   "description": "The text a reading of the screen's pixels found, and where, while the scope's perception.ocr_overlay is on. Each replaces the last; one with no boxes clears them, sent when the screen is about to change or the overlay is turned off. A viewer draws the boxes over the screen, never into it.",
   "type": "object",

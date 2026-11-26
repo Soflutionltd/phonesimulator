@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The build tools on a Flutter app: flutter builds it and Simtrail installs and launches it, its tests run, and
+"""The build tools on a Flutter app: flutter builds it and Rocketwright installs and launches it, its tests run, and
 `sim_flutter` keeps it running for hot reloads -- stopped when the agent's connection ends, when its scope may no
-longer build, and when Simtrail stops."""
+longer build, and when Rocketwright stops."""
 
 from __future__ import annotations
 
@@ -12,16 +12,16 @@ from typing import Any
 
 import pytest
 
-from simtrail.build.flutter import FlutterToolchain
-from simtrail.build.flutter_run import FlutterSessions
-from simtrail.build.source import Source
-from simtrail.build.xcodebuild import BuildRunner
-from simtrail.core.actions import AgentActions
-from simtrail.core.runtime import Runtime
-from simtrail.platform.flutter import FlutterSdk
-from simtrail.seams import Caller
-from simtrail.testing.fakes import fixture, made, no_wait
-from simtrail.testing.flutter import (
+from rocketwright.build.flutter import FlutterToolchain
+from rocketwright.build.flutter_run import FlutterSessions
+from rocketwright.build.source import Source
+from rocketwright.build.xcodebuild import BuildRunner
+from rocketwright.core.actions import AgentActions
+from rocketwright.core.runtime import Runtime
+from rocketwright.platform.flutter import FlutterSdk
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import fixture, made, no_wait
+from rocketwright.testing.flutter import (
     COMPILE_ERROR,
     IOS_ID,
     SDK,
@@ -31,12 +31,12 @@ from simtrail.testing.flutter import (
     Reload,
     flutter_project,
 )
-from simtrail.testing.results import structured
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.testing.vision import FakeTextRecognizer
-from simtrail.tools.context import ToolContext
-from simtrail.tools.registry import ToolRegistry
-from simtrail.tools.results import Result
+from rocketwright.testing.results import structured
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.testing.vision import FakeTextRecognizer
+from rocketwright.tools.context import ToolContext
+from rocketwright.tools.registry import ToolRegistry
+from rocketwright.tools.results import Result
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · groceries")
 REGISTRY = ToolRegistry()
@@ -254,7 +254,7 @@ async def test_the_runtime_stops_an_agents_flutter_apps_when_it_goes_or_may_no_l
 
 
 async def test_the_flutter_tool_is_listed_with_the_build_tools() -> None:
-    from simtrail.config.model import SimConfig
+    from rocketwright.config.model import SimConfig
 
     names = [
         tool["name"] for tool in REGISTRY.manifest(dataclasses.replace(SimConfig.defaults(), build_tools=True))["tools"]

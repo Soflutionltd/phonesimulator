@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest something Simtrail should do.
+description: Suggest something Rocketwright should do.
 labels: ["type:feature"]
 body:
   - type: textarea

@@ -5,9 +5,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from simtrail.platform.swiftpm import BUILD_TIMEOUT_S, SwiftBuild, build_argv, build_package
-from simtrail.platform.xcrun import XcrunResult
-from simtrail.testing.fakes import FakeXcrun
+from rocketwright.platform.swiftpm import BUILD_TIMEOUT_S, SwiftBuild, build_argv, build_package
+from rocketwright.platform.xcrun import XcrunResult
+from rocketwright.testing.fakes import FakeXcrun
 
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
 

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """A real device's lifecycle on a cabled phone: never run by CI or `make test`, only by `make live-device`.
 
-    SIMTRAIL_LIVE_DEVICE_UDID=<a cabled, unlocked phone's UDID> make live-device
+    ROCKETWRIGHT_LIVE_DEVICE_UDID=<a cabled, unlocked phone's UDID> make live-device
 
 `tests/contract/test_physical_embedding.py` checks this lifecycle over fake devicectl; this runs the same checks on
-the phone itself, through `simtrail.api` as a host drives it:
+the phone itself, through `rocketwright.api` as a host drives it:
 
 * **reconnect** -- `sim_device restart` starts the session over and answers `reconnected`, the phone still the one in
   use and ready;
@@ -19,25 +19,25 @@ the phone itself, through `simtrail.api` as a host drives it:
 Nothing it runs may ask a phone to reboot, restart, shut down, be erased, unpaired or have anything deleted or
 uninstalled: every xcrun call that is devicectl's or names the phone is checked before it is run, refused when it
 would, and the test fails. It runs view only -- WebDriverAgent off, and the phone not touchable -- unless
-`SIMTRAIL_LIVE_DEVICE_WDA=1`, which needs WebDriverAgent set up first with `simtrail wda setup --device <udid>`
-and its team in `SIMTRAIL_LIVE_DEVICE_TEAM`, and fails unless the phone can then be touched; `sim_act` is listed
-either way. With `SIMTRAIL_LIVE_DEVICE_WORKFLOW=1`, an additional check opens Settings, reads it, exercises action
+`ROCKETWRIGHT_LIVE_DEVICE_WDA=1`, which needs WebDriverAgent set up first with `rocketwright wda setup --device <udid>`
+and its team in `ROCKETWRIGHT_LIVE_DEVICE_TEAM`, and fails unless the phone can then be touched; `sim_act` is listed
+either way. With `ROCKETWRIGHT_LIVE_DEVICE_WORKFLOW=1`, an additional check opens Settings, reads it, exercises action
 results and records a short local clip, then returns Home. It needs WDA and a native helper; all artifacts stay in
-the temporary test folder. Without that flag nothing is tapped. `SIMTRAIL_LIVE_DEVICE_DEVELOPER_DIR` names the Xcode
+the temporary test folder. Without that flag nothing is tapped. `ROCKETWRIGHT_LIVE_DEVICE_DEVELOPER_DIR` names the Xcode
 (default: the one
-xcode-select names), `SIMTRAIL_LIVE_HELPER` the native helper that reads the cable screen (default: none, so
-screenshots), and `SIMTRAIL_LIVE_DEVICE_UNATTENDED=1` skips the steps that need a person at the terminal.
+xcode-select names), `ROCKETWRIGHT_LIVE_HELPER` the native helper that reads the cable screen (default: none, so
+screenshots), and `ROCKETWRIGHT_LIVE_DEVICE_UNATTENDED=1` skips the steps that need a person at the terminal.
 
-`SIMTRAIL_LIVE_DEVICE_CAPTURE_RESTART=1` also requires the cable screen across three helper starts. Use a signed
+`ROCKETWRIGHT_LIVE_DEVICE_CAPTURE_RESTART=1` also requires the cable screen across three helper starts. Use a signed
 `make helper-build` helper and allow its Camera request once. Resolve any Apple device-support update alert before
 running reconnect checks; `Not Now` leaves the update pending and reconnection can show the prompt again.
 
-`SIMTRAIL_LIVE_DEVICE_ASK_DIR` names a folder to ask the person through instead of the terminal, for a run nobody
+`ROCKETWRIGHT_LIVE_DEVICE_ASK_DIR` names a folder to ask the person through instead of the terminal, for a run nobody
 types into: each step is written to `asked` there, and the run waits up to half an hour for an `answered` file.
 
-It uses this Mac's own claims folder, so a Simtrail already driving the phone is respected, and the phone refused,
-rather than fought over: stop it first. Without `SIMTRAIL_LIVE_DEVICE_UDID`, every test is skipped -- that is the dry
-run -- and `make test` skips it even with the UDID set.
+It uses this Mac's own claims folder, so a Rocketwright already driving the phone is respected, and the phone refused,
+rather than fought over: stop it first. Without `ROCKETWRIGHT_LIVE_DEVICE_UDID`, every test is skipped -- that is the
+dry run -- and `make test` skips it even with the UDID set.
 """
 
 from __future__ import annotations
@@ -53,31 +53,31 @@ from typing import Any
 
 import pytest
 
-from simtrail import api
-from simtrail.connectors.base import Capability
-from simtrail.platform.usbmux import USBMUXD_ENV
-from simtrail.platform.xcrun import XcrunResult, run_xcrun
-from simtrail.storage.app_support import STATE_DIR_ENV
-from simtrail.testing.fakes import FakePolicy, MemoryStateStore, StaticConfig
-from simtrail.testing.native import short_run_dir
-from simtrail.testing.vision import FakeTextRecognizer
+from rocketwright import api
+from rocketwright.connectors.base import Capability
+from rocketwright.platform.usbmux import USBMUXD_ENV
+from rocketwright.platform.xcrun import XcrunResult, run_xcrun
+from rocketwright.storage.app_support import STATE_DIR_ENV
+from rocketwright.testing.fakes import FakePolicy, MemoryStateStore, StaticConfig
+from rocketwright.testing.native import short_run_dir
+from rocketwright.testing.vision import FakeTextRecognizer
 
-UDID = os.environ.get("SIMTRAIL_LIVE_DEVICE_UDID", "")
-DEVELOPER_DIR = os.environ.get("SIMTRAIL_LIVE_DEVICE_DEVELOPER_DIR", "")
-HELPER = os.environ.get("SIMTRAIL_LIVE_HELPER", "")
-WDA = os.environ.get("SIMTRAIL_LIVE_DEVICE_WDA", "") == "1"
-UNATTENDED = os.environ.get("SIMTRAIL_LIVE_DEVICE_UNATTENDED", "") == "1"
-TEAM = os.environ.get("SIMTRAIL_LIVE_DEVICE_TEAM", "")
-ASK_DIR = os.environ.get("SIMTRAIL_LIVE_DEVICE_ASK_DIR", "")
+UDID = os.environ.get("ROCKETWRIGHT_LIVE_DEVICE_UDID", "")
+DEVELOPER_DIR = os.environ.get("ROCKETWRIGHT_LIVE_DEVICE_DEVELOPER_DIR", "")
+HELPER = os.environ.get("ROCKETWRIGHT_LIVE_HELPER", "")
+WDA = os.environ.get("ROCKETWRIGHT_LIVE_DEVICE_WDA", "") == "1"
+UNATTENDED = os.environ.get("ROCKETWRIGHT_LIVE_DEVICE_UNATTENDED", "") == "1"
+TEAM = os.environ.get("ROCKETWRIGHT_LIVE_DEVICE_TEAM", "")
+ASK_DIR = os.environ.get("ROCKETWRIGHT_LIVE_DEVICE_ASK_DIR", "")
 #: How long a person asked through `ASK_DIR` has to answer.
 ANSWER_S = 1800.0
 #: How long a phone plugged back in may take to be attached again by itself: the cable switching over, then the next
 #: look for it, then the attach.
 CABLE_BACK_S = 45.0
-#: Read before the test's own folders replace the Mac's: the claims every Simtrail on this Mac shares.
+#: Read before the test's own folders replace the Mac's: the claims every Rocketwright on this Mac shares.
 CLAIMS = api.claims_dir(dict(os.environ))
 #: Read before each test's folders move too: this Mac's usbmuxd, without which no phone is cabled -- no cable screen,
-#: log or WebDriverAgent -- and the state folder `simtrail wda setup` built WebDriverAgent in.
+#: log or WebDriverAgent -- and the state folder `rocketwright wda setup` built WebDriverAgent in.
 MACS = {name: os.environ.get(name) for name in (USBMUXD_ENV, STATE_DIR_ENV)}
 #: What a lifecycle must never ask devicectl, or anything, of a phone.
 NEVER = frozenset({"reboot", "restart", "shutdown", "erase", "uninstall", "unpair", "delete"})
@@ -89,7 +89,7 @@ CALLER = api.Caller(SCOPE, key="live-device", title="make live-device")
 pytestmark = [
     pytest.mark.live_device,
     pytest.mark.allow_subprocess,
-    pytest.mark.skipif(not UDID, reason="SIMTRAIL_LIVE_DEVICE_UDID names no cabled phone"),
+    pytest.mark.skipif(not UDID, reason="ROCKETWRIGHT_LIVE_DEVICE_UDID names no cabled phone"),
 ]
 
 
@@ -113,7 +113,7 @@ def _only_from_make_live_device(request: pytest.FixtureRequest) -> None:
 
 
 def refused_argv(args: tuple[str, ...]) -> bool:
-    """Whether an xcrun call would ask something of the phone that Simtrail never asks: only devicectl's, and those
+    """Whether an xcrun call would ask something of the phone that Rocketwright never asks: only devicectl's, and those
     that name the phone, are looked at -- simctl shutting down a simulator is no concern here."""
     about_the_phone = (args[:1] == ("devicectl",)) or UDID in args
     return about_the_phone and bool(NEVER & set(args))
@@ -138,12 +138,12 @@ class Guarded:
         self.calls.append(args)
         if refused_argv(args):
             self.refused.append(args)
-            return XcrunResult(1, "", "refused by make live-device: Simtrail never asks this of a phone")
+            return XcrunResult(1, "", "refused by make live-device: Rocketwright never asks this of a phone")
         return await run_xcrun(*args, timeout=timeout, developer_dir=developer_dir, input_data=input_data, cwd=cwd)
 
 
 class Store(MemoryStateStore):
-    """A test's own folders, but this Mac's claims: a Simtrail already driving the phone keeps it."""
+    """A test's own folders, but this Mac's claims: a Rocketwright already driving the phone keeps it."""
 
     def claims_dir(self) -> Path:
         return CLAIMS
@@ -155,7 +155,7 @@ def ask(what: str) -> None:
         asked_through(Path(ASK_DIR), what)
         return
     if UNATTENDED or not sys.stdin.isatty():
-        pytest.skip("needs a person at the terminal: run make live-device without SIMTRAIL_LIVE_DEVICE_UNATTENDED")
+        pytest.skip("needs a person at the terminal: run make live-device without ROCKETWRIGHT_LIVE_DEVICE_UNATTENDED")
     input(f"\n\n>>> {what}, then press Return. ")
 
 
@@ -182,7 +182,7 @@ def asked_through(folder: Path, what: str) -> None:
 
 
 class Phone:
-    """A host's runtime over the cabled phone, as `simtrail.api` builds it, with every xcrun call guarded."""
+    """A host's runtime over the cabled phone, as `rocketwright.api` builds it, with every xcrun call guarded."""
 
     def __init__(self, root: Path) -> None:
         self.xcrun = Guarded()
@@ -273,12 +273,12 @@ async def test_restart_reconnects_the_phone_and_never_restarts_it(phone: Phone) 
         refused, said = await call(runtime, "sim_device", {"action": "info"})
         assert not refused and UDID in said and "ready" in said, said
         refused, said = await call(runtime, "sim_device", {"action": "stop", "shutdown": True})
-        assert not refused and "a real device is never shut down by Simtrail" in said, said
+        assert not refused and "a real device is never shut down by Rocketwright" in said, said
 
 
 @pytest.mark.skipif(
-    not HELPER or os.environ.get("SIMTRAIL_LIVE_DEVICE_CAPTURE_RESTART") != "1",
-    reason="cable capture reconnect checks need a helper and SIMTRAIL_LIVE_DEVICE_CAPTURE_RESTART=1",
+    not HELPER or os.environ.get("ROCKETWRIGHT_LIVE_DEVICE_CAPTURE_RESTART") != "1",
+    reason="cable capture reconnect checks need a helper and ROCKETWRIGHT_LIVE_DEVICE_CAPTURE_RESTART=1",
 )
 async def test_cable_capture_survives_repeated_helper_restarts(phone: Phone) -> None:
     """Require the real cable screen each time; a screenshot fallback must not hide a permission failure.
@@ -360,8 +360,8 @@ async def test_what_was_changed_on_the_phone_is_put_back_by_the_next_start_after
 
 
 @pytest.mark.skipif(
-    not WDA or not HELPER or os.environ.get("SIMTRAIL_LIVE_DEVICE_WORKFLOW") != "1",
-    reason="the app/capture workflow needs WDA, a helper and SIMTRAIL_LIVE_DEVICE_WORKFLOW=1",
+    not WDA or not HELPER or os.environ.get("ROCKETWRIGHT_LIVE_DEVICE_WORKFLOW") != "1",
+    reason="the app/capture workflow needs WDA, a helper and ROCKETWRIGHT_LIVE_DEVICE_WORKFLOW=1",
 )
 async def test_phone_app_snapshot_action_and_completed_capture_workflow(phone: Phone) -> None:
     async with phone.running() as runtime:

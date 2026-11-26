@@ -8,9 +8,9 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from simtrail.perception.imagehash import LEVEL, Grid, ImageUnreadable, grid_of, moved_cells, rows_for
-from simtrail.testing.fakes import tiny_jpeg
-from simtrail.testing.pictures import HEIGHT, WIDTH, picture
+from rocketwright.perception.imagehash import LEVEL, Grid, ImageUnreadable, grid_of, moved_cells, rows_for
+from rocketwright.testing.fakes import tiny_jpeg
+from rocketwright.testing.pictures import HEIGHT, WIDTH, picture
 
 
 @pytest.mark.parametrize(

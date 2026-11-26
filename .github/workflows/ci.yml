@@ -46,7 +46,7 @@ jobs:
       # inside it.
       - run: make helper-coverage
       - run: make helper-release
-      - run: SIMTRAIL_HELPER_BINARY="$PWD/dist/helper/simtrail-helper" uv build --out-dir dist/python
+      - run: ROCKETWRIGHT_HELPER_BINARY="$PWD/dist/helper/rocketwright-helper" uv build --out-dir dist/python
       - run: uv run --no-project python scripts/check_wheel.py --helper dist/python/*.whl
 
   sdk:

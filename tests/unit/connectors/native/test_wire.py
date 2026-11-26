@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.native import wire
+from rocketwright.connectors.native import wire
 
 VECTORS = Path(__file__).resolve().parents[4] / "helper" / "Tests" / "Fixtures" / "wire-vectors.json"
 

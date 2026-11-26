@@ -5,7 +5,7 @@ A grocery list in one Kotlin activity, with two instrumented tests: the smallest
 
 ```
 examples/android-app/
-├── settings.gradle.kts         the Gradle build Simtrail finds
+├── settings.gradle.kts         the Gradle build Rocketwright finds
 ├── gradlew, gradle/wrapper/    its own wrapper: Gradle 9.3.1, checked by its SHA-256
 └── app/                        the one app module (AGP 9.1, Kotlin built in)
     ├── src/main/               MainActivity: type an item, press Add
@@ -18,9 +18,9 @@ With an Android emulator chosen (`sim_device list`, then `choose`) and `build.to
 folder and ask the agent to
 
 - build and run it: `sim_build_run` with `folder: "examples/android-app"` builds `:app:assembleDebug`, installs
-  `app-debug.apk` and launches `dev.simtrail.example`;
+  `app-debug.apk` and launches `dev.rocketwright.example`;
 - run its tests: `sim_test` runs `:app:connectedDebugAndroidTest` on the device and answers with what failed and where;
-  `only_testing: ["dev.simtrail.example.MainActivityTest/addsAnItem"]` runs one;
+  `only_testing: ["dev.rocketwright.example.MainActivityTest/addsAnItem"]` runs one;
 - launch it with an item already on the list: `sim_app` `launch` with `args: ["item=Milk"]` -- each launch argument is
   a string extra of the launch intent.
 
@@ -34,4 +34,4 @@ cd examples/android-app
 ./gradlew :app:assembleDebug
 ```
 
-Simtrail's own suite never builds this project; `make live-android` does, on an emulator.
+Rocketwright's own suite never builds this project; `make live-android` does, on an emulator.

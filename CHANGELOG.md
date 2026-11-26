@@ -1,10 +1,24 @@
 # Changelog
 
-All notable changes to Simtrail are documented here. The format follows
+All notable changes to Rocketwright -- called Simtrail until 3.12.0 -- are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [3.12.0] - 2026-11-26
+
+### Changed
+
+- **Simtrail is now Rocketwright.** The command is `rocketwright`, the Python package `rocketwright`, the viewer's
+  npm package `@soflution/rocketwright` and its element `<rocket-wright>`, the Swift SDK `RocketwrightKit`, the
+  native helper `rocketwright-helper`, settings' environment variables `ROCKETWRIGHT_*`, and the MCP server
+  `rocketwright`. The agent tools keep their names (`sim_snapshot`, `sim_act`, ...).
+- An install from before goes on working: `simtrail` stays as another name for the command, a `SIMTRAIL_*` variable
+  stands for its `ROCKETWRIGHT_*` one when that is not set, and the first start moves
+  `~/Library/Application Support/Simtrail`, `~/Library/Logs/Simtrail` and `~/.simtrail` to Rocketwright's folders --
+  settings, remembered devices, tokens and the helper's signing kept -- leaving a link where each was.
+- A WebDriverAgent copy prepared for real iPhones is prepared again once, since its marker file was renamed.
 
 ## [3.11.8] - 2026-11-26
 

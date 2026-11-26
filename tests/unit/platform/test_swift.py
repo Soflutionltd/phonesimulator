@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.platform.swift import MODULE_CACHE, SwiftBuildError, build_key, built_helper, swift_version
-from simtrail.testing.fakes import SWIFT_VERSION, FakeXcrun
+from rocketwright.platform.swift import MODULE_CACHE, SwiftBuildError, build_key, built_helper, swift_version
+from rocketwright.testing.fakes import SWIFT_VERSION, FakeXcrun
 
 XCODE = "/Applications/Xcode.app/Contents/Developer"
 SOURCE = b"@main struct Helper { static func main() {} }\n"

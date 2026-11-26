@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import SimtrailKit
+import RocketwrightKit
 import SwiftUI
 
-/// The same views, named for Simtrail with `.simtrail(...)`: a Debug build on a simulator reads the names, and
+/// The same views, named for Rocketwright with `.rocketwright(...)`: a Debug build on a simulator reads the names, and
 /// anything else ignores them.
 struct TaggedScreen: View {
     @State private var notifications = false
@@ -18,12 +18,12 @@ struct TaggedScreen: View {
                         } label: {
                             Image(systemName: "gearshape")
                         }
-                        .simtrail("Settings")
+                        .rocketwright("Settings")
                         Button {
                         } label: {
                             Image(systemName: "trash")
                         }
-                        .simtrail(kind: .button, name: "Delete list", identifier: "delete-list")
+                        .rocketwright(kind: .button, name: "Delete list", identifier: "delete-list")
                     }
                     .font(.title2)
                     VStack(spacing: 6) {
@@ -34,9 +34,9 @@ struct TaggedScreen: View {
                     .padding()
                     .background(Color.mint.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
                     .onTapGesture { taps += 1 }
-                    .simtrail(kind: .button, name: "Play daily mix")
+                    .rocketwright(kind: .button, name: "Play daily mix")
                     Toggle("", isOn: $notifications).labelsHidden()
-                        .simtrail(kind: .switch, name: "Notifications")
+                        .rocketwright(kind: .switch, name: "Notifications")
                 }
                 .padding()
             }

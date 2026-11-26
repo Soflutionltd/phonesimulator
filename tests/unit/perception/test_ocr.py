@@ -10,10 +10,10 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import ConnectorError, Screen, Shot
-from simtrail.perception.model import PIXELS, Frame
-from simtrail.perception.ocr import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import ConnectorError, Screen, Shot
+from rocketwright.perception.model import PIXELS, Frame
+from rocketwright.perception.ocr import (
     CACHE_SIZE,
     OCR_QUALITY,
     NoRecognizer,
@@ -27,11 +27,11 @@ from simtrail.perception.ocr import (
     on_device,
     tree_from_lines,
 )
-from simtrail.perception.orientation import Interface, Orientation
-from simtrail.perception.snapshot import build
-from simtrail.testing.fakes import SCREEN, FakeEngine
-from simtrail.testing.pictures import picture
-from simtrail.testing.vision import FakeTextRecognizer, text_line
+from rocketwright.perception.orientation import Interface, Orientation
+from rocketwright.perception.snapshot import build
+from rocketwright.testing.fakes import SCREEN, FakeEngine
+from rocketwright.testing.pictures import picture
+from rocketwright.testing.vision import FakeTextRecognizer, text_line
 
 CONFIG = SimConfig.defaults()
 SIGN_IN = text_line("Sign in", 150, 400, 100, 20)

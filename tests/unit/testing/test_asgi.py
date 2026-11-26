@@ -9,7 +9,7 @@ from starlette.applications import Starlette
 from starlette.routing import WebSocketRoute
 from starlette.websockets import WebSocket
 
-from simtrail.testing.asgi import AsgiSocket
+from rocketwright.testing.asgi import AsgiSocket
 
 
 async def echo(websocket: WebSocket) -> None:

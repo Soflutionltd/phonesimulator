@@ -11,18 +11,18 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.core.android_backend import AndroidBackend, choice_of
-from simtrail.core.android_devices import AndroidDevice, AndroidDirectory, AndroidServices, runtime_label
-from simtrail.core.devices import DeviceRef, NoDevice
-from simtrail.core.instance import DeviceInstance
-from simtrail.platform.adb import AdbError
-from simtrail.platform.android_sdk import AndroidSdk
-from simtrail.platform.emulator import EmulatorConsole, EmulatorError, Emulators
-from simtrail.platform.identifiers import android_id
-from simtrail.testing.adb import FakeAdbServer, FakeEmulatorConsole
-from simtrail.testing.android_sdk import avd, image, sdk_at
-from simtrail.testing.rig import scope
+from rocketwright.config.model import SimConfig
+from rocketwright.core.android_backend import AndroidBackend, choice_of
+from rocketwright.core.android_devices import AndroidDevice, AndroidDirectory, AndroidServices, runtime_label
+from rocketwright.core.devices import DeviceRef, NoDevice
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.platform.adb import AdbError
+from rocketwright.platform.android_sdk import AndroidSdk
+from rocketwright.platform.emulator import EmulatorConsole, EmulatorError, Emulators
+from rocketwright.platform.identifiers import android_id
+from rocketwright.testing.adb import FakeAdbServer, FakeEmulatorConsole
+from rocketwright.testing.android_sdk import avd, image, sdk_at
+from rocketwright.testing.rig import scope
 
 PIXEL = android_id("avd", "Pixel_9")
 PHONE = android_id("adb", "R58M12ABC")
@@ -100,7 +100,7 @@ class Rig:
         self.config = ON.with_values(android_sdk_path=str(self.sdk.root))
 
     def _avds(self, sdk: AndroidSdk | None) -> Any:
-        from simtrail.platform.android_sdk import avds
+        from rocketwright.platform.android_sdk import avds
 
         return avds(sdk, {"ANDROID_AVD_HOME": str(self.avds)})
 
@@ -298,7 +298,7 @@ async def test_letting_a_device_go_ends_its_route(rig: Rig) -> None:
     assert task.cancelled() and PIXEL not in rig.services.routes
 
 
-async def test_a_device_closed_or_unplugged_outside_simtrail_is_gone(rig: Rig) -> None:
+async def test_a_device_closed_or_unplugged_outside_rocketwright_is_gone(rig: Rig) -> None:
     rig.emulator_up()
     rig.phone()
     pixel, phone = rig.instance(), rig.instance(PHONE, "usb")

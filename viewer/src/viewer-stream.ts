@@ -25,7 +25,7 @@ import type { FrameObserver, ScreenCanvas } from './screen-canvas'
 import { readDevice, sentence, type Offer, type StatusView } from './status-view'
 import { readScreenText, type TextOverlayHandle } from './text-overlay'
 import { createTicketedSocket } from './ticketed-socket'
-import type { SimtrailTransport } from './transport'
+import type { RocketwrightTransport } from './transport'
 
 /** How long a dropped connection to a live device waits before each attempt to reconnect by itself. */
 export const RECONNECT_MS: readonly number[] = [1000, 3000, 10000]
@@ -52,7 +52,7 @@ export function readServerHello(body: Record<string, unknown>): ServerHello | nu
 }
 
 export interface StreamOptions {
-  transport: SimtrailTransport
+  transport: RocketwrightTransport
   screen: ScreenCanvas
   cursor: AgentCursorHandle
   /** The text read from the screen's pixels, outlined over it. */

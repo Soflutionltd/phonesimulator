@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: Apache-2.0
+"""What the HTTP API says about a scope's simulator: `ScopeStatus`, and the devices a picker offers."""
+
+from __future__ import annotations
+
+from collections.abc import Collection, Iterable
+
+from rocketwright.connectors.base import Capability
+from rocketwright.core.availability import Verdict
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.platform.simctl import Device, runtime_label
+from rocketwright.protocol import Capability as CapabilityName
+from rocketwright.protocol import DeviceChoice, ScopeStatus
+
+
+def capability_names(capabilities: Iterable[Capability]) -> list[CapabilityName]:
+    return sorted(capability.value for capability in capabilities)
+
+
+def scope_status(
+    verdict: Verdict, instance: DeviceInstance | None, now: float, default_udid: str | None = None
+) -> ScopeStatus:
+    """How a scope stands: whether it can have a simulator, its device if it has one -- or the one of its devices asked
+    about -- what a viewer is offered, and which device is the scope's own (`default_udid`)."""
+    config = verdict.config
+    selection = verdict.selection
+    report = selection.report if selection is not None and selection.connector is not None else None
+    if instance is not None:
+        connector: str | None = instance.connector
+        capabilities = instance.capabilities
+        fallback = instance.fallback_reason
+    else:
+        connector = report.name if report is not None else None
+        capabilities = report.capabilities if report is not None else frozenset()
+        fallback = selection.fallback_reason if selection is not None else None
+    return {
+        "enabled": config.enabled,
+        "reason": verdict.reason,
+        "device": None if instance is None else instance.describe(now),
+        "stream": {"encoding": config.stream_encoding, "fps": config.stream_fps},
+        "cursor": {"enabled": config.agent_cursor, "lead_ms": config.cursor_lead_ms},
+        "connector": connector,
+        "capabilities": capability_names(capabilities),
+        "fallback_reason": fallback,
+        "default_udid": default_udid,
+    }
+
+
+def device_choice(device: Device, created: Collection[str]) -> DeviceChoice:
+    """A simulator as a picker lists it."""
+    return {
+        "udid": device.udid,
+        "name": device.name,
+        "runtime": runtime_label(device.runtime_id),
+        "state": device.state,
+        "created": device.udid in created,
+        "kind": "simulator",
+        "connection": None,
+        "detail": None,
+        "detail_code": None,
+        "usable": True,
+        "agents": [],
+    }
+
+
+def device_choices(devices: Iterable[Device], created: Collection[str]) -> list[DeviceChoice]:
+    """This Mac's available iOS simulators, by runtime and name, for a picker."""
+    listed = [device_choice(device, created) for device in devices if device.available and ".iOS-" in device.runtime_id]
+    return sorted(listed, key=lambda choice: (choice["runtime"], choice["name"]))

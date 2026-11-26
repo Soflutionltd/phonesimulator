@@ -8,8 +8,8 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from simtrail.connectors.base import Crop, HidEvent, Screen, Shot
-from simtrail.perception.orientation import (
+from rocketwright.connectors.base import Crop, HidEvent, Screen, Shot
+from rocketwright.perception.orientation import (
     ORIENTATIONS,
     Interface,
     Orientation,
@@ -17,8 +17,8 @@ from simtrail.perception.orientation import (
     quarter_turned,
     shaped_as,
 )
-from simtrail.testing.fakes import JPEG, SCREEN
-from simtrail.testing.pictures import picture
+from rocketwright.testing.fakes import JPEG, SCREEN
+from rocketwright.testing.pictures import picture
 
 
 def test_a_document_says_its_orientation_or_is_portrait() -> None:

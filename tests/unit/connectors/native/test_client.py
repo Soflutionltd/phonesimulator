@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError, Crop, HidEvent, Screen, Shot
-from simtrail.connectors.native import client as client_module
-from simtrail.connectors.native import wire
-from simtrail.connectors.native.client import Hello, HelperClient
-from simtrail.testing.fakes import JPEG, SCREEN, FakeEngine
-from simtrail.testing.native import FakeHelper, short_run_dir
+from rocketwright.connectors.base import ConnectorError, Crop, HidEvent, Screen, Shot
+from rocketwright.connectors.native import client as client_module
+from rocketwright.connectors.native import wire
+from rocketwright.connectors.native.client import Hello, HelperClient
+from rocketwright.testing.fakes import JPEG, SCREEN, FakeEngine
+from rocketwright.testing.native import FakeHelper, short_run_dir
 
 
 @pytest.fixture

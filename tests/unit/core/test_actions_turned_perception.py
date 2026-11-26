@@ -14,16 +14,16 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from simtrail.connectors.base import Crop, Screen, Shot
-from simtrail.core.actions import AgentActions
-from simtrail.core.instance import DeviceInstance
-from simtrail.perception.ocr import OcrReaders, RecognitionOptions, RecognizedLine
-from simtrail.perception.orientation import Interface, Orientation
-from simtrail.seams import Caller
-from simtrail.testing.fakes import SCREEN, FakeConnector, FakeEngine, fixture_json
-from simtrail.testing.pictures import picture
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.testing.vision import text_line
+from rocketwright.connectors.base import Crop, Screen, Shot
+from rocketwright.core.actions import AgentActions
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.perception.ocr import OcrReaders, RecognitionOptions, RecognizedLine
+from rocketwright.perception.orientation import Interface, Orientation
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import SCREEN, FakeConnector, FakeEngine, fixture_json
+from rocketwright.testing.pictures import picture
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.testing.vision import text_line
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code")
 IPAD = Screen(width_px=2064, height_px=2752, width_pt=1032, height_pt=1376, scale=2.0)

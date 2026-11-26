@@ -9,20 +9,20 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
-from simtrail.config.model import SimConfig
-from simtrail.core.actions import AgentActions
-from simtrail.core.recordings import CaptureRate, RecordingRefused, Recordings, Rendered, RenderJob
-from simtrail.core.selections import Selections
-from simtrail.protocol import Recording
-from simtrail.seams import Caller
-from simtrail.testing.fakes import no_wait
-from simtrail.testing.recording import FakeRenderer, SimctlRecorder
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.tools.context import ToolContext
-from simtrail.tools.record import describe, stopped
-from simtrail.tools.record import rendering as rendering_text
-from simtrail.tools.registry import ToolRegistry
-from simtrail.tools.results import Result
+from rocketwright.config.model import SimConfig
+from rocketwright.core.actions import AgentActions
+from rocketwright.core.recordings import CaptureRate, RecordingRefused, Recordings, Rendered, RenderJob
+from rocketwright.core.selections import Selections
+from rocketwright.protocol import Recording
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import no_wait
+from rocketwright.testing.recording import FakeRenderer, SimctlRecorder
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.tools.context import ToolContext
+from rocketwright.tools.record import describe, stopped
+from rocketwright.tools.record import rendering as rendering_text
+from rocketwright.tools.registry import ToolRegistry
+from rocketwright.tools.results import Result
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 REGISTRY = ToolRegistry()
@@ -60,17 +60,17 @@ async def test_an_agent_records_a_demo_and_is_told_where_it_was_kept(tmp_path: P
     assert said(await record(rig, recordings, {"action": "list"})) == "no recordings kept yet"
     started = await record(rig, recordings, {"action": "start", "format": "both", "speed": "2"})
     assert said(started) == (
-        "recording Simtrail · alpha · tp-1 as both; sim_record stop keeps it (it stops by itself after 300s)"
+        "recording Rocketwright · alpha · tp-1 as both; sim_record stop keeps it (it stops by itself after 300s)"
     )
     assert said(await record(rig, recordings, {"action": "status"})).startswith(
-        "recording Simtrail · alpha · tp-1 for 0s, started by Claude · notes"
+        "recording Rocketwright · alpha · tp-1 for 0s, started by Claude · notes"
     )
     again = await record(rig, recordings, {"action": "start"})
     assert again["isError"] and "already being recorded" in said(again)
     kept = said(await record(rig, recordings, {"action": "stop"}))
     lines = kept.splitlines()
     assert lines[0].startswith("kept 2")
-    assert lines[0].endswith("-simtrail-alpha-tp-1 · Simtrail · alpha · tp-1 · 6.2s")
+    assert lines[0].endswith("-rocketwright-alpha-tp-1 · Rocketwright · alpha · tp-1 · 6.2s")
     assert lines[1].startswith("mp4 400x868 · 2.5 MB · ") and lines[1].endswith(".mp4")
     assert lines[2].startswith("gif 400x868 · 40 KB · ") and lines[2].endswith(".gif")
     listed = said(await record(rig, recordings, {"action": "list"}))
@@ -185,7 +185,7 @@ async def test_an_agent_says_how_long_a_recording_may_run_and_what_its_file_is_c
     started = await record(rig, recordings, {"action": "start", "max_seconds": 2400, "label": "Firmware update"})
     assert said(started).endswith("(it stops by itself after 2400s)")
     kept = said(await record(rig, recordings, {"action": "stop"}))
-    assert kept.splitlines()[1].endswith("-simtrail-alpha-tp-1-firmware-update.mp4")
+    assert kept.splitlines()[1].endswith("-rocketwright-alpha-tp-1-firmware-update.mp4")
     for arguments, refusal in (
         ({"max_seconds": 4}, "max_seconds is a whole number of seconds from 5 to 3600"),
         ({"label": "?!"}, "label needs a letter or a digit: it is joined into the file's name"),
@@ -210,7 +210,7 @@ async def test_a_recording_that_stopped_by_itself_is_told_by_status_and_answered
     status = said(await record(rig, recordings, {"action": "status"}))
     assert status == f"{run.id} stopped by itself at 0s, its limit, and is kept; sim_record stop answers with its files"
     stopped = said(await record(rig, recordings, {"action": "stop"})).splitlines()
-    assert stopped[0] == f"stopped by itself at 0s, its limit; kept {run.id} · Simtrail · alpha · tp-1 · 2.5s"
+    assert stopped[0] == f"stopped by itself at 0s, its limit; kept {run.id} · Rocketwright · alpha · tp-1 · 2.5s"
     assert stopped[-1] == "note: it stopped by itself after 300s, its limit"
     assert said(await record(rig, recordings, {"action": "status"})).startswith("nothing is being recorded")
     failing = Recordings(
@@ -240,13 +240,13 @@ async def test_a_long_render_is_said_by_stop_status_and_list_until_it_is_kept(tm
     assert run is not None and not isinstance(run, str)
     stopped = said(await record(rig, recordings, {"action": "stop"})).splitlines()
     path = tmp_path / f"{run.id}.mp4"
-    assert stopped[0] == f"still rendering {run.id} · Simtrail · alpha · tp-1 · 0.0s"
+    assert stopped[0] == f"still rendering {run.id} · Rocketwright · alpha · tp-1 · 0.0s"
     assert (
         stopped[1]
         == f"note: still being rendered; it will be kept at {path}, and listed with the recordings once it is"
     )
     assert stopped[2] == "sim_record list names it as rendering until it is kept, then with its files"
-    rendering = f"rendering {run.id} · Simtrail · alpha · tp-1 (stopped at 0s); it will be kept at {path}"
+    rendering = f"rendering {run.id} · Rocketwright · alpha · tp-1 (stopped at 0s); it will be kept at {path}"
     assert said(await record(rig, recordings, {"action": "status"})) == rendering
     assert said(await record(rig, recordings, {"action": "list"})) == rendering
     renderer.go.set()
@@ -293,7 +293,7 @@ async def test_an_agent_records_part_of_the_screen_faster_and_is_told_how_fast_i
         rig, recordings, {"action": "start", "fps": 120, "region": {"x": 0, "y": 0, "w": 201, "h": 437}}
     )
     assert said(started) == (
-        "recording Simtrail · alpha · tp-1 as mp4 at 120 fps (a region of the screen); sim_record stop keeps it "
+        "recording Rocketwright · alpha · tp-1 as mp4 at 120 fps (a region of the screen); sim_record stop keeps it "
         "(it stops by itself after 300s)"
     )
     now[0] = 5.0

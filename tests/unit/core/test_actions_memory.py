@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from simtrail.core.actions import AgentActions
-from simtrail.seams import Caller
-from simtrail.testing.rig import DeviceRig, scope
+from rocketwright.core.actions import AgentActions
+from rocketwright.seams import Caller
+from rocketwright.testing.rig import DeviceRig, scope
 
 
 async def test_what_agents_last_saw_on_a_device_is_let_go_when_the_device_ends(tmp_path: Path) -> None:

@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.platform import xcrun
-from simtrail.platform.xcrun import (
+from rocketwright.platform import xcrun
+from rocketwright.platform.xcrun import (
     CANNOT_RUN,
     TIMED_OUT,
     XCRUN_MISSING,

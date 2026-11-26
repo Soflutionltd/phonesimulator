@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.platform import macos
-from simtrail.platform.errors import DeviceControlError
-from simtrail.platform.macos import MacApp, applications, bundle
-from simtrail.testing.macos import FakeMacOS
+from rocketwright.platform import macos
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.platform.macos import MacApp, applications, bundle
+from rocketwright.testing.macos import FakeMacOS
 
 APP = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
 

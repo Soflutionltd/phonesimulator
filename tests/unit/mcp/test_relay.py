@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The relay an MCP client runs: every tool call handed to a loopback Simtrail server, credentials from the
+"""The relay an MCP client runs: every tool call handed to a loopback Rocketwright server, credentials from the
 environment, and every failure a result the client can read."""
 
 from __future__ import annotations
@@ -17,21 +17,21 @@ from typing import Any
 
 import pytest
 
-from simtrail.mcp import relay
-from simtrail.mcp.relay import direct_opener, main, relay_command
+from rocketwright.mcp import relay
+from rocketwright.mcp.relay import direct_opener, main, relay_command
 
 ENV = {
-    "SIMTRAIL_URL": "http://127.0.0.1:7466/api/v1/agent/",
-    "SIMTRAIL_TOKEN": "secret-token",
-    "SIMTRAIL_SCOPE": "tp-1",
+    "ROCKETWRIGHT_URL": "http://127.0.0.1:7466/api/v1/agent/",
+    "ROCKETWRIGHT_TOKEN": "secret-token",
+    "ROCKETWRIGHT_SCOPE": "tp-1",
 }
 FLAGS = [
     "--header",
-    "X-Simtrail-Token=SIMTRAIL_TOKEN",
+    "X-Rocketwright-Token=ROCKETWRIGHT_TOKEN",
     "--header",
-    "X-Simtrail-Scope=SIMTRAIL_SCOPE",
+    "X-Rocketwright-Scope=ROCKETWRIGHT_SCOPE",
     "--client-header",
-    "X-Simtrail-Client",
+    "X-Rocketwright-Client",
 ]
 MANIFEST = {"tools": [{"name": "sim_snapshot", "inputSchema": {"type": "object"}}], "instructions": "look first"}
 DONE = {"content": [{"type": "text", "text": 'ok tap e2 "General" (201,319)'}], "isError": False}
@@ -102,7 +102,7 @@ def test_a_client_lists_the_servers_tools_as_they_are_now_and_every_call_goes_to
         "result": {
             "protocolVersion": "2025-03-26",
             "capabilities": {"tools": {"listChanged": True}},
-            "serverInfo": {"name": "simtrail", "version": "1"},
+            "serverInfo": {"name": "rocketwright", "version": "1"},
             "instructions": "look first",
         },
     }
@@ -114,8 +114,11 @@ def test_a_client_lists_the_servers_tools_as_they_are_now_and_every_call_goes_to
     (_, _), (listed, list_timeout), (called, call_timeout), (checked, _) = opener.requests
     assert checked.full_url == listed.full_url
     assert listed.full_url == "http://127.0.0.1:7466/api/v1/agent/manifest" and listed.get_method() == "GET"
-    assert listed.get_header("X-simtrail-token") == "secret-token" and listed.get_header("X-simtrail-scope") == "tp-1"
-    assert listed.get_header("X-simtrail-client") == "claude-code" and list_timeout == relay.MANIFEST_TIMEOUT_S
+    assert (
+        listed.get_header("X-rocketwright-token") == "secret-token"
+        and listed.get_header("X-rocketwright-scope") == "tp-1"
+    )
+    assert listed.get_header("X-rocketwright-client") == "claude-code" and list_timeout == relay.MANIFEST_TIMEOUT_S
     assert called.full_url == "http://127.0.0.1:7466/api/v1/agent/call" and called.get_method() == "POST"
     assert json.loads(called.data) == {"name": "sim_act", "arguments": {"steps": []}}  # type: ignore[arg-type]
     assert call_timeout == relay.CALL_TIMEOUT_S
@@ -133,7 +136,7 @@ def test_a_host_mounts_it_under_its_own_paths_and_names_it_its_own_way() -> None
     assert replies[0]["result"]["serverInfo"]["name"] == "host-simulator"
     ((request, _),) = opener.requests
     assert request.full_url == "http://localhost:8080/api/hooks/simulator/manifest"
-    assert request.get_header("X-simtrail-client") is None
+    assert request.get_header("X-rocketwright-client") is None
 
 
 def test_what_is_not_a_request_it_knows_is_answered_as_json_rpc_says() -> None:
@@ -161,10 +164,10 @@ def test_what_is_not_a_request_it_knows_is_answered_as_json_rpc_says() -> None:
 @pytest.mark.parametrize(
     ("env", "problem"),
     [
-        ({}, "No Simtrail server was given (SIMTRAIL_URL is not set)"),
-        ({**ENV, "SIMTRAIL_TOKEN": ""}, "SIMTRAIL_TOKEN is not set, so these tools cannot be used here."),
+        ({}, "No Rocketwright server was given (ROCKETWRIGHT_URL is not set)"),
+        ({**ENV, "ROCKETWRIGHT_TOKEN": ""}, "ROCKETWRIGHT_TOKEN is not set, so these tools cannot be used here."),
         (
-            {**ENV, "SIMTRAIL_URL": "https://sim.example/api/v1/agent"},
+            {**ENV, "ROCKETWRIGHT_URL": "https://sim.example/api/v1/agent"},
             "https://sim.example/api/v1/agent is not a loopback URL",
         ),
     ],
@@ -214,10 +217,11 @@ def test_a_refusal_or_an_unreachable_server_is_a_result_and_a_failed_list_is_ask
     assert "could not be reached: <urlopen error connection refused>" in replies[1]["result"]["instructions"]
     assert replies[2]["result"] == {"tools": MANIFEST["tools"]}
     assert [reply["result"]["content"][0]["text"] for reply in replies[3:]] == [
-        "The Simtrail server refused the call: HTTP 403",
-        "The Simtrail server refused the call: cross-origin request refused",
-        "The Simtrail server could not be reached: <urlopen error timed out>",
-        "The Simtrail server could not be reached: the Simtrail server answered with something that is not an object",
+        "The Rocketwright server refused the call: HTTP 403",
+        "The Rocketwright server refused the call: cross-origin request refused",
+        "The Rocketwright server could not be reached: <urlopen error timed out>",
+        "The Rocketwright server could not be reached: the Rocketwright server answered with something that is not an "
+        "object",
     ]
     assert all(reply["result"]["isError"] for reply in replies[3:])
 
@@ -234,7 +238,7 @@ def test_a_call_that_finds_nothing_listening_asks_to_bring_the_server_back_and_i
         urllib.error.URLError(ConnectionResetError(54, "Connection reset by peer")),
     )
     revived: list[str | None] = []
-    answers: list[str | None] = [None, None, "Simtrail was stopped on purpose.", None]
+    answers: list[str | None] = [None, None, "Rocketwright was stopped on purpose.", None]
 
     def revive() -> str | None:
         revived.append(answers[0])
@@ -247,12 +251,12 @@ def test_a_call_that_finds_nothing_listening_asks_to_bring_the_server_back_and_i
     replies = [json.loads(line)["result"] for line in stdout.getvalue().splitlines()]
     assert replies[0] == DONE, "brought back, the call is sent again and answered"
     assert [reply["content"][0]["text"] for reply in replies[1:]] == [
-        "The Simtrail server could not be reached: [Errno 61] Connection refused",
-        "Simtrail was stopped on purpose.",
-        "The Simtrail server could not be reached: <urlopen error timed out>",
-        "The Simtrail server could not be reached: <urlopen error [Errno 54] Connection reset by peer>",
+        "The Rocketwright server could not be reached: [Errno 61] Connection refused",
+        "Rocketwright was stopped on purpose.",
+        "The Rocketwright server could not be reached: <urlopen error timed out>",
+        "The Rocketwright server could not be reached: <urlopen error [Errno 54] Connection reset by peer>",
     ]
-    assert revived == [None, None, "Simtrail was stopped on purpose."], "one the server may have had is not resent"
+    assert revived == [None, None, "Rocketwright was stopped on purpose."], "one the server may have had is not resent"
     assert len(opener.requests) == 7 and opener.answers == []
 
 
@@ -262,7 +266,8 @@ def test_a_refused_manifest_says_what_the_server_said() -> None:
         Opener(refused(b'{"detail": "this token is not an agent\'s"}')),
     )
     assert (
-        replies[0]["result"]["instructions"] == "The Simtrail server refused this client: this token is not an agent's"
+        replies[0]["result"]["instructions"]
+        == "The Rocketwright server refused this client: this token is not an agent's"
     )
 
 
@@ -319,7 +324,7 @@ def test_a_host_gets_the_command_line_that_runs_the_relay_isolated_with_its_secr
         "--client-header", "X-Client",
     ]  # fmt: skip
     assert relay_command()[3:] == [
-        "--url-env", "SIMTRAIL_URL", "--server-name", "simtrail",
+        "--url-env", "ROCKETWRIGHT_URL", "--server-name", "rocketwright",
         "--manifest-path", "manifest", "--call-path", "call",
     ]  # fmt: skip
     assert relay.is_loopback("http://[::1]:7466/x") and not relay.is_loopback("file:///tmp/x")
@@ -360,7 +365,7 @@ def test_the_client_hears_when_the_tools_it_was_given_change_and_only_then() -> 
     ]  # fmt: skip
 
 
-ROOTS_FLAGS = [*FLAGS, "--roots-header", "X-Simtrail-Roots"]
+ROOTS_FLAGS = [*FLAGS, "--roots-header", "X-Rocketwright-Roots"]
 OFFERS_ROOTS = {"capabilities": {"roots": {"listChanged": True}}, "clientInfo": {"name": "claude-code"}}
 INITIALIZED = {"jsonrpc": "2.0", "method": "notifications/initialized"}
 
@@ -373,19 +378,21 @@ def roots(n: int, *paths: str) -> dict[str, Any]:
     """The client's answer to the relay's `n`th request for its roots."""
     return {
         "jsonrpc": "2.0",
-        "id": f"simtrail-roots-{n}",
+        "id": f"rocketwright-roots-{n}",
         "result": {"roots": [{"uri": f"file://{p}"} for p in paths]},
     }
 
 
 def asked(n: int) -> dict[str, Any]:
-    return {"jsonrpc": "2.0", "id": f"simtrail-roots-{n}", "method": "roots/list"}
+    return {"jsonrpc": "2.0", "id": f"rocketwright-roots-{n}", "method": "roots/list"}
 
 
 def sent_roots(opener: Opener) -> list[str | None]:
     """The roots each call to the server said the client works in."""
     return [
-        request.get_header("X-simtrail-roots") for request, _ in opener.requests if request.full_url.endswith("/call")
+        request.get_header("X-rocketwright-roots")
+        for request, _ in opener.requests
+        if request.full_url.endswith("/call")
     ]
 
 
@@ -400,7 +407,7 @@ def test_a_client_offering_its_roots_is_asked_for_them_and_each_call_says_where_
             build_call(2),
             {
                 "jsonrpc": "2.0",
-                "id": "simtrail-roots-2",
+                "id": "rocketwright-roots-2",
                 "result": {
                     "roots": [
                         worktree,
@@ -420,7 +427,7 @@ def test_a_client_offering_its_roots_is_asked_for_them_and_each_call_says_where_
             {"jsonrpc": "2.0", "id": 99, "result": {}},
             build_call(3),
             roots(3),
-            {"jsonrpc": "2.0", "id": "simtrail-roots-4", "error": {"code": -1, "message": "no roots"}},
+            {"jsonrpc": "2.0", "id": "rocketwright-roots-4", "error": {"code": -1, "message": "no roots"}},
         ],
         opener,
         flags=ROOTS_FLAGS,
@@ -455,9 +462,9 @@ def test_a_client_that_moves_into_a_worktree_without_saying_so_has_its_next_buil
     )
     assert [reply.get("id") for reply in replies] == [
         1,
-        *(f"simtrail-roots-{n}" for n in (1, 2)),
+        *(f"rocketwright-roots-{n}" for n in (1, 2)),
         2,
-        "simtrail-roots-3",
+        "rocketwright-roots-3",
         3,
     ]
     assert sent_roots(opener) == ["/work/app", "/work/app/.claude/worktrees/feature,/work/app"]
@@ -476,7 +483,7 @@ def test_calls_that_come_while_one_waits_for_the_roots_wait_with_it_and_other_re
         opener,
         flags=ROOTS_FLAGS,
     )
-    assert [reply.get("id") for reply in replies] == [1, "simtrail-roots-1", 4, 2, 3]
+    assert [reply.get("id") for reply in replies] == [1, "rocketwright-roots-1", 4, 2, 3]
     assert sent_roots(opener) == ["/work/wt", "/work/wt"]
 
 
@@ -514,7 +521,7 @@ def test_a_call_waits_briefly_for_roots_and_a_client_that_kept_it_waiting_is_not
             INITIALIZED,
             roots(1, "/work/app"),
             build_call(2),
-            # The client never answers simtrail-roots-2: the call goes with the roots last heard.
+            # The client never answers rocketwright-roots-2: the call goes with the roots last heard.
             4,
             build_call(3),
         ],
@@ -522,7 +529,7 @@ def test_a_call_waits_briefly_for_roots_and_a_client_that_kept_it_waiting_is_not
         wait_s=0.05,
     )
     assert time.monotonic() - started < 5.0
-    assert [reply.get("id") for reply in replies] == [1, "simtrail-roots-1", "simtrail-roots-2", 2, 3]
+    assert [reply.get("id") for reply in replies] == [1, "rocketwright-roots-1", "rocketwright-roots-2", 2, 3]
     assert sent_roots(opener) == ["/work/app", "/work/app"]
 
 
@@ -533,7 +540,7 @@ def test_a_call_still_waiting_for_roots_when_the_client_hangs_up_is_not_made() -
         opener,
         wait_s=60.0,
     )
-    assert [reply.get("id") for reply in replies] == [1, "simtrail-roots-1"]
+    assert [reply.get("id") for reply in replies] == [1, "rocketwright-roots-1"]
     assert sent_roots(opener) == []
 
 
@@ -576,11 +583,11 @@ def test_a_failed_tool_list_gave_the_client_none_so_the_next_call_that_finds_too
 def test_the_relay_says_which_version_it_relays_for() -> None:
     initialize = {"jsonrpc": "2.0", "id": 1, "method": "initialize"}
     (said,) = run([initialize], Opener(MANIFEST), flags=[*FLAGS, "--server-version", "2.3.0"])
-    assert said["result"]["serverInfo"] == {"name": "simtrail", "version": "2.3.0"}
+    assert said["result"]["serverInfo"] == {"name": "rocketwright", "version": "2.3.0"}
     (plain,) = run([initialize], Opener(MANIFEST))
     assert plain["result"]["serverInfo"]["version"] == relay.DEFAULT_SERVER_VERSION
     argv = relay_command(server_version="2.3.0")
-    assert argv[3:9] == ["--url-env", "SIMTRAIL_URL", "--server-name", "simtrail", "--server-version", "2.3.0"]
+    assert argv[3:9] == ["--url-env", "ROCKETWRIGHT_URL", "--server-name", "rocketwright", "--server-version", "2.3.0"]
     assert "--server-version" not in relay_command(server_version="")
 
 
@@ -731,7 +738,7 @@ def test_a_call_naming_its_sessions_folders_in_its_meta_goes_at_once_with_those_
 
     def per_root(folder: str, path: str) -> dict[str, str]:
         asked_for.append((folder, path))
-        return {"X-Simtrail-Token": f"token-of-{folder}", "X-Simtrail-Scope": f"scope-of-{folder}"}
+        return {"X-Rocketwright-Token": f"token-of-{folder}", "X-Rocketwright-Scope": f"scope-of-{folder}"}
 
     lines = "".join(
         json.dumps(message) + "\n"
@@ -747,13 +754,13 @@ def test_a_call_naming_its_sessions_folders_in_its_meta_goes_at_once_with_those_
     flags = [*ROOTS_FLAGS, "--roots-meta", META]
     assert main(flags, env=ENV, stdin=io.StringIO(lines), stdout=stdout, opener=opener, per_root=per_root) == 0
     replies = [json.loads(line) for line in stdout.getvalue().splitlines()]
-    assert [reply.get("id") for reply in replies] == [1, 2, 3, "simtrail-roots-1"], "only a call naming none asks"
+    assert [reply.get("id") for reply in replies] == [1, 2, 3, "rocketwright-roots-1"], "only a call naming none asks"
     calls = [request for request, _ in opener.requests if request.full_url.endswith("/call")]
-    assert [request.get_header("X-simtrail-token") for request in calls] == [
+    assert [request.get_header("X-rocketwright-token") for request in calls] == [
         "token-of-/Users/dev/Notes",
         "token-of-/Users/dev/Mail App",
     ]
-    assert [request.get_header("X-simtrail-scope") for request in calls][-1] == "scope-of-/Users/dev/Mail App"
+    assert [request.get_header("X-rocketwright-scope") for request in calls][-1] == "scope-of-/Users/dev/Mail App"
     assert ("/Users/dev/Notes", "call") in asked_for
 
 
@@ -762,4 +769,4 @@ def test_without_a_meta_key_or_per_root_headers_a_call_goes_as_before() -> None:
     replies = run([{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}, meta_call(2, "/x")], opener)
     assert replies[-1] == {"jsonrpc": "2.0", "id": 2, "result": DONE}
     ((call, _),) = [(request, t) for request, t in opener.requests if request.full_url.endswith("/call")]
-    assert call.get_header("X-simtrail-token") == "secret-token" and call.get_header("X-simtrail-roots") is None
+    assert call.get_header("X-rocketwright-token") == "secret-token" and call.get_header("X-rocketwright-roots") is None

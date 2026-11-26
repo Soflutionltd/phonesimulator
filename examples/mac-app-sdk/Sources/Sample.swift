@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import AppKit
-import SimtrailKit
+import RocketwrightKit
 import SwiftUI
 
 /// Both window trees deliberately include controls that cannot be identified from accessibility labels alone.
@@ -14,7 +14,7 @@ final class SampleDelegate: NSObject, NSApplicationDelegate, NSTableViewDataSour
     let popover = NSPopover()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        Simtrail.start(.init(swiftUIDebugData: true))
+        Rocketwright.start(.init(swiftUIDebugData: true))
         let menu = NSMenu()
         let root = NSMenuItem(title: "Sample", action: nil, keyEquivalent: "")
         let actions = NSMenu(title: "Sample")
@@ -121,7 +121,7 @@ final class SampleDelegate: NSObject, NSApplicationDelegate, NSTableViewDataSour
         popover.contentSize = NSSize(width: 220, height: 80)
         popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .maxX)
     }
-    func applicationWillTerminate(_ notification: Notification) { Simtrail.stop() }
+    func applicationWillTerminate(_ notification: Notification) { Rocketwright.stop() }
 }
 
 final class PaintedView: NSView {

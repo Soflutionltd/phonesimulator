@@ -8,15 +8,15 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
-from simtrail.build.gradle import GradleToolchain
-from simtrail.build.source import Source
-from simtrail.build.stamp import APK_STAMP, STAMPED
-from simtrail.build.xcodebuild import BuildRunner
-from simtrail.core.actions import AgentActions
-from simtrail.core.control import InstalledApp
-from simtrail.platform.java import Jdk
-from simtrail.seams import Caller
-from simtrail.testing.fakes import (
+from rocketwright.build.gradle import GradleToolchain
+from rocketwright.build.source import Source
+from rocketwright.build.stamp import APK_STAMP, STAMPED
+from rocketwright.build.xcodebuild import BuildRunner
+from rocketwright.core.actions import AgentActions
+from rocketwright.core.control import InstalledApp
+from rocketwright.platform.java import Jdk
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import (
     ANDROID_PHONE_UDID,
     EMULATOR_UDID,
     FULL_CONTROL,
@@ -24,11 +24,11 @@ from simtrail.testing.fakes import (
     FakeConnector,
     no_wait,
 )
-from simtrail.testing.gradle import EXAMPLE_PACKAGE, FakeGradle, Play, android_project, junit_results
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.tools.context import ToolContext
-from simtrail.tools.registry import ToolRegistry
-from simtrail.tools.results import Result
+from rocketwright.testing.gradle import EXAMPLE_PACKAGE, FakeGradle, Play, android_project, junit_results
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.tools.context import ToolContext
+from rocketwright.tools.registry import ToolRegistry
+from rocketwright.tools.results import Result
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 REGISTRY = ToolRegistry()

@@ -14,7 +14,7 @@ public final class MacWindowDevice: Device, @unchecked Sendable {
     private let capture: MacWindowCapture
     private let feed: ScreenFeed
     private let accessibility: MacAccessibility?
-    private let queue = DispatchQueue(label: "simtrail.mac.accessibility")
+    private let queue = DispatchQueue(label: "rocketwright.mac.accessibility")
     /// The agent drawn over the window, when the helper was started to draw it; touched on the main thread only.
     private let overlayWindow: MacOverlay?
     /// Whether the app still runs. `isTerminated` is updated from the main run loop, which a helper serving from
@@ -54,7 +54,7 @@ public final class MacWindowDevice: Device, @unchecked Sendable {
         overlayWindow = options.overlay ? await MainActor.run { MacOverlay(windowID: windowID, pid: options.pid) } : nil
         try await capture.start()
     }
-    /// Why the helper should stop: the app ended, or the window it shows did -- so Simtrail attaches it again, to a
+    /// Why the helper should stop: the app ended, or the window it shows did -- so Rocketwright attaches it again, to a
     /// window chosen afresh, rather than keeping a helper whose every call fails.
     public var gone: String? {
         guard alive else { return "the target app ended" }

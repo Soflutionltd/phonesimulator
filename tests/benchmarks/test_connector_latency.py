@@ -14,15 +14,15 @@ import pytest
 
 import connector_latency
 from connector_latency import Bench, Result, Timing, main, table
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import ConnectorError, ConnectorUnavailable, Crop, HidEvent, Shot
-from simtrail.connectors.registry import ConnectorRegistry
-from simtrail.core.android_devices import AndroidServices
-from simtrail.platform.identifiers import android_id
-from simtrail.platform.simctl import Simctl
-from simtrail.testing.adb import FakeAdbServer
-from simtrail.testing.android_sdk import sdk_at
-from simtrail.testing.fakes import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import ConnectorError, ConnectorUnavailable, Crop, HidEvent, Shot
+from rocketwright.connectors.registry import ConnectorRegistry
+from rocketwright.core.android_devices import AndroidServices
+from rocketwright.platform.identifiers import android_id
+from rocketwright.platform.simctl import Simctl
+from rocketwright.testing.adb import FakeAdbServer
+from rocketwright.testing.android_sdk import sdk_at
+from rocketwright.testing.fakes import (
     BOOTED_UDID,
     FakeConnector,
     FakeEngine,
@@ -31,7 +31,7 @@ from simtrail.testing.fakes import (
     MemoryStateStore,
     fixture,
 )
-from simtrail.testing.rig import VIEW_ONLY
+from rocketwright.testing.rig import VIEW_ONLY
 
 
 class Ticking(ManualClock):

@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.build import derived
-from simtrail.build.derived import MARKER, checkout_folder, checkout_top, mark, prune
-from simtrail.testing.checkouts import linked_worktree, main_checkout
+from rocketwright.build import derived
+from rocketwright.build.derived import MARKER, checkout_folder, checkout_top, mark, prune
+from rocketwright.testing.checkouts import linked_worktree, main_checkout
 
-SCOPE_FOLDER_NAME = "Simtrail-project-demo-1a2b3c4d"
+SCOPE_FOLDER_NAME = "Rocketwright-project-demo-1a2b3c4d"
 
 
 def test_a_checkouts_folder_sits_beside_the_scopes_named_after_it_and_a_hash_of_its_real_path(tmp_path: Path) -> None:
@@ -91,7 +91,7 @@ def test_the_folders_of_checkouts_that_are_gone_are_deleted_and_nothing_else_is(
     link.symlink_to(deleted)
     stray = scope_folder.with_name(f"{SCOPE_FOLDER_NAME}-file")
     stray.write_text("not a folder", encoding="utf-8")
-    other_scope = made(tmp_path / "DerivedData" / "Simtrail-project-other-9f8e7d6c", tmp_path / "gone-o")
+    other_scope = made(tmp_path / "DerivedData" / "Rocketwright-project-other-9f8e7d6c", tmp_path / "gone-o")
     shutil.rmtree(gone)
     assert prune(scope_folder, keep={busy}) == [left, deleted]
     assert kept.is_dir() and busy.is_dir() and not deleted.exists() and not left.exists()

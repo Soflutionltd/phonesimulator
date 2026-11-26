@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""What WebDriverAgent does for a session: strokes as W3C actions, keys as text, and its tree as Simtrail's."""
+"""What WebDriverAgent does for a session: strokes as W3C actions, keys as text, and its tree as Rocketwright's."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError, HidEvent, Screen
-from simtrail.connectors.iphone.wda_client import SOURCE_MAX_CHILDREN, WdaClient, WdaError
-from simtrail.connectors.iphone.wda_roles import (
+from rocketwright.connectors.base import ConnectorError, HidEvent, Screen
+from rocketwright.connectors.iphone.wda_client import SOURCE_MAX_CHILDREN, WdaClient, WdaError
+from rocketwright.connectors.iphone.wda_roles import (
     ACTIVE_APP_PATH,
     COLD_SOURCE_TIMEOUT_S,
     EXCLUDED,
@@ -36,13 +36,13 @@ from simtrail.connectors.iphone.wda_roles import (
     pointer_actions,
     simplified,
 )
-from simtrail.core import gestures
-from simtrail.perception.model import Modal
-from simtrail.perception.readers import tree_from_document
-from simtrail.perception.snapshot import build
-from simtrail.testing.fakes import ManualClock
-from simtrail.testing.native import short_run_dir
-from simtrail.testing.wda import FakeWda
+from rocketwright.core import gestures
+from rocketwright.perception.model import Modal
+from rocketwright.perception.readers import tree_from_document
+from rocketwright.perception.snapshot import build
+from rocketwright.testing.fakes import ManualClock
+from rocketwright.testing.native import short_run_dir
+from rocketwright.testing.wda import FakeWda
 
 SCREEN = Screen(1179, 2556, 393, 852, 3.0)
 

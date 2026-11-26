@@ -7,8 +7,8 @@
 #include "include/cef_context_menu_handler.h"
 #include "include/views/cef_window.h"
 
-#if SIMTRAIL_CEF_BRIDGE
-#include "simtrail_cef/cef.h"
+#if ROCKETWRIGHT_CEF_BRIDGE
+#include "rocketwright_cef/cef.h"
 #endif
 
 class SampleApp : public CefApp, public CefBrowserProcessHandler, public CefRenderProcessHandler {
@@ -19,8 +19,8 @@ class SampleApp : public CefApp, public CefBrowserProcessHandler, public CefRend
     // Chromium would otherwise ask the login keychain for a storage key this sample never uses.
     if (!process_type.empty()) return;
     command_line->AppendSwitch("use-mock-keychain");
-#if SIMTRAIL_CEF_BRIDGE
-    simtrail_cef::KeepDrawingInBackground(command_line);
+#if ROCKETWRIGHT_CEF_BRIDGE
+    rocketwright_cef::KeepDrawingInBackground(command_line);
 #endif
   }
   void OnContextInitialized() override;
@@ -38,7 +38,7 @@ void EnableAccessibility();
 // Platform pieces, implemented in main_mac.mm.
 std::string PageURL();
 void ShowWithoutActivating(CefRefPtr<CefWindow> window);
-// Simtrail's Debug bridge; inert when SIMTRAIL_CEF_BRIDGE is off.
+// Rocketwright's Debug bridge; inert when ROCKETWRIGHT_CEF_BRIDGE is off.
 void StartBridge();
 void StopBridge();
 bool BridgeMessage(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefProcessId source,

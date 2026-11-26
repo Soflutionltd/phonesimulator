@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import Foundation
 
-/// The helper's version, which is Simtrail's: Simtrail refuses a helper of another version.
+/// The helper's version, which is Rocketwright's: Rocketwright refuses a helper of another version.
 public enum HelperVersion {
-    public static let current = "3.11.8"
+    public static let current = "3.12.0"
 }
 
 /// What a frame on the socket is.
 public enum FrameKind: UInt8, Sendable, CaseIterable {
-    /// Simtrail asks for something.
+    /// Rocketwright asks for something.
     case request = 1
     /// The answer to a request.
     case reply = 2
@@ -58,7 +58,7 @@ public enum WireError: Error, Equatable, CustomStringConvertible {
 }
 
 public enum Wire {
-    /// The protocol's version, which Simtrail checks in the hello.
+    /// The protocol's version, which Rocketwright checks in the hello.
     public static let version = 1
     /// The bytes after the length a frame has before its JSON: kind, id and JSON size.
     static let headerAfterLength = 9

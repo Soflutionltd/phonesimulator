@@ -58,7 +58,7 @@ def test_what_is_not_there_is_left_out(tmp_path: Path) -> None:
 
 def test_a_release_wheel_carries_the_built_helper_and_is_tagged_for_macos(tmp_path: Path) -> None:
     root = repository(tmp_path / "repo")
-    binary = executable(tmp_path / "simtrail-helper")
+    binary = executable(tmp_path / "rocketwright-helper")
     helper = wheel_helper(root, {BINARY_ENV: str(binary)})
     assert helper.force_include[str(binary)] == BINARY_TARGET
     assert len(helper.force_include) == 5, "its package, sources, support files and tests, and itself"
@@ -67,7 +67,7 @@ def test_a_release_wheel_carries_the_built_helper_and_is_tagged_for_macos(tmp_pa
 
 @pytest.mark.parametrize("make", [lambda path: path, lambda path: executable(path, 0o644)])
 def test_a_helper_that_is_not_an_executable_file_fails_the_build(tmp_path: Path, make: Any) -> None:
-    binary = make(tmp_path / "simtrail-helper")
+    binary = make(tmp_path / "rocketwright-helper")
     with pytest.raises(HelperBinaryMissing, match="not an executable helper"):
         wheel_helper(tmp_path, {BINARY_ENV: str(binary)})
 

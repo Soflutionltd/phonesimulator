@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.platform import keymap
-from simtrail.platform.keyboard import (
+from rocketwright.platform import keymap
+from rocketwright.platform.keyboard import (
     KEYMAP_PROGRAM,
     LAYOUT_QUERY,
     US_LAYOUTS,
@@ -20,7 +20,7 @@ from simtrail.platform.keyboard import (
     MacKeyboards,
     parse_keys,
 )
-from simtrail.testing.guards import forbidden
+from rocketwright.testing.guards import forbidden
 
 FRENCH = "com.apple.keylayout.French-numerical"
 #: What `platform/keymap.py` prints for a few of AZERTY's keys: q where a US keyboard has a, @ alone, { with Option.

@@ -10,5 +10,5 @@ tauri-build = "2"
 [dependencies]
 tauri = "2"
 serde_json = "1"
-simtrail-web = { path = "../../sdk/web" }
+rocketwright-web = { path = "../../sdk/web" }
 objc2-app-kit = { version = "0.3", features = ["NSWindow"] }

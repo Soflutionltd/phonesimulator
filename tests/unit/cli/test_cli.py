@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The ``simtrail`` command line, with no daemon, process, server, browser or Xcode: every command against a daemon
+"""The ``rocketwright`` command line, with no daemon, process, server, browser or Xcode: every command against a daemon
 answered in memory, and a refusal a person can act on as one line and exit status 1."""
 
 from __future__ import annotations
@@ -21,37 +21,37 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-import simtrail.__main__ as module_entry
-from simtrail import api
-from simtrail._version import __version__
-from simtrail.cli import app_command
-from simtrail.cli import context as context_module
-from simtrail.cli import devices as devices_command
-from simtrail.cli import login as login_command
-from simtrail.cli import record as record_command
-from simtrail.cli import stop as stop_command
-from simtrail.cli.context import CliContext, serve_with_uvicorn
-from simtrail.cli.main import main, parser
-from simtrail.cli.version import connector_names
-from simtrail.connectors.mcpbridge.client import BridgeClient
-from simtrail.connectors.registry import ConnectorContext, ConnectorRegistry
-from simtrail.core.devices import JsonDeviceMemory
-from simtrail.core.recordings import STOP_WAIT_S
-from simtrail.core.runtime import Runtime
-from simtrail.daemon.lifecycle import DaemonInfo, info_path, mark_stopped, read_info, stopped_mark, write_info
-from simtrail.daemon.passes import VIEWER_SESSIONS_FILE, ViewerSessions
-from simtrail.doctor.checks import DoctorContext
-from simtrail.doctor.report import CheckResult, Report
-from simtrail.host_copy import HostCopy
-from simtrail.mcp import launcher
-from simtrail.platform.device_data import DEVICES_DIR_ENV
-from simtrail.platform.passwords import Credentials, Login, PasswordSourceError, Source
-from simtrail.protocol import PROTOCOL_VERSION
-from simtrail.scope import Scope
-from simtrail.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
-from simtrail.testing.checkouts import linked_worktree, main_checkout
-from simtrail.testing.daemon import Daemon
-from simtrail.testing.fakes import BOOTED_UDID, FakeBridge, FakeConnector, FakeProcess, FakeXcrun
+import rocketwright.__main__ as module_entry
+from rocketwright import api
+from rocketwright._version import __version__
+from rocketwright.cli import app_command
+from rocketwright.cli import context as context_module
+from rocketwright.cli import devices as devices_command
+from rocketwright.cli import login as login_command
+from rocketwright.cli import record as record_command
+from rocketwright.cli import stop as stop_command
+from rocketwright.cli.context import CliContext, serve_with_uvicorn
+from rocketwright.cli.main import main, parser
+from rocketwright.cli.version import connector_names
+from rocketwright.connectors.mcpbridge.client import BridgeClient
+from rocketwright.connectors.registry import ConnectorContext, ConnectorRegistry
+from rocketwright.core.devices import JsonDeviceMemory
+from rocketwright.core.recordings import STOP_WAIT_S
+from rocketwright.core.runtime import Runtime
+from rocketwright.daemon.lifecycle import DaemonInfo, info_path, mark_stopped, read_info, stopped_mark, write_info
+from rocketwright.daemon.passes import VIEWER_SESSIONS_FILE, ViewerSessions
+from rocketwright.doctor.checks import DoctorContext
+from rocketwright.doctor.report import CheckResult, Report
+from rocketwright.host_copy import HostCopy
+from rocketwright.mcp import launcher
+from rocketwright.platform.device_data import DEVICES_DIR_ENV
+from rocketwright.platform.passwords import Credentials, Login, PasswordSourceError, Source
+from rocketwright.protocol import PROTOCOL_VERSION
+from rocketwright.scope import Scope
+from rocketwright.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
+from rocketwright.testing.checkouts import linked_worktree, main_checkout
+from rocketwright.testing.daemon import Daemon
+from rocketwright.testing.fakes import BOOTED_UDID, FakeBridge, FakeConnector, FakeProcess, FakeXcrun
 
 
 @dataclass
@@ -68,11 +68,11 @@ class Terminal:
         self.cwd = self.root / "Notes"
         self.cwd.mkdir(parents=True, exist_ok=True)
         self.env = {
-            "SIMTRAIL_STATE_DIR": str(self.root / "state"),
-            "SIMTRAIL_RUN_DIR": str(self.root / "run"),
-            "SIMTRAIL_LOG_DIR": str(self.root / "logs"),
-            "SIMTRAIL_CLAIMS_DIR": str(self.root / "claims"),
-            "SIMTRAIL_CONFIG": str(self.root / "config.toml"),
+            "ROCKETWRIGHT_STATE_DIR": str(self.root / "state"),
+            "ROCKETWRIGHT_RUN_DIR": str(self.root / "run"),
+            "ROCKETWRIGHT_LOG_DIR": str(self.root / "logs"),
+            "ROCKETWRIGHT_CLAIMS_DIR": str(self.root / "claims"),
+            "ROCKETWRIGHT_CONFIG": str(self.root / "config.toml"),
         }
         self.out, self.err = io.StringIO(), io.StringIO()
         self.ctx = CliContext(
@@ -119,10 +119,10 @@ def test_without_a_command_it_shows_its_help_and_it_knows_its_version(
     assert here() == 0 and "COMMAND" in here.out.getvalue()
     with pytest.raises(SystemExit) as exited:
         here("--version")
-    assert exited.value.code == 0 and capsys.readouterr().out.strip() == f"simtrail {__version__}"
+    assert exited.value.code == 0 and capsys.readouterr().out.strip() == f"rocketwright {__version__}"
     assert here("version") == 0
     assert here.said()[-3:] == [
-        f"simtrail {__version__}",
+        f"rocketwright {__version__}",
         f"protocol v{PROTOCOL_VERSION}",
         "connectors: android, idb, iphone, mac-app, mcpbridge, native, simctl",
     ]
@@ -140,7 +140,7 @@ def test_the_process_context_and_the_module_entry_point_are_the_real_ones() -> N
 async def test_the_daemon_is_served_by_uvicorn_with_sans_io_websockets(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    ours = logging.getLogger("simtrail")
+    ours = logging.getLogger("rocketwright")
     monkeypatch.setattr(ours, "handlers", list(ours.handlers))
     monkeypatch.setattr(ours, "level", ours.level)
     seen: dict[str, Any] = {}
@@ -159,9 +159,9 @@ async def test_the_daemon_is_served_by_uvicorn_with_sans_io_websockets(
     # A stop is not held up by a viewer that takes no data: the runtime still closes, a few seconds later.
     grace = context_module.SHUTDOWN_GRACE_S
     assert config.timeout_graceful_shutdown == grace and 0 < grace <= 10
-    # Simtrail's own lines go where uvicorn's do -- stderr, which a detached daemon appends to its log.
-    logging.getLogger("simtrail.core.screen_relay").info("a viewer of U1 took nothing for 10s; letting it go")
-    logging.getLogger("simtrail.core.screen_relay").debug("too fine to keep")
+    # Rocketwright's own lines go where uvicorn's do -- stderr, which a detached daemon appends to its log.
+    logging.getLogger("rocketwright.core.screen_relay").info("a viewer of U1 took nothing for 10s; letting it go")
+    logging.getLogger("rocketwright.core.screen_relay").debug("too fine to keep")
     logged = capsys.readouterr().err
     assert "a viewer of U1 took nothing for 10s; letting it go" in logged and "too fine" not in logged
 
@@ -197,7 +197,7 @@ def test_serve_runs_the_daemon_here_and_says_where_while_its_file_names_it(tmp_p
     assert isinstance(app, FastAPI) and (host, port, named) == ("127.0.0.1", 7481, True)
     # The settings panel's routes are served over this config.toml: asked without a credential, they ask for one.
     assert asyncio.run(unauthenticated(app, "/api/v1/scopes/demo/settings", port=7481)) == 401
-    assert here.said() == [f"Simtrail {__version__} on http://127.0.0.1:7481"]
+    assert here.said() == [f"Rocketwright {__version__} on http://127.0.0.1:7481"]
     assert "config: " in here.err.getvalue() and "stream.fps" in here.err.getvalue()
     assert (tmp_path / "state" / "token").is_file() and not info_path(tmp_path / "run").exists()
 
@@ -240,7 +240,7 @@ def test_detach_starts_the_daemon_in_the_background_with_the_same_settings(tmp_p
     assert argv == (
         "/usr/bin/python3",
         "-m",
-        "simtrail",
+        "rocketwright",
         "serve",
         "--foreground",
         "--port",
@@ -249,7 +249,7 @@ def test_detach_starts_the_daemon_in_the_background_with_the_same_settings(tmp_p
         config,
     )
     assert log == tmp_path / "logs" / "daemon.log"
-    assert here.said() == [f"the Simtrail daemon is running at http://127.0.0.1:7466; its log is {log}"]
+    assert here.said() == [f"the Rocketwright daemon is running at http://127.0.0.1:7466; its log is {log}"]
 
 
 # -- commands that use the daemon ------------------------------------------------------------------------------------
@@ -362,7 +362,7 @@ def test_settings_confirm_shows_each_change_waiting_and_its_code_or_that_none_is
 def test_devices_lists_this_macs_simulators_and_chooses_one_for_a_project(tmp_path: Path) -> None:
     listed = [
         {"udid": "U-1", "runtime": "iOS 26.5", "name": "iPhone 17 Pro", "state": "Booted", "created": False},
-        {"udid": "U-2", "runtime": "iOS 26.5", "name": "Simtrail · demo", "state": "Shutdown", "created": True},
+        {"udid": "U-2", "runtime": "iOS 26.5", "name": "Rocketwright · demo", "state": "Shutdown", "created": True},
         {"udid": "P-1", "runtime": "iOS 26.3", "name": "Test iPhone", "state": "Connected", "created": False,
          "kind": "physical", "connection": "usb", "detail": None},
         {"udid": "P-2", "runtime": "iOS 27.0", "name": "Second iPhone", "state": "Disconnected", "created": False,
@@ -377,7 +377,7 @@ def test_devices_lists_this_macs_simulators_and_chooses_one_for_a_project(tmp_pa
     assert here("devices", "list", "--scope", "demo") == 0 and here.said()[:6] == here.said()[6:12]
     assert here.said()[:6] == [
         "U-1  iOS 26.5  iPhone 17 Pro  Booted",
-        "U-2  iOS 26.5  Simtrail · demo  Shutdown  (made by Simtrail)",
+        "U-2  iOS 26.5  Rocketwright · demo  Shutdown  (made by Rocketwright)",
         "P-1  iOS 26.3  Test iPhone  Connected  real device, usb",
         "P-2  iOS 27.0  Second iPhone  Disconnected  real device, not connected  (Not connected)",
         "avd-Pixel-9-fa39dd  Android 16 (API 36)  Pixel 9  Booted  Android emulator",
@@ -399,30 +399,30 @@ def test_devices_prune_asks_the_running_daemon_and_says_what_it_deleted_and_kept
     here.daemon.answers[("POST", PRUNE)] = {
         "dry_run": False,
         "devices": [
-            {"udid": "U-1", "name": "Simtrail · a", "apps": [], "size": 2_150_000_000, "deleted": True, "kept": None,
-             "error": None},
-            {"udid": "U-2", "name": "Simtrail · b", "apps": ["Demo.app"], "size": 40_000_000, "deleted": False,
+            {"udid": "U-1", "name": "Rocketwright · a", "apps": [], "size": 2_150_000_000, "deleted": True,
+             "kept": None, "error": None},
+            {"udid": "U-2", "name": "Rocketwright · b", "apps": ["Demo.app"], "size": 40_000_000, "deleted": False,
              "kept": "it holds 1 app (--all deletes it too)", "error": None},
-            {"udid": "U-3", "name": "Simtrail · c", "apps": [], "size": 0, "deleted": False, "kept": None,
+            {"udid": "U-3", "name": "Rocketwright · c", "apps": [], "size": 0, "deleted": False, "kept": None,
              "error": "simctl delete: it would not go"},
         ],
     }  # fmt: skip
     assert here("devices", "prune", "--all") == 1, "a deletion that failed is exit status 1"
     assert here.daemon.made("POST", PRUNE) == [{"all": True, "dry_run": False}]
     assert here.said() == [
-        "deleted Simtrail · a (U-1), 2.1 GB",
-        "kept Simtrail · b (U-2): it holds 1 app (--all deletes it too)",
-        "could not delete Simtrail · c (U-3): simctl delete: it would not go",
+        "deleted Rocketwright · a (U-1), 2.1 GB",
+        "kept Rocketwright · b (U-2): it holds 1 app (--all deletes it too)",
+        "could not delete Rocketwright · c (U-3): simctl delete: it would not go",
         "deleted 1 simulator, freeing 2.1 GB",
     ]
     here.daemon.answers[("POST", PRUNE)] = {"dry_run": True, "devices": []}
     assert here("devices", "prune", "--dry-run") == 0
-    assert here.said()[-1] == "no simulator Simtrail made is left: nothing to delete"
+    assert here.said()[-1] == "no simulator Rocketwright made is left: nothing to delete"
     assert devices_command.size_text(40_000_000) == "40 MB"
     other = Terminal(tmp_path / "other")
     other.daemon.admin = None
     assert other("devices", "prune") == 1
-    assert "is not your Simtrail daemon" in other.err.getvalue() and other.daemon.made("POST", PRUNE) == []
+    assert "is not your Rocketwright daemon" in other.err.getvalue() and other.daemon.made("POST", PRUNE) == []
 
 
 def test_devices_prune_with_no_daemon_reads_the_memory_here_and_never_starts_one(tmp_path: Path) -> None:
@@ -438,15 +438,15 @@ def test_devices_prune_with_no_daemon_reads_the_memory_here_and_never_starts_one
     (root / empty / "device.plist").write_bytes(b"x" * 300_000_000)
     (root / full / "data" / "Containers" / "Bundle" / "Application" / "B" / "Demo.app").mkdir(parents=True)
     listing = {"devices": {"iOS 26.5": [
-        {"udid": empty, "name": "Simtrail · a", "state": "Shutdown", "isAvailable": True},
-        {"udid": full, "name": "Simtrail · b", "state": "Shutdown", "isAvailable": True},
+        {"udid": empty, "name": "Rocketwright · a", "state": "Shutdown", "isAvailable": True},
+        {"udid": full, "name": "Rocketwright · b", "state": "Shutdown", "isAvailable": True},
     ]}}  # fmt: skip
     xcrun = FakeXcrun().on("simctl", "list", "devices", "-j", out=json.dumps(listing))
     here.ctx.xcrun = xcrun
     assert here("devices", "prune", "--dry-run") == 0
     assert here.said() == [
-        f"would delete Simtrail · a ({empty}), 0.3 GB",
-        f"kept Simtrail · b ({full}): it holds 1 app (--all deletes it too)",
+        f"would delete Rocketwright · a ({empty}), 0.3 GB",
+        f"kept Rocketwright · b ({full}): it holds 1 app (--all deletes it too)",
         "would delete 1 simulator, which would free 0.3 GB",
     ]
     assert memory.all_created() == {empty, full} and here.spawned == []
@@ -462,7 +462,7 @@ def test_a_refusal_from_the_daemon_is_one_line_and_exit_status_one(tmp_path: Pat
     here = Terminal(tmp_path)
     here.daemon.refuse.add("/api/v1/admin/login-codes")
     assert here("open", "--scope", "demo") == 1
-    assert here.err.getvalue() == "simtrail: the daemon refused /api/v1/admin/login-codes: refused here\n"
+    assert here.err.getvalue() == "rocketwright: the daemon refused /api/v1/admin/login-codes: refused here\n"
     assert here("open", "--scope", "bad id") == 1 and "a scope id is 1 to 128" in here.err.getvalue()
 
 
@@ -508,15 +508,15 @@ def test_config_says_where_it_is_and_changes_one_value_at_a_time(tmp_path: Path)
     assert here("config", "list") == 0
     listed = here.said()
     assert "stream.fps = 24" in listed and "enabled = true  # default" in listed
-    here.env["SIMTRAIL_STREAM_QUALITY"] = "60"
-    assert here("config", "list") == 0 and "stream.quality = 60  # SIMTRAIL_STREAM_QUALITY" in here.said()
+    here.env["ROCKETWRIGHT_STREAM_QUALITY"] = "60"
+    assert here("config", "list") == 0 and "stream.quality = 60  # ROCKETWRIGHT_STREAM_QUALITY" in here.said()
     assert here("config", "set", "agent.cursor", "false", "--scope", "demo") == 0
     assert here("config", "get", "agent.cursor", "--scope", "demo") == 0 and here.said()[-1] == "false"
     assert here("config", "list", "--scope", "demo") == 0
     config_file = tmp_path / "config.toml"
     # The scope's own value says where it is; one the whole file sets does not pass for the environment's.
     assert f'agent.cursor = false  # [scopes."demo"] in {config_file}' in here.said()
-    assert "stream.fps = 24" in here.said() and "stream.quality = 60  # SIMTRAIL_STREAM_QUALITY" in here.said()
+    assert "stream.fps = 24" in here.said() and "stream.quality = 60  # ROCKETWRIGHT_STREAM_QUALITY" in here.said()
     assert here("config", "unset", "stream.fps") == 0 and here.said()[-1] == "stream.fps unset"
     assert (
         here("config", "unset", "stream.fps") == 0
@@ -570,7 +570,7 @@ def test_config_scope_prints_a_folders_scope_id_alone_so_a_script_can_pass_it_on
     (here.cwd / "sub").mkdir()
     assert here("config", "scope", "--folder", "sub") == 0 and here.said()[-1] == Scope.for_folder(here.cwd / "sub").id
     assert here("config", "scope", "--folder", "missing") == 1
-    assert here.err.getvalue() == "simtrail: missing is not a folder\n" and len(here.said()) == 3
+    assert here.err.getvalue() == "rocketwright: missing is not a folder\n" and len(here.said()) == 3
 
 
 def test_doctor_looks_at_the_folder_it_runs_in_and_the_config_file_it_reads(tmp_path: Path) -> None:
@@ -632,7 +632,7 @@ def test_tokens_are_made_once_listed_and_revoked(tmp_path: Path) -> None:
 def test_a_token_is_revoked_through_the_running_daemon_so_what_its_agent_held_is_let_go(tmp_path: Path) -> None:
     here = Terminal(tmp_path)
     here.daemon.admin = here.ctx.tokens().admin_token
-    record, _ = here.ctx.tokens().create("agent", ["demo"], label="simtrail mcp (pid 4242)")
+    record, _ = here.ctx.tokens().create("agent", ["demo"], label="rocketwright mcp (pid 4242)")
     gone = f"/api/v1/admin/tokens/{record.id}"
     here.daemon.answers[("DELETE", gone)] = {"revoked": True}
     assert here("token", "revoke", record.id) == 0 and here.said()[-1] == f"revoked {record.id}"
@@ -730,7 +730,7 @@ def test_login_says_what_went_wrong_and_names_where_logins_come_from_when_nothin
         "isError": True,
     }
     assert here("login", "com.example.notes", "--source", "1password", "--field", "e3", "--scope", "demo") == 1
-    assert here.err.getvalue().endswith("simtrail: no password field is on screen\n")
+    assert here.err.getvalue().endswith("rocketwright: no password field is on screen\n")
     call = here.daemon.made("POST", "/api/v1/agent/call")[-1]
     assert call["arguments"]["field"] == "e3" and "account" not in call["arguments"]
     assert not [path for _, path, _ in here.daemon.requests if path.endswith("/inherit")], "a named scope is left"
@@ -740,7 +740,7 @@ def test_login_says_what_went_wrong_and_names_where_logins_come_from_when_nothin
 
     monkeypatch.setattr(login_command.passwords, "sources", broken)
     assert here("login", "com.example.notes", "--source", "1password") == 1
-    assert here.err.getvalue().endswith("simtrail: 1Password's CLI was not found\n")
+    assert here.err.getvalue().endswith("rocketwright: 1Password's CLI was not found\n")
 
 
 def test_the_daemons_address_comes_from_its_file_or_else_the_settings(tmp_path: Path) -> None:
@@ -779,7 +779,7 @@ def test_approving_opens_this_folders_project_through_xcodes_tools_and_closes_it
     bridge = FakeBridge(folder=tmp_path / "artifacts")
     started = with_bridge(here, bridge)
     assert here("xcode", "approve") == 0
-    assert here.said() == ["Xcode approved Simtrail to use its tools, opening App.xcodeproj"]
+    assert here.said() == ["Xcode approved Rocketwright to use its tools, opening App.xcodeproj"]
     assert bridge.calls == [
         ("XcodeListWorkspaces", {}),
         ("XcodeOpenWorkspace", {"path": str(app)}),
@@ -812,11 +812,11 @@ def test_approving_without_a_project_to_open_or_with_xcode_refusing_says_why(tmp
     with_bridge(here, bridge)
     assert here("xcode", "approve") == 1
     assert here.err.getvalue().splitlines()[-1] == (
-        f"simtrail: name the .xcodeproj or .xcworkspace to open, since {here.cwd} does not have exactly one"
+        f"rocketwright: name the .xcodeproj or .xcworkspace to open, since {here.cwd} does not have exactly one"
     )
     assert here("xcode", "approve", "README.md") == 1
     assert here.err.getvalue().splitlines()[-1] == (
-        "simtrail: name the .xcodeproj or .xcworkspace to open: README.md is not one"
+        "rocketwright: name the .xcodeproj or .xcworkspace to open: README.md is not one"
     )
     project(here.cwd)
     project(here.cwd, "Other.xcodeproj")
@@ -824,14 +824,14 @@ def test_approving_without_a_project_to_open_or_with_xcode_refusing_says_why(tmp
     bridge.refuse("XcodeOpenWorkspace", "The project could not be opened.")
     assert here("xcode", "approve", "App.xcodeproj") == 1
     assert here.err.getvalue().splitlines()[-1] == (
-        "simtrail: Xcode refused XcodeOpenWorkspace: The project could not be opened."
+        "rocketwright: Xcode refused XcodeOpenWorkspace: The project could not be opened."
     )
     bridge.stop('xcrun: error: unable to find utility "mcpbridge", not a developer tool or in PATH')
     assert here("xcode", "approve", "App.xcodeproj") == 1
     assert "needs Xcode 27 or later" in here.err.getvalue().splitlines()[-1]
     bridge.stop("Fatal error: something else")
     assert here("xcode", "approve", "App.xcodeproj") == 1
-    assert here.err.getvalue().splitlines()[-1] == "simtrail: mcpbridge stopped: Fatal error: something else"
+    assert here.err.getvalue().splitlines()[-1] == "rocketwright: mcpbridge stopped: Fatal error: something else"
 
 
 # -- app -------------------------------------------------------------------------------------------------------------
@@ -852,22 +852,23 @@ def test_no_app_sharing_a_hierarchy_or_no_simulator_to_read_says_so_and_exits_on
     here = Terminal(tmp_path)
     with_apps(here, tmp_path / "devices")
     assert here("app") == 1
-    assert here.err.getvalue().splitlines()[-1].startswith(f"simtrail: {BOOTED_UDID}: no app on it shares")
+    assert here.err.getvalue().splitlines()[-1].startswith(f"rocketwright: {BOOTED_UDID}: no app on it shares")
     assert here("app", "hierarchy", "--json") == 1
     assert json.loads(here.out.getvalue())["app"] is None
     assert here("app", "hierarchy", "--device", "booted") == 1
-    assert here.err.getvalue().splitlines()[-1] == "simtrail: 'booted' is not a simulator's UDID"
+    assert here.err.getvalue().splitlines()[-1] == "rocketwright: 'booted' is not a simulator's UDID"
     here.ctx.xcrun = FakeXcrun().on("simctl", "list", "devices", "-j", out='{"devices": {}}')
     assert here("app", "hierarchy") == 1
     assert (
-        here.err.getvalue().splitlines()[-1] == "simtrail: no simulator is booted: boot one, or name it with --device"
+        here.err.getvalue().splitlines()[-1]
+        == "rocketwright: no simulator is booted: boot one, or name it with --device"
     )
     two = {"devices": {"iOS 26.5": [{"udid": "U-1", "name": "A", "state": "Booted", "isAvailable": True},
                                     {"udid": "U-2", "name": "B", "state": "Booted", "isAvailable": True}]}}  # fmt: skip
     here.ctx.xcrun = FakeXcrun().on("simctl", "list", "devices", "-j", out=json.dumps(two))
     assert here("app", "hierarchy") == 1
     assert here.err.getvalue().splitlines()[-1] == (
-        "simtrail: 2 simulators are booted: name one with --device (U-1, U-2)"
+        "rocketwright: 2 simulators are booted: name one with --device (U-1, U-2)"
     )
     here.ctx.xcrun = FakeXcrun().on("simctl", "list", "devices", "-j", rc=1, err="simctl failed")
     assert here("app", "hierarchy") == 1
@@ -926,7 +927,7 @@ async def test_an_app_that_cannot_be_read_or_is_not_in_front_says_why_and_exits_
         app.answer = "refuse"
         assert await app_command._hierarchy(app_args(), here.ctx) == 1
         assert here.err.getvalue().splitlines()[-1] == (
-            "simtrail: AppSDK shares its view hierarchy, but this snapshot could not read it: "
+            "rocketwright: AppSDK shares its view hierarchy, but this snapshot could not read it: "
             "AppSDK refused to share its view hierarchy (503 busy)"
         )
         assert await app_command._hierarchy(app_args("--json"), here.ctx) == 1
@@ -940,14 +941,14 @@ async def test_an_app_that_cannot_be_read_or_is_not_in_front_says_why_and_exits_
         app.answer = "inactive"
         assert await app_command._hierarchy(app_args(), here.ctx) == 1
         assert here.err.getvalue().splitlines()[-1] == (
-            f"simtrail: 1 app shares a view hierarchy on {BOOTED_UDID}, and none is in front"
+            f"rocketwright: 1 app shares a view hierarchy on {BOOTED_UDID}, and none is in front"
         )
         async with FakeAppSdk(bundle_id="com.example.other") as other:
             other.answer = "inactive"
             write_listing(data, other.listing(BOOTED_UDID))
             assert await app_command._hierarchy(app_args(), here.ctx) == 1
     assert here.err.getvalue().splitlines()[-1] == (
-        f"simtrail: 2 apps share a view hierarchy on {BOOTED_UDID}, and none is in front"
+        f"rocketwright: 2 apps share a view hierarchy on {BOOTED_UDID}, and none is in front"
     )
 
 
@@ -975,7 +976,7 @@ def test_record_starts_stops_and_lists_through_the_daemon(tmp_path: Path, capsys
     assert here.daemon.made("POST", f"{base}/recording") == [
         {"format": "gif", "width": None, "quality": None, "preset": None, "also": None}
     ]
-    assert here.said()[-1] == "recording demo (by person); `simtrail record stop` keeps it"
+    assert here.said()[-1] == "recording demo (by person); `rocketwright record stop` keeps it"
     assert here("record", "start", "--preset", "pr", "--width", "600", "--quality", "medium", "--scope", "demo") == 0
     assert here.daemon.made("POST", f"{base}/recording")[-1] == {
         "format": None,
@@ -1059,7 +1060,7 @@ def test_record_names_a_recording_bounds_it_and_waits_for_a_long_stop(
     assert here.said()[-3:] == [
         "stopped by itself at 2400s, its limit; still rendering 20260929-034515-test-iphone · Test iPhone · 10.8s",
         "note: still being rendered; it will be kept at /r/r.mp4",
-        "`simtrail record list` says when it is kept",
+        "`rocketwright record list` says when it is kept",
     ]
     [(_, _, waited)] = [timed for timed in daemon.timeouts if timed[:2] == ("DELETE", f"{base}/recording")]
     assert waited == record_command.STOP_TIMEOUT_S and waited > STOP_WAIT_S > launcher.REQUEST_TIMEOUT_S
@@ -1158,7 +1159,7 @@ def test_stop_shutdown_refuses_while_another_scope_shares_the_simulator_unless_f
     here.daemon.answers[("GET", "/api/v1/admin/in-use")] = {"scopes": served}
     assert here("stop", "--shutdown", "--scope", "demo") == 1
     assert here.err.getvalue() == (
-        "simtrail: demo's simulator is also used by tp-2, so it is not shut down: shutting it down would end their "
+        "rocketwright: demo's simulator is also used by tp-2, so it is not shut down: shutting it down would end their "
         "session too. Leave out --shutdown to stop only this one, or add --force\n"
     )
     assert here.daemon.made("DELETE", DEMO) == [], "nothing was stopped"
@@ -1168,7 +1169,7 @@ def test_stop_shutdown_refuses_while_another_scope_shares_the_simulator_unless_f
     assert here.said()[-2:] == [
         "demo: stopped; the device keeps running (--shutdown shuts a simulator down too)",
         f"{BOOTED_UDID} (iPhone 17) is still held by 1 other scope: tp-2 (an agent); use "
-        f"`simtrail stop --device {BOOTED_UDID}` to let it go for all of them, or --daemon",
+        f"`rocketwright stop --device {BOOTED_UDID}` to let it go for all of them, or --daemon",
     ]
     assert here.daemon.made("GET", "/api/v1/admin/in-use") == [None, None]
     assert here("stop", "--shutdown", "--force", "--scope", "demo") == 0
@@ -1198,9 +1199,9 @@ def test_stop_for_a_scope_that_held_nothing_names_the_devices_other_scopes_still
     assert here.said() == [
         "demo: no device was running",
         f"{phone} (iPhone A Test) is still held by 2 scopes: tp-2 (an agent), tp-3; use "
-        f"`simtrail stop --device {phone}` to let it go for all of them, or --daemon",
+        f"`rocketwright stop --device {phone}` to let it go for all of them, or --daemon",
         f"{BOOTED_UDID} (iPhone 17) is still held by 1 scope: tp-4 (an agent); use "
-        f"`simtrail stop --device {BOOTED_UDID}` to let it go for all of them, or --daemon",
+        f"`rocketwright stop --device {BOOTED_UDID}` to let it go for all of them, or --daemon",
     ]
 
 
@@ -1211,12 +1212,12 @@ def test_stop_device_lets_it_go_for_every_scope_and_names_who_held_it(tmp_path: 
     here.daemon.answers[("DELETE", let_go)] = {
         "udid": phone,
         "stopped": True,
-        "scopes": [{"id": "tp-2", "agents": ["simtrail mcp (pid 52260)"]}, {"id": "tp-3", "agents": []}],
+        "scopes": [{"id": "tp-2", "agents": ["rocketwright mcp (pid 52260)"]}, {"id": "tp-3", "agents": []}],
     }
     assert here("stop", "--device", phone) == 0
     assert here.said() == [
         f"{phone}: let go for 2 scopes; the device keeps running",
-        "  tp-2, held by simtrail mcp (pid 52260)",
+        "  tp-2, held by rocketwright mcp (pid 52260)",
         "  tp-3",
     ]
     assert here.daemon.made("DELETE", DEMO) == [] and here.daemon.made("DELETE", let_go) == [None]
@@ -1227,8 +1228,8 @@ def test_stop_device_lets_it_go_for_every_scope_and_names_who_held_it(tmp_path: 
     here.daemon.answers[("GET", "/api/v1/admin/in-use")] = {"scopes": []}
     assert here("stop", "--device", phone, "--daemon") == 0
     assert here.said()[-2:] == [
-        f"{phone}: Simtrail was not running it, so there was nothing to let go",
-        "stopped the Simtrail daemon; the devices it did not shut down keep running",
+        f"{phone}: Rocketwright was not running it, so there was nothing to let go",
+        "stopped the Rocketwright daemon; the devices it did not shut down keep running",
     ]
     assert signalled
     refused = Terminal(tmp_path / "refused")
@@ -1240,11 +1241,11 @@ def test_stop_with_no_daemon_starts_none_and_one_that_is_not_ours_is_sent_nothin
     here = Terminal(tmp_path)
     here.daemon.up = False
     assert here("stop", "--daemon", "--scope", "demo") == 0
-    assert here.said() == ["the Simtrail daemon is not running: nothing to stop"] and here.spawned == []
+    assert here.said() == ["the Rocketwright daemon is not running: nothing to stop"] and here.spawned == []
     other = Terminal(tmp_path / "other")
     other.daemon.admin = None
     assert other("stop", "--scope", "demo") == 1
-    assert "is not your Simtrail daemon" in other.err.getvalue() and other.daemon.made("DELETE", DEMO) == []
+    assert "is not your Rocketwright daemon" in other.err.getvalue() and other.daemon.made("DELETE", DEMO) == []
 
 
 def test_stop_daemon_stops_it_only_when_it_serves_no_other_scope_unless_forced(tmp_path: Path) -> None:
@@ -1266,13 +1267,13 @@ def test_stop_daemon_stops_it_only_when_it_serves_no_other_scope_unless_forced(t
     assert here("stop", "--daemon", "--scope", "demo") == 1
     assert stopped_mark(here.root / "run") is None, "still serving others, it is not being stopped"
     assert here.err.getvalue() == (
-        "simtrail: the daemon still serves tp-2 (running iPhone 17 Pro, an agent, a build); tp-3, so it keeps "
-        "running: stop each with `simtrail stop --scope <id>`, or add --force\n"
+        "rocketwright: the daemon still serves tp-2 (running iPhone 17 Pro, an agent, a build); tp-3, so it keeps "
+        "running: stop each with `rocketwright stop --scope <id>`, or add --force\n"
     )
     assert signalled == [] and here.daemon.up
     assert here("stop", "--daemon", "--force", "--scope", "demo") == 0
     assert signalled == [(os.getpid(), signal.SIGTERM)] and not here.daemon.up
-    assert here.said()[-1] == "stopped the Simtrail daemon; the devices it did not shut down keep running"
+    assert here.said()[-1] == "stopped the Rocketwright daemon; the devices it did not shut down keep running"
     assert marked != [None] and marked == [stopped_mark(here.root / "run")], "written down before it was signalled"
     assert len(here.daemon.made("GET", "/api/v1/admin/in-use")) == 3, "forced, only who holds what is asked"
     alone, quit = stopping(tmp_path / "alone")
@@ -1296,7 +1297,7 @@ def test_stop_daemon_says_so_when_it_cannot_be_stopped_by_its_pid_or_does_not_st
     stubborn.daemon.answers[("GET", "/api/v1/admin/in-use")] = {"scopes": []}
     monkeypatch.setattr(stop_command, "wait_stopped", lambda client: False)
     assert stubborn("stop", "--daemon", "--scope", "demo") == 1 and signalled
-    assert stubborn.err.getvalue() == "simtrail: the Simtrail daemon did not stop within 20s\n"
+    assert stubborn.err.getvalue() == "rocketwright: the Rocketwright daemon did not stop within 20s\n"
 
 
 def test_a_stopping_daemon_is_waited_for_until_it_stops_answering_or_the_wait_runs_out(tmp_path: Path) -> None:

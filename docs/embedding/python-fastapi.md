@@ -1,6 +1,6 @@
 # A Python host application
 
-An application with its own server can run Simtrail **inside** its process instead of beside it: its own paths, its
+An application with its own server can run Rocketwright **inside** its process instead of beside it: its own paths, its
 own sign-in, its own idea of what a scope is. No daemon runs.
 
 When several applications on one Mac show simulators, they can instead [share the daemon](shared-daemon.md), each with
@@ -10,12 +10,12 @@ a host token for its own scopes.
 
 ## The surface
 
-A host imports **only `simtrail.api`**. Everything named there is kept stable across minor versions; the rest of the
+A host imports **only `rocketwright.api`**. Everything named there is kept stable across minor versions; the rest of the
 package may change.
 
 | Name | What it is |
 |---|---|
-| `Runtime` | One Simtrail for the process: `Runtime.build(...)`, `start()`, `reconcile(group)`, `close()` |
+| `Runtime` | One Rocketwright for the process: `Runtime.build(...)`, `start()`, `reconcile(group)`, `close()` |
 | `Scope` | What devices, settings and agents are grouped by: `Scope(id, group, label)` |
 | `ConfigSource`, `StateStore`, `Policy`, `Authenticator`, `UsageProbe`, `DeviceMemory` | The seams a host implements |
 | `InputPause` | An optional seam: a person's "hands off" for agents |
@@ -44,7 +44,7 @@ shares one. The `label` names the device: `<device.name_prefix> · <label>`.
 | `InputPause` (optional) | Whether a person has paused agents' gestures on a device -- a real phone in their hand | Before each batch of agent steps, and each gesture in it |
 | `HostCopy` | The words for where settings are, what a scope is called, and the doctor hint | In every message |
 
-Share the **claims** folder with every other Simtrail on the Mac: answer `StateStore.claims_dir()` with
+Share the **claims** folder with every other Rocketwright on the Mac: answer `StateStore.claims_dir()` with
 `claims_dir(os.environ)` rather than writing the path out, and two hosts will refuse to drive one device instead of
 fighting over it.
 
@@ -52,7 +52,7 @@ fighting over it.
 in one private JSON file. Pass your own when you have somewhere better — a row per project in your database — and
 then nothing about files reaches your `StateStore` at all.
 
-A `HostCopy` subclass that rewrites a message keeps it: Simtrail never changes what it calls one with. Where a message
+A `HostCopy` subclass that rewrites a message keeps it: Rocketwright never changes what it calls one with. Where a message
 needed more to go on, a method beside it says it, and falls back to your rewrite of the old one until you rewrite the
 new one too. `claimed_of_kind(owner, pid, kind)` and `in_use_elsewhere_of_kind(kind)` are those for `claimed` and
 `device_in_use_elsewhere`, which say "simulator" whatever the device is: given `"physical"`, the new ones say "device".
@@ -76,7 +76,7 @@ checked by `tests/contract/test_physical_embedding.py`, through this surface alo
 - what was changed on a phone is put back when it is let go -- after it was unplugged, or after a crash, once it is
   back -- and nothing ever asks a phone to shut down, restart or be erased.
 
-Simtrail sees a person's input only through a viewer: a finger on the phone's own screen is not seen, so an agent is
+Rocketwright sees a person's input only through a viewer: a finger on the phone's own screen is not seen, so an agent is
 not held back by it. A host that can tell -- its own button, its own sense of who has the phone -- passes an
 `InputPause`: while its `paused(device)` answers true, agents' gestures stay off that device
 ([Real devices](../real-devices.md#a-person-comes-first)). A host that shares the daemon builds no `Runtime`, so it
@@ -86,7 +86,7 @@ pauses through the daemon instead: `DaemonHost.pause(scope_id, seconds)`, which 
 ## Putting it together
 
 ```python
-from simtrail.api import (
+from rocketwright.api import (
     JsonDeviceMemory,
     Runtime,
     create_agent_router,
@@ -148,14 +148,14 @@ app.include_router(
   reach. Without one, a page is simply refused those settings.
 - `daemon_scope` is the scope you read your own server-wide settings as.
 
-`simtrail.testing` has `MemorySettingsStore` and `FakeConfirmations` for a host's tests. On the viewer side, a
+`rocketwright.testing` has `MemorySettingsStore` and `FakeConfirmations` for a host's tests. On the viewer side, a
 transport offers the panel by having `settings()` and `changeSettings()`; `createHttpTransport` has them with
 `settings: true`.
 
 ## Giving agents the tools
 
 ```python
-from simtrail.api import relay_command
+from rocketwright.api import relay_command
 
 argv = relay_command(
     url_env="MY_TOOLS_URL",  # where the agent routes are
@@ -200,9 +200,9 @@ made is a result with `isError`, never an exception. Who the caller is -- and so
 
 ## Testing a host
 
-`simtrail.testing` ships the fakes Simtrail's own suite uses: `DeviceRig` (a real `DeviceManager` over a fake Mac),
+`rocketwright.testing` ships the fakes Rocketwright's own suite uses: `DeviceRig` (a real `DeviceManager` over a fake Mac),
 `FakeConnector`, `FakeXcrun`, `StaticConfig`, `MemoryStateStore`, `FakePolicy`, and `AsgiSocket` for screen sockets.
-`simtrail.testing.guards` refuses to start Xcode's tools, idb_companion or an agent from a test.
+`rocketwright.testing.guards` refuses to start Xcode's tools, idb_companion or an agent from a test.
 
 ## Before you ship
 

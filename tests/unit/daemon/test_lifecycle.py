@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.daemon.lifecycle import DaemonInfo, info_path, read_info, remove_info, start_detached, write_info
-from simtrail.testing.fakes import FakeProcess
+from rocketwright.daemon.lifecycle import DaemonInfo, info_path, read_info, remove_info, start_detached, write_info
+from rocketwright.testing.fakes import FakeProcess
 
 INFO = DaemonInfo(pid=4242, port=7466, version="0.1.0")
 
@@ -56,5 +56,5 @@ async def test_a_detached_daemon_is_started_with_its_log_and_answers_its_pid(tmp
         started.append((tuple(argv), log_path))
         return FakeProcess(pid=5151)
 
-    assert await start_detached(["simtrail", "serve"], tmp_path / "daemon.log", spawn=spawn) == 5151
-    assert started == [(("simtrail", "serve"), tmp_path / "daemon.log")]
+    assert await start_detached(["rocketwright", "serve"], tmp_path / "daemon.log", spawn=spawn) == 5151
+    assert started == [(("rocketwright", "serve"), tmp_path / "daemon.log")]

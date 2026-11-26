@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.schema import BY_KEY
-from simtrail.connectors.iphone import wda_client
-from simtrail.connectors.iphone.wda_client import (
+from rocketwright.config.schema import BY_KEY
+from rocketwright.connectors.iphone import wda_client
+from rocketwright.connectors.iphone.wda_client import (
     ANSWER_MAX,
     HTTP_PORT,
     QUICK_CAPABILITIES,
@@ -28,10 +28,10 @@ from simtrail.connectors.iphone.wda_client import (
     exchange,
     usbmux_opener,
 )
-from simtrail.platform.usbmux import UsbDevice, UsbmuxError
-from simtrail.testing.fakes import PHONE_UDID, ManualClock
-from simtrail.testing.native import short_run_dir
-from simtrail.testing.wda import FakeWda
+from rocketwright.platform.usbmux import UsbDevice, UsbmuxError
+from rocketwright.testing.fakes import PHONE_UDID, ManualClock
+from rocketwright.testing.native import short_run_dir
+from rocketwright.testing.wda import FakeWda
 
 
 @pytest.fixture

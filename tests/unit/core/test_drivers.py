@@ -11,16 +11,16 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.core.actions import AgentActions
-from simtrail.core.drivers import HOLD_S, Drivers, Held, changes_device, exclusive
-from simtrail.core.instance import Driver
-from simtrail.core.runtime import Runtime
-from simtrail.host_copy import HostCopy
-from simtrail.seams import Caller
-from simtrail.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend, fixture_udid, no_wait
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.testing.vision import FakeTextRecognizer
-from simtrail.tools.results import Result
+from rocketwright.core.actions import AgentActions
+from rocketwright.core.drivers import HOLD_S, Drivers, Held, changes_device, exclusive
+from rocketwright.core.instance import Driver
+from rocketwright.core.runtime import Runtime
+from rocketwright.host_copy import HostCopy
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend, fixture_udid, no_wait
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.testing.vision import FakeTextRecognizer
+from rocketwright.tools.results import Result
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code · checkout")
 OTHER = Caller(scope("tp-1"), key="agent-2", title="Codex · checkout")
@@ -70,7 +70,7 @@ async def test_a_second_agent_is_refused_a_real_device_for_two_minutes_takes_it_
     assert re.fullmatch(
         r"Test iPhone is held by Claude Code · checkout since \d\d:\d\d:\d\d \(its last call 60 s ago\); "
         r"sim_device list shows the devices nobody uses, and choose takes one -- or pass steal: true to take this one, "
-        r"or call again once it has been left alone for 2 minutes \(device\.exclusive, `simtrail config`\)\.",
+        r"or call again once it has been left alone for 2 minutes \(device\.exclusive, `rocketwright config`\)\.",
         said(refused),
     ), said(refused)
     assert (await runtime.call(OTHER, "sim_app", LAUNCH))["isError"] is True, "launching an app changes it too"
@@ -258,7 +258,7 @@ async def test_an_agent_of_another_scope_is_refused_up_front_while_it_called_wit
     assert refused["isError"] is True and said(refused) == (
         "this device is in use by Codex · elsewhere, of another project (its last call 30 s ago); sim_device list "
         "shows the devices nobody uses, and choose takes one -- or pass steal: true to take this one, or call again "
-        "once it has been left alone for 2 minutes (device.exclusive, `simtrail config`)."
+        "once it has been left alone for 2 minutes (device.exclusive, `rocketwright config`)."
     )
     started = await runtime.call(A, "sim_record", {"action": "start"})
     assert started["isError"] is True and "is in use by Codex · elsewhere" in said(started)

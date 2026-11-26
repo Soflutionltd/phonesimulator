@@ -35,7 +35,7 @@ public enum AccessibilityValue: Equatable, Sendable {
 
 /// One element of a screen's accessibility tree, read from the device.
 ///
-/// Only what Simtrail reads of an element is kept. Each attribute is a round trip to the simulator, and a snapshot
+/// Only what Rocketwright reads of an element is kept. Each attribute is a round trip to the simulator, and a snapshot
 /// reads every element, so an attribute nothing reads -- help text, custom actions -- is not asked for at all. A role's
 /// description is asked of a group only: it is how a navigation bar says what it is.
 public struct AXNode: Equatable, Sendable {
@@ -106,9 +106,9 @@ public enum AXTraits {
     }
 }
 
-/// The document Simtrail reads a screen from: the tree of the elements a person or an agent can act on or read.
+/// The document Rocketwright reads a screen from: the tree of the elements a person or an agent can act on or read.
 ///
-/// Its shape is idb_companion's consolidated accessibility document, with the keys Simtrail reads, so Simtrail reads
+/// Its shape is idb_companion's consolidated accessibility document, with the keys Rocketwright reads, so Rocketwright reads
 /// either one the same way. The
 /// tree keeps what is worth reporting -- an element with a label, an identifier, or a role that is acted on -- and an
 /// element that is not has its kept descendants take its place, so a button inside an unlabelled group is kept.

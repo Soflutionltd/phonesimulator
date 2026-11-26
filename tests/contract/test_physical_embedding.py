@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-"""What a host embedding Simtrail can rely on of a real device, whatever the host is.
+"""What a host embedding Rocketwright can rely on of a real device, whatever the host is.
 
-Each test is driven the way a host drives Simtrail: a `Runtime` built from `simtrail.api` with the host's seams,
+Each test is driven the way a host drives Rocketwright: a `Runtime` built from `rocketwright.api` with the host's seams,
 the person, screen and agent routers mounted under the host's own prefix, and the runtime's `call`, `reconcile`,
-`start` and `close`. Under it is Simtrail's own testing Mac -- devicectl answering as two iPhones printed it, a phone
-connector that is view only until WebDriverAgent is set up -- and nothing real. A device's state is looked at
+`start` and `close`. Under it is Rocketwright's own testing Mac -- devicectl answering as two iPhones printed it, a
+phone connector that is view only until WebDriverAgent is set up -- and nothing real. A device's state is looked at
 directly only to check what the routes said.
 
 The contract: a real device is used only once a person turns real devices on and picks one; two scopes that may not
@@ -30,12 +30,12 @@ from fastapi import FastAPI, Request, WebSocket
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from simtrail import api
-from simtrail.connectors.base import ConnectorUnavailable
-from simtrail.protocol import CLOSE_FORBIDDEN, CLOSE_RESTARTING
-from simtrail.storage.claims import Claims
-from simtrail.testing.asgi import HOST, AsgiSocket
-from simtrail.testing.fakes import (
+from rocketwright import api
+from rocketwright.connectors.base import ConnectorUnavailable
+from rocketwright.protocol import CLOSE_FORBIDDEN, CLOSE_RESTARTING
+from rocketwright.storage.claims import Claims
+from rocketwright.testing.asgi import HOST, AsgiSocket
+from rocketwright.testing.fakes import (
     BOOTED_UDID,
     DEVICECTL_SUCCESS,
     FULL_CONTROL,
@@ -45,8 +45,8 @@ from simtrail.testing.fakes import (
     fixture_json,
     no_wait,
 )
-from simtrail.testing.rig import VIEW_ONLY, DeviceRig
-from simtrail.testing.vision import FakeTextRecognizer
+from rocketwright.testing.rig import VIEW_ONLY, DeviceRig
+from rocketwright.testing.vision import FakeTextRecognizer
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "/host/{scope_id}/device"
@@ -110,7 +110,7 @@ NOW = _validators(
 
 
 class Host:
-    """A host application embedding Simtrail, with real devices turned on by its person and agents choosing off."""
+    """A host application embedding Rocketwright, with real devices turned on by its person and agents choosing off."""
 
     def __init__(
         self,
@@ -595,10 +595,10 @@ async def test_no_way_a_host_lets_go_of_a_phone_asks_it_to_shut_down_restart_or_
         await host.runtime.reconcile()
         host.rig.config.set(real_devices=True)
         await host.start(http)
-        # The reaper asks whether a device was shut down outside Simtrail: a phone is never taken for one.
+        # The reaper asks whether a device was shut down outside Rocketwright: a phone is never taken for one.
         assert await host.runtime.manager.reap() == [] and (await host.status(http))["device"]["state"] == "ready"
         refused, said = await host.call("sim_device", {"action": "stop", "shutdown": True})
-        assert not refused and "a real device is never shut down by Simtrail, so it stays on" in said
+        assert not refused and "a real device is never shut down by Rocketwright, so it stays on" in said
         assert (await host.status(http))["device"] is None
         await host.start(http)
     await host.runtime.close()

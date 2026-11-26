@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from simtrail.daemon.health import new_nonce, proof, proves
+from rocketwright.daemon.health import new_nonce, proof, proves
 
 
 def test_a_proof_is_bound_to_its_token_and_its_nonce() -> None:

@@ -2,41 +2,41 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Simtrail as a web component</title>
+<title>Rocketwright as a web component</title>
 <style>
   body { margin: 0; padding: 24px; font: 15px/1.5 system-ui, sans-serif; background: #101114; color: #ececef; }
   main { max-width: 480px; margin: 0 auto; }
   /* The viewer takes its look from custom properties, which pass into its shadow root. */
-  simtrail {
+  rocketwright {
     display: block;
     height: 78vh;
-    --simtrail-accent: #ff6b3d;
-    --simtrail-on-accent: #1a0d08;
-    --simtrail-surface: #1b1c21;
-    --simtrail-surface-sunken: #0b0b0e;
-    --simtrail-border: #2c2d34;
-    --simtrail-text: #f2f2f4;
-    --simtrail-text-muted: #9a9aa3;
-    --simtrail-radius: 14px;
+    --rocketwright-accent: #ff6b3d;
+    --rocketwright-on-accent: #1a0d08;
+    --rocketwright-surface: #1b1c21;
+    --rocketwright-surface-sunken: #0b0b0e;
+    --rocketwright-border: #2c2d34;
+    --rocketwright-text: #f2f2f4;
+    --rocketwright-text-muted: #9a9aa3;
+    --rocketwright-radius: 14px;
   }
   /* And exposes parts for anything more. */
-  simtrail::part(screen) { border-radius: 24px; }
+  rocketwright::part(screen) { border-radius: 24px; }
   .said { color: #9a9aa3; }
   .problem { color: #ff8a80; }
 </style>
 <main>
   <h1>My app</h1>
-  <sim-trail id="simulator" placement="page"></sim-trail>
+  <rocket-wright id="simulator" placement="page"></rocket-wright>
   <p id="said" class="said"></p>
 </main>
 <script type="module">
-  import { defineSimtrailElement } from '/simtrail.js'
+  import { defineRocketwrightElement } from '/rocketwright.js'
 
-  defineSimtrailElement()
+  defineRocketwrightElement()
   const element = document.getElementById('simulator')
   const said = document.getElementById('said')
 
-  element.addEventListener('simtrail:state', (event) => {
+  element.addEventListener('rocketwright:state', (event) => {
     const { device, connector, viewOnly } = event.detail
     said.textContent = device ? `${device.name} (${device.runtime}) through ${connector}${viewOnly ? ', view only' : ''}` : ''
   })

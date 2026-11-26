@@ -10,10 +10,10 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import ConnectorError, Crop, Screen, Shot
-from simtrail.core import frames as frames_module
-from simtrail.core.frames import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import ConnectorError, Crop, Screen, Shot
+from rocketwright.core import frames as frames_module
+from rocketwright.core.frames import (
     IDLE_AFTER_S,
     IDLE_FPS,
     KEY_FRAME_S,

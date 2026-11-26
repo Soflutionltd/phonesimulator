@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.connectors.base import Capability, ConnectorError, Screen
-from simtrail.core.actions import AgentActions
-from simtrail.core.manager import TURNS
-from simtrail.core.screen_input import Command, PersonInput, translate
-from simtrail.seams import Caller
-from simtrail.testing.fakes import FULL_CONTROL, FakeConnector, FakeEngine
-from simtrail.testing.rig import DeviceRig, scope
+from rocketwright.connectors.base import Capability, ConnectorError, Screen
+from rocketwright.core.actions import AgentActions
+from rocketwright.core.manager import TURNS
+from rocketwright.core.screen_input import Command, PersonInput, translate
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import FULL_CONTROL, FakeConnector, FakeEngine
+from rocketwright.testing.rig import DeviceRig, scope
 
 TURNABLE = FULL_CONTROL | {Capability.ROTATE}
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code")

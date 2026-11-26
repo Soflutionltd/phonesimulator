@@ -1,6 +1,6 @@
 # Screen understanding
 
-An agent needs to know what is on the screen, and every token it reads costs time and money. Simtrail gives it the
+An agent needs to know what is on the screen, and every token it reads costs time and money. Rocketwright gives it the
 screen as a few short lines of text, and a screenshot only when a question is visual.
 
 ## A snapshot
@@ -247,8 +247,8 @@ accessibility said nothing on this screen, so its pixels were read -- if the app
 - **How it reads** is the scope's too: `perception.ocr_level` (`accurate`, or `fast`), `perception.ocr_languages`
   (codes such as `en-US, uk-UA`; empty to detect them), `perception.ocr_correction`, `perception.ocr_min_confidence` and
   `perception.ocr_timeout_ms` -- all in the settings panel's **Screen reading** tab.
-- **The reader is Simtrail's own**: a small Swift helper it compiles with the scope's Xcode the first time a screen is
-  read, and keeps under its state folder until a new Simtrail or a new Xcode compiles it again. `simtrail doctor`
+- **The reader is Rocketwright's own**: a small Swift helper it compiles with the scope's Xcode the first time a screen is
+  read, and keeps under its state folder until a new Rocketwright or a new Xcode compiles it again. `rocketwright doctor`
   compiles it and reads a test picture. Measured on macOS 26.6 (2026-09-17): the first compile took 6 to 7 seconds with
   Xcode 26.6 and with 27.0; an 804x1748 screenshot then read in 0.44 seconds at `accurate` and 0.05 at `fast`.
 - **A screen that did not change is not read again**, and reads the same, refs included.
@@ -318,7 +318,7 @@ One call plays a batch of up to 20 steps, because a round trip is what an agent 
   that appears still starts the quiet time again, and a slow fade is not taken for stillness. Text inside a place that
   kept moving -- an animated "Saving…" -- is not watched either, so wait `{"for": "Saved"}` there.
   `perception.settle_tolerance` and `perception.settle_grid` tune it; `exact` waits until not one byte of a screenshot
-  changes, as Simtrail 1.0 did.
+  changes, as Rocketwright 1.0 did.
 - **The answer** says ok or why not for each step, each `ok` with when it was done since the call began (`+340ms`),
   then the wait -- `waited for "Saved": seen in a read 410-1180ms after the last step`, the read that saw it from its
   start to its end, since a read takes time -- then what changed on screen as a diff. The times are this Mac's clock,
@@ -418,7 +418,7 @@ token. Models count their own way, so these are estimates, for comparing answers
 The illustration above is from the September baseline and is retained as an example. The current measured response
 sizes and costs follow.
 
-Measured again through MCP on 2026-10-29 with Simtrail 2.4.0, Settings → General on an iOS simulator using the native
+Measured again through MCP on 2026-10-29 with Rocketwright 2.4.0, Settings → General on an iOS simulator using the native
 connector, and 30 calls per tool after warmup: a full snapshot answered in 561 bytes, about
 112 tokens (p50 74.3 ms); an unchanged-screen diff in 83 bytes, about 5 tokens (66.5 ms); a 400-pixel screenshot in
 55,958 bytes, about 469 tokens (15.5 ms); a 1200-pixel screenshot in 251,484 bytes, about 4181 tokens (24.2 ms).

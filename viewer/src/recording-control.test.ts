@@ -121,7 +121,7 @@ describe('a recording still being rendered when it stopped', () => {
     const { calls, button, noteEl } = control({ recordings: vi.fn(async () => listed([OTHER])) })
     await recordAndStop(button)
     await pass(2000)
-    expect(noteEl.textContent).toBe('The recording of Test iPhone could not be kept; Simtrail\'s log says why.')
+    expect(noteEl.textContent).toBe('The recording of Test iPhone could not be kept; Rocketwright\'s log says why.')
     await pass(60_000)
     expect(calls.recordings).toHaveBeenCalledOnce()
   })

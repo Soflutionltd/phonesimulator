@@ -8,22 +8,22 @@ from typing import Any
 
 import pytest
 
-from simtrail._version import __version__
-from simtrail.config.model import SimConfig
-from simtrail.connectors.android.connector import AndroidConnector
-from simtrail.connectors.base import Capability, ConnectorError, ConnectorReport, DeviceSession
-from simtrail.connectors.idb.connector import IdbConnector
-from simtrail.connectors.native.connector import NativeConnector
-from simtrail.connectors.native.helper import HelperLauncher, HelperVersion
-from simtrail.connectors.simctl.connector import SimctlConnector
-from simtrail.core.android_devices import AndroidDirectory, AndroidServices
-from simtrail.platform.identifiers import android_id
-from simtrail.platform.simctl import Simctl
-from simtrail.testing import contract
-from simtrail.testing.adb import FakeAdbServer
-from simtrail.testing.android_sdk import sdk_at
-from simtrail.testing.contract import check_connector
-from simtrail.testing.fakes import (
+from rocketwright._version import __version__
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.android.connector import AndroidConnector
+from rocketwright.connectors.base import Capability, ConnectorError, ConnectorReport, DeviceSession
+from rocketwright.connectors.idb.connector import IdbConnector
+from rocketwright.connectors.native.connector import NativeConnector
+from rocketwright.connectors.native.helper import HelperLauncher, HelperVersion
+from rocketwright.connectors.simctl.connector import SimctlConnector
+from rocketwright.core.android_devices import AndroidDirectory, AndroidServices
+from rocketwright.platform.identifiers import android_id
+from rocketwright.platform.simctl import Simctl
+from rocketwright.testing import contract
+from rocketwright.testing.adb import FakeAdbServer
+from rocketwright.testing.android_sdk import sdk_at
+from rocketwright.testing.contract import check_connector
+from rocketwright.testing.fakes import (
     BOOTED_UDID,
     FakeConnector,
     FakeEngine,
@@ -33,7 +33,7 @@ from simtrail.testing.fakes import (
     MemoryStateStore,
     tiny_jpeg,
 )
-from simtrail.testing.native import FakeHelperSpawn, short_run_dir
+from rocketwright.testing.native import FakeHelperSpawn, short_run_dir
 
 CONFIG = SimConfig.defaults()
 
@@ -44,7 +44,7 @@ async def test_the_idb_connector_keeps_the_contract() -> None:
 
 
 async def test_the_native_connector_keeps_the_contract(tmp_path: Path) -> None:
-    binary = tmp_path / "simtrail-helper"
+    binary = tmp_path / "rocketwright-helper"
     binary.write_text("#!/bin/sh\n")
     binary.chmod(0o755)
     spawn = FakeHelperSpawn()
@@ -54,7 +54,7 @@ async def test_the_native_connector_keeps_the_contract(tmp_path: Path) -> None:
 
     with short_run_dir() as run:
         launcher = HelperLauncher(
-            run_dir=run, log_dir=tmp_path, owner_tag="SimtrailTest", spawn=spawn, signal_group=spawn.signal_group
+            run_dir=run, log_dir=tmp_path, owner_tag="RocketwrightTest", spawn=spawn, signal_group=spawn.signal_group
         )
         connector = NativeConnector(
             launcher, candidates=lambda: [binary], ask_version=version, choose=FakeXcodeSelect()

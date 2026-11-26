@@ -4,9 +4,9 @@ origin they were minted for, for a short while."""
 
 from __future__ import annotations
 
-from simtrail.core.events import EventBus
-from simtrail.core.tickets import TicketBook
-from simtrail.protocol import TICKET_TTL_S
+from rocketwright.core.events import EventBus
+from rocketwright.core.tickets import TicketBook
+from rocketwright.protocol import TICKET_TTL_S
 
 
 def test_every_subscriber_gets_every_event_until_it_leaves() -> None:

@@ -1289,17 +1289,17 @@
     }
   },
   "cli": {
-    "simtrail": {
+    "rocketwright": {
       "options": {
         "--version": false
       },
       "positionals": []
     },
-    "simtrail config": {
+    "rocketwright config": {
       "options": {},
       "positionals": []
     },
-    "simtrail config get": {
+    "rocketwright config get": {
       "options": {
         "--scope": false
       },
@@ -1310,17 +1310,17 @@
         ]
       ]
     },
-    "simtrail config list": {
+    "rocketwright config list": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "simtrail config path": {
+    "rocketwright config path": {
       "options": {},
       "positionals": []
     },
-    "simtrail config set": {
+    "rocketwright config set": {
       "options": {
         "--scope": false
       },
@@ -1335,7 +1335,7 @@
         ]
       ]
     },
-    "simtrail config unset": {
+    "rocketwright config unset": {
       "options": {
         "--scope": false
       },
@@ -1346,17 +1346,17 @@
         ]
       ]
     },
-    "simtrail config validate": {
+    "rocketwright config validate": {
       "options": {},
       "positionals": []
     },
-    "simtrail devices": {
+    "rocketwright devices": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "simtrail devices choose": {
+    "rocketwright devices choose": {
       "options": {
         "--scope": false
       },
@@ -1367,13 +1367,13 @@
         ]
       ]
     },
-    "simtrail devices list": {
+    "rocketwright devices list": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "simtrail doctor": {
+    "rocketwright doctor": {
       "options": {
         "--device": false,
         "--json": false,
@@ -1381,14 +1381,14 @@
       },
       "positionals": []
     },
-    "simtrail mcp": {
+    "rocketwright mcp": {
       "options": {
         "--root": false,
         "--scope": false
       },
       "positionals": []
     },
-    "simtrail open": {
+    "rocketwright open": {
       "options": {
         "--print": false,
         "--scope": false,
@@ -1396,7 +1396,7 @@
       },
       "positionals": []
     },
-    "simtrail serve": {
+    "rocketwright serve": {
       "options": {
         "--config": false,
         "--detach": false,
@@ -1405,19 +1405,19 @@
       },
       "positionals": []
     },
-    "simtrail settings": {
+    "rocketwright settings": {
       "options": {},
       "positionals": []
     },
-    "simtrail settings confirm": {
+    "rocketwright settings confirm": {
       "options": {},
       "positionals": []
     },
-    "simtrail token": {
+    "rocketwright token": {
       "options": {},
       "positionals": []
     },
-    "simtrail token create": {
+    "rocketwright token create": {
       "options": {
         "--kind": true,
         "--label": false,
@@ -1426,11 +1426,11 @@
       },
       "positionals": []
     },
-    "simtrail token list": {
+    "rocketwright token list": {
       "options": {},
       "positionals": []
     },
-    "simtrail token revoke": {
+    "rocketwright token revoke": {
       "options": {},
       "positionals": [
         [
@@ -1439,21 +1439,21 @@
         ]
       ]
     },
-    "simtrail tools": {
+    "rocketwright tools": {
       "options": {
         "--json": false
       },
       "positionals": []
     },
-    "simtrail version": {
+    "rocketwright version": {
       "options": {},
       "positionals": []
     },
-    "simtrail xcode": {
+    "rocketwright xcode": {
       "options": {},
       "positionals": []
     },
-    "simtrail xcode approve": {
+    "rocketwright xcode approve": {
       "options": {
         "--scope": false
       },
@@ -1592,7 +1592,7 @@
             "type": "array"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/agent-event.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/agent-event.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "oneOf": [
           {
@@ -1754,7 +1754,7 @@
             "x-constant": "TOUCH_PHASES"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/client-input.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/client-input.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "oneOf": [
           {
@@ -1946,7 +1946,7 @@
             "type": "object"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/common.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/common.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema"
       },
       "hello.schema.json": {
@@ -2023,7 +2023,7 @@
             "type": "object"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/hello.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/hello.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "anyOf": [
           {
@@ -2393,7 +2393,7 @@
             "type": "object"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/http.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/http.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema"
       },
       "settings.schema.json": {
@@ -2801,7 +2801,7 @@
             "type": "object"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/settings.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/settings.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema"
       },
       "status.schema.json": {
@@ -2939,7 +2939,7 @@
             ]
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/status.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/status.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "allOf": [
           {
@@ -2959,7 +2959,7 @@
         ]
       },
       "stream.schema.json": {
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/stream.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/stream.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "encoding": {
@@ -2979,14 +2979,14 @@
   },
   "settings": {
     "agent.cursor": {
-      "env": "SIMTRAIL_AGENT_CURSOR",
+      "env": "ROCKETWRIGHT_AGENT_CURSOR",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "agent.cursor_lead_ms": {
-      "env": "SIMTRAIL_AGENT_CURSOR_LEAD_MS",
+      "env": "ROCKETWRIGHT_AGENT_CURSOR_LEAD_MS",
       "reach": "scope",
       "rule": {
         "high": 1000,
@@ -2995,7 +2995,7 @@
       }
     },
     "agent.screenshot_width": {
-      "env": "SIMTRAIL_AGENT_SCREENSHOT_WIDTH",
+      "env": "ROCKETWRIGHT_AGENT_SCREENSHOT_WIDTH",
       "reach": "scope",
       "rule": {
         "high": 1200,
@@ -3004,7 +3004,7 @@
       }
     },
     "agent.snapshot_max_elements": {
-      "env": "SIMTRAIL_AGENT_SNAPSHOT_MAX_ELEMENTS",
+      "env": "ROCKETWRIGHT_AGENT_SNAPSHOT_MAX_ELEMENTS",
       "reach": "scope",
       "rule": {
         "high": 400,
@@ -3013,14 +3013,14 @@
       }
     },
     "agent.tools": {
-      "env": "SIMTRAIL_AGENT_TOOLS",
+      "env": "ROCKETWRIGHT_AGENT_TOOLS",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "build.configuration": {
-      "env": "SIMTRAIL_BUILD_CONFIGURATION",
+      "env": "ROCKETWRIGHT_BUILD_CONFIGURATION",
       "reach": "scope",
       "rule": {
         "format": "configuration",
@@ -3030,14 +3030,14 @@
       }
     },
     "build.test_diagnostics": {
-      "env": "SIMTRAIL_BUILD_TEST_DIAGNOSTICS",
+      "env": "ROCKETWRIGHT_BUILD_TEST_DIAGNOSTICS",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "build.timeout_minutes": {
-      "env": "SIMTRAIL_BUILD_TIMEOUT_MINUTES",
+      "env": "ROCKETWRIGHT_BUILD_TIMEOUT_MINUTES",
       "reach": "scope",
       "rule": {
         "high": 60,
@@ -3046,14 +3046,14 @@
       }
     },
     "build.tools": {
-      "env": "SIMTRAIL_BUILD_TOOLS",
+      "env": "ROCKETWRIGHT_BUILD_TOOLS",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "connectors.idb.companion_path": {
-      "env": "SIMTRAIL_CONNECTORS_IDB_COMPANION_PATH",
+      "env": "ROCKETWRIGHT_CONNECTORS_IDB_COMPANION_PATH",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -3063,14 +3063,14 @@
       }
     },
     "connectors.mcpbridge.merge": {
-      "env": "SIMTRAIL_CONNECTORS_MCPBRIDGE_MERGE",
+      "env": "ROCKETWRIGHT_CONNECTORS_MCPBRIDGE_MERGE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "connectors.preferred": {
-      "env": "SIMTRAIL_CONNECTORS_PREFERRED",
+      "env": "ROCKETWRIGHT_CONNECTORS_PREFERRED",
       "reach": "scope",
       "rule": {
         "format": "connector",
@@ -3080,7 +3080,7 @@
       }
     },
     "device.developer_dir": {
-      "env": "SIMTRAIL_DEVICE_DEVELOPER_DIR",
+      "env": "ROCKETWRIGHT_DEVICE_DEVELOPER_DIR",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -3090,7 +3090,7 @@
       }
     },
     "device.idle_minutes": {
-      "env": "SIMTRAIL_DEVICE_IDLE_MINUTES",
+      "env": "ROCKETWRIGHT_DEVICE_IDLE_MINUTES",
       "reach": "scope",
       "rule": {
         "high": 240,
@@ -3099,7 +3099,7 @@
       }
     },
     "device.max_booted": {
-      "env": "SIMTRAIL_DEVICE_MAX_BOOTED",
+      "env": "ROCKETWRIGHT_DEVICE_MAX_BOOTED",
       "reach": "scope",
       "rule": {
         "high": 8,
@@ -3108,7 +3108,7 @@
       }
     },
     "device.mode": {
-      "env": "SIMTRAIL_DEVICE_MODE",
+      "env": "ROCKETWRIGHT_DEVICE_MODE",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -3119,7 +3119,7 @@
       }
     },
     "device.name_prefix": {
-      "env": "SIMTRAIL_DEVICE_NAME_PREFIX",
+      "env": "ROCKETWRIGHT_DEVICE_NAME_PREFIX",
       "reach": "scope",
       "rule": {
         "format": "name",
@@ -3129,7 +3129,7 @@
       }
     },
     "device.runtime": {
-      "env": "SIMTRAIL_DEVICE_RUNTIME",
+      "env": "ROCKETWRIGHT_DEVICE_RUNTIME",
       "reach": "scope",
       "rule": {
         "format": "name",
@@ -3139,14 +3139,14 @@
       }
     },
     "device.shutdown_on_idle": {
-      "env": "SIMTRAIL_DEVICE_SHUTDOWN_ON_IDLE",
+      "env": "ROCKETWRIGHT_DEVICE_SHUTDOWN_ON_IDLE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "device.type": {
-      "env": "SIMTRAIL_DEVICE_TYPE",
+      "env": "ROCKETWRIGHT_DEVICE_TYPE",
       "reach": "scope",
       "rule": {
         "format": "name",
@@ -3156,7 +3156,7 @@
       }
     },
     "device.typing": {
-      "env": "SIMTRAIL_DEVICE_TYPING",
+      "env": "ROCKETWRIGHT_DEVICE_TYPING",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -3168,14 +3168,14 @@
       }
     },
     "enabled": {
-      "env": "SIMTRAIL_ENABLED",
+      "env": "ROCKETWRIGHT_ENABLED",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "security.allowed_origins": {
-      "env": "SIMTRAIL_SECURITY_ALLOWED_ORIGINS",
+      "env": "ROCKETWRIGHT_SECURITY_ALLOWED_ORIGINS",
       "reach": "global",
       "rule": {
         "kind": "origins",
@@ -3183,7 +3183,7 @@
       }
     },
     "security.frame_ancestors": {
-      "env": "SIMTRAIL_SECURITY_FRAME_ANCESTORS",
+      "env": "ROCKETWRIGHT_SECURITY_FRAME_ANCESTORS",
       "reach": "global",
       "rule": {
         "kind": "origins",
@@ -3191,7 +3191,7 @@
       }
     },
     "server.host": {
-      "env": "SIMTRAIL_SERVER_HOST",
+      "env": "ROCKETWRIGHT_SERVER_HOST",
       "reach": "global",
       "rule": {
         "kind": "choice",
@@ -3201,7 +3201,7 @@
       }
     },
     "server.port": {
-      "env": "SIMTRAIL_SERVER_PORT",
+      "env": "ROCKETWRIGHT_SERVER_PORT",
       "reach": "global",
       "rule": {
         "high": 65535,
@@ -3210,7 +3210,7 @@
       }
     },
     "stream.encoding": {
-      "env": "SIMTRAIL_STREAM_ENCODING",
+      "env": "ROCKETWRIGHT_STREAM_ENCODING",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -3222,7 +3222,7 @@
       }
     },
     "stream.fps": {
-      "env": "SIMTRAIL_STREAM_FPS",
+      "env": "ROCKETWRIGHT_STREAM_FPS",
       "reach": "scope",
       "rule": {
         "high": 60,
@@ -3231,7 +3231,7 @@
       }
     },
     "stream.max_width": {
-      "env": "SIMTRAIL_STREAM_MAX_WIDTH",
+      "env": "ROCKETWRIGHT_STREAM_MAX_WIDTH",
       "reach": "scope",
       "rule": {
         "high": 1600,
@@ -3240,7 +3240,7 @@
       }
     },
     "stream.quality": {
-      "env": "SIMTRAIL_STREAM_QUALITY",
+      "env": "ROCKETWRIGHT_STREAM_QUALITY",
       "reach": "scope",
       "rule": {
         "high": 100,
@@ -3531,29 +3531,29 @@
       "placement"
     ],
     "custom_properties": [
-      "--simtrail-accent",
-      "--simtrail-border",
-      "--simtrail-danger",
-      "--simtrail-font",
-      "--simtrail-font-size",
-      "--simtrail-on-accent",
-      "--simtrail-radius",
-      "--simtrail-radius-full",
-      "--simtrail-space-1",
-      "--simtrail-space-2",
-      "--simtrail-space-3",
-      "--simtrail-space-4",
-      "--simtrail-space-5",
-      "--simtrail-space-6",
-      "--simtrail-space-7",
-      "--simtrail-success",
-      "--simtrail-surface",
-      "--simtrail-surface-sunken",
-      "--simtrail-text",
-      "--simtrail-text-muted",
-      "--simtrail-warning"
+      "--rocketwright-accent",
+      "--rocketwright-border",
+      "--rocketwright-danger",
+      "--rocketwright-font",
+      "--rocketwright-font-size",
+      "--rocketwright-on-accent",
+      "--rocketwright-radius",
+      "--rocketwright-radius-full",
+      "--rocketwright-space-1",
+      "--rocketwright-space-2",
+      "--rocketwright-space-3",
+      "--rocketwright-space-4",
+      "--rocketwright-space-5",
+      "--rocketwright-space-6",
+      "--rocketwright-space-7",
+      "--rocketwright-success",
+      "--rocketwright-surface",
+      "--rocketwright-surface-sunken",
+      "--rocketwright-text",
+      "--rocketwright-text-muted",
+      "--rocketwright-warning"
     ],
-    "element": "sim-trail",
+    "element": "rocket-wright",
     "events": [
       "close",
       "place",
@@ -3566,8 +3566,8 @@
       "IconName",
       "IconRenderer",
       "Placement",
-      "SimtrailElement",
-      "SimtrailTransport",
+      "RocketwrightElement",
+      "RocketwrightTransport",
       "TransportError",
       "VIEWER_CSS",
       "ViewHandle",
@@ -3575,7 +3575,7 @@
       "ViewerState",
       "createHttpTransport",
       "createViewer",
-      "defineSimtrailElement",
+      "defineRocketwrightElement",
       "lucideSvg"
     ],
     "interfaces": {
@@ -3588,7 +3588,7 @@
         "settings": true,
         "token": true
       },
-      "SimtrailTransport": {
+      "RocketwrightTransport": {
         "changeSettings": true,
         "choose": false,
         "devices": false,

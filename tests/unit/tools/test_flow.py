@@ -13,17 +13,17 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError
-from simtrail.core.actions import MAX_STEPS, AgentActions
-from simtrail.core.flows import FlowStore
-from simtrail.seams import Caller
-from simtrail.testing.fakes import no_wait
-from simtrail.testing.results import structured
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.tools.context import ToolContext
-from simtrail.tools.flow import FIND_S
-from simtrail.tools.registry import ToolRegistry
-from simtrail.tools.results import SHUT_DOWN, Result, text
+from rocketwright.connectors.base import ConnectorError
+from rocketwright.core.actions import MAX_STEPS, AgentActions
+from rocketwright.core.flows import FlowStore
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import no_wait
+from rocketwright.testing.results import structured
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.tools.context import ToolContext
+from rocketwright.tools.flow import FIND_S
+from rocketwright.tools.registry import ToolRegistry
+from rocketwright.tools.results import SHUT_DOWN, Result, text
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 OTHER = Caller(scope("tp-1"), key="agent-2", title="Codex")
@@ -108,7 +108,7 @@ async def test_a_flow_is_kept_as_a_readable_file_with_what_each_ref_named(tmp_pa
     written = path.read_text(encoding="utf-8")
     assert written.endswith("}\n") and '\n  "name": "sign-in",\n' in written, "two spaces of indent, a last line"
     document = json.loads(written)
-    assert document["simtrail_flow"] == 1 and document["variables"] == ["email", "password"]
+    assert document["rocketwright_flow"] == 1 and document["variables"] == ["email", "password"]
     assert document["batches"] == [{"steps": SIGN_IN, "wait": {"for": "Sign in"}}]
     password = {"kind": "secure", "label": "Password", "identifier": "", "x": 201.0, "y": 182.0}
     assert document["targets"]["e2"] == password

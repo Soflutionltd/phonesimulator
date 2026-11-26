@@ -5,13 +5,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from simtrail.core.actions import AgentActions
-from simtrail.seams import Caller
-from simtrail.testing.fakes import no_wait
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.tools.context import ToolContext
-from simtrail.tools.registry import ToolRegistry
-from simtrail.tools.results import Result, text
+from rocketwright.core.actions import AgentActions
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import no_wait
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.tools.context import ToolContext
+from rocketwright.tools.registry import ToolRegistry
+from rocketwright.tools.results import Result, text
 
 DONE = {"completed_steps": 1, "failed_step": None, "failed_step_may_have_run": False, "wait_met": None}
 

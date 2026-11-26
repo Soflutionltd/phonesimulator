@@ -1,7 +1,7 @@
 {
   "app": {
     "active": true,
-    "bundle_id": "com.soflution.simtrail.appsdk",
+    "bundle_id": "com.soflution.rocketwright.appsdk",
     "name": "AppSDK",
     "pid": 76731
   },
@@ -83,7 +83,7 @@
               "placeholder": null,
               "source": "tag",
               "traits": [],
-              "type_name": "SimtrailKit.Tag",
+              "type_name": "RocketwrightKit.Tag",
               "value": null
             },
             {
@@ -103,7 +103,7 @@
               "placeholder": null,
               "source": "tag",
               "traits": [],
-              "type_name": "SimtrailKit.Tag",
+              "type_name": "RocketwrightKit.Tag",
               "value": null
             },
             {
@@ -123,7 +123,7 @@
               "placeholder": null,
               "source": "tag",
               "traits": [],
-              "type_name": "SimtrailKit.Tag",
+              "type_name": "RocketwrightKit.Tag",
               "value": null
             }
           ],

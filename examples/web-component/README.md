@@ -1,8 +1,8 @@
 # Web component
 
-The `<sim-trail>` element on a page of another origin, themed to match it.
+The `<rocket-wright>` element on a page of another origin, themed to match it.
 
-The page calls the daemon itself, so the daemon must allow its origin (`simtrail config path` shows the file):
+The page calls the daemon itself, so the daemon must allow its origin (`rocketwright config path` shows the file):
 
 ```toml
 [security]
@@ -13,8 +13,8 @@ Build the viewer library once, then start the page's backend with the daemon sta
 
 ```sh
 (cd viewer && npm ci && npm run build)
-simtrail token create --kind viewer --scope demo --label "web component example"
-SIMTRAIL_TOKEN=<the token it printed> python3 examples/embed-host/host.py --page examples/web-component
+rocketwright token create --kind viewer --scope demo --label "web component example"
+ROCKETWRIGHT_TOKEN=<the token it printed> python3 examples/embed-host/host.py --page examples/web-component
 ```
 
 and open <http://127.0.0.1:7483/>.
@@ -22,7 +22,7 @@ and open <http://127.0.0.1:7483/>.
 ## The element
 
 ```html
-<sim-trail server="http://127.0.0.1:7466" scope="demo" token="…" placement="page"></sim-trail>
+<rocket-wright server="http://127.0.0.1:7466" scope="demo" token="…" placement="page"></rocket-wright>
 ```
 
 | Attribute | Meaning |
@@ -33,15 +33,15 @@ and open <http://127.0.0.1:7483/>.
 | `placement` | `page`, `dock` or `window`; where the host shows it, which decides the buttons offered |
 
 A host with its own API sets the element's `transport` property instead of `server` and `token` (see
-`SimtrailTransport`).
+`RocketwrightTransport`).
 
 | Event | `detail` |
 |---|---|
-| `simtrail:state` | `{device, connector, capabilities, viewOnly, connected}` whenever one of them changes |
-| `simtrail:place` | `{placement}` a person asked for |
-| `simtrail:close` | `null`, when a person closed the viewer |
+| `rocketwright:state` | `{device, connector, capabilities, viewOnly, connected}` whenever one of them changes |
+| `rocketwright:place` | `{placement}` a person asked for |
+| `rocketwright:close` | `null`, when a person closed the viewer |
 
-Theme it with `--simtrail-accent`, `-on-accent`, `-surface`, `-surface-sunken`, `-border`, `-text`, `-text-muted`,
+Theme it with `--rocketwright-accent`, `-on-accent`, `-surface`, `-surface-sunken`, `-border`, `-text`, `-text-muted`,
 `-success`, `-warning`, `-danger`, `-radius`, `-radius-full`, `-space-1` to `-space-4`, `-font` and `-font-size`, and
 style its parts (`::part(screen)`, `::part(stage)`) for anything more.
 

@@ -10,16 +10,16 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.app import wire
-from simtrail.connectors.app.client import fetch_hierarchy
-from simtrail.connectors.app.discovery import AppListing
-from simtrail.connectors.app.document import SharedApp
-from simtrail.connectors.app.errors import AppInactive, AppRefused, AppSdkError, AppTimedOut, AppUnreachable
-from simtrail.connectors.app.reader import AppMemory, AppReader, ask_apps, probe
-from simtrail.host_copy import HostCopy
-from simtrail.perception.model import Modal
-from simtrail.testing.app_sdk import SECRET, FakeAppSdk, app_hierarchy, app_node, write_listing
-from simtrail.testing.fakes import ManualClock
+from rocketwright.connectors.app import wire
+from rocketwright.connectors.app.client import fetch_hierarchy
+from rocketwright.connectors.app.discovery import AppListing
+from rocketwright.connectors.app.document import SharedApp
+from rocketwright.connectors.app.errors import AppInactive, AppRefused, AppSdkError, AppTimedOut, AppUnreachable
+from rocketwright.connectors.app.reader import AppMemory, AppReader, ask_apps, probe
+from rocketwright.host_copy import HostCopy
+from rocketwright.perception.model import Modal
+from rocketwright.testing.app_sdk import SECRET, FakeAppSdk, app_hierarchy, app_node, write_listing
+from rocketwright.testing.fakes import ManualClock
 
 UDID = "7A4C5B2E-9E2B-4C43-9F3A-2D0C3F0B6E11"
 COPY = HostCopy()

@@ -58,7 +58,7 @@ enum CameraPermission {
         }
         guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
             throw HelperFailure(
-                "macOS has not let simtrail-helper use the Camera, which reading a cabled device's screen needs: allow it in "
+                "macOS has not let rocketwright-helper use the Camera, which reading a cabled device's screen needs: allow it in "
                     + "System Settings > Privacy & Security > Camera",
                 status: 403
             )
@@ -73,9 +73,9 @@ enum CameraPermission {
 /// status bar reads 9:41 and its cable carries the picture.
 final class UsbCapture: NSObject, PixelSource, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     let device: AVCaptureDevice
-    private let signal = FrameSignal(label: "simtrail.capture")
+    private let signal = FrameSignal(label: "rocketwright.capture")
     /// Where the capture is started and stopped, one change at a time.
-    private let control = DispatchQueue(label: "simtrail.capture.control")
+    private let control = DispatchQueue(label: "rocketwright.capture.control")
     private let session = AVCaptureSession()
     private let log: Log
     private let lock = NSLock()

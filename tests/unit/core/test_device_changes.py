@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""What Simtrail changes about a device is put back as it was, newest first -- and only when it is to be."""
+"""What Rocketwright changes about a device is put back as it was, newest first -- and only when it is to be."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.connectors.base import Capability
-from simtrail.core.control import DisplayState, SimulatorControl
-from simtrail.core.device_changes import (
+from rocketwright.connectors.base import Capability
+from rocketwright.core.control import DisplayState, SimulatorControl
+from rocketwright.core.device_changes import (
     FRONT_READ_S,
     FRONT_READS,
     SPRINGBOARD,
@@ -21,10 +21,10 @@ from simtrail.core.device_changes import (
     Left,
     undo,
 )
-from simtrail.platform.errors import DeviceControlError
-from simtrail.platform.simctl import Simctl, SimctlError
-from simtrail.testing.fakes import BOOTED_UDID, PHONE_UDID, FakeConnector, FakeControl, FakePhoneBackend, FakeXcrun
-from simtrail.testing.rig import VIEW_ONLY, DeviceRig, scope
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.platform.simctl import Simctl, SimctlError
+from rocketwright.testing.fakes import BOOTED_UDID, PHONE_UDID, FakeConnector, FakeControl, FakePhoneBackend, FakeXcrun
+from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
 
 UDID = "U"
 

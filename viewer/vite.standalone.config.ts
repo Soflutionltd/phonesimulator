@@ -11,7 +11,7 @@ export default defineConfig({
   root: resolve(here, 'standalone'),
   base: '/viewer-assets/',
   build: {
-    outDir: resolve(here, '../src/simtrail/server/static/viewer'),
+    outDir: resolve(here, '../src/rocketwright/server/static/viewer'),
     emptyOutDir: true,
     assetsDir: '',
     rollupOptions: {

@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.core.actions import ActionError, AgentActions
-from simtrail.seams import Caller
-from simtrail.testing.fakes import FakeConnector, FakeEngine, no_wait
-from simtrail.testing.rig import DeviceRig, scope
+from rocketwright.core.actions import ActionError, AgentActions
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import FakeConnector, FakeEngine, no_wait
+from rocketwright.testing.rig import DeviceRig, scope
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude")
 

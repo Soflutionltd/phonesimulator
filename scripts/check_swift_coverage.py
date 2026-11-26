@@ -11,7 +11,7 @@ It reads llvm-cov's JSON export and holds every source file under ``--under`` to
 
 - The app SDK: its tests run on a simulator in two places, the package's own and the sample app's hosted ones, so
   ``make sdk-coverage`` merges both runs' profiles and exports them over both binaries, then checks
-  ``sdk/swift/Sources/SimtrailKit/``.
+  ``sdk/swift/Sources/RocketwrightKit/``.
 """
 
 from __future__ import annotations

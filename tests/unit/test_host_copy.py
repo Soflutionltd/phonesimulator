@@ -3,17 +3,17 @@
 
 from __future__ import annotations
 
-from simtrail.host_copy import HostCopy
-from simtrail.protocol import DeviceKind
-from simtrail.scope import Scope
-from simtrail.seams import Admission, Caller, Person, Refused
+from rocketwright.host_copy import HostCopy
+from rocketwright.protocol import DeviceKind
+from rocketwright.scope import Scope
+from rocketwright.seams import Admission, Caller, Person, Refused
 
 
 def test_the_defaults_point_at_the_config_command() -> None:
     copy = HostCopy()
-    assert copy.off() == "The iOS Simulator is off for this project (`simtrail config`)."
+    assert copy.off() == "The iOS Simulator is off for this project (`rocketwright config`)."
     assert "config set connectors.idb.companion_path" in copy.companion_missing("")
-    assert copy.claimed("Simtrail", 42).startswith("Another Simtrail on this Mac (pid 42)")
+    assert copy.claimed("Rocketwright", 42).startswith("Another Rocketwright on this Mac (pid 42)")
 
 
 def test_a_host_supplies_its_own_words() -> None:
@@ -116,7 +116,7 @@ def test_an_apps_shared_hierarchy_says_what_went_wrong_and_where_to_read_about_i
         "(connectors.app.max_nodes, Settings → Simulator)"
     )
     assert copy.app_sdk_newer("Notes", 2) == (
-        "Notes was built with a newer Simtrail SDK (app SDK protocol 2) than Host reads: "
+        "Notes was built with a newer Rocketwright SDK (app SDK protocol 2) than Host reads: "
         "update it to read all it shares"
     )
     assert copy.app_hierarchy_none().endswith("still read well (https://host.test/sdk)")

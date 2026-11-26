@@ -14,9 +14,9 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError, Screen
-from simtrail.connectors.idb import companion as companion_module
-from simtrail.connectors.idb.companion import (
+from rocketwright.connectors.base import ConnectorError, Screen
+from rocketwright.connectors.idb import companion as companion_module
+from rocketwright.connectors.idb.companion import (
     READY_POLL_S,
     STOP_TIMEOUT_S,
     CompanionLauncher,
@@ -29,12 +29,12 @@ from simtrail.connectors.idb.companion import (
     read_pid_file,
     recorded_companions,
 )
-from simtrail.host_copy import HostCopy
-from simtrail.platform.developer_dir import DEVELOPER_DIR
+from rocketwright.host_copy import HostCopy
+from rocketwright.platform.developer_dir import DEVELOPER_DIR
 
 UDID = "D946616B-6E4F-4F5C-8C76-54FAD9B7D702"
 BINARY = "/opt/homebrew/bin/idb_companion"
-TAG = "Simtrail"
+TAG = "Rocketwright"
 #: The process the rig's launcher speaks for, and another process of the same host running beside it.
 OWNER = 777
 OTHER = 888

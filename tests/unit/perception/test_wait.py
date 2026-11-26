@@ -8,14 +8,14 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError, Crop, Shot
-from simtrail.perception.orientation import Orientation
-from simtrail.perception.readers import tree_from_document
-from simtrail.perception.settle import ScreenshotSettle
-from simtrail.perception.snapshot import REGEX_TEXT_MAX, Snapshot, build
-from simtrail.perception.wait import Wait, Waited, Waiter, parse_wait
-from simtrail.testing.fakes import SCREEN, FakeEngine, ManualClock, fixture_json
-from simtrail.validation import Invalid
+from rocketwright.connectors.base import ConnectorError, Crop, Shot
+from rocketwright.perception.orientation import Orientation
+from rocketwright.perception.readers import tree_from_document
+from rocketwright.perception.settle import ScreenshotSettle
+from rocketwright.perception.snapshot import REGEX_TEXT_MAX, Snapshot, build
+from rocketwright.perception.wait import Wait, Waited, Waiter, parse_wait
+from rocketwright.testing.fakes import SCREEN, FakeEngine, ManualClock, fixture_json
+from rocketwright.validation import Invalid
 
 SETTINGS = fixture_json("ax-settings-interactable.json")
 

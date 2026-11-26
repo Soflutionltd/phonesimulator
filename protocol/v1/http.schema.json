@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/http.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/http.schema.json",
   "description": "What the daemon's HTTP routes answer, for a host's backend, the command line and the viewer. A person's and a host's routes answer {\"ok\": true, \"data\": <one of these>}; the agent routes answer AgentManifest and ToolResult as they are. A refusal is an HTTP error status with a Refusal.",
   "$defs": {
     "CaptureView": {

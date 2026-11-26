@@ -11,17 +11,17 @@ from typing import Any
 
 import pytest
 
-from simtrail.connectors.base import Capability
-from simtrail.connectors.iphone.wda_setup import WdaSetup
-from simtrail.core.instance import DeviceInstance
-from simtrail.core.signing import SigningTeams
-from simtrail.core.touch import ScrcpyTouchSetup, TouchRefused, TouchSetups
-from simtrail.platform.keychain import Team
-from simtrail.platform.xcrun import XcrunResult
-from simtrail.testing.fakes import FULL_CONTROL, PHONE_UDID, FakeConnector, FakePhoneBackend, FakeXcrun
-from simtrail.testing.rig import VIEW_ONLY, DeviceRig, scope
-from simtrail.testing.scrcpy import fetched_jars
-from simtrail.testing.wda import ARCHIVE, TEST_RELEASE, builds_wda
+from rocketwright.connectors.base import Capability
+from rocketwright.connectors.iphone.wda_setup import WdaSetup
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.core.signing import SigningTeams
+from rocketwright.core.touch import ScrcpyTouchSetup, TouchRefused, TouchSetups
+from rocketwright.platform.keychain import Team
+from rocketwright.platform.xcrun import XcrunResult
+from rocketwright.testing.fakes import FULL_CONTROL, PHONE_UDID, FakeConnector, FakePhoneBackend, FakeXcrun
+from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
+from rocketwright.testing.scrcpy import fetched_jars
+from rocketwright.testing.wda import ARCHIVE, TEST_RELEASE, builds_wda
 
 SCOPE = scope("tp-1")
 TEAM = "TESTTEAM01"
@@ -221,7 +221,7 @@ async def test_an_android_device_is_offered_scrcpy_fetched_once_then_attached_ag
     assert building["state"] == "building" and "9.9.9" in building["message"]
     assert jars.fetching is not None and jars.fetching.task is not None
     await jars.fetching.task
-    # Set up, and the device not yet attached again: Simtrail is starting it, or it failed and says why.
+    # Set up, and the device not yet attached again: Rocketwright is starting it, or it failed and says why.
     device.recovery = asyncio.get_running_loop().create_future()  # type: ignore[assignment]
     assert (await setup.status(SCOPE, device))["state"] == "starting"
     device.recovery = None
@@ -236,7 +236,7 @@ async def test_an_android_device_is_offered_scrcpy_fetched_once_then_attached_ag
     await setup.shutdown()
 
 
-async def test_scrcpy_off_or_a_server_simtrail_does_not_know_is_refused(tmp_path: Path) -> None:
+async def test_scrcpy_off_or_a_server_rocketwright_does_not_know_is_refused(tmp_path: Path) -> None:
     rig = DeviceRig(tmp_path)
     jars = fetched_jars(tmp_path / "jars", fetched=False)
     setup = ScrcpyTouchSetup(Reattached(), rig.config, jars)  # type: ignore[arg-type]
@@ -245,7 +245,7 @@ async def test_scrcpy_off_or_a_server_simtrail_does_not_know_is_refused(tmp_path
     with pytest.raises(TouchRefused, match="scrcpy is off here"):
         await setup.set_up(SCOPE, android_instance())
     rig.config.set(scrcpy=True, scrcpy_path=str(tmp_path / "nothing"))
-    with pytest.raises(TouchRefused, match="is not a scrcpy server Simtrail knows"):
+    with pytest.raises(TouchRefused, match="is not a scrcpy server Rocketwright knows"):
         await setup.set_up(SCOPE, android_instance())
     failing = fetched_jars(tmp_path / "failing", fetched=False)
     failing._fetch = lambda url: b"tampered"

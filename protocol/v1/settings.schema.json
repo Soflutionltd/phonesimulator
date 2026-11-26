@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/simtrail/main/protocol/v1/settings.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/settings.schema.json",
   "description": "A scope's settings as the viewer's settings panel reads and changes them over HTTP.",
   "$defs": {
     "SettingEffect": {
@@ -14,7 +14,7 @@
       "x-constant": "SETTING_REACHES"
     },
     "SettingLayer": {
-      "description": "Where a value comes from, lowest first: the default, config.toml, the scope's table in it, a SIMTRAIL_* variable, or the command line.",
+      "description": "Where a value comes from, lowest first: the default, config.toml, the scope's table in it, a ROCKETWRIGHT_* variable, or the command line.",
       "enum": ["default", "file", "scope", "environment", "command_line"],
       "x-constant": "SETTING_LAYERS"
     },
@@ -129,7 +129,7 @@
         "reach": { "$ref": "#/$defs/SettingReach" },
         "sensitive": {
           "type": "boolean",
-          "description": "It decides what Simtrail runs or who may reach it: a page changes it only once a person confirms at the terminal."
+          "description": "It decides what Rocketwright runs or who may reach it: a page changes it only once a person confirms at the terminal."
         },
         "locked": {
           "type": ["string", "null"],
@@ -175,7 +175,7 @@
         "unset": { "type": "array", "items": { "type": "string" } },
         "confirmation": {
           "type": ["string", "null"],
-          "description": "The code `simtrail settings confirm` printed, for a change that includes a sensitive setting."
+          "description": "The code `rocketwright settings confirm` printed, for a change that includes a sensitive setting."
         }
       },
       "required": ["target", "set", "unset", "confirmation"]

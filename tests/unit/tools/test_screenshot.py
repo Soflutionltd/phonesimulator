@@ -13,19 +13,19 @@ from typing import Any
 
 from PIL import Image
 
-from simtrail.build.folders import Folders
-from simtrail.connectors.base import Capability, Shot
-from simtrail.core.actions import AgentActions
-from simtrail.seams import Caller
-from simtrail.testing.checkouts import linked_worktree, main_checkout
-from simtrail.testing.fakes import JPEG, FakeConnector, FakePhoneBackend, no_wait
-from simtrail.testing.pictures import picture
-from simtrail.testing.rig import VIEW_ONLY, DeviceRig, scope
-from simtrail.tools.context import ToolContext
-from simtrail.tools.registry import ToolRegistry
-from simtrail.tools.results import Result, text
-from simtrail.tools.schemas import SAVE_TO_MAX
-from simtrail.tools.screenshot import screen_note
+from rocketwright.build.folders import Folders
+from rocketwright.connectors.base import Capability, Shot
+from rocketwright.core.actions import AgentActions
+from rocketwright.seams import Caller
+from rocketwright.testing.checkouts import linked_worktree, main_checkout
+from rocketwright.testing.fakes import JPEG, FakeConnector, FakePhoneBackend, no_wait
+from rocketwright.testing.pictures import picture
+from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
+from rocketwright.tools.context import ToolContext
+from rocketwright.tools.registry import ToolRegistry
+from rocketwright.tools.results import Result, text
+from rocketwright.tools.schemas import SAVE_TO_MAX
+from rocketwright.tools.screenshot import screen_note
 
 REGISTRY = ToolRegistry()
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
@@ -220,7 +220,7 @@ async def test_a_file_that_cannot_be_written_says_why(tmp_path: Path) -> None:
 
 async def test_a_screen_that_is_not_live_says_why_in_the_caption(tmp_path: Path) -> None:
     cable = (
-        "Its cable could not show the screen (macOS has not let simtrail-helper use the Camera), so it shows "
+        "Its cable could not show the screen (macOS has not let rocketwright-helper use the Camera), so it shows "
         "screenshots instead."
     )
     phone = FakeConnector("phone", kinds=frozenset({"physical"}), session_capabilities=VIEW_ONLY, note=cable)

@@ -6,12 +6,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.registry import ConnectorRegistry
-from simtrail.doctor.checks import CHECKS, DoctorContext
-from simtrail.doctor.flutter import INSTALL, check_flutter
-from simtrail.doctor.report import CheckResult
-from simtrail.platform.flutter import FlutterSdk
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.registry import ConnectorRegistry
+from rocketwright.doctor.checks import CHECKS, DoctorContext
+from rocketwright.doctor.flutter import INSTALL, check_flutter
+from rocketwright.doctor.report import CheckResult
+from rocketwright.platform.flutter import FlutterSdk
 
 SDK = FlutterSdk(Path("/opt/homebrew/share/flutter/bin/flutter"), "PATH")
 

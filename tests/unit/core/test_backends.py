@@ -8,19 +8,19 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import Capability, ConnectorUnavailable
-from simtrail.core.backends import PhysicalBackend, SimulatorBackend
-from simtrail.core.control import SimulatorControl
-from simtrail.core.devices import DeviceDirectory, JsonDeviceMemory
-from simtrail.core.instance import READY, STOPPED, DeviceInstance
-from simtrail.core.manager import RESTARTING_REASON, SimulatorUnavailable
-from simtrail.host_copy import HostCopy
-from simtrail.platform.devicectl import Devicectl
-from simtrail.platform.errors import DeviceControlError
-from simtrail.platform.simctl import Simctl
-from simtrail.protocol import CLOSE_RESTARTING
-from simtrail.testing.fakes import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import Capability, ConnectorUnavailable
+from rocketwright.core.backends import PhysicalBackend, SimulatorBackend
+from rocketwright.core.control import SimulatorControl
+from rocketwright.core.devices import DeviceDirectory, JsonDeviceMemory
+from rocketwright.core.instance import READY, STOPPED, DeviceInstance
+from rocketwright.core.manager import RESTARTING_REASON, SimulatorUnavailable
+from rocketwright.host_copy import HostCopy
+from rocketwright.platform.devicectl import Devicectl
+from rocketwright.platform.errors import DeviceControlError
+from rocketwright.platform.simctl import Simctl
+from rocketwright.protocol import CLOSE_RESTARTING
+from rocketwright.testing.fakes import (
     BOOTED_UDID,
     PHONE_UDID,
     FakeConnector,
@@ -28,7 +28,7 @@ from simtrail.testing.fakes import (
     FakeXcrun,
     fixture_udid,
 )
-from simtrail.testing.rig import VIEW_ONLY, DeviceRig, scope
+from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
 
 PHYSICAL = frozenset({"physical"})
 TP1 = scope("tp-1")
@@ -139,7 +139,7 @@ async def test_a_note_whose_cause_was_put_right_goes_with_the_session_that_said_
     phone.note = unplugged
     assert await rig.manager.reconnect(TP1)
     assert up.fallback_reason == unplugged
-    phone.helper_error = "macOS has not let simtrail-helper use the Camera"
+    phone.helper_error = "macOS has not let rocketwright-helper use the Camera"
     assert up.live_note == f"{unplugged} Its screen's helper said: {phone.helper_error}", "said live, with its note"
 
 

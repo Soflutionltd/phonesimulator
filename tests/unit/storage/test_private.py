@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.storage import private
+from rocketwright.storage import private
 
 
 def mode(path: Path) -> int:

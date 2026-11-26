@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import ConnectorReport
-from simtrail.connectors.registry import Selection
-from simtrail.core.availability import Verdict
-from simtrail.core.reaper import Reaper
-from simtrail.core.status import scope_status
-from simtrail.testing.fakes import FakeConnector
-from simtrail.testing.rig import DeviceRig
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import ConnectorReport
+from rocketwright.connectors.registry import Selection
+from rocketwright.core.availability import Verdict
+from rocketwright.core.reaper import Reaper
+from rocketwright.core.status import scope_status
+from rocketwright.testing.fakes import FakeConnector
+from rocketwright.testing.rig import DeviceRig
 
 
 async def test_the_loop_reaps_on_its_schedule_survives_a_failure_and_stops(

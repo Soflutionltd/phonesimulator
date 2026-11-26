@@ -1,6 +1,6 @@
 {
   "active": true,
-  "bundle_id": "com.soflution.simtrail.appsdk",
+  "bundle_id": "com.soflution.rocketwright.appsdk",
   "device_udid": "7A4C5B2E-9E2B-4C43-9F3A-2D0C3F0B6E11",
   "name": "AppSDK",
   "pid": 4242,

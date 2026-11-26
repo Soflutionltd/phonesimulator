@@ -12,25 +12,25 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.core.cleanup import prune
-from simtrail.core.devices import (
+from rocketwright.config.model import SimConfig
+from rocketwright.core.cleanup import prune
+from rocketwright.core.devices import (
     DeviceDirectory,
     DeviceTemplates,
     JsonDeviceMemory,
     Template,
     template_name,
 )
-from simtrail.core.manager import SimulatorUnavailable
-from simtrail.platform.simctl import DeviceType, Runtime, Simctl, SimctlError
-from simtrail.platform.xcrun import XcrunResult
-from simtrail.scope import Scope
-from simtrail.testing.fakes import MemoryStateStore, made
-from simtrail.testing.rig import DeviceRig, scope
+from rocketwright.core.manager import SimulatorUnavailable
+from rocketwright.platform.simctl import DeviceType, Runtime, Simctl, SimctlError
+from rocketwright.platform.xcrun import XcrunResult
+from rocketwright.scope import Scope
+from rocketwright.testing.fakes import MemoryStateStore, made
+from rocketwright.testing.rig import DeviceRig, scope
 
 RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-26-5"
 PHONE = "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"
-TEMPLATE_NAME = "Simtrail · template · iPhone 17 Pro · iOS 26.5"
+TEMPLATE_NAME = "Rocketwright · template · iPhone 17 Pro · iOS 26.5"
 TP1, TP2, TP3 = scope("tp-1"), scope("tp-2"), scope("tp-3")
 
 
@@ -65,7 +65,7 @@ async def test_the_first_device_is_created_blank_and_its_template_prepared_in_th
     assert instance.udid == made(1) and instance.created
     await rig.manager.directory.settle()
     template = made(2)
-    assert calls(rig)[0] == ("create", "Simtrail · alpha · tp-1", PHONE), "the device first, created blank"
+    assert calls(rig)[0] == ("create", "Rocketwright · alpha · tp-1", PHONE), "the device first, created blank"
     assert [args for args in calls(rig) if TEMPLATE_NAME in args or template in args] == [
         ("create", TEMPLATE_NAME, PHONE),
         ("boot", template),
@@ -85,8 +85,8 @@ async def test_the_next_device_is_copied_from_the_template_and_remembered_as_mad
     await rig.manager.directory.settle()
     start = len(rig.argv())
     second = await rig.up("tp-2")
-    assert second.udid == made(3) and second.created and second.name == "Simtrail · alpha · tp-2"
-    assert ("clone", made(2), "Simtrail · alpha · tp-2") in calls(rig, start)
+    assert second.udid == made(3) and second.created and second.name == "Rocketwright · alpha · tp-2"
+    assert ("clone", made(2), "Rocketwright · alpha · tp-2") in calls(rig, start)
     assert not any(args[0] == "create" for args in calls(rig, start)), "nothing created blank"
     assert rig.memory.all_created() == {made(1), made(3)} and rig.memory.assigned(TP2, False) == made(3)
     assert rig.memory.holders(made(2)) == set()
@@ -210,7 +210,7 @@ async def test_a_template_that_cannot_be_copied_or_is_running_leaves_the_device_
     await rig.manager.directory.settle()
     rig.set_state(made(2), "Booted")
     second = await rig.up("tp-2")
-    assert second.udid == made(3) and ("simctl", "clone", made(2), "Simtrail · alpha · tp-2") not in rig.argv()
+    assert second.udid == made(3) and ("simctl", "clone", made(2), "Rocketwright · alpha · tp-2") not in rig.argv()
     assert f"the template {TEMPLATE_NAME} is not shut down (Booted)" in caplog.text
     rig.set_state(made(2), "Shutdown")
     rig.xcrun.on("simctl", "clone", rc=1, err="Unable to clone: disk full")

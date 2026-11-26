@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>dev.simtrail.helper</string>
+	<string>dev.rocketwright.helper</string>
 	<key>CFBundleName</key>
-	<string>Simtrail helper</string>
+	<string>Rocketwright helper</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Simtrail shows a cabled iPhone's or iPad's screen, the way QuickTime does. It reads only the device's screen, never a camera.</string>
+	<string>Rocketwright shows a cabled iPhone's or iPad's screen, the way QuickTime does. It reads only the device's screen, never a camera.</string>
 </dict>
 </plist>

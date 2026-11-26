@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.simtrail.example"
+    namespace = "dev.rocketwright.example"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.simtrail.example"
+        applicationId = "dev.rocketwright.example"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

@@ -6,11 +6,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from simtrail.build.checkouts import Checkout, main_of
-from simtrail.doctor.report import CheckResult
-from simtrail.doctor.worktree import NAME, check_worktree_settings, copy_command
-from simtrail.scope import Scope
-from simtrail.testing.checkouts import linked_worktree, main_checkout, separate_main_checkout
+from rocketwright.build.checkouts import Checkout, main_of
+from rocketwright.doctor.report import CheckResult
+from rocketwright.doctor.worktree import NAME, check_worktree_settings, copy_command
+from rocketwright.scope import Scope
+from rocketwright.testing.checkouts import linked_worktree, main_checkout, separate_main_checkout
 
 
 def layout(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -34,12 +34,12 @@ def test_a_worktree_whose_scope_lacks_its_main_checkouts_settings_is_told_how_to
     before = config.read_text()
     here, there = Scope.for_folder(worktree / "ios"), Scope.for_folder(repo / "ios")
     result = check_worktree_settings(worktree / "ios", config)
-    command = f"simtrail config copy --from {there.id} --scope {here.id}"
+    command = f"rocketwright config copy --from {there.id} --scope {here.id}"
     assert result == CheckResult(
         NAME,
         "warn",
         f"{worktree / 'ios'} is a git worktree of {repo}, whose scope {there.id} sets build.tools, "
-        f"build.configuration; this folder's scope {here.id} sets none of them, so Simtrail started here runs "
+        f"build.configuration; this folder's scope {here.id} sets none of them, so Rocketwright started here runs "
         "without them",
         f"`{command}` copies them",
     )
@@ -137,7 +137,7 @@ def test_a_separate_git_dir_main_checkout_named_nowhere_is_said_how_to_name(tmp_
         "skip",
         f"{worktree} is a git worktree whose repository keeps its git folder apart, in {git_dir} "
         "(--separate-git-dir), and that folder does not say where its main checkout is",
-        '`git config core.worktree "$PWD"`, run once at the top of the main checkout, lets Simtrail find it',
+        '`git config core.worktree "$PWD"`, run once at the top of the main checkout, lets Rocketwright find it',
     )
     # Run in the main checkout itself, the doctor knows it as builds know their own build folder's.
     assert check_worktree_settings(repo / "ios", config) == CheckResult(

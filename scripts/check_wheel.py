@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Fail when a wheel does not carry the native helper the way Simtrail looks for it.
+"""Fail when a wheel does not carry the native helper the way Rocketwright looks for it.
 
-Every wheel carries the helper's Swift package at ``simtrail/_helper_src``, so ``simtrail helper build`` works from
-any install. A release wheel (``--helper``) also carries the helper itself at ``simtrail/_bin/simtrail-helper``:
-executable, a universal Mach-O for both Mac architectures, and tagged for macOS. Standard library only.
+Every wheel carries the helper's Swift package at ``rocketwright/_helper_src``, so ``rocketwright helper build`` works
+from any install. A release wheel (``--helper``) also carries the helper itself at
+``rocketwright/_bin/rocketwright-helper``: executable, a universal Mach-O for both Mac architectures, and tagged for
+macOS. Standard library only.
 
-    uv run python scripts/check_wheel.py --helper dist/python/simtrail-3.0.0-py3-none-macosx_14_0_universal2.whl
+    uv run python scripts/check_wheel.py --helper dist/python/rocketwright-3.0.0-py3-none-macosx_14_0_universal2.whl
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from hatch_build import BINARY_TARGET, MAC_TAG, SOURCES_TARGET
 
 SOURCES = (
     f"{SOURCES_TARGET}/Package.swift",
-    f"{SOURCES_TARGET}/Sources/simtrail-helper/main.swift",
+    f"{SOURCES_TARGET}/Sources/rocketwright-helper/main.swift",
     # The Info.plist the helper is linked with, without which it does not build.
     f"{SOURCES_TARGET}/Support/Info.plist",
 )
@@ -71,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
         carried = "the helper and its sources" if args.helper else "the helper's sources"
         print(f"wheel ok: {len(args.wheels)} wheel(s) carry {carried}")
         return 0
-    print("a wheel does not carry the native helper as Simtrail looks for it:\n", file=sys.stderr)
+    print("a wheel does not carry the native helper as Rocketwright looks for it:\n", file=sys.stderr)
     for problem in found:
         print(f"  {problem}", file=sys.stderr)
     return 1

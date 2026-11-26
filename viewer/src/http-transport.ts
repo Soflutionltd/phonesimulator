@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The viewer's transport over a Simtrail server's HTTP routes: ``/api/v1/scopes/<scope>`` and its screen socket.
+ * The viewer's transport over a Rocketwright server's HTTP routes: ``/api/v1/scopes/<scope>`` and its screen socket.
  *
  * A token, when there is one, goes in an ``Authorization`` header, asked for on every request so a page can hold it in
  * memory and replace it. A refusal rejects with what the server said -- its ``detail``, or a security refusal's
@@ -13,7 +13,7 @@ import type {
   CaptureScene, DeviceChoice, Recording, RecordingList, RecordingState, ScopeStatus, SettingsChange, SettingsView, Started,
   TouchSetup,
 } from './protocol.generated'
-import type { SimtrailTransport } from './transport'
+import type { RocketwrightTransport } from './transport'
 
 export const SCOPES_PREFIX = '/api/v1/scopes'
 
@@ -49,7 +49,7 @@ function said(payload: unknown): string | null {
   return typeof text === 'string' && text ? text : null
 }
 
-export function createHttpTransport(options: HttpTransportOptions): SimtrailTransport {
+export function createHttpTransport(options: HttpTransportOptions): RocketwrightTransport {
   const request = options.fetch ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init))
   const origin = options.baseUrl || options.origin || window.location.origin
   const base = `${options.prefix ?? SCOPES_PREFIX}/${encodeURIComponent(options.scope)}`
@@ -81,7 +81,7 @@ export function createHttpTransport(options: HttpTransportOptions): SimtrailTran
     return payload.data
   }
 
-  const settings: Pick<SimtrailTransport, 'settings' | 'changeSettings'> = options.settings
+  const settings: Pick<RocketwrightTransport, 'settings' | 'changeSettings'> = options.settings
     ? {
       settings: () => call<SettingsView>('GET', '/settings'),
       changeSettings: (change: SettingsChange) => call<SettingsView>('PATCH', '/settings', change),

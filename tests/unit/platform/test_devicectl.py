@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 
-from simtrail.platform.devicectl import Devicectl, DevicectlError, read_device, text_size_name
-from simtrail.testing.fakes import PHONE_UDID, FakeXcrun, fixture_json
+from rocketwright.platform.devicectl import Devicectl, DevicectlError, read_device, text_size_name
+from rocketwright.testing.fakes import PHONE_UDID, FakeXcrun, fixture_json
 
 SECOND = "00008150-0099887766554433"
 XCODE = "/Applications/Xcode27.app/Contents/Developer"

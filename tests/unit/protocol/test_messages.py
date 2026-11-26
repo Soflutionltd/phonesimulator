@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import pytest
 
-from simtrail import __version__
-from simtrail.protocol import (
+from rocketwright import __version__
+from rocketwright.protocol import (
     CLOSE_BAD_MESSAGE,
     CLOSE_UNSUPPORTED,
     MESSAGE_MAX_BYTES,
@@ -28,7 +28,7 @@ from simtrail.protocol import (
     stream_start,
     text_box,
 )
-from simtrail.protocol._generated import Device
+from rocketwright.protocol._generated import Device
 
 
 def test_the_server_says_who_it_is_and_what_it_offers_once_each() -> None:
@@ -38,7 +38,7 @@ def test_the_server_says_who_it_is_and_what_it_offers_once_each() -> None:
     assert hello == {
         "type": "hello",
         "v": PROTOCOL_VERSION,
-        "server": f"simtrail/{__version__}",
+        "server": f"rocketwright/{__version__}",
         "encodings": ["h264", "jpeg"],
         "connector": "idb",
         "capabilities": ["screenshot", "input_touch"],

@@ -9,9 +9,9 @@ import copy
 from pathlib import Path
 from typing import Any
 
-from simtrail.connectors.base import ConnectorError, ConnectorUnavailable
-from simtrail.core.runtime import Runtime
-from simtrail.doctor.tap import (
+from rocketwright.connectors.base import ConnectorError, ConnectorUnavailable
+from rocketwright.core.runtime import Runtime
+from rocketwright.doctor.tap import (
     CHOOSE_TOUCH,
     INSTALL_TOUCH,
     READ_WAIT_S,
@@ -20,8 +20,8 @@ from simtrail.doctor.tap import (
     TAP_SCOPE,
     check_tap,
 )
-from simtrail.testing.fakes import BOOTED_UDID, FakeConnector, FakeEngine, fixture_json, fixture_udid, made
-from simtrail.testing.rig import DeviceRig
+from rocketwright.testing.fakes import BOOTED_UDID, FakeConnector, FakeEngine, fixture_json, fixture_udid, made
+from rocketwright.testing.rig import DeviceRig
 
 SETTINGS = fixture_json("ax-settings-interactable.json")
 
@@ -149,5 +149,5 @@ async def test_a_tap_that_cannot_be_tried_says_why(tmp_path: Path) -> None:
     refused = await check_tap(off.runtime, None, off.tick)
     assert (refused.status, refused.detail) == (
         "fail",
-        "The iOS Simulator is off for this project (`simtrail config`).",
+        "The iOS Simulator is off for this project (`rocketwright config`).",
     )

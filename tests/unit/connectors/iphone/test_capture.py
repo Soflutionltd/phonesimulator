@@ -11,14 +11,14 @@ from typing import Any
 
 import pytest
 
-from simtrail._version import __version__
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import ConnectorUnavailable
-from simtrail.connectors.iphone.capture import HELLO_SLACK_S, CableCapture
-from simtrail.connectors.native.helper import HelperLauncher, HelperVersion
-from simtrail.platform.devicectl import Devicectl, DevicectlError, Display
-from simtrail.testing.fakes import PHONE_UDID, FakeXcrun
-from simtrail.testing.native import FakeHelper, FakeHelperSpawn, short_run_dir
+from rocketwright._version import __version__
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import ConnectorUnavailable
+from rocketwright.connectors.iphone.capture import HELLO_SLACK_S, CableCapture
+from rocketwright.connectors.native.helper import HelperLauncher, HelperVersion
+from rocketwright.platform.devicectl import Devicectl, DevicectlError, Display
+from rocketwright.testing.fakes import PHONE_UDID, FakeXcrun
+from rocketwright.testing.native import FakeHelper, FakeHelperSpawn, short_run_dir
 
 DISPLAY = Display(1179, 2556, 3.0, "portrait")
 CONFIG = SimConfig.defaults().with_values(real_devices_capture_timeout=5)
@@ -50,14 +50,14 @@ def capture(
     tmp_path: Path, helper: FakeHelper | None = None, *features: str
 ) -> Iterator[tuple[CableCapture, FakeHelperSpawn]]:
     spawn = FakeHelperSpawn(helper or FakeHelper(hid=None, source="C1"))
-    binary = tmp_path / "simtrail-helper"
+    binary = tmp_path / "rocketwright-helper"
     binary.write_text("#!/bin/sh\n")
     binary.chmod(0o755)
     with short_run_dir() as run:
         launcher = HelperLauncher(
             run_dir=run,
             log_dir=tmp_path,
-            owner_tag="SimtrailTest",
+            owner_tag="RocketwrightTest",
             spawn=spawn,
             signal_group=spawn.signal_group,
             pid_alive=lambda pid: False,
@@ -118,7 +118,7 @@ async def test_a_helper_that_cannot_capture_or_read_the_screen_is_refused_with_w
     refused = pytest.raises(ConnectorUnavailable, match="cannot show a cabled device's screen; build it again")
     with capture(tmp_path, None, "render") as (cable, _spawn), refused:
         await cable.open(device, DISPLAY, CONFIG, Devicectl(FakeXcrun()), twins=False)
-    denied = FakeHelper(hid=None, hello_failure="macOS has not let simtrail-helper use the Camera")
+    denied = FakeHelper(hid=None, hello_failure="macOS has not let rocketwright-helper use the Camera")
     with capture(tmp_path, denied) as (cable, spawn):
         with pytest.raises(ConnectorUnavailable, match="use the Camera") as refused:
             await cable.open(device, DISPLAY, CONFIG, Devicectl(FakeXcrun()), twins=False)

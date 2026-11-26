@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from simtrail._version import __version__
-from simtrail.connectors.mcpbridge import client as client_module
-from simtrail.connectors.mcpbridge.client import (
+from rocketwright._version import __version__
+from rocketwright.connectors.mcpbridge import client as client_module
+from rocketwright.connectors.mcpbridge.client import (
     PROTOCOL_VERSION,
     BridgeClient,
     BridgeError,
@@ -22,8 +22,8 @@ from simtrail.connectors.mcpbridge.client import (
     find_bridge,
     said,
 )
-from simtrail.platform import json_lines
-from simtrail.testing.fakes import FakeBridge, FakeLineProcess, FakeXcrun, fixture_json
+from rocketwright.platform import json_lines
+from rocketwright.testing.fakes import FakeBridge, FakeLineProcess, FakeXcrun, fixture_json
 
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
 
@@ -49,7 +49,7 @@ async def test_a_call_starts_the_bridge_with_the_scopes_xcode_says_hello_once_an
     assert not client.alive and process.returncode == 1 and not process.killed
 
 
-async def test_the_hello_names_simtrail_and_the_protocol_version_it_speaks(tmp_path: Path) -> None:
+async def test_the_hello_names_rocketwright_and_the_protocol_version_it_speaks(tmp_path: Path) -> None:
     sent: list[dict[str, object]] = []
     bridge = FakeBridge(folder=tmp_path)
     receive = bridge.receive
@@ -92,11 +92,11 @@ async def test_what_xcode_refuses_is_said_in_its_own_words(tmp_path: Path) -> No
     [
         (
             {"content": [{"type": "text", "text": "plain words"}]},
-            "the answer had nothing Simtrail can read: plain words",
+            "the answer had nothing Rocketwright can read: plain words",
         ),
         (
             {"content": "odd", "structuredContent": [1]},
-            "the answer had nothing Simtrail can read: no reason was given",
+            "the answer had nothing Rocketwright can read: no reason was given",
         ),
     ],
 )
@@ -160,7 +160,7 @@ async def test_a_hello_the_bridge_does_not_accept_is_refused(tmp_path: Path) -> 
     bridge = FakeBridge(folder=tmp_path)
     bridge.answers["initialize"] = {"jsonrpc": "2.0", "error": {"code": -32600, "message": "bad version"}}
     client = bridge_client(bridge)
-    with pytest.raises(BridgeError, match="did not accept Simtrail's hello"):
+    with pytest.raises(BridgeError, match="did not accept Rocketwright's hello"):
         await client.call("XcodeListWorkspaces", {}, timeout=5)
     await client.close()
 

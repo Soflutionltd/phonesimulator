@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.daemon.tokens import ADMIN, TokenRefused, TokenStore, digest
+from rocketwright.daemon.tokens import ADMIN, TokenRefused, TokenStore, digest
 
 
 def mode(path: Path) -> int:

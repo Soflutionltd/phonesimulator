@@ -1,0 +1,1115 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Fakes for everything Rocketwright reaches outside itself, so no test runs xcrun, boots a device or starts a
+companion.
+
+`FakeXcrun` stands where `platform.xcrun.run_xcrun` does. It records every call and answers from a script of argv
+prefixes, the latest matching one winning, so a test says only what it cares about and every other call succeeds
+quietly. What simctl, xcodebuild, xcresulttool and idb_companion really printed on a Mac is in `fixtures/`.
+
+`StaticConfig` and `MemoryStateStore` are the in-memory `ConfigSource` and `StateStore` a test runs a core with;
+`MemorySettingsStore` and `FakeConfirmations` stand behind the settings routes. `FakeBridge` is Xcode's tools behind
+``xcrun mcpbridge``, answering as Xcode 27.0 did.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import tempfile
+from collections.abc import AsyncIterable, AsyncIterator, Callable, Collection, Mapping, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Protocol
+
+from rocketwright.config import schema
+from rocketwright.config.model import SimConfig
+from rocketwright.config.provenance import DEFAULT, SettingOrigin
+from rocketwright.connectors.base import (
+    SIMULATORS,
+    Capability,
+    ConnectorReport,
+    ConnectorUnavailable,
+    Crop,
+    DeviceSession,
+    HidEvent,
+    Screen,
+    Shot,
+)
+from rocketwright.connectors.idb.companion import Companion
+from rocketwright.connectors.iphone.connector import DRIVEN
+from rocketwright.core.backends import Placed
+from rocketwright.core.control import DisplayState, InstalledApp
+from rocketwright.core.devices import DeviceRef, NoDevice
+from rocketwright.host_copy import HostCopy
+from rocketwright.platform.developer_dir import ChosenXcode
+from rocketwright.platform.keyboard import LayoutKeys, MacKeyboard
+from rocketwright.platform.xcrun import XcrunResult
+from rocketwright.protocol import Connection, DeviceChoice, DeviceKind, PendingConfirmation
+from rocketwright.scope import Scope
+from rocketwright.seams import HeldDevice, SettingsRefused
+from rocketwright.storage.private import ensure_private_dir
+
+if TYPE_CHECKING:
+    from rocketwright.core.instance import DeviceInstance
+    from rocketwright.perception.orientation import Orientation
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+#: The booted iPhone 17 Pro in `simctl-devices.json`.
+BOOTED_UDID = "D946616B-6E4F-4F5C-8C76-54FAD9B7D702"
+#: The Xcode `FakeXcodeSelect` says is selected unless told otherwise.
+SELECTED_XCODE = "/Applications/Xcode.app/Contents/Developer"
+
+
+def fixture(name: str) -> str:
+    return (FIXTURES / name).read_text(encoding="utf-8")
+
+
+#: What devicectl answers a call with no result of its own.
+DEVICECTL_SUCCESS = {"info": {"outcome": "success", "jsonVersion": 5}, "result": {}}
+#: devicectl's answers from a real Mac, by the words of the call.
+DEVICECTL_ANSWERS = (
+    (("list", "devices"), "devicectl-devices.json"),
+    (("device", "info", "displays"), "devicectl-displays.json"),
+    (("device", "info", "lockState"), "devicectl-lock-state.json"),
+    (("device", "info", "appearance"), "devicectl-appearance.json"),
+    (("device", "info", "apps"), "devicectl-apps.json"),
+    (("device", "info", "processes"), "devicectl-processes.json"),
+    (("device", "process", "launch"), "devicectl-launch.json"),
+    (("device", "capture", "screenshot"), "devicectl-screenshot.json"),
+)
+
+
+def fixture_json(name: str) -> Any:
+    return json.loads(fixture(name))
+
+
+def fixture_udid(name: str) -> str:
+    """The device id of the device named `name` in `simctl-devices.json`."""
+    devices = fixture_json("simctl-devices.json")["devices"]
+    return str(next(device["udid"] for entries in devices.values() for device in entries if device["name"] == name))
+
+
+def made(n: int) -> str:
+    """The device id the fake Mac gives the n-th device it creates."""
+    return f"11111111-2222-3333-4444-{n:012d}"
+
+
+#: What ``swiftc --version`` printed with Xcode 26.6 (its first line; a second names the target).
+SWIFT_VERSION = "swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)"
+
+
+@dataclass(frozen=True)
+class XcrunCall:
+    args: tuple[str, ...]
+    timeout: float
+    developer_dir: str
+    input_data: bytes | None
+    cwd: str | None
+
+
+Answer = XcrunResult | Callable[[tuple[str, ...]], XcrunResult]
+
+
+class FakeXcrun:
+    """Plays xcrun: records each call, answers from `on(...)`."""
+
+    def __init__(self) -> None:
+        self.calls: list[XcrunCall] = []
+        self._answers: list[tuple[tuple[str, ...], Answer]] = []
+
+    def on(
+        self,
+        *prefix: str,
+        rc: int = 0,
+        out: str = "",
+        err: str = "",
+        raw: bytes | None = None,
+        then: Answer | None = None,
+    ) -> FakeXcrun:
+        answer = then if then is not None else XcrunResult(rc, out, err, out.encode() if raw is None else raw)
+        self._answers.append((prefix, answer))
+        return self
+
+    def with_screenshot(self, image: bytes) -> FakeXcrun:
+        """Answer ``simctl io <udid> screenshot --type=… <path>`` the way simctl does: write the image where it was
+        told to, and nothing to stdout."""
+        return self.on("simctl", "io", then=screenshot_written(image))
+
+    def with_xcode(self, version: str = "27.0", build: str = "27A266a", *, bridge: bool = True) -> FakeXcrun:
+        """Answer ``xcodebuild -version`` as this Xcode, and ``--find mcpbridge`` as one that has it -- or not."""
+        found = "/Applications/Xcode27.app/Contents/Developer/usr/bin/mcpbridge"
+        self.on("xcodebuild", "-version", out=f"Xcode {version}\nBuild version {build}\n")
+        if bridge:
+            return self.on("--find", "mcpbridge", out=found + "\n")
+        return self.on("--find", "mcpbridge", rc=1, err='xcrun: error: unable to find utility "mcpbridge"')
+
+    def with_swift(self, version: str = SWIFT_VERSION, *, compiles: bool = True) -> FakeXcrun:
+        """Answer ``swiftc --version`` as this Swift, and a compile the way swiftc does: an executable written where
+        ``-o`` says -- or a compiler error."""
+        self.on("--sdk", "macosx", "swiftc", "--version", out=version + "\n")
+        if compiles:
+            return self.on("--sdk", "macosx", "swiftc", "-O", then=compiled)
+        return self.on("--sdk", "macosx", "swiftc", "-O", rc=1, err="main.swift:3:1: error: cannot find 'VNThing'")
+
+    def with_lists(self) -> FakeXcrun:
+        """Answer `simctl list devices|runtimes -j` with what a real Mac printed."""
+        return self.on("simctl", "list", "devices", "-j", out=fixture("simctl-devices.json")).on(
+            "simctl", "list", "runtimes", "-j", out=fixture("simctl-runtimes.json")
+        )
+
+    def with_devicectl(self) -> FakeXcrun:
+        """Answer devicectl as a Mac with two iPhones printed it -- one by cable, one on the network -- scrubbed of
+        everything of their owner's. A call with nothing of its own answers devicectl's plain success."""
+        self.on("devicectl", "-q", out=json.dumps(DEVICECTL_SUCCESS))
+        for words, name in DEVICECTL_ANSWERS:
+            self.on("devicectl", "-q", *words, out=fixture(name))
+        return self
+
+    async def __call__(
+        self,
+        *args: str,
+        timeout: float = 30.0,
+        developer_dir: str = "",
+        input_data: bytes | None = None,
+        cwd: Path | str | None = None,
+    ) -> XcrunResult:
+        self.calls.append(XcrunCall(tuple(args), timeout, developer_dir, input_data, None if cwd is None else str(cwd)))
+        for prefix, answer in reversed(self._answers):
+            if tuple(args[: len(prefix)]) == prefix:
+                return answer(tuple(args)) if callable(answer) else answer
+        return XcrunResult(0, "", "")
+
+    def argv(self) -> list[tuple[str, ...]]:
+        return [call.args for call in self.calls]
+
+
+class FakeProcess:
+    """A started program: runs until a test finishes it."""
+
+    def __init__(self, pid: int = 4242) -> None:
+        self.pid = pid
+        self.returncode: int | None = None
+        self._done = asyncio.Event()
+
+    def finish(self, rc: int = 0) -> None:
+        self.returncode = rc
+        self._done.set()
+
+    async def wait(self) -> int | None:
+        await self._done.wait()
+        return self.returncode
+
+
+BRIDGE_ANSWERS = "mcpbridge-answers.json"
+
+
+class LinePeer(Protocol):
+    """The program a `FakeLineProcess` plays: it hears each message written, and may end when its stdin closes."""
+
+    exit_on_close: bool
+
+    def receive(self, process: FakeLineProcess, message: dict[str, Any]) -> None: ...
+
+
+@dataclass
+class _Pipe:
+    """A child's stdin: every line written is handed to the program the fake plays."""
+
+    peer: LinePeer
+    process: FakeLineProcess
+    closed: bool = False
+    buffer: bytes = b""
+
+    def write(self, data: bytes) -> None:
+        if self.closed or self.process.returncode is not None:
+            raise BrokenPipeError("the program has stopped")
+        self.buffer += data
+        while b"\n" in self.buffer:
+            line, self.buffer = self.buffer.split(b"\n", 1)
+            self.peer.receive(self.process, json.loads(line))
+
+    async def drain(self) -> None:
+        await asyncio.sleep(0)
+
+    def close(self) -> None:
+        self.closed = True
+        if self.peer.exit_on_close:
+            self.process.finish(1)
+
+
+@dataclass
+class FakeLineProcess:
+    """A program spoken to in JSON lines (`platform.json_lines`), played by its `peer`."""
+
+    peer: LinePeer
+    argv: tuple[str, ...]
+    env: dict[str, str]
+    returncode: int | None = None
+    stdin: Any = None
+    stdout: asyncio.StreamReader = field(default_factory=asyncio.StreamReader)
+    stderr: asyncio.StreamReader = field(default_factory=asyncio.StreamReader)
+    killed: bool = False
+
+    def __post_init__(self) -> None:
+        self.stdin = _Pipe(self.peer, self)
+
+    def say(self, message: Mapping[str, Any]) -> None:
+        self.stdout.feed_data(json.dumps(message).encode() + b"\n")
+
+    def finish(self, rc: int = 0, stderr: str = "") -> None:
+        if self.returncode is not None:
+            return
+        if stderr:
+            self.stderr.feed_data(stderr.encode() + b"\n")
+        self.returncode = rc
+        self.stdout.feed_eof()
+        self.stderr.feed_eof()
+
+    def kill(self) -> None:
+        self.killed = True
+        self.finish(-9)
+
+    async def wait(self) -> int:
+        while self.returncode is None:
+            await asyncio.sleep(0)
+        return self.returncode
+
+
+Reply = Mapping[str, Any] | Callable[[dict[str, Any]], Mapping[str, Any] | None]
+
+
+class FakeBridge:
+    """Xcode's tools behind a fake ``xcrun mcpbridge``: each tool answers as Xcode 27.0 did.
+
+    A capture writes `hierarchy` -- and the screenshot, thumbnail and log Xcode writes beside it -- into `folder`, named
+    for the session. `refuse`, `reply` and `stop` change the next answers; `calls` is what was called, in order.
+    """
+
+    def __init__(self, *, folder: Path | None = None, hierarchy: str | None = None) -> None:
+        self.folder = folder or Path(tempfile.mkdtemp(prefix="fake-bridge-"))
+        self.folder.mkdir(parents=True, exist_ok=True)
+        self.hierarchy = hierarchy if hierarchy is not None else fixture("mcpbridge-hierarchy-settings.txt")
+        self.answers = fixture_json(BRIDGE_ANSWERS)
+        self.processes: list[FakeLineProcess] = []
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+        #: Queued answers by tool, used before the usual one.
+        self.queued: dict[str, list[Reply]] = {}
+        #: Whether the bridge ends when its stdin is closed, as the real one does.
+        self.exit_on_close = True
+        #: Stopped on its next message, saying this on stderr.
+        self.stop_saying: str | None = None
+        self.captures = 0
+        self.open_workspaces: list[str] = []
+
+    async def spawn(self, argv: Sequence[str], env: Mapping[str, str]) -> FakeLineProcess:
+        process = FakeLineProcess(self, tuple(argv), dict(env))
+        self.processes.append(process)
+        return process
+
+    def refuse(self, tool: str, data: str) -> FakeBridge:
+        """The next call of `tool` is refused, Xcode's reason in its text as JSON."""
+        text = json.dumps({"type": "error", "data": data})
+        return self.reply(tool, {"content": [{"type": "text", "text": text}], "isError": True})
+
+    def reply(self, tool: str, result: Reply) -> FakeBridge:
+        """The next call of `tool` answers this result -- or what a function of the arguments answers, None for
+        nothing at all."""
+        self.queued.setdefault(tool, []).append(result)
+        return self
+
+    def stop(self, stderr: str) -> FakeBridge:
+        self.stop_saying = stderr
+        return self
+
+    def tools(self) -> list[str]:
+        return [tool for tool, _ in self.calls]
+
+    def receive(self, process: FakeLineProcess, message: dict[str, Any]) -> None:
+        if self.stop_saying is not None:
+            said, self.stop_saying = self.stop_saying, None
+            process.finish(1, said)
+            return
+        method = message.get("method")
+        if method == "initialize":
+            process.say({**self.answers["initialize"], "id": message["id"]})
+        elif method == "tools/call":
+            params = message["params"]
+            tool, arguments = params["name"], params.get("arguments", {})
+            self.calls.append((tool, arguments))
+            queued = self.queued.get(tool)
+            reply = queued.pop(0) if queued else self._usual(tool)
+            result = reply(arguments) if callable(reply) else reply
+            if result is not None:
+                process.say({"jsonrpc": "2.0", "id": message["id"], "result": result})
+
+    def _usual(self, tool: str) -> Reply:
+        usual: dict[str, Reply] = {
+            "DeviceInteractionStartSession": self._start,
+            "DeviceInteractionSynthesize": self._capture,
+            "DeviceInteractionEndSession": lambda _: _structured({"userMessage": "Session stopped"}),
+            "XcodeListWorkspaces": self._list,
+            "XcodeOpenWorkspace": self._open,
+            "XcodeCloseWorkspace": lambda _: _structured({"message": "closed"}),
+        }
+        return usual.get(tool, lambda _: _structured({}))
+
+    def _start(self, arguments: dict[str, Any]) -> Mapping[str, Any]:
+        answer = dict(self.answers["start_session"]["result"]["structuredContent"])
+        answer.update(interactionSessionKey=arguments["sessionIdentifier"], deviceUUID=arguments["deviceIdentifier"])
+        return _structured(answer)
+
+    def _capture(self, arguments: dict[str, Any]) -> Mapping[str, Any]:
+        self.captures += 1
+        stem = self.folder / f"{arguments['interactSessionKey']}-{self.captures:02d}"
+        paths = {
+            "hierarchyPath": Path(f"{stem}-hierarchy.txt"),
+            "screenshotPath": Path(f"{stem}-screenshot.png"),
+            "thumbnailScreenshotPath": Path(f"{stem}-thumbnailScreenshot.png"),
+            "logsPath": Path(f"{stem}-logs.txt"),
+        }
+        paths["hierarchyPath"].write_text(self.hierarchy, encoding="utf-8")
+        for name in ("screenshotPath", "thumbnailScreenshotPath", "logsPath"):
+            paths[name].write_bytes(b"")
+        return _structured({"applicationState": "NotRun", **{name: str(path) for name, path in paths.items()}})
+
+    def _list(self, arguments: dict[str, Any]) -> Mapping[str, Any]:
+        listed = "\n".join(f"* workspaceIdentifier: w{n}, workspacePath: {path}" for n, path in
+                           enumerate(self.open_workspaces))  # fmt: skip
+        return _structured({"message": listed or "No workspaces are currently open."})
+
+    def _open(self, arguments: dict[str, Any]) -> Mapping[str, Any]:
+        path = arguments["path"]
+        if path not in self.open_workspaces:
+            self.open_workspaces.append(path)
+        identifier = f"w{self.open_workspaces.index(path)}"
+        return _structured({"workspaceIdentifier": identifier, "workspacePath": path, "activeScheme": "App"})
+
+
+def _structured(content: Mapping[str, Any]) -> dict[str, Any]:
+    return {"content": [{"type": "text", "text": json.dumps(content)}], "structuredContent": dict(content)}
+
+
+class ManualClock:
+    """A monotonic clock a test moves by hand."""
+
+    def __init__(self, now: float = 100.0) -> None:
+        self.now = now
+
+    def __call__(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
+async def no_wait(seconds: float) -> None:
+    """A sleep that only lets other tasks run."""
+    await asyncio.sleep(0)
+
+
+class StaticConfig:
+    """A `ConfigSource` a test sets directly: one config for every scope, or one per scope id."""
+
+    def __init__(self, config: SimConfig | None = None, **values: Any) -> None:
+        self.config = (config or SimConfig.defaults()).with_values(**values)
+        self.scopes: dict[str, SimConfig] = {}
+
+    def get(self, scope: Scope) -> SimConfig:
+        return self.scopes.get(scope.id, self.config)
+
+    def set(self, **values: Any) -> None:
+        """Change the config every scope without its own gets."""
+        self.config = self.config.with_values(**values)
+
+    def set_for(self, scope_id: str, **values: Any) -> None:
+        """Give one scope its own config: the shared one with these values changed."""
+        self.scopes[scope_id] = self.scopes.get(scope_id, self.config).with_values(**values)
+
+
+class MemorySettingsStore:
+    """A `SettingsStore` over a `StaticConfig`: a change is applied to it at once and remembered as written.
+
+    `locked` names settings a layer above the file sets, by key; `refusal`, when set, is raised by the next change.
+    """
+
+    def __init__(self, config: StaticConfig) -> None:
+        self.config = config
+        self.locked: dict[str, SettingOrigin] = {}
+        self.refusal: SettingsRefused | None = None
+        #: Each change: the scope id (None for every scope), the values set and the paths put back.
+        self.changes: list[tuple[str | None, dict[str, Any], list[str]]] = []
+        self._written: dict[str | None, set[str]] = {}
+
+    def explain(self, scope: Scope) -> Mapping[str, SettingOrigin]:
+        origins = {setting.key: DEFAULT for setting in schema.SETTINGS}
+        for key in self._written.get(None, set()):
+            origins[key] = SettingOrigin("file", "config.toml")
+        for key in self._written.get(scope.id, set()):
+            origins[key] = SettingOrigin("scope", f'[scopes."{scope.id}"]')
+        return {**origins, **self.locked}
+
+    def change(self, scope: Scope | None, values: Mapping[str, Any], removed: Collection[str]) -> None:
+        if self.refusal is not None:
+            raise self.refusal
+        scope_id = None if scope is None else scope.id
+        self.changes.append((scope_id, dict(values), list(removed)))
+        written = self._written.setdefault(scope_id, set())
+        applied: dict[str, Any] = {}
+        for path, value in values.items():
+            key = schema.BY_PATH[path].key
+            written.add(key)
+            applied[key] = value
+        for path in removed:
+            setting = schema.BY_PATH[path]
+            written.discard(setting.key)
+            applied[setting.key] = setting.default
+        if scope_id is None:
+            self.config.set(**applied)
+        else:
+            self.config.set_for(scope_id, **applied)
+
+
+class FakeConfirmations:
+    """`Confirmations` a test reads the codes of: one pending change per digest, confirmed by its code once."""
+
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, str, str]] = []
+        self.codes: dict[str, str] = {}
+        self._ids: dict[str, str] = {}
+
+    def request(self, scope: Scope, digest: str, summary: str) -> PendingConfirmation:
+        self.requests.append((scope.id, digest, summary))
+        pending = self._ids.setdefault(digest, f"change-{len(self._ids) + 1}")
+        self.codes.setdefault(digest, f"code-{pending}")
+        return {"id": pending, "summary": summary, "command": "rocketwright settings confirm", "expires_in_s": 60.0}
+
+    def confirm(self, digest: str, code: str) -> bool:
+        if self.codes.get(digest) != code:
+            return False
+        del self.codes[digest]
+        self._ids.pop(digest, None)
+        return True
+
+
+def screenshot_written(image: bytes) -> Answer:
+    """Play simctl writing a screenshot: the file it is given holds the image, and stdout stays empty."""
+
+    def answer(args: tuple[str, ...]) -> XcrunResult:
+        Path(args[-1]).write_bytes(image)
+        return XcrunResult(0, "", f"Wrote screenshot to: {args[-1]}")
+
+    return answer
+
+
+def compiled(args: tuple[str, ...]) -> XcrunResult:
+    """Play swiftc compiling: an executable where ``-o`` says, and nothing printed."""
+    output = Path(args[args.index("-o") + 1])
+    output.write_bytes(b"#!/bin/sh\n")
+    output.chmod(0o755)
+    return XcrunResult(0, "", "")
+
+
+def tiny_jpeg(width: int, height: int, body: bytes = b"") -> bytes:
+    """The smallest bytes that read as a JPEG of this size: start of image, a frame header, end of image."""
+    header = (
+        b"\xff\xc0\x00\x11\x08"
+        + height.to_bytes(2, "big")
+        + width.to_bytes(2, "big")
+        + b"\x03\x01\x22\x00\x02\x11\x01\x03\x11\x01"
+    )
+    return b"\xff\xd8" + header + body + b"\xff\xd9"
+
+
+SCREEN = Screen(width_px=1206, height_px=2622, width_pt=402, height_pt=874, scale=3.0)
+JPEG = tiny_jpeg(402, 874)
+#: The start of an H.264 stream a viewer can begin at: a sequence and a picture parameter set, then an IDR slice.
+KEY_FRAME = b"\x00\x00\x00\x01\x67\x64\x00\x28\x00\x00\x00\x01\x68\xee\x3c\x80\x00\x00\x00\x01\x65\x88\x84"
+
+
+class FakeEngine:
+    """A running device: records input and screenshots, answers with a fixture screen."""
+
+    def __init__(
+        self,
+        *,
+        screen: Screen = SCREEN,
+        document: dict[str, Any] | None = None,
+        describe_error: Exception | None = None,
+    ) -> None:
+        self.screen = screen
+        self.document = document if document is not None else fixture_json("ax-settings-interactable.json")
+        self.describe_error = describe_error
+        self.shot = Shot(JPEG, 402, 874)
+        #: Raised, one per call, by the next screenshots.
+        self.screenshot_errors: list[Exception] = []
+        #: Raised, one per call, by the next reads of the screen.
+        self.accessibility_errors: list[Exception] = []
+        self.chunks: list[bytes] = [KEY_FRAME]
+        self.hid_events: list[HidEvent] = []
+        #: Text typed whole, as a device WebDriverAgent drives takes it (`DeviceSession.text`).
+        self.typed: list[str] = []
+        self.screenshots: list[tuple[int, int, Crop | None]] = []
+        #: What is at points of the screen, keyed ``"x,y"`` as `point_key` writes the screen's points; a point not
+        #: here has nothing, and an exception is raised.
+        self.points: dict[str, dict[str, Any] | Exception] = {}
+        #: Each batch of points asked what is there, in the screen's points.
+        self.asked: list[tuple[tuple[float, float], ...]] = []
+        self.closed = False
+        #: Each way the device was turned (`DeviceSession.rotator`).
+        self.turns: list[Orientation] = []
+        #: What the app on screen answers once the device is turned each way; a way not here leaves the screen as it
+        #: was, as an app that runs only upright does.
+        self.turned: dict[Orientation, dict[str, Any]] = {}
+        #: Raised, one per call, by the next turns.
+        self.rotate_errors: list[Exception] = []
+
+    async def describe(self) -> Screen:
+        if self.describe_error is not None:
+            raise self.describe_error
+        return self.screen
+
+    async def screenshot(self, *, max_width: int, quality: int, crop: Crop | None = None) -> Shot:
+        self.screenshots.append((max_width, quality, crop))
+        await asyncio.sleep(0)
+        if self.screenshot_errors:
+            raise self.screenshot_errors.pop(0)
+        return self.shot
+
+    async def _stream(self) -> AsyncIterator[bytes]:
+        for chunk in self.chunks:
+            yield chunk
+        await asyncio.sleep(3600)
+
+    def h264(self, *, fps: int, scale: float, key_frame_s: float, bitrate: int) -> AsyncIterator[bytes]:
+        return self._stream()
+
+    async def hid(self, events: AsyncIterable[HidEvent]) -> None:
+        async for event in events:
+            self.hid_events.append(event)
+
+    async def type(self, text: str) -> None:
+        self.typed.append(text)
+
+    async def rotate(self, orientation: Orientation) -> None:
+        if self.rotate_errors:
+            raise self.rotate_errors.pop(0)
+        self.turns.append(orientation)
+        self.document = self.turned.get(orientation, self.document)
+
+    async def accessibility(self) -> dict[str, Any]:
+        if self.accessibility_errors:
+            raise self.accessibility_errors.pop(0)
+        return self.document
+
+    async def elements_at(self, points: Sequence[tuple[float, float]]) -> list[dict[str, Any] | None]:
+        self.asked.append(tuple(points))
+        found: list[dict[str, Any] | None] = []
+        for x, y in points:
+            answer = self.points.get(point_key(x, y))
+            if isinstance(answer, Exception):
+                raise answer
+            found.append(answer)
+        return found
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def point_key(x: float, y: float) -> str:
+    """How `FakeEngine.points` keys a point of the screen: each to a tenth of a point, as short as it goes."""
+    return f"{round(x, 1):g},{round(y, 1):g}"
+
+
+class FakeCompanionProcess:
+    def __init__(self, pid: int = 4242) -> None:
+        self.pid = pid
+        self.returncode: int | None = None
+
+
+class FakeLauncher:
+    """Starts a companion without a process: `hold` keeps a start waiting until `release` is set."""
+
+    def __init__(self, engine: FakeEngine | None = None, *, fail: Exception | None = None, hold: bool = False) -> None:
+        self.engine = engine or FakeEngine()
+        self.fail = fail
+        self.release = asyncio.Event() if hold else None
+        self.started: list[tuple[str, str]] = []
+        #: The Xcode each start was told to run with, in the order of `started`.
+        self.developer_dirs: list[str] = []
+        self.stopped: list[str] = []
+        self.reaped = 0
+
+    async def start(self, binary: str, udid: str, developer_dir: str = "") -> Companion:
+        self.started.append((binary, udid))
+        self.developer_dirs.append(developer_dir)
+        if self.release is not None:
+            await self.release.wait()
+        if self.fail is not None:
+            raise self.fail
+        return Companion(
+            udid=udid,
+            process=FakeCompanionProcess(),
+            socket=Path("/fake/c.sock"),
+            pid_file=Path("/fake/c.pid"),
+            engine=self.engine,
+            developer_dir=developer_dir,
+        )
+
+    async def stop(self, companion: Companion) -> None:
+        self.stopped.append(companion.udid)
+        companion.process.returncode = 0
+
+    async def reap_orphans(self) -> int:
+        self.reaped += 1
+        return 2
+
+
+class FakeXcodeSelect:
+    """Which Xcode a companion runs with, answered without asking the Mac: the setting, else `selected`.
+
+    It stands where `platform.developer_dir.choose_xcode` does. An empty `selected` is a Mac with no Xcode selected.
+    """
+
+    def __init__(self, selected: str = SELECTED_XCODE) -> None:
+        self.selected = selected
+        self.asked: list[str] = []
+
+    async def __call__(self, configured: str) -> ChosenXcode | None:
+        self.asked.append(configured)
+        if configured:
+            return ChosenXcode(configured, "setting")
+        return ChosenXcode(self.selected, "xcode-select") if self.selected else None
+
+
+class FakeKeyboard:
+    """The Mac's keyboard, answered without asking the Mac: a US layout or another, with the keys a test gives it.
+
+    It stands where `platform.keyboard.MacKeyboards` does, and counts how often it was asked -- a scope that always
+    pastes, or types with a US keyboard's keys, never asks. With no `keys`, the layout's could not be read: a US layout
+    then types with a US keyboard's, and another pastes.
+    """
+
+    def __init__(self, us: bool = False, keys: LayoutKeys | None = None) -> None:
+        self.us = us
+        self.keys = keys
+        self.asked = 0
+
+    async def __call__(self) -> MacKeyboard:
+        self.asked += 1
+        return MacKeyboard("com.apple.keylayout.US" if self.us else "com.apple.keylayout.French", self.keys)
+
+
+#: Everything a device can do, as the idb connector offers it: all but turning it, which the native connector adds.
+FULL_CONTROL = frozenset(Capability) - {Capability.BUILD_PREVIEW, Capability.ROTATE}
+
+
+class FakeConnector:
+    """A connector over a `FakeEngine`: available or not, with the capabilities a test gives it."""
+
+    def __init__(
+        self,
+        name: str = "fake",
+        *,
+        engine: FakeEngine | None = None,
+        capabilities: frozenset[Capability] = FULL_CONTROL,
+        available: bool = True,
+        reasons: tuple[str, ...] = (),
+        fail: Exception | None = None,
+        hold: bool = False,
+        fps_limit: int | None = None,
+        kinds: frozenset[DeviceKind] = SIMULATORS,
+        session_capabilities: frozenset[Capability] | None = None,
+        note: str | None = None,
+        types_text: bool = False,
+    ) -> None:
+        self.name = name
+        self.engine = engine or FakeEngine()
+        self.kinds = kinds
+        #: What a session can do, when a test has it differ from what the probe reports.
+        self.session_capabilities = session_capabilities
+        self.note = note
+        #: Whether its sessions type text whole, as WebDriverAgent does, rather than as keys or a paste.
+        self.types_text = types_text
+        self.capabilities = capabilities
+        self.available = available
+        self.reasons = reasons if reasons or available else (f"the {name} connector is switched off in this test",)
+        self.fail = fail
+        #: How many times it was probed.
+        self.probes = 0
+        self.release = asyncio.Event() if hold else None
+        self.fps_limit = fps_limit
+        self.attached: list[str] = []
+        #: The settings each attach was given.
+        self.configs: list[SimConfig] = []
+        self.closed: list[str] = []
+        self.sessions: list[DeviceSession] = []
+        self.alive = True
+        #: Devices whose session has stopped, as a helper process that exited would; attaching again revives one.
+        self.dead: set[str] = set()
+        self.reaped = 0
+        #: What last kept each device from being driven, and what is being done about it now, as a test says.
+        self.trouble: dict[str, str] = {}
+        self.starting: dict[str, str] = {}
+        #: Seconds left of the time what drives each device is given to start, as a test says.
+        self.left_to_start: dict[str, float] = {}
+        #: What the helper of each session it attaches says went wrong since it started, as a test says.
+        self.helper_error: str | None = None
+
+    def last_error(self, udid: str) -> str | None:
+        return self.trouble.get(udid)
+
+    def progress(self, udid: str) -> str | None:
+        return self.starting.get(udid) or self.last_error(udid)
+
+    def starting_left(self, udid: str) -> float | None:
+        return self.left_to_start.get(udid)
+
+    async def probe(self, config: SimConfig) -> ConnectorReport:
+        self.probes += 1
+        if not self.available:
+            return ConnectorReport(self.name, False, reasons=self.reasons, kinds=self.kinds)
+        return ConnectorReport(self.name, True, self.capabilities, {"fake": "1"}, kinds=self.kinds)
+
+    async def attach(self, udid: str, config: SimConfig) -> DeviceSession:
+        self.attached.append(udid)
+        self.configs.append(config)
+        if self.release is not None:
+            await self.release.wait()
+        if self.fail is not None:
+            raise self.fail
+        if not self.available:
+            raise ConnectorUnavailable(" ".join(self.reasons), 409)
+
+        async def close() -> None:
+            self.closed.append(udid)
+
+        def alive() -> bool:
+            return self.alive and udid not in self.dead
+
+        self.dead.discard(udid)
+        capabilities = self.capabilities if self.session_capabilities is None else self.session_capabilities
+        if "physical" in self.kinds and not config.wda_enabled:
+            # As a real device's connector does: with WebDriverAgent turned off, it is only watched.
+            capabilities -= DRIVEN
+        control = capabilities & FULL_CONTROL
+        session = DeviceSession(
+            connector=self.name,
+            capabilities=capabilities,
+            screen=self.engine,
+            input=self.engine if control & {Capability.INPUT_TOUCH, Capability.INPUT_KEY} else None,
+            reader=self.engine if Capability.ELEMENT_TREE in control else None,
+            points=self.engine if Capability.ELEMENT_TREE in control else None,
+            text=self.engine if self.types_text else None,
+            rotator=self.engine if Capability.ROTATE in capabilities else None,
+            fps_limit=self.fps_limit,
+            note=self.note,
+            is_alive=alive,
+            on_close=close,
+            last_error=lambda: self.helper_error,
+        )
+        self.sessions.append(session)
+        return session
+
+    async def reap_orphans(self) -> int:
+        self.reaped += 1
+        return 0
+
+
+#: A real device's hardware UDID, as tests name one.
+PHONE_UDID = "00008120-0011223344556677"
+
+
+class FakeControl:
+    """A `DeviceControl` that records what it was asked and answers as a test says."""
+
+    def __init__(
+        self,
+        *,
+        logs: Sequence[str] = (),
+        pid: int | None = 4242,
+        fail: Exception | None = None,
+        display: DisplayState | None = None,
+    ) -> None:
+        self.calls: list[tuple[Any, ...]] = []
+        self.lines = list(logs)
+        self.pid = pid
+        self.fail = fail
+        #: How the device looks now, as its tool would read it.
+        self.state = display or DisplayState("light", "large", False, False)
+        #: The apps installed, by bundle id, as `app_info` answers them.
+        self.apps: dict[str, InstalledApp] = {}
+
+    def _did(self, *call: Any) -> None:
+        self.calls.append(call)
+        if self.fail is not None:
+            raise self.fail
+
+    async def install(self, udid: str, app_path: str) -> None:
+        self._did("install", udid, app_path)
+
+    async def app_info(self, udid: str, bundle_id: str) -> InstalledApp | None:
+        self._did("app_info", udid, bundle_id)
+        return self.apps.get(bundle_id)
+
+    async def launch(
+        self, udid: str, bundle_id: str, args: Sequence[str] = (), *, terminate_running: bool = False
+    ) -> int | None:
+        self._did("launch", udid, bundle_id, tuple(args), terminate_running)
+        return self.pid
+
+    async def terminate(self, udid: str, bundle_id: str) -> bool:
+        self._did("terminate", udid, bundle_id)
+        return True
+
+    async def openurl(self, udid: str, url: str) -> None:
+        self._did("openurl", udid, url)
+
+    async def pbcopy(self, udid: str, text: str) -> None:
+        self._did("pbcopy", udid, text)
+
+    async def appearance(self, udid: str, mode: str) -> None:
+        self._did("appearance", udid, mode)
+
+    async def logs(self, udid: str, *, since_s: int, bundle_id: str | None) -> list[str]:
+        self._did("logs", udid, since_s, bundle_id)
+        return list(self.lines)
+
+    async def display(self, udid: str) -> DisplayState:
+        self._did("display", udid)
+        return self.state
+
+    async def text_size(self, udid: str, size: str) -> None:
+        self._did("text_size", udid, size)
+
+    async def contrast(self, udid: str, on: bool) -> None:
+        self._did("contrast", udid, on)
+
+    async def reduce_motion(self, udid: str, on: bool) -> None:
+        self._did("reduce_motion", udid, on)
+
+    async def demo_status_bar(self, udid: str) -> None:
+        self._did("demo_status_bar", udid)
+
+    async def clear_status_bar(self, udid: str) -> None:
+        self._did("clear_status_bar", udid)
+
+    async def locate(self, udid: str, latitude: float, longitude: float) -> None:
+        self._did("locate", udid, latitude, longitude)
+
+    async def route(self, udid: str, waypoints: Sequence[tuple[float, float]], speed: float) -> None:
+        self._did("route", udid, tuple(waypoints), speed)
+
+    async def clear_location(self, udid: str) -> None:
+        self._did("clear_location", udid)
+
+
+class FakePhoneBackend:
+    """A `DeviceBackend` for real devices a test names: connected by cable, never booted, never shut down."""
+
+    kind: DeviceKind = "physical"
+
+    def __init__(self, phones: Mapping[str, str] | None = None, *, fail: Exception | None = None) -> None:
+        #: The connected devices, by hardware UDID, and their names.
+        self.phones = dict(phones if phones is not None else {PHONE_UDID: "Test iPhone"})
+        self.fail = fail
+        #: Devices listed but not usable now, and what stands in their way.
+        self.blocked: dict[str, str] = {}
+        self.control_for = FakeControl()
+        self.prepared: list[str] = []
+        self.released: list[tuple[str, bool]] = []
+
+    def _choice(self, udid: str) -> DeviceChoice:
+        return {
+            "udid": udid,
+            "name": self.phones[udid],
+            "runtime": "iOS 26.3",
+            "state": "Connected",
+            "created": False,
+            "kind": "physical",
+            "connection": "usb",
+            "detail": self.blocked.get(udid),
+            "detail_code": None,
+            "usable": udid not in self.blocked,
+            "agents": [],
+        }
+
+    def runs_here(self, device: Placed) -> bool:
+        return False
+
+    def withheld(self, instance: DeviceInstance, config: SimConfig) -> str | None:
+        return None if config.real_devices else HostCopy().kind_unavailable("physical")
+
+    async def choices(self, config: SimConfig, created: Collection[str]) -> list[DeviceChoice]:
+        if self.fail is not None:
+            raise self.fail
+        return [self._choice(udid) for udid in self.phones]
+
+    async def lookup(self, udid: str, config: SimConfig) -> DeviceChoice | None:
+        return self._choice(udid) if udid in self.phones else None
+
+    async def resolve(self, scope: Scope, remembered: str | None, config: SimConfig) -> DeviceRef:
+        if remembered is None or remembered not in self.phones:
+            raise NoDevice(f"{remembered} is not connected: plug it in or pick a simulator")
+        return DeviceRef(remembered, self.phones[remembered], "iOS 26.3", False, "physical", "usb")
+
+    async def prepare(self, instance: DeviceInstance, config: SimConfig) -> None:
+        self.prepared.append(instance.udid)
+
+    async def release(self, instance: DeviceInstance, *, shutdown: bool) -> None:
+        self.released.append((instance.udid, shutdown))
+
+    async def gone(self, instances: Sequence[DeviceInstance]) -> list[DeviceInstance]:
+        return []
+
+    def control(self, developer_dir: str) -> FakeControl:
+        return self.control_for
+
+    def developer_dir(self, config: SimConfig) -> str:
+        return config.real_devices_developer_dir or config.developer_dir
+
+
+#: An Android emulator's and an Android phone's ids, as `identifiers.android_id` makes them.
+EMULATOR_UDID = "avd-Pixel-9-fa39dd"
+ANDROID_PHONE_UDID = "adb-R58M12ABC-9b1e04"
+
+
+class FakeAndroidBackend:
+    """A `DeviceBackend` for Android devices a test names: an emulator that runs here, and a phone by cable."""
+
+    kind: DeviceKind = "android"
+
+    def __init__(self) -> None:
+        #: The devices, by id: their name, and how they reach the Mac -- None for an emulator.
+        self.devices: dict[str, tuple[str, Connection | None]] = {
+            EMULATOR_UDID: ("Pixel 9", None),
+            ANDROID_PHONE_UDID: ("Pixel 8", "usb"),
+        }
+        self.control_for = FakeControl()
+        self.prepared: list[str] = []
+        self.released: list[tuple[str, bool]] = []
+
+    def runs_here(self, device: Placed) -> bool:
+        return device.connection is None
+
+    def withheld(self, instance: DeviceInstance, config: SimConfig) -> str | None:
+        return None if config.android else HostCopy().kind_unavailable("android")
+
+    def _choice(self, udid: str) -> DeviceChoice:
+        name, connection = self.devices[udid]
+        return {
+            "udid": udid,
+            "name": name,
+            "runtime": "Android 16 (API 36)",
+            "state": "Shutdown" if connection is None else "Connected",
+            "created": False,
+            "kind": "android",
+            "connection": connection,
+            "detail": None,
+            "detail_code": None,
+            "usable": True,
+            "agents": [],
+        }
+
+    async def choices(self, config: SimConfig, created: Collection[str]) -> list[DeviceChoice]:
+        return [self._choice(udid) for udid in self.devices] if config.android else []
+
+    async def lookup(self, udid: str, config: SimConfig) -> DeviceChoice | None:
+        return self._choice(udid) if udid in self.devices and config.android else None
+
+    async def resolve(self, scope: Scope, remembered: str | None, config: SimConfig) -> DeviceRef:
+        udid = remembered or EMULATOR_UDID
+        if udid not in self.devices:
+            raise NoDevice(HostCopy().no_such_device("android"))
+        name, connection = self.devices[udid]
+        return DeviceRef(udid, name, "Android 16 (API 36)", False, "android", connection)
+
+    async def prepare(self, instance: DeviceInstance, config: SimConfig) -> None:
+        self.prepared.append(instance.udid)
+        instance.booted_by_us = instance.connection is None
+
+    async def release(self, instance: DeviceInstance, *, shutdown: bool) -> None:
+        self.released.append((instance.udid, shutdown))
+
+    async def gone(self, instances: Sequence[DeviceInstance]) -> list[DeviceInstance]:
+        return []
+
+    def control(self, developer_dir: str) -> FakeControl:
+        return self.control_for
+
+    def developer_dir(self, config: SimConfig) -> str:
+        return config.android_sdk_path
+
+
+class FakeInputPause:
+    """An `InputPause` a test sets directly: the devices, by UDID, a person has paused agents on."""
+
+    def __init__(self) -> None:
+        self.held: set[str] = set()
+
+    def paused(self, device: HeldDevice) -> bool:
+        return device.udid in self.held
+
+
+class FakePolicy:
+    """A `Policy` a test sets directly."""
+
+    def __init__(
+        self,
+        *,
+        area: bool = True,
+        shells: bool = True,
+        roots: tuple[Path, ...] = (),
+        folder: Path | None = None,
+    ) -> None:
+        self.area = area
+        self.shells = shells
+        self.roots = roots
+        self.folder = folder
+
+    def area_enabled(self, scope: Scope) -> bool:
+        return self.area
+
+    def shells_allowed(self, scope: Scope) -> bool:
+        return self.shells
+
+    def install_roots(self, scope: Scope) -> tuple[Path, ...]:
+        return self.roots
+
+    def build_folder(self, scope: Scope) -> Path | None:
+        return self.folder
+
+
+class MemoryStateStore:
+    """A `StateStore` whose every folder is under one root a test owns."""
+
+    def __init__(self, root: Path, *, owner_tag: str = "RocketwrightTest") -> None:
+        self.root = root
+        self._owner_tag = owner_tag
+
+    @property
+    def owner_tag(self) -> str:
+        return self._owner_tag
+
+    def devices_file(self) -> Path:
+        """Where a test's `JsonDeviceMemory` would keep its file. Not a seam, as on the real store: a host that
+        remembers devices its own way never answers this."""
+        return self.root / "state" / "devices.json"
+
+    def builds_dir(self, scope: Scope) -> Path:
+        return self.root / "state" / "builds" / scope.id.replace(":", "_")
+
+    def derived_data(self, scope: Scope) -> Path:
+        return self.root / "DerivedData" / scope.id.replace(":", "_")
+
+    def run_dir(self) -> Path:
+        return self.root / "run"
+
+    def log_dir(self) -> Path:
+        return self.root / "logs"
+
+    def claims_dir(self) -> Path:
+        return self.root / "claims"
+
+    def ensure_dir(self, folder: Path) -> Path:
+        return ensure_private_dir(folder)

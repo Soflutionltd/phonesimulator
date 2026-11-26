@@ -4,10 +4,10 @@ clear told only when there is something to clear."""
 
 from __future__ import annotations
 
-from simtrail.core.events import EventBus
-from simtrail.core.text_overlay import HOLD_MS, TextOverlay, text_boxes
-from simtrail.perception.ocr import RecognizedLine, TextBox
-from simtrail.protocol import SCREEN_TEXT_MAX_BOXES
+from rocketwright.core.events import EventBus
+from rocketwright.core.text_overlay import HOLD_MS, TextOverlay, text_boxes
+from rocketwright.perception.ocr import RecognizedLine, TextBox
+from rocketwright.protocol import SCREEN_TEXT_MAX_BOXES
 
 
 def line(

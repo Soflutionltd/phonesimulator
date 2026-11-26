@@ -15,20 +15,20 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
 
-from simtrail import protocol
-from simtrail.config import provenance
-from simtrail.config import schema as settings_schema
-from simtrail.config.settings_store import TomlSettingsStore
-from simtrail.config.toml_source import TomlConfigSource
-from simtrail.core.status import device_choice
-from simtrail.daemon import passes, tokens
-from simtrail.daemon.app import build_daemon, create_app
-from simtrail.platform.simctl import Device
-from simtrail.protocol import _generated
-from simtrail.testing.asgi import HOST
-from simtrail.testing.fakes import no_wait
-from simtrail.testing.rig import DeviceRig
-from simtrail.tools.results import images
+from rocketwright import protocol
+from rocketwright.config import provenance
+from rocketwright.config import schema as settings_schema
+from rocketwright.config.settings_store import TomlSettingsStore
+from rocketwright.config.toml_source import TomlConfigSource
+from rocketwright.core.status import device_choice
+from rocketwright.daemon import passes, tokens
+from rocketwright.daemon.app import build_daemon, create_app
+from rocketwright.platform.simctl import Device
+from rocketwright.protocol import _generated
+from rocketwright.testing.asgi import HOST
+from rocketwright.testing.fakes import no_wait
+from rocketwright.testing.rig import DeviceRig
+from rocketwright.tools.results import images
 
 PROTOCOL = Path(__file__).resolve().parents[2] / "protocol" / "v1"
 SCHEMAS = {path.name: json.loads(path.read_text()) for path in sorted(PROTOCOL.glob("*.schema.json"))}

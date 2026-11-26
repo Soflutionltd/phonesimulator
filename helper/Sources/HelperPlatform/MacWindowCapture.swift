@@ -10,7 +10,7 @@ import ScreenCaptureKit
 final class MacWindowCapture: NSObject, PixelSource, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
     let window: SCWindow
     let geometry: ScreenGeometry
-    private let signal = FrameSignal(label: "simtrail.mac.frames")
+    private let signal = FrameSignal(label: "rocketwright.mac.frames")
     private let lock = NSLock()
     private var latest: Picture?
     private var frames: UInt64 = 0

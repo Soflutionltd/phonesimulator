@@ -10,15 +10,15 @@
 ## Reporting a vulnerability
 
 Please **do not** open a public issue. Report it privately through
-[GitHub private vulnerability reporting](https://github.com/Soflutionltd/simtrail/security/advisories/new).
+[GitHub private vulnerability reporting](https://github.com/Soflutionltd/rocketwright/security/advisories/new).
 
-Include what an attacker can do, the steps to reproduce, and the Simtrail, macOS and Xcode versions
-(`simtrail version`). You will get an acknowledgement within 5 working days and a plan or a fix within 30 days.
+Include what an attacker can do, the steps to reproduce, and the Rocketwright, macOS and Xcode versions
+(`rocketwright version`). You will get an acknowledgement within 5 working days and a plan or a fix within 30 days.
 Credit is given in the advisory unless you prefer otherwise.
 
 ## Scope
 
-Simtrail runs a daemon on your Mac that can control Simulator devices, install apps and, when build tools are on, run
+Rocketwright runs a daemon on your Mac that can control Simulator devices, install apps and, when build tools are on, run
 `xcodebuild`. In scope, for example:
 
 - Reaching the daemon from a web page or another origin (DNS rebinding, CSRF, CORS, WebSocket hijacking).

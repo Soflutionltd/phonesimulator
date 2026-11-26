@@ -6,11 +6,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from simtrail.config.model import SimConfig
-from simtrail.core.signing import MAC_TEAMS_S, SigningTeam, SigningTeams, folder_team
-from simtrail.platform.keychain import Team
-from simtrail.scope import Scope
-from simtrail.testing.fakes import ManualClock
+from rocketwright.config.model import SimConfig
+from rocketwright.core.signing import MAC_TEAMS_S, SigningTeam, SigningTeams, folder_team
+from rocketwright.platform.keychain import Team
+from rocketwright.scope import Scope
+from rocketwright.testing.fakes import ManualClock
 
 NOW = datetime(2026, 9, 29, tzinfo=timezone.utc)
 FAR = datetime(2126, 1, 1, tzinfo=timezone.utc)

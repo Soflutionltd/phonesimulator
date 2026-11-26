@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 import pytest
 from PIL import Image
 
-from simtrail.connectors.android.geometry import (
+from rocketwright.connectors.android.geometry import (
     ROTATIONS,
     Rotation,
     on_display,
@@ -18,9 +18,9 @@ from simtrail.connectors.android.geometry import (
     quarters_of,
     screen_of,
 )
-from simtrail.connectors.android.screen import NO_STREAM, AdbScreen
-from simtrail.connectors.base import ConnectorError, Crop, Screen
-from simtrail.testing.adb import FakeAdbServer, small_jpeg
+from rocketwright.connectors.android.screen import NO_STREAM, AdbScreen
+from rocketwright.connectors.base import ConnectorError, Crop, Screen
+from rocketwright.testing.adb import FakeAdbServer, small_jpeg
 
 PIXEL = Screen(1080, 2424, 411, 923, 2.625)
 

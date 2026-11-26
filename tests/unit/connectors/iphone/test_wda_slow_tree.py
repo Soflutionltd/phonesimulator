@@ -11,13 +11,13 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from simtrail.connectors.base import ConnectorError, Screen
-from simtrail.connectors.iphone.wda_client import WdaClient
-from simtrail.connectors.iphone.wda_roles import Orientation, WdaReader
-from simtrail.perception.model import PIXELS, ElementNode, Frame, ScreenTree
-from simtrail.perception.readers import DocumentReader, FallbackReader
-from simtrail.testing.native import short_run_dir
-from simtrail.testing.wda import FakeWda
+from rocketwright.connectors.base import ConnectorError, Screen
+from rocketwright.connectors.iphone.wda_client import WdaClient
+from rocketwright.connectors.iphone.wda_roles import Orientation, WdaReader
+from rocketwright.perception.model import PIXELS, ElementNode, Frame, ScreenTree
+from rocketwright.perception.readers import DocumentReader, FallbackReader
+from rocketwright.testing.native import short_run_dir
+from rocketwright.testing.wda import FakeWda
 
 SCREEN = Screen(1179, 2556, 393, 852, 3.0)
 #: How long the fake takes to build the tree, how long a snapshot waits for it -- a long list on a device -- and how

@@ -8,26 +8,26 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.config.provenance import SettingOrigin
-from simtrail.config.settings_store import FILE, TomlSettingsStore
-from simtrail.config.toml_source import TomlConfigSource
-from simtrail.config.writer import ConfigRefused
-from simtrail.scope import Scope
-from simtrail.seams import SettingsRefused
+from rocketwright.config.provenance import SettingOrigin
+from rocketwright.config.settings_store import FILE, TomlSettingsStore
+from rocketwright.config.toml_source import TomlConfigSource
+from rocketwright.config.writer import ConfigRefused
+from rocketwright.scope import Scope
+from rocketwright.seams import SettingsRefused
 
 DEMO = Scope.named("demo")
 
 
 def test_a_change_is_written_where_the_source_reads_it_and_explained_from_there(tmp_path: Path) -> None:
     path = tmp_path / "config.toml"
-    source = TomlConfigSource(path, env={"SIMTRAIL_AGENT_CURSOR": "false"})
+    source = TomlConfigSource(path, env={"ROCKETWRIGHT_AGENT_CURSOR": "false"})
     store = TomlSettingsStore(source)
     store.change(DEMO, {"stream.fps": 12}, [])
     store.change(None, {"device.idle_minutes": 30}, [])
     assert source.get(DEMO).stream_fps == 12 and source.get(Scope.named("other")).stream_fps == 30
     origins = store.explain(DEMO)
     assert origins["stream_fps"].layer == "scope" and origins["idle_minutes"] == SettingOrigin("file", str(path))
-    assert origins["agent_cursor"] == SettingOrigin("environment", "SIMTRAIL_AGENT_CURSOR")
+    assert origins["agent_cursor"] == SettingOrigin("environment", "ROCKETWRIGHT_AGENT_CURSOR")
     store.change(DEMO, {}, ["stream.fps"])
     assert source.get(DEMO).stream_fps == 30
 

@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from simtrail.platform.developer_dir import (
+from rocketwright.platform.developer_dir import (
     DEVELOPER_DIR,
     ChosenXcode,
     choose_xcode,
@@ -70,9 +70,9 @@ def test_a_chosen_xcode_says_where_it_came_from() -> None:
 
 def test_the_environment_names_an_xcode_only_when_one_is_given(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(DEVELOPER_DIR, raising=False)
-    monkeypatch.setenv("SIMTRAIL_KEPT", "yes")
+    monkeypatch.setenv("ROCKETWRIGHT_KEPT", "yes")
     inherited = developer_env("")
-    assert DEVELOPER_DIR not in inherited and inherited["SIMTRAIL_KEPT"] == "yes"
+    assert DEVELOPER_DIR not in inherited and inherited["ROCKETWRIGHT_KEPT"] == "yes"
     assert developer_env(WITH_SPACE)[DEVELOPER_DIR] == WITH_SPACE
 
 

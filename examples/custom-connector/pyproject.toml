@@ -1,13 +1,13 @@
 [project]
-name = "simtrail-connector-recorded"
+name = "rocketwright-connector-recorded"
 version = "0.1.0"
-description = "An example Simtrail connector: a view-only device that plays a folder of JPEG screenshots."
+description = "An example Rocketwright connector: a view-only device that plays a folder of JPEG screenshots."
 license = "Apache-2.0"
 requires-python = ">=3.10"
-dependencies = ["simtrail @ git+https://github.com/Soflutionltd/simtrail"]
+dependencies = ["rocketwright @ git+https://github.com/Soflutionltd/rocketwright"]
 
-# How Simtrail finds it: a factory taking a ConnectorContext, under the connector's name.
-[project.entry-points."simtrail.connectors"]
+# How Rocketwright finds it: a factory taking a ConnectorContext, under the connector's name.
+[project.entry-points."rocketwright.connectors"]
 recorded = "recorded_connector:create"
 
 [dependency-groups]

@@ -14,12 +14,12 @@ from typing import Any
 
 import pytest
 
-from simtrail.config.model import SimConfig
-from simtrail.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Crop, HidEvent, Shot
-from simtrail.core.instance import DeviceInstance
-from simtrail.core.screen_relay import ScreenRelay, offered_encodings
-from simtrail.perception.ocr import RecognizedLine, TextBox
-from simtrail.protocol import (
+from rocketwright.config.model import SimConfig
+from rocketwright.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Crop, HidEvent, Shot
+from rocketwright.core.instance import DeviceInstance
+from rocketwright.core.screen_relay import ScreenRelay, offered_encodings
+from rocketwright.perception.ocr import RecognizedLine, TextBox
+from rocketwright.protocol import (
     CLOSE_BAD_MESSAGE,
     CLOSE_STOPPED,
     CLOSE_UNSUPPORTED,
@@ -27,8 +27,8 @@ from simtrail.protocol import (
     SERVER,
     frame,
 )
-from simtrail.testing.fakes import FULL_CONTROL, JPEG, FakeConnector, FakeEngine
-from simtrail.testing.rig import VIEW_ONLY, DeviceRig, scope
+from rocketwright.testing.fakes import FULL_CONTROL, JPEG, FakeConnector, FakeEngine
+from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
 
 
 class FakeSocket:
@@ -655,7 +655,7 @@ async def test_a_wheel_over_a_simulator_scrolls_it_and_is_never_refused_as_a_win
     """A simulator driven by the native helper: its input is the helper's client, which can also ask for a macOS
     app's window action. A scroll there was sent as one, and the helper refused it -- "this device is not a macOS
     app" -- under the screen."""
-    from simtrail.testing.macos import FakeMacApp
+    from rocketwright.testing.macos import FakeMacApp
 
     class Helper(FakeMacApp):
         async def mac_action(self, action: dict[str, Any]) -> dict[str, Any]:
@@ -678,7 +678,7 @@ async def test_a_wheel_over_a_simulator_scrolls_it_and_is_never_refused_as_a_win
 
 
 async def test_a_wheel_over_a_session_that_takes_a_pointer_is_its_window_scroll(tmp_path: Path) -> None:
-    from simtrail.testing.macos import FakeMacApp
+    from rocketwright.testing.macos import FakeMacApp
 
     app = FakeMacApp()
     rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=app))

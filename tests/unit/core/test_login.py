@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import pytest
 
-from simtrail.core.login import LISTED_MAX, LoginRefused, Wanted, choose, label, site_of
-from simtrail.platform.passwords import Credentials, Login, PasswordSourceError, Source
+from rocketwright.core.login import LISTED_MAX, LoginRefused, Wanted, choose, label, site_of
+from rocketwright.platform.passwords import Credentials, Login, PasswordSourceError, Source
 
 
 async def nothing() -> Credentials:

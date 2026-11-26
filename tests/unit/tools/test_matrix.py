@@ -13,19 +13,19 @@ from typing import Any, cast
 
 from PIL import Image
 
-from simtrail.connectors.base import Shot
-from simtrail.core.actions import AgentActions
-from simtrail.core.drivers import Drivers
-from simtrail.core.flows import FlowStore
-from simtrail.core.selections import Selections
-from simtrail.protocol import DeviceChoice
-from simtrail.seams import Caller
-from simtrail.testing.fakes import FakeConnector
-from simtrail.testing.rig import DeviceRig, scope
-from simtrail.tools.context import ToolContext
-from simtrail.tools.matrix import SHEET, resolve
-from simtrail.tools.registry import ToolRegistry
-from simtrail.tools.results import Result, text
+from rocketwright.connectors.base import Shot
+from rocketwright.core.actions import AgentActions
+from rocketwright.core.drivers import Drivers
+from rocketwright.core.flows import FlowStore
+from rocketwright.core.selections import Selections
+from rocketwright.protocol import DeviceChoice
+from rocketwright.seams import Caller
+from rocketwright.testing.fakes import FakeConnector
+from rocketwright.testing.rig import DeviceRig, scope
+from rocketwright.tools.context import ToolContext
+from rocketwright.tools.matrix import SHEET, resolve
+from rocketwright.tools.registry import ToolRegistry
+from rocketwright.tools.results import Result, text
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 OTHER = Caller(scope("tp-1"), key="agent-2", title="Codex")

@@ -11,7 +11,7 @@ import QuartzCore
 /// * **It takes nothing from the app.** The window ignores the mouse, never becomes key or main and belongs to a
 ///   process that never activates, so clicks, keys and focus stay where they were; the agent's own input is app-scoped
 ///   (accessibility, or the app's adapter), never posted at the screen.
-/// * **It is never in what Simtrail captures.** The app's window is captured on its own
+/// * **It is never in what Rocketwright captures.** The app's window is captured on its own
 ///   (`SCContentFilter(desktopIndependentWindow:)`), which leaves every other window out, this one included.
 /// * **It follows the app's window**, ordered just above it -- so another app's window over the app is over the
 ///   pointer too -- and hides while that window is minimized or off screen.
@@ -124,7 +124,7 @@ final class MacOverlay {
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .none
         panel.collectionBehavior = [.ignoresCycle, .fullScreenAuxiliary, .transient]
-        panel.title = "Simtrail agent"
+        panel.title = "Rocketwright agent"
         let view = NSView()
         view.wantsLayer = true
         view.layer = root

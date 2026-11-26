@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The surface a host embeds Simtrail through, held to its promise.
+"""The surface a host embeds Rocketwright through, held to its promise.
 
 `api.py` says everything a host needs is named there and anything else may change between minor versions. That is a
 promise about a list, so the list is written down here: a name leaving it is a break a person has to decide on, and a
 name arriving is a decision too -- adding one is adding something the project then has to keep.
 
-The second test is the one that caught the omissions: it embeds Simtrail the way a host does, importing nothing but
+The second test is the one that caught the omissions: it embeds Rocketwright the way a host does, importing nothing but
 this surface. A host that has to reach past `api` to do the ordinary thing has found a hole in it.
 """
 
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from simtrail import api
+from rocketwright import api
 
 #: Every name `api` offers. Change this list deliberately, with the change to `api.__all__`.
 SURFACE = {
@@ -80,4 +80,4 @@ def test_a_host_can_do_the_ordinary_things_without_reaching_past_it(tmp_path: Pa
     assert api.JsonDeviceMemory(tmp_path / "devices.json").assigned(scope, False) == memory.assigned(scope, False)
 
     # The folder every host on the Mac shares, so two of them never drive one device.
-    assert api.claims_dir({"SIMTRAIL_CLAIMS_DIR": str(tmp_path / "claims")}) == tmp_path / "claims"
+    assert api.claims_dir({"ROCKETWRIGHT_CLAIMS_DIR": str(tmp_path / "claims")}) == tmp_path / "claims"
