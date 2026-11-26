@@ -6,6 +6,14 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- A tool's structured content carries its text too (`text`), unless the text is that content as JSON: a client that
+  shows only the structured part -- Claude Code does -- now sees the screen after `sim_act`'s steps, and what
+  `sim_login` and `sim_flow` said, without calling again. One call per action instead of two.
+- `sim_app launch` answers with the screen the app opened on, once it settled (`snapshot: "none"` to leave it out): one
+  call instead of a launch and a `sim_snapshot`.
+
 ## [3.10.1] - 2026-11-26
 
 ### Added

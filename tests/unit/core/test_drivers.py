@@ -25,7 +25,7 @@ from simtrail.tools.results import Result
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code · checkout")
 OTHER = Caller(scope("tp-1"), key="agent-2", title="Codex · checkout")
 TAP = {"steps": [{"tap": [10, 10]}], "snapshot": "none"}
-LAUNCH = {"action": "launch", "bundle_id": "com.example.Notes"}
+LAUNCH = {"action": "launch", "bundle_id": "com.example.Notes", "snapshot": "none"}
 
 
 def runtime_over(rig: DeviceRig) -> Runtime:

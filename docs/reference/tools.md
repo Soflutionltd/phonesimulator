@@ -97,7 +97,7 @@ Offered always. Needs a connector that can do `input_touch`.
 
 ## `sim_app`
 
-Apps on the device. launch or terminate a bundle_id -- launching an app that is already running only brings it to the front, so give relaunch: true to start it fresh; install a built .app, or an .apk on Android (a path in a folder you may install from, or DerivedData); open_url; logs: the device log for the last since_s seconds, for a bundle_id (else errors and faults), optionally filtered; info: the app installed under a bundle_id, and for one sim_build_run stamped with its commit (build.stamp_source), whether it is the code in your folder now. launch, terminate, install and open_url change the device: where one agent drives it at a time, they are refused while another agent has acted on it in the last 2 minutes.
+Apps on the device. launch or terminate a bundle_id -- launching an app that is already running only brings it to the front, so give relaunch: true to start it fresh; a launch answers with the screen it opened on; install a built .app, or an .apk on Android (a path in a folder you may install from, or DerivedData); open_url; logs: the device log for the last since_s seconds, for a bundle_id (else errors and faults), optionally filtered; info: the app installed under a bundle_id, and for one sim_build_run stamped with its commit (build.stamp_source), whether it is the code in your folder now. launch, terminate, install and open_url change the device: where one agent drives it at a time, they are refused while another agent has acted on it in the last 2 minutes.
 
 Offered always. Needs a connector that can do `app_launch`.
 
@@ -106,6 +106,7 @@ Offered always. Needs a connector that can do `app_launch`.
 | `action` | string | `launch`, `terminate`, `install`, `open_url`, `logs`, `info` | yes |
 | `bundle_id` | string | — | no |
 | `relaunch` | boolean | — | no |
+| `snapshot` | string | `full`, `none`; launch: the screen the app opened on, once it settled (full, the default), or none | no |
 | `path` | string | — | no |
 | `url` | string | — | no |
 | `args` | array of string | 0 to 20 items | no |

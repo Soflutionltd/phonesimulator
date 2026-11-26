@@ -34,6 +34,7 @@ from simtrail.testing.fakes import (
     made,
     no_wait,
 )
+from simtrail.testing.results import structured
 from simtrail.testing.rig import VIEW_ONLY, DeviceRig, closer_log, scope
 from simtrail.testing.vision import FakeTextRecognizer
 from simtrail.tools.context import READY_WAIT_S, STARTING_MARGIN_S, STARTING_WAIT_MAX_S, ToolContext, ready_device
@@ -443,7 +444,7 @@ async def test_snapshot_screenshot_and_act_answer_as_mcp_does(tmp_path: Path) ->
     )
     tapped = await use(rig, "sim_act", {"steps": [{"tap": "e2"}], "snapshot": "none"})
     assert said(tapped) == 'ok tap e2 "General" (201,319) +0ms' and not tapped["isError"]
-    assert tapped["structuredContent"] == {
+    assert structured(tapped) == {
         "completed_steps": 1,
         "failed_step": None,
         "failed_step_may_have_run": False,
@@ -461,7 +462,7 @@ async def test_partial_action_results_distinguish_completed_work_from_an_uncerta
     rig = DeviceRig(tmp_path)
     answer = await use(rig, "sim_act", {"steps": [{"tap": "e2"}, {"tap": "e999"}, {"tap": "e3"}]})
     assert answer["isError"] is True
-    assert answer["structuredContent"] == {
+    assert structured(answer) == {
         "completed_steps": 1,
         "failed_step": 2,
         "failed_step_may_have_run": True,
@@ -535,15 +536,14 @@ async def test_apps_are_launched_and_quit_under_a_caption_viewers_show(tmp_path:
     rig.xcrun.on("simctl", "launch", out="com.acme.Notes: 81234\n")
     instance = await rig.up()
     events = instance.events.subscribe()
-    launch = {"action": "launch", "bundle_id": "com.acme.Notes", "args": ["-UI"]}
+    launch = {"action": "launch", "bundle_id": "com.acme.Notes", "args": ["-UI"], "snapshot": "none"}
     assert said(await use(rig, "sim_app", launch)) == "launched com.acme.Notes (pid 81234)"
     assert ("simctl", "launch", made(1), "com.acme.Notes", "-UI") in rig.argv()
     intent = events.get_nowait()
     assert intent["gesture"]["kind"] == "app" and intent["caption"] == "launch com.acme.Notes"
     rig.xcrun.on("simctl", "launch", out="launched\n")
-    assert said(await use(rig, "sim_app", {"action": "launch", "bundle_id": "com.acme.Notes"})) == (
-        "launched com.acme.Notes"
-    )
+    quiet = {"action": "launch", "bundle_id": "com.acme.Notes", "snapshot": "none"}
+    assert said(await use(rig, "sim_app", quiet)) == "launched com.acme.Notes"
     assert said(await use(rig, "sim_app", {"action": "terminate", "bundle_id": "com.acme.Notes"})) == (
         "terminated com.acme.Notes"
     )
@@ -552,11 +552,26 @@ async def test_apps_are_launched_and_quit_under_a_caption_viewers_show(tmp_path:
     assert failed["isError"] is True and "not installed" in said(failed)
 
 
+async def test_a_launch_answers_with_the_screen_the_app_opened_on_unless_told_not_to(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.xcrun.on("simctl", "launch", out="com.acme.Notes: 81234\n")
+    await rig.up()
+    landed = said(await use(rig, "sim_app", {"action": "launch", "bundle_id": "com.acme.Notes"})).splitlines()
+    assert landed[0] == "launched com.acme.Notes (pid 81234)" and "Settings" in landed[1], "one call, not two"
+    again = said(await use(rig, "sim_app", {"action": "launch", "bundle_id": "com.acme.Notes"})).splitlines()
+    assert again[0].endswith("relaunch: true starts it fresh") and len(again) > 1, "in front again: shown too"
+    refused = await use(rig, "sim_app", {"action": "launch", "bundle_id": "com.acme.Notes", "snapshot": "diff"})
+    assert refused["isError"] is True and said(refused) == "snapshot is full or none"
+    rig.idb.engine.accessibility_errors.extend([ConnectorError("accessibility is off")] * 20)
+    unread = said(await use(rig, "sim_app", {"action": "launch", "bundle_id": "com.acme.Notes", "relaunch": True}))
+    assert unread.splitlines()[0].startswith("relaunched com.acme.Notes") and "could not be read" in unread
+
+
 async def test_an_app_already_running_or_not_running_is_said_so_and_relaunch_starts_it_fresh(tmp_path: Path) -> None:
     rig = DeviceRig(tmp_path)
     rig.xcrun.on("simctl", "launch", out="com.acme.Notes: 81234\n")
     await rig.up()
-    launch = {"action": "launch", "bundle_id": "com.acme.Notes"}
+    launch = {"action": "launch", "bundle_id": "com.acme.Notes", "snapshot": "none"}
     assert said(await use(rig, "sim_app", launch)) == "launched com.acme.Notes (pid 81234)"
     # simctl brings a running app to the front and answers with the pid it already had: nothing started again.
     assert said(await use(rig, "sim_app", launch)) == (

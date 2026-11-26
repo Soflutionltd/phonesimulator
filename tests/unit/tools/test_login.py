@@ -31,6 +31,7 @@ from simtrail.platform.xcrun import XcrunResult
 from simtrail.protocol import Connection, DeviceKind, RecordingState
 from simtrail.seams import Caller
 from simtrail.testing.fakes import FakeConnector, FakeEngine, FakeKeyboard, no_wait
+from simtrail.testing.results import structured
 from simtrail.testing.rig import DeviceRig, scope
 from simtrail.tools import login as login_tool
 from simtrail.tools.context import ToolContext
@@ -190,7 +191,7 @@ async def test_the_login_for_the_account_is_typed_into_its_fields_and_only_what_
         'Used the 1password login "Example" (ann@example.com, 1Password vault Private, id abc123): typed the '
         "username into e2, the password into e3, then pressed return. Call sim_snapshot to see what the app answered."
     )
-    assert answer["structuredContent"] == {
+    assert structured(answer) == {
         "source": "1password",
         "item": {"id": "abc123", "title": "Example", "where": "1Password vault Private"},
         "filled": ["username", "password"],
