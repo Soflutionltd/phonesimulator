@@ -6,6 +6,19 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `device.templates` (on by default): a new simulator is copied (`simctl clone`) from a template Simtrail keeps for
+  each runtime and device type -- created, booted once and shut down -- rather than created blank, so it is ready in
+  about half the time (12 s rather than 27 s for an iPhone 17 Pro on iOS 26.5). The first device of a runtime and type
+  is created blank as before while its template is prepared in the background, within `device.max_booted` (tried
+  again by the reaper when there is no room); a preparation that fails is logged and breaks nothing. A template is
+  never a scope's device, never offered in a picker, and never deleted by the idle clean-up or `simtrail devices
+  prune` (`--all` included); one deleted outside Simtrail or whose runtime went away is forgotten and made again. Each
+  is one more simulator on disk (2-3 GB).
+- `Simctl.clone`, and `JsonDeviceMemory.template`, `remember_template`, `forget_template` and `all_templates`
+  (`core.devices.DeviceTemplates`): a host's own `DeviceMemory` without them creates every simulator blank, as before.
+
 ## [3.10.1] - 2026-11-26
 
 ### Added

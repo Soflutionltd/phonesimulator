@@ -11,11 +11,22 @@ scope asks. A device Simtrail made is listed as made. Only such a device is ever
 ended it as idle, as ``device.delete_created`` allows, or by ``simtrail devices prune``. Either needs a memory that can
 list and forget what Simtrail made (`CreatedDevices`), as `JsonDeviceMemory` can; a host's own memory without that keeps
 every device.
+
+A new device is copied from a **template** while ``device.templates`` is on (`DeviceDirectory.resolve`): a simulator
+Simtrail made for one runtime and device type, booted once and shut down, so that a copy (``simctl clone``) skips the
+first boot's setup and is ready in about half the time. A runtime and type with no template yet gets a blank device
+as before, and its template is prepared in the background meanwhile -- never booted past ``device.max_booted``, and
+never failing anything when it cannot be: it is tried again later. A template is never any scope's device, never
+offered in a picker, and never deleted by the idle clean-up or ``simtrail devices prune``; one that went away -- deleted
+in Xcode, its runtime removed -- is forgotten and made again. Templates need a memory that can remember them
+(`DeviceTemplates`), as `JsonDeviceMemory` can; a host's own memory without that creates every device blank.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -24,14 +35,21 @@ from typing import Any, Protocol, runtime_checkable
 
 from simtrail.config.model import SimConfig
 from simtrail.host_copy import HostCopy
-from simtrail.platform.simctl import DeviceType, Runtime, Simctl, runtime_label
+from simtrail.platform.errors import DeviceControlError
+from simtrail.platform.simctl import Device, DeviceType, Runtime, Simctl, runtime_label
 from simtrail.protocol import Connection, DeviceKind
 from simtrail.scope import Scope
 from simtrail.seams import DeviceMemory
 from simtrail.storage.private import ensure_private_dir
 
+logger = logging.getLogger(__name__)
+
 #: How the device a group shares is remembered beside the ones scopes have of their own.
 SHARED_PREFIX = "group:"
+#: The one state in which a template can be copied.
+SHUTDOWN = "Shutdown"
+#: How long a template's first boot may take: it migrates data and can take minutes.
+TEMPLATE_BOOT_TIMEOUT_S = 240.0
 
 
 class NoDevice(Exception):
@@ -94,6 +112,42 @@ class CreatedDevices(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class Template:
+    """A simulator Simtrail made to copy new devices from, for one runtime and device type."""
+
+    udid: str
+    #: Whether it has been booted once and shut down, and so may be copied.
+    ready: bool
+
+
+@runtime_checkable
+class DeviceTemplates(Protocol):
+    """A `DeviceMemory` that can also remember the templates new simulators are copied from. Optional: under a memory
+    without it, every new simulator is created blank."""
+
+    def template(self, runtime_id: str, device_type_id: str) -> Template | None:
+        """The template for this runtime and device type, ready or not."""
+        ...
+
+    def remember_template(self, runtime_id: str, device_type_id: str, udid: str, *, ready: bool) -> None:
+        """Remember the template for this runtime and device type, in place of any other."""
+        ...
+
+    def forget_template(self, udid: str) -> None:
+        """Forget a template that went away."""
+        ...
+
+    def all_templates(self) -> set[str]:
+        """The UDIDs of every template, whatever its runtime and type."""
+        ...
+
+
+def template_name(prefix: str, kind: DeviceType, runtime: Runtime) -> str:
+    """What a template is called in Xcode's list, so a person can tell it from a scope's device."""
+    return f"{prefix} · template · {kind.name} · {runtime.name}"
+
+
 def device_name(prefix: str, scope: Scope, shared: bool) -> str:
     """What a device Simtrail makes is called in Xcode's list: the prefix, then the group it is shared by or the
     scope it is for."""
@@ -123,15 +177,29 @@ class JsonDeviceMemory:
             data = {}
         scopes = data.get("scopes") if isinstance(data, dict) else None
         created = data.get("created") if isinstance(data, dict) else None
+        templates = data.get("templates") if isinstance(data, dict) else None
         return {
             "scopes": {str(k): str(v) for k, v in scopes.items()} if isinstance(scopes, dict) else {},
             "created": sorted({str(u) for u in created}) if isinstance(created, list) else [],
+            "templates": {
+                str(key): {"udid": str(entry["udid"]), "ready": entry.get("ready") is True}
+                for key, entry in templates.items()
+                if isinstance(entry, dict) and "udid" in entry
+            }
+            if isinstance(templates, dict)
+            else {},
         }
+
+    @staticmethod
+    def _template_key(runtime_id: str, device_type_id: str) -> str:
+        return f"{runtime_id}|{device_type_id}"
 
     def _write_all(self, data: dict[str, Any]) -> None:
         folder = self._ensure(self._file.parent)
         temporary = folder / f".{self._file.name}.{os.getpid()}.tmp"
-        temporary.write_text(json.dumps(data, indent=1, sort_keys=True), encoding="utf-8")
+        # No templates is no key, so a file stays as it was before there were any.
+        kept = {key: value for key, value in data.items() if key != "templates" or value}
+        temporary.write_text(json.dumps(kept, indent=1, sort_keys=True), encoding="utf-8")
         os.replace(temporary, self._file)
 
     def assigned(self, scope: Scope, shared: bool) -> str | None:
@@ -170,15 +238,50 @@ class JsonDeviceMemory:
         scopes = {key: held for key, held in data["scopes"].items() if held != udid}
         created = [made for made in data["created"] if made != udid]
         if scopes != data["scopes"] or created != data["created"]:
-            self._write_all({"scopes": scopes, "created": created})
+            self._write_all({**data, "scopes": scopes, "created": created})
+
+    def template(self, runtime_id: str, device_type_id: str) -> Template | None:
+        entry = self._read_all()["templates"].get(self._template_key(runtime_id, device_type_id))
+        return None if entry is None else Template(entry["udid"], entry["ready"])
+
+    def remember_template(self, runtime_id: str, device_type_id: str, udid: str, *, ready: bool) -> None:
+        data = self._read_all()
+        data["templates"][self._template_key(runtime_id, device_type_id)] = {"udid": udid, "ready": ready}
+        self._write_all(data)
+
+    def forget_template(self, udid: str) -> None:
+        data = self._read_all()
+        templates = {key: entry for key, entry in data["templates"].items() if entry["udid"] != udid}
+        if templates != data["templates"]:
+            self._write_all({**data, "templates": templates})
+
+    def all_templates(self) -> set[str]:
+        return {entry["udid"] for entry in self._read_all()["templates"].values()}
+
+
+#: A template's runtime and device type, by their identifiers.
+TemplateKey = tuple[str, str]
 
 
 class DeviceDirectory:
-    """Every scope's device."""
+    """Every scope's device, and the templates new ones are copied from."""
 
     def __init__(self, memory: DeviceMemory, copy: HostCopy | None = None) -> None:
         self.memory = memory
         self._copy = copy or HostCopy()
+        #: The simulators the host runs now, by UDID: a template is booted only while they leave room under
+        #: ``device.max_booted``. `DeviceManager` points it at its own; nothing runs, by default.
+        self.running: Callable[[], set[str]] = set
+        #: The templates being prepared, by runtime and device type: one at a time for each.
+        self._preparing: dict[TemplateKey, asyncio.Task[None]] = {}
+        #: The templates being booted now, which count against ``device.max_booted`` too.
+        self._booting: set[str] = set()
+        #: The templates that could not be booted for want of room, with what preparing them again needs.
+        self._waiting: dict[TemplateKey, tuple[Simctl, Runtime, DeviceType, SimConfig]] = {}
+
+    def templates(self) -> set[str]:
+        """The UDIDs of every template -- none, under a memory that cannot remember them."""
+        return self.memory.all_templates() if isinstance(self.memory, DeviceTemplates) else set()
 
     async def resolve(self, simctl: Simctl, scope: Scope, config: SimConfig) -> DeviceRef:
         """The scope's device: the remembered one while it exists, else a new one, remembered."""
@@ -200,6 +303,122 @@ class DeviceDirectory:
                 else f"{runtime.name} runs no iPhone or iPad."
             )
         name = device_name(config.device_name_prefix, scope, shared)
-        udid = await simctl.create(name, kind.identifier, runtime.identifier)
+        udid = await self._new_device(simctl, name, runtime, kind, config)
         self.memory.remember_created(scope, shared, udid)
         return DeviceRef(udid, name, runtime.name, created=True)
+
+    async def _new_device(
+        self, simctl: Simctl, name: str, runtime: Runtime, kind: DeviceType, config: SimConfig
+    ) -> str:
+        """A new device: copied from its runtime and type's template when one is ready, else created blank -- and the
+        template prepared in the background when there is none yet."""
+        templates = self.memory if isinstance(self.memory, DeviceTemplates) and config.device_templates else None
+        if templates is None:
+            return await simctl.create(name, kind.identifier, runtime.identifier)
+        key = (runtime.identifier, kind.identifier)
+        template = templates.template(*key)
+        source = await self._listed(simctl, templates, template) if template is not None else None
+        if template is not None and template.ready and source is not None and key not in self._preparing:
+            if source.state == SHUTDOWN:
+                try:
+                    return await simctl.clone(template.udid, name)
+                except DeviceControlError as exc:
+                    logger.warning("could not copy the template %s; creating a blank simulator: %s", source.name, exc)
+                    return await simctl.create(name, kind.identifier, runtime.identifier)
+            logger.info("the template %s is not shut down (%s); creating a blank simulator", source.name, source.state)
+            return await simctl.create(name, kind.identifier, runtime.identifier)
+        udid = await simctl.create(name, kind.identifier, runtime.identifier)
+        self._prepare(simctl, runtime, kind, config, fresh=udid)
+        return udid
+
+    @staticmethod
+    async def _listed(simctl: Simctl, templates: DeviceTemplates, template: Template) -> Device | None:
+        """The template as simctl lists it -- or None, and forgotten, when it went away or cannot be used: deleted
+        outside Simtrail, its runtime removed."""
+        device = next((d for d in await simctl.devices() if d.udid == template.udid), None)
+        if device is not None and device.available:
+            return device
+        logger.info("forgot the simulator template %s: %s", template.udid,
+                    "it is no longer listed" if device is None else "it is not available")  # fmt: skip
+        templates.forget_template(template.udid)
+        return None
+
+    def _prepare(
+        self, simctl: Simctl, runtime: Runtime, kind: DeviceType, config: SimConfig, *, fresh: str | None = None
+    ) -> None:
+        """Prepare the template for a runtime and device type in the background, unless one is being prepared."""
+        key = (runtime.identifier, kind.identifier)
+        if key in self._preparing:
+            return
+        self._waiting.pop(key, None)
+        self._preparing[key] = asyncio.get_running_loop().create_task(
+            self._prepared(simctl, runtime, kind, config, fresh)
+        )
+
+    def retry_templates(self) -> None:
+        """Prepare again the templates that were left unbooted for want of room. The reaper asks, once a minute."""
+        for simctl, runtime, kind, config in list(self._waiting.values()):
+            self._prepare(simctl, runtime, kind, config)
+
+    async def _prepared(
+        self, simctl: Simctl, runtime: Runtime, kind: DeviceType, config: SimConfig, fresh: str | None
+    ) -> None:
+        key = (runtime.identifier, kind.identifier)
+        try:
+            await self._make_template(simctl, runtime, kind, config, fresh)
+        except Exception as exc:  # A template is only a speed-up: nothing may fail for want of one.
+            logger.warning("could not prepare the simulator template for %s on %s: %s", kind.name, runtime.name, exc)
+        finally:
+            self._preparing.pop(key, None)
+
+    async def _make_template(
+        self, simctl: Simctl, runtime: Runtime, kind: DeviceType, config: SimConfig, fresh: str | None
+    ) -> None:
+        """Create the template, or take the one left unbooted, boot it once, wait for it and shut it down."""
+        templates = self.memory
+        assert isinstance(templates, DeviceTemplates)
+        found = templates.template(runtime.identifier, kind.identifier)
+        listed = await self._listed(simctl, templates, found) if found is not None else None
+        if found is None or listed is None:
+            name = template_name(config.device_name_prefix, kind, runtime)
+            udid = await simctl.create(name, kind.identifier, runtime.identifier)
+            templates.remember_template(runtime.identifier, kind.identifier, udid, ready=False)
+        elif found.ready:
+            return
+        else:
+            udid = found.udid
+        busy = self.running() | self._booting | ({fresh} if fresh else set())
+        if len(busy) + 1 > config.max_booted:
+            logger.info(
+                "left the simulator template for %s on %s unbooted: %d simulators run (device.max_booted = %d); it is "
+                "tried again later",
+                kind.name,
+                runtime.name,
+                len(busy),
+                config.max_booted,
+            )
+            self._waiting[(runtime.identifier, kind.identifier)] = (simctl, runtime, kind, config)
+            return
+        self._booting.add(udid)
+        try:
+            await simctl.boot(udid)
+            await simctl.bootstatus(udid, timeout=TEMPLATE_BOOT_TIMEOUT_S)
+        finally:
+            try:
+                await simctl.shutdown(udid)
+            finally:
+                self._booting.discard(udid)
+        templates.remember_template(runtime.identifier, kind.identifier, udid, ready=True)
+        logger.info("prepared the simulator template for %s on %s", kind.name, runtime.name)
+
+    async def settle(self) -> None:
+        """Wait for every template being prepared."""
+        while self._preparing:
+            await asyncio.gather(*self._preparing.values(), return_exceptions=True)
+
+    async def close(self) -> None:
+        """Stop preparing templates: one left half-made is taken up again the next time."""
+        tasks = list(self._preparing.values())
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)

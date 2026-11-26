@@ -34,7 +34,8 @@ OTHER = Scope(id="alpha-tp-2", group="alpha", label="alpha · tp-2")
 
 
 def config(**overrides: object) -> SimConfig:
-    return SimConfig.defaults().with_values(**overrides)
+    """Settings with simulator templates off unless a test turns them on (`test_device_templates`)."""
+    return SimConfig.defaults().with_values(**{"device_templates": False, **overrides})
 
 
 def runtime(name: str, version: str, *, platform: str = "iOS", available: bool = True,

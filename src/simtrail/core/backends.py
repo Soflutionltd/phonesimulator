@@ -123,9 +123,14 @@ class SimulatorBackend:
         return None
 
     async def choices(self, config: SimConfig, created: Collection[str]) -> list[DeviceChoice]:
-        return device_choices(await self.simctl_for(config.developer_dir).devices(), created)
+        """Every available simulator but the templates new ones are copied from, which are no scope's to use."""
+        templates = self.directory.templates()
+        devices = await self.simctl_for(config.developer_dir).devices()
+        return device_choices((device for device in devices if device.udid not in templates), created)
 
     async def lookup(self, udid: str, config: SimConfig) -> DeviceChoice | None:
+        if udid in self.directory.templates():
+            return None
         device = await self.simctl_for(config.developer_dir).device(udid)
         return device_choice(device, ()) if device is not None and device.available else None
 

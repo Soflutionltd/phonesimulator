@@ -109,6 +109,21 @@ async def test_a_create_that_answers_no_id_is_an_error() -> None:
         await simctl.create("name", "type", "runtime")
 
 
+async def test_clone_copies_a_device_under_a_new_name_and_returns_the_copys_id() -> None:
+    simctl, fake = make(FakeXcrun().on("simctl", "clone", out=NEW + "\n"))
+    assert await simctl.clone(UDID, "Simtrail · demo") == NEW
+    assert fake.calls[0].args == ("simctl", "clone", UDID, "Simtrail · demo") and fake.calls[0].timeout == 120.0
+
+
+async def test_a_clone_that_answers_no_id_or_fails_is_an_error() -> None:
+    simctl, _ = make(FakeXcrun().on("simctl", "clone", out="weird"))
+    with pytest.raises(SimctlError, match="clone answered with no device id"):
+        await simctl.clone(UDID, "name")
+    simctl, _ = make(FakeXcrun().on("simctl", "clone", rc=1, err="Unable to clone device in current state: Booted"))
+    with pytest.raises(SimctlError, match="current state: Booted"):
+        await simctl.clone(UDID, "name")
+
+
 Call = Callable[[Simctl], Awaitable[Any]]
 
 
@@ -121,6 +136,8 @@ Call = Callable[[Simctl], Awaitable[Any]]
         lambda s: s.launch(UDID, "com.acme.Notes", ["fine", 3]),
         lambda s: s.openurl(UDID, "--flag"),
         lambda s: s.create("", "type", "runtime"),
+        lambda s: s.clone("-help", "name"),
+        lambda s: s.clone(UDID, "-name"),
         lambda s: s.install(UDID, ""),
         lambda s: s.appearance(UDID, "sepia"),
         lambda s: s.screenshot(UDID, kind="tiff"),

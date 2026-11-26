@@ -12,6 +12,10 @@ or picked, a real device or an Android emulator:
   app -- or, with ``--all``, every one not running -- through the daemon when it runs (it owns the memory), else
   directly.
 
+Neither ever deletes a template new simulators are copied from (``device.templates``): it is never a scope's device,
+so the reaper never ends it, and pruning passes it over -- ``--all`` too. Delete one in Xcode or with ``xcrun simctl
+delete``; Simtrail forgets it and makes another when it next needs one.
+
 A device deleted is forgotten -- no longer made by Simtrail, nor any scope's -- so the scope's next call makes a fresh
 one. A deletion that fails is logged and remembered as it was: the device is still there, and still Simtrail's.
 """
@@ -24,7 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from simtrail.core.devices import CreatedDevices
+from simtrail.core.devices import CreatedDevices, DeviceTemplates
 from simtrail.platform.device_data import folder_size, user_apps
 from simtrail.platform.simctl import Simctl, SimctlError
 
@@ -95,8 +99,10 @@ async def prune(
     no app, or every such one with `everything`. A `dry_run` deletes nothing and forgets nothing. One simctl no longer
     lists is forgotten, unsaid. Answers each one found, by UDID."""
     listed = {device.udid: device for device in await simctl.devices()}
+    # A template new simulators are copied from is never pruned, --all or not (`core.devices`).
+    templates = memory.all_templates() if isinstance(memory, DeviceTemplates) else set()
     found: list[Pruned] = []
-    for udid in sorted(memory.all_created()):
+    for udid in sorted(memory.all_created() - templates):
         device = listed.get(udid)
         if device is None:
             if not dry_run:
