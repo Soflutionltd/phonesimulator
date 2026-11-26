@@ -1,6 +1,6 @@
 {
   "name": "simtrail",
-  "version": "3.11.0",
+  "version": "3.11.1",
   "description": "Mirror and drive iOS Simulators, real iPhones, Android emulators and phones, and macOS apps: MCP tools with token-efficient UI snapshots, an agent cursor in a live browser viewer, screen recording, and a doctor.",
   "author": {
     "name": "Soflution Ltd",

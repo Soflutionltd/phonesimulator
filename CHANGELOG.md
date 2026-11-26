@@ -6,6 +6,14 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.11.1] - 2026-11-26
+
+### Removed
+
+- The viewer's French: it speaks English alone, and the View menu's Language section shows only once it speaks two
+  languages. The bundle has room again under its 45 KB budget; the catalogue machinery stays, so a language can be
+  added back as a file.
+
 ## [3.11.0] - 2026-11-26
 
 ### Added
