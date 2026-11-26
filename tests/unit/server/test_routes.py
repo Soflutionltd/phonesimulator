@@ -143,6 +143,22 @@ async def test_a_person_sees_the_scopes_status_starts_its_device_and_stops_it(tm
     assert site.rig.argv().count(("simctl", "shutdown", instance.udid)) == 1
 
 
+async def test_a_scope_that_joined_anothers_device_by_udid_lets_it_go_when_stopped(tmp_path: Path) -> None:
+    site = served(tmp_path)
+    async with site.http() as http:
+        await http.post("/api/v1/scopes/tp-1")
+        owned = site.runtime.manager.instance(scope())
+        assert owned is not None and owned.task is not None
+        await owned.task
+        await http.post("/api/v1/scopes/tp-2", params={"udid": owned.udid})
+        assert {"tp-1", "tp-2"} <= owned.scopes
+        let_go = (await http.delete("/api/v1/scopes/tp-2")).json()["data"]
+        again = (await http.delete("/api/v1/scopes/tp-2")).json()["data"]
+    assert let_go == {"stopped": True, "shut_down": False, "kind": "simulator"}
+    assert again["stopped"] is False, "it holds nothing any more"
+    assert "tp-2" not in owned.scopes and "tp-1" in owned.scopes and owned.live, "the device goes on for its owner"
+
+
 async def test_a_person_picks_a_device_from_this_macs_simulators(tmp_path: Path) -> None:
     site = served(tmp_path)
     async with site.http() as http:

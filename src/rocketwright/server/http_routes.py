@@ -142,19 +142,26 @@ def create_http_router(runtime: RuntimeSource, auth: Authenticator, *, scope_par
         request: Request, shutdown: bool = Query(False), udid: str | None = Depends(which)
     ) -> dict[str, Any]:
         """Let the scope's simulator -- or the one of its devices named -- go; with ``shutdown``, shut the device down
-        too -- one running on this Mac: a real device is never shut down."""
+        too -- one running on this Mac: a real device is never shut down. Without a device named, the devices the scope
+        opened by UDID beside its default are let go as well: a scope that only joined another's device has no default,
+        and would otherwise keep holding it."""
         scope = await person(request)
         current = runtime()
-        if current is not None:
-            udid = await named(current, scope, udid)
-        instance = current.manager.instance(scope, udid) if current is not None else None
-        here = current is not None and instance is not None and current.manager.runs_here(instance)
-        stopped = current is not None and await current.manager.stop(scope, shutdown_device=shutdown, udid=udid)
-        if stopped and current is not None:
-            # Its agents let the device go too: none keeps it from another until it calls again.
-            current.selections.release(scope_id=scope.id, udid=instance.udid if instance is not None else None)
-        kind = instance.kind if instance is not None else None
-        return ok({"stopped": stopped, "shut_down": stopped and shutdown and here, "kind": kind})
+        if current is None:
+            return ok({"stopped": False, "shut_down": False, "kind": None})
+        udid = await named(current, scope, udid)
+        instance = current.manager.instance(scope, udid)
+        others = [] if udid is not None else [i for i in current.manager.scope_instances(scope) if i is not instance]
+        stopped = shut_down = False
+        for target, which_udid in [(instance, udid), *((other, other.udid) for other in others)]:
+            here = target is not None and current.manager.runs_here(target)
+            if await current.manager.stop(scope, shutdown_device=shutdown, udid=which_udid):
+                stopped = True
+                shut_down = shut_down or (shutdown and here)
+                # Its agents let the device go too: none keeps it from another until it calls again.
+                current.selections.release(scope_id=scope.id, udid=target.udid if target is not None else None)
+        kind = next((i.kind for i in (instance, *others) if i is not None), None)
+        return ok({"stopped": stopped, "shut_down": shut_down, "kind": kind})
 
     @router.get("/capture")
     async def capture_frame(request: Request, udid: str | None = Depends(which)) -> dict[str, Any]:
