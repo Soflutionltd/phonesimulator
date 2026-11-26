@@ -19,6 +19,7 @@ from typing import Any
 from simtrail.build.provider import working_folder
 from simtrail.build.stamp import SHA_KEY, compared, described, stamp_of
 from simtrail.connectors.base import Capability
+from simtrail.core.actions import ActionError
 from simtrail.core.control import AppControl, LogReader
 from simtrail.core.instance import DeviceInstance
 from simtrail.protocol import DeviceKind
@@ -140,6 +141,19 @@ async def _info(args: dict[str, Any], instance: DeviceInstance, control: AppCont
     return "\n".join(lines)
 
 
+async def _landed(ctx: ToolContext, instance: DeviceInstance, look: str) -> str:
+    """The screen an app opened on, once it stopped moving -- so the agent sees where it landed without another call --
+    or nothing when not asked for, or a word on why it could not be read."""
+    if look == "none" or Capability.ELEMENT_TREE not in instance.capabilities:
+        return ""
+    most = ctx.config.snapshot_max_elements
+    try:
+        await ctx.actions.settled(instance, ctx.caller, most)
+        return "\n" + await ctx.actions.snapshot(instance, ctx.caller, mode="full", max_elements=most)
+    except ActionError as exc:
+        return f"\nthe screen it opened on could not be read: {exc}"
+
+
 async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
     action = args.get("action")
     if action not in ACTIONS:
@@ -150,15 +164,17 @@ async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
     if action == "launch":
         bundle, launch_args = bundle_of(args.get("bundle_id")), _launch_args(args.get("args"))
         relaunch = flag_arg(args.get("relaunch"), "relaunch")
+        look = args.get("snapshot", "full")
+        if look not in ("full", "none"):
+            raise ToolRefused("snapshot is full or none")
         verb = "relaunch" if relaunch else "launch"
         launching = control.launch(instance.udid, bundle, launch_args, terminate_running=relaunch)
         pid = await ctx.actions.announced(instance, ctx.caller, "app", f"{verb} {bundle}", launching)
         if pid is not None and not relaunch and instance.launched.get(bundle) == pid:
             if instance.kind == "mac":
                 return text(f"{bundle} was already running (pid {pid}); relaunch: true starts it fresh")
-            return text(
-                f"{bundle} was already running (pid {pid}) and is in front again; relaunch: true starts it fresh"
-            )
+            said = f"{bundle} was already running (pid {pid}) and is in front again; relaunch: true starts it fresh"
+            return text(said + await _landed(ctx, instance, look))
         if instance.kind == "mac":
             # A window, SDK listing and helper all belong to one process lifetime. Close them before returning,
             # rather than waiting for the old helper's process watcher to notice a relaunch.
@@ -166,7 +182,8 @@ async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
             instance = await ready_device(ctx)
         if pid is not None:
             instance.launched[bundle] = pid
-        return text(f"{verb}ed {bundle}" + (f" (pid {pid})" if pid else ""))
+        said = f"{verb}ed {bundle}" + (f" (pid {pid})" if pid else "")
+        return text(said + await _landed(ctx, instance, look))
     if action == "terminate":
         bundle = bundle_of(args.get("bundle_id"))
         ending = control.terminate(instance.udid, bundle)

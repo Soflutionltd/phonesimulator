@@ -8,6 +8,7 @@ say what is on the screen (`perception.snapshot`).
 from __future__ import annotations
 
 import base64
+import json
 from collections.abc import Sequence
 from typing import Any
 
@@ -21,10 +22,22 @@ class ToolRefused(Exception):
 
 
 def text(value: str, *, error: bool = False, data: dict[str, Any] | None = None) -> Result:
+    """A tool's answer as text -- and, with `data`, as structured content too. That structured content carries the text
+    as well (``text``): a client that shows only the structured part when there is one -- Claude Code does -- would
+    otherwise lose what the text says, the screen after the steps among it, and call again to see it."""
     result: Result = {"content": [{"type": "text", "text": value}], "isError": error}
     if data is not None:
-        result["structuredContent"] = data
+        result["structuredContent"] = data if _says_only(value, data) else {**data, "text": value}
     return result
+
+
+def _says_only(value: str, data: dict[str, Any]) -> bool:
+    """Whether the text is the structured content itself, as JSON -- a flow shown -- so carrying it twice says
+    nothing."""
+    try:
+        return bool(json.loads(value) == data)
+    except ValueError:
+        return False
 
 
 def images(caption: str, jpegs: Sequence[bytes]) -> Result:

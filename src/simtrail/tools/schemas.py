@@ -305,7 +305,8 @@ SCHEMAS: dict[str, tuple[str, dict[str, Any]]] = {
     ),
     "sim_app": (
         "Apps on the device. launch or terminate a bundle_id -- launching an app that is already running only brings "
-        "it to the front, so give relaunch: true to start it fresh; install a built .app, or an .apk on Android (a "
+        "it to the front, so give relaunch: true to start it fresh; a launch answers with the screen it opened on; "
+        "install a built .app, or an .apk on Android (a "
         "path in a folder you may install from, or DerivedData); open_url; logs: the device log for the last "
         "since_s seconds, for a bundle_id (else errors and faults), optionally filtered; info: the app installed "
         "under a bundle_id, and for one sim_build_run stamped with its commit (build.stamp_source), whether it is the "
@@ -316,6 +317,11 @@ SCHEMAS: dict[str, tuple[str, dict[str, Any]]] = {
                 "action": {"type": "string", "enum": ["launch", "terminate", "install", "open_url", "logs", "info"]},
                 "bundle_id": {"type": "string"},
                 "relaunch": {"type": "boolean"},
+                "snapshot": {
+                    "type": "string",
+                    "enum": ["full", "none"],
+                    "description": "launch: the screen the app opened on, once it settled (full, the default), or none",
+                },
                 "path": {"type": "string"},
                 "url": {"type": "string"},
                 "args": {"type": "array", "items": {"type": "string"}, "maxItems": LAUNCH_ARGS_MAX},

@@ -31,6 +31,7 @@ from simtrail.testing.flutter import (
     Reload,
     flutter_project,
 )
+from simtrail.testing.results import structured
 from simtrail.testing.rig import DeviceRig, scope
 from simtrail.testing.vision import FakeTextRecognizer
 from simtrail.tools.context import ToolContext
@@ -144,10 +145,10 @@ async def test_sim_flutter_runs_the_app_reloads_it_restarts_it_and_stops_it(rig:
     assert started["structuredContent"]["kind"] == "run" and started["structuredContent"]["launched"] is True
     status = await rig.call("sim_flutter", {"action": "status"})
     assert said(status).startswith(f"groceries (debug) is running on the device (b1), from {rig.folder}")
-    assert status["structuredContent"] == {"running": True, "started": True, "build_id": "b1"}
+    assert structured(status) == {"running": True, "started": True, "build_id": "b1"}
     reloaded = await rig.call("sim_flutter", {"action": "hot_reload"})
     assert said(reloaded) == "hot reload ok · groceries (debug) · 0s · Reloaded 1 of 865 libraries"
-    assert reloaded["structuredContent"] == {"ok": True, "errors": 0, "seconds": 0.0}
+    assert structured(reloaded) == {"ok": True, "errors": 0, "seconds": 0.0}
     rig.run.reloads.append(Reload(errors=COMPILE_ERROR))
     failed = await rig.call("sim_flutter", {"action": "hot_reload"})
     assert failed["isError"] and said(failed).splitlines() == [

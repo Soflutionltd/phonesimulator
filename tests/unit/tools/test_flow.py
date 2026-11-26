@@ -18,6 +18,7 @@ from simtrail.core.actions import MAX_STEPS, AgentActions
 from simtrail.core.flows import FlowStore
 from simtrail.seams import Caller
 from simtrail.testing.fakes import no_wait
+from simtrail.testing.results import structured
 from simtrail.testing.rig import DeviceRig, scope
 from simtrail.tools.context import ToolContext
 from simtrail.tools.flow import FIND_S
@@ -221,7 +222,7 @@ async def test_another_agent_plays_a_flow_finding_each_element_again_and_never_r
     ], "its refs on this agent's screen, the values said as their names, and a secure field's as nothing at all"
     assert "hunter22" not in said(played) and "qa@example.com" not in said(played)
     assert played["isError"] is False
-    assert played["structuredContent"] == {
+    assert structured(played) == {
         "flow": "sign-in",
         "steps": 3,
         "completed_steps": 3,
