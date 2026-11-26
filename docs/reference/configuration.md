@@ -51,6 +51,7 @@ shutdown_on_idle = true
 delete_created = "empty"
 templates = true
 template_days = 30
+template_keep = "iPhone 17 Pro"
 typing = "auto"
 restore_changes = "real_devices"
 selection = "agent"
@@ -445,7 +446,7 @@ Whether a new simulator is copied from a template -- one Simtrail created and bo
 
 ### `device.template_days`
 
-A simulator template no device has been copied from for this many days is deleted, and made again the next time a device of its runtime and type is asked for -- so one for an iOS or a device type nobody uses any more does not stay on disk. 0 keeps them.
+A simulator template no device has been copied from for this many days is deleted, and made again the next time a device of its runtime and type is asked for -- so one for an iOS or a device type nobody uses any more does not stay on disk. 0 keeps them. The templates `device.template_keep` names are never deleted.
 
 - Default: `30`
 - Allowed: a whole number from 0 to 365
@@ -453,6 +454,17 @@ A simulator template no device has been copied from for this many days is delete
 - Set for: the whole daemon only; a scope's table cannot change it
 - Environment: `SIMTRAIL_DEVICE_TEMPLATE_DAYS`
 - Key in a host's flat settings: `template_days`
+
+### `device.template_keep`
+
+Device types whose template is always kept, on the newest iOS installed: made ahead of any demand, within `device.max_booted`, made again when it went away, and never deleted by `device.template_days` -- about 1 GB each. Names as Xcode lists them, separated by commas, such as `iPhone 17 Pro, iPad Air 11-inch (M4)`; a name the newest iOS does not run is passed over. Empty: none is kept, every template is made on demand. Only while `device.templates` is on.
+
+- Default: `iPhone 17 Pro`
+- Allowed: words and phrases separated by commas, in at most 1000 characters
+- Takes effect: at once
+- Set for: the whole daemon only; a scope's table cannot change it
+- Environment: `SIMTRAIL_DEVICE_TEMPLATE_KEEP`
+- Key in a host's flat settings: `template_keep`
 
 ### `device.typing`
 

@@ -335,7 +335,7 @@ async def test_a_template_no_device_was_copied_from_for_its_days_is_deleted_and_
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.INFO)
-    rig = rig_with_templates(tmp_path, idle_minutes=240)
+    rig = rig_with_templates(tmp_path, idle_minutes=240, template_keep="")
     await rig.up()
     await rig.manager.directory.settle()
     template = made(2)
@@ -381,7 +381,7 @@ async def test_a_template_never_dated_is_dated_first_and_one_simctl_cannot_delet
     rig = rig_with_templates(tmp_path)
     directory = DeviceDirectory(rig.memory, wall=rig.wall)
     simctl = Simctl(rig.xcrun)
-    config = SimConfig.defaults()
+    config = SimConfig.defaults().overlay({"template_keep": ""})
     rig.memory.remember_template(RUNTIME, PHONE, "OLD", ready=True)
     assert rig.memory.templates_used() == {"OLD": None}, "a file from before templates were dated"
     assert await directory.expire_templates(simctl, config) == []
@@ -416,3 +416,43 @@ def test_a_templates_date_is_kept_when_it_is_remembered_again_and_dropped_for_an
     assert memory.templates_used() == {"T1": 5.0}
     memory.remember_template(RUNTIME, PHONE, "T2", ready=False)
     assert memory.templates_used() == {"T2": None}
+
+
+async def test_the_kept_device_types_template_is_made_ahead_never_deleted_and_made_again_when_gone(
+    tmp_path: Path,
+) -> None:
+    rig = rig_with_templates(tmp_path, idle_minutes=240)
+    assert rig.config.get(TP1).template_keep == "iPhone 17 Pro", "the default keeps the iPhone 17 Pro"
+    directory = rig.manager.directory
+    simctl = Simctl(rig.xcrun)
+    config = rig.config.get(TP1)
+    await directory.keep_templates(simctl, config)
+    await directory.settle()
+    template = rig.memory.template(RUNTIME, PHONE)
+    assert template is not None and template.ready, "made ahead, with no device asked for"
+    rig.wall.advance(400 * DAY)
+    assert await directory.expire_templates(simctl, config) == []
+    assert rig.memory.all_templates() == {template.udid}, "never deleted, however long unused"
+    await directory.keep_templates(simctl, config)
+    await directory.settle()
+    assert rig.memory.template(RUNTIME, PHONE) == template, "one ready is left as it is"
+    remove(rig, template.udid)
+    await directory.keep_templates(simctl, config)
+    await directory.settle()
+    again = rig.memory.template(RUNTIME, PHONE)
+    assert again is not None and again.ready and again.udid != template.udid, "made again when it went away"
+
+
+async def test_the_reaper_keeps_the_kept_template_and_names_the_newest_ios_does_not_run_are_passed_over(
+    tmp_path: Path,
+) -> None:
+    rig = rig_with_templates(tmp_path, idle_minutes=240, template_keep="iPhone 17 Pro, Galaxy S30")
+    await rig.up()
+    await rig.manager.directory.settle()
+    rig.wall.advance(400 * DAY)
+    await rig.manager.reap()
+    await rig.manager.directory.settle()
+    assert deleted(rig) == [] and rig.memory.template(RUNTIME, PHONE) is not None
+    rig.config.set(device_templates=False)
+    await rig.manager.directory.keep_templates(Simctl(rig.xcrun), rig.config.get(TP1))
+    assert not rig.manager.directory._preparing, "nothing is made while templates are off"

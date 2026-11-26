@@ -601,7 +601,15 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("template_days", "device.template_days", 30, Whole(0, 365),
             "A simulator template no device has been copied from for this many days is deleted, and made again the "
             "next time a device of its runtime and type is asked for -- so one for an iOS or a device type nobody "
-            "uses any more does not stay on disk. 0 keeps them.",
+            "uses any more does not stay on disk. 0 keeps them. The templates `device.template_keep` names are never "
+            "deleted.",
+            reach="global"),
+    Setting("template_keep", "device.template_keep", "iPhone 17 Pro", Words(),
+            "Device types whose template is always kept, on the newest iOS installed: made ahead of any demand, "
+            "within `device.max_booted`, made again when it went away, and never deleted by `device.template_days` -- "
+            "about 1 GB each. Names as Xcode lists them, separated by commas, such as `iPhone 17 Pro, iPad Air "
+            "11-inch (M4)`; a name the newest iOS does not run is passed over. Empty: none is kept, every template is "
+            "made on demand. Only while `device.templates` is on.",
             reach="global"),
     Setting("device_typing", "device.typing", "auto", Choice(("auto", "keys", "paste")),
             "How text reaches the device. `auto` types it as key presses with the keys the Mac's own keyboard layout "

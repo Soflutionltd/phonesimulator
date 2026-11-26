@@ -1358,6 +1358,7 @@ class DeviceManager:
         # Only with a device's settings to go by, never the defaults: a person may have set it to keep them.
         if settings is not None and isinstance(backend, SimulatorBackend):
             await self.directory.expire_templates(backend.simctl_for(""), settings)
+            await self.directory.keep_templates(backend.simctl_for(""), settings)
         for instance in withdrawn:
             # One whose session is being started over is not waited for: the reaper runs again in a minute.
             if not instance.session_lock.locked():

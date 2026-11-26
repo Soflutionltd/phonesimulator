@@ -23,7 +23,9 @@ in Xcode, its runtime removed -- is forgotten and made again. Templates need a m
 
 A template is made only when a device of its runtime and type is asked for, and deleted once no device has been
 copied from it for ``device.template_days`` (`DeviceDirectory.expire_templates`, which the reaper calls): one for a
-runtime or a device type nobody uses any more does not stay on disk. That needs a memory that dates each template's
+runtime or a device type nobody uses any more does not stay on disk. The device types ``device.template_keep`` names
+are the exception, on the newest iOS installed: their templates are made ahead of any demand, made again when they went
+away, and never deleted (`DeviceDirectory.keep_templates`). That needs a memory that dates each template's
 last use (`ExpiringTemplates`), as `JsonDeviceMemory` does; a template it has no date for is dated when first seen.
 """
 
@@ -93,6 +95,13 @@ def pick_device_type(runtime: Runtime, wanted: str) -> DeviceType | None:
         return next((kind for kind in runtime.device_types if kind.name == wanted), None)
     phones = [kind for kind in runtime.device_types if kind.product_family == "iPhone"]
     return next(iter(phones or runtime.device_types), None)
+
+
+def kept_types(runtime: Runtime, names: str) -> list[DeviceType]:
+    """The device types ``device.template_keep`` names -- separated by commas, as Xcode lists them -- that the runtime
+    runs; a name it does not run is passed over."""
+    wanted = [name.strip() for name in names.split(",") if name.strip()]
+    return [kind for name in wanted if (kind := pick_device_type(runtime, name)) is not None]
 
 
 def memory_keys(scope: Scope) -> frozenset[str]:
@@ -459,20 +468,52 @@ class DeviceDirectory:
         if isinstance(self.memory, ExpiringTemplates):
             self.memory.template_used(udid, self._wall())
 
+    async def _kept(self, simctl: Simctl, config: SimConfig) -> tuple[Runtime, list[DeviceType]] | None:
+        """The newest iOS installed and the device types ``device.template_keep`` names that it runs -- None when
+        there is no iOS, or templates are off or cannot be remembered."""
+        if not config.device_templates or not isinstance(self.memory, DeviceTemplates):
+            return None
+        runtime = pick_runtime(await simctl.runtimes(), "")
+        return None if runtime is None else (runtime, kept_types(runtime, config.template_keep))
+
+    async def keep_templates(self, simctl: Simctl, config: SimConfig) -> None:
+        """Prepare, in the background, the template of each device type ``device.template_keep`` names on the newest
+        iOS, when it has none ready -- within ``device.max_booted``, tried again by the reaper as for any other."""
+        kept = await self._kept(simctl, config)
+        if kept is None:
+            return
+        runtime, kinds = kept
+        assert isinstance(self.memory, DeviceTemplates)
+        for kind in kinds:
+            template = self.memory.template(runtime.identifier, kind.identifier)
+            listed = await self._listed(simctl, self.memory, template) if template is not None else None
+            if template is None or listed is None or not template.ready:
+                self._prepare(simctl, runtime, kind, config)
+
     async def expire_templates(self, simctl: Simctl, config: SimConfig) -> list[str]:
         """Delete each template no device has been copied from for ``device.template_days`` -- none while it is 0 --
-        and forget it; one never dated is dated now, so its days start counting. A template being prepared or booted is
-        left alone, and so is one simctl cannot delete, tried again later. Answers the UDIDs deleted."""
+        and forget it; one never dated is dated now, so its days start counting. A template ``device.template_keep``
+        names on the newest iOS is never deleted, nor one being booted, nor one simctl cannot delete, tried again later.
+        Answers the UDIDs deleted."""
         memory = self.memory
         if config.template_days <= 0 or not isinstance(memory, ExpiringTemplates):
             return []
+        kept = await self._kept(simctl, config)
+        keep: set[str] = set()
+        if kept is not None:
+            runtime, kinds = kept
+            assert isinstance(memory, DeviceTemplates)
+            for kind in kinds:
+                template = memory.template(runtime.identifier, kind.identifier)
+                if template is not None:
+                    keep.add(template.udid)
         now = self._wall()
         deleted: list[str] = []
         for udid, used in memory.templates_used().items():
             if used is None:
                 memory.template_used(udid, now)
                 continue
-            if udid in self._booting or now - used < config.template_days * 86400:
+            if udid in keep or udid in self._booting or now - used < config.template_days * 86400:
                 continue
             try:
                 await simctl.delete(udid)

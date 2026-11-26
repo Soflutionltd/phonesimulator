@@ -43,6 +43,8 @@ class SimConfig:
     delete_created: Literal["empty", "idle", "never"]
     device_templates: bool
     template_days: int
+    #: Device type names separated by commas, such as ``iPhone 17 Pro`` (`core.devices.kept_types`).
+    template_keep: str
     device_typing: Literal["auto", "keys", "paste"]
     restore_changes: Literal["real_devices", "all", "off"]
     device_selection: Literal["agent", "scope"]
