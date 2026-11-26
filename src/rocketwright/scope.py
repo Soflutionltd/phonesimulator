@@ -58,13 +58,19 @@ def _repository_name(top: Path) -> str | None:
 
 def project_name(folder: Path) -> str:
     """What a person calls the project in `folder`: its repository's name -- a worktree named after a branch reads as
-    the project it is a copy of -- followed by the folder's own when it is inside it (``courly · mobile``), else the
-    folder's name."""
+    the project it is a copy of -- followed by the folder's own when it is inside it (``Courly · Mobile``), else the
+    folder's name. A name written all in lower case, as folders often are, is read with a capital (`_shown`)."""
     for top in (folder, *folder.parents):
         repository = _repository_name(top)
         if repository is not None:
-            return repository if top == folder else f"{repository} · {folder.name}"
-    return folder.name or "root"
+            return _shown(repository) if top == folder else f"{_shown(repository)} · {_shown(folder.name)}"
+    return _shown(folder.name or "root")
+
+
+def _shown(name: str) -> str:
+    """A folder's name as a person reads it: ``courly`` is ``Courly``; one that already mixes cases -- ``Sociomator``,
+    ``iOS-app`` -- is left as its author wrote it."""
+    return name[:1].upper() + name[1:] if name.islower() else name
 
 
 @dataclass(frozen=True)

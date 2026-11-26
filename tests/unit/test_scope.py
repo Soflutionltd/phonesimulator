@@ -52,7 +52,7 @@ def test_a_folder_whose_name_has_nothing_usable_still_gets_a_scope(tmp_path: Pat
     odd = tmp_path / "🙂🙂"
     odd.mkdir()
     assert Scope.for_folder(odd).id.startswith("project-project-")
-    assert Scope.for_folder(Path("/")).label == "root"
+    assert Scope.for_folder(Path("/")).label == "Root"
 
 
 def test_a_folders_label_is_its_projects_name_and_a_worktrees_is_its_repositorys(tmp_path: Path) -> None:
@@ -77,8 +77,8 @@ def test_a_folder_that_is_not_a_worktree_is_called_by_its_own_name(tmp_path: Pat
     folder.mkdir()
     if marker is not None:
         (folder / ".git").write_text(marker)
-    assert project_name(folder) == "app"
-    assert project_name(Path("/")) == "root"
+    assert project_name(folder) == "App"
+    assert project_name(Path("/")) == "Root"
 
 
 def test_an_unreadable_git_file_leaves_the_folders_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -90,7 +90,7 @@ def test_an_unreadable_git_file_leaves_the_folders_name(tmp_path: Path, monkeypa
         raise PermissionError("no")
 
     monkeypatch.setattr(Path, "read_text", refuse)
-    assert project_name(folder) == "app"
+    assert project_name(folder) == "App"
 
 
 def test_a_folder_inside_a_repository_is_called_by_the_repository_and_its_own_name(tmp_path: Path) -> None:
@@ -98,9 +98,21 @@ def test_a_folder_inside_a_repository_is_called_by_the_repository_and_its_own_na
     (repository / ".git").mkdir(parents=True)
     app = repository / "mobile"
     app.mkdir()
-    assert (project_name(repository), project_name(app)) == ("courly", "courly · mobile")
+    assert (project_name(repository), project_name(app)) == ("Courly", "Courly · Mobile")
     worktree = tmp_path / "worktrees" / "flutter-mobile"
     (worktree / "mobile").mkdir(parents=True)
     (repository / ".git" / "worktrees" / "flutter-mobile").mkdir(parents=True)
     (worktree / ".git").write_text(f"gitdir: {repository / '.git' / 'worktrees' / 'flutter-mobile'}\n")
-    assert project_name(worktree / "mobile") == "courly · mobile"
+    assert project_name(worktree / "mobile") == "Courly · Mobile"
+
+
+def test_a_name_in_lower_case_reads_with_a_capital_and_one_that_mixes_cases_is_kept(tmp_path: Path) -> None:
+    for name, shown in (
+        ("courly", "Courly"),
+        ("Sociomator", "Sociomator"),
+        ("iOS-app", "iOS-app"),
+        ("my app", "My app"),
+    ):
+        folder = tmp_path / name
+        folder.mkdir()
+        assert project_name(folder) == shown

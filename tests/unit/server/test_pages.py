@@ -72,4 +72,9 @@ async def test_a_named_scopes_page_carries_its_name_made_safe_for_its_title(tmp_
         unnamed = await http.get("/viewer/tp-1")
     assert '<meta name="rocketwright-project" content="Notes &quot;beta&quot; &lt;app&gt;" />' in named.text
     assert named.text.index("rocketwright-project") < named.text.index("</head>")
-    assert "rocketwright-project" not in unnamed.text
+    # The title a tab keeps, read before any script runs, is the project's from the first byte.
+    assert (
+        "<title>Notes &quot;beta&quot; &lt;app&gt;</title>" in named.text
+        and "<title>Rocketwright</title>" not in named.text
+    )
+    assert "rocketwright-project" not in unnamed.text and "<title>Rocketwright</title>" in unnamed.text

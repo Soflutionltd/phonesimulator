@@ -7,7 +7,8 @@ are never cached -- a new install's viewer is the one shown -- and an install wi
 serving a blank page. Assets are the bundle's own files, by name, at ``/viewer-assets/<name>``: a page names them with
 this install's version (``?v=3.10.0``), and they are served to be checked again before each use, so a browser that kept
 an older install's script loads this one's. A page whose scope was named carries the name in a
-``<meta name="rocketwright-project">``, for its title: the project's name, not its id (`daemon.scope_names`).
+``<meta name="rocketwright-project">`` and as its ``<title>``: the project's name, not its id, from the first byte
+(`daemon.scope_names`).
 """
 
 from __future__ import annotations
@@ -59,8 +60,12 @@ def create_page_router(
         html = re.sub(rf'({re.escape(ASSETS)}[A-Za-z0-9_.-]+)(?=")', rf"\1?v={__version__}", html)
         project = name_of(scope_id)
         if project:
-            meta = f'<meta name="{PROJECT_META}" content="{markup.escape(project, quote=True)}" />'
+            named = markup.escape(project, quote=True)
+            meta = f'<meta name="{PROJECT_META}" content="{named}" />'
             html = html.replace("</head>", f"    {meta}\n  </head>", 1)
+            # The title the page loads with is the one a tab keeps -- a browser pane's card reads it before any script
+            # runs -- so it is the project's name from the first byte, not the product's.
+            html = re.sub(r"<title>[^<]*</title>", f"<title>{named}</title>", html, count=1)
         return HTMLResponse(html, headers=NO_STORE)
 
     @router.get("/viewer/{scope_id}")

@@ -19,6 +19,9 @@ All notable changes to Rocketwright -- called Simtrail until 3.12.0 -- are docum
   `~/Library/Application Support/Simtrail`, `~/Library/Logs/Simtrail` and `~/.simtrail` to Rocketwright's folders --
   settings, remembered devices, tokens and the helper's signing kept -- leaving a link where each was.
 - A WebDriverAgent copy prepared for real iPhones is prepared again once, since its marker file was renamed.
+- A viewer page is sent with its project's name as its title (`Courly · Mobile`), so a tab or a browser pane's card
+  shows the project from the first byte, not the product; a folder's name written all in lower case reads with a
+  capital.
 
 ### Fixed
 
