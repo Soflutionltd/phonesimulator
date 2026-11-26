@@ -17,7 +17,7 @@ from typing import Any
 from urllib.parse import quote, urlencode
 
 from rocketwright.cli.context import CliContext
-from rocketwright.mcp.launcher import ensure_daemon
+from rocketwright.mcp.launcher import adopt_main_device, ensure_daemon
 
 
 def register(commands: Any) -> None:
@@ -35,6 +35,9 @@ def run(args: argparse.Namespace, ctx: CliContext) -> int:
     scope = ctx.scope(args.scope)
     client = ctx.client()
     ensure_daemon(client, ctx.start_daemon)
+    if args.scope is None:
+        # A worktree opened first shows its project's simulator, not a new blank one made for it.
+        adopt_main_device(client, scope, ctx.cwd)
     place = ""
     if args.device:
         # Not found -- refused, as one line -- when the project could not use it.

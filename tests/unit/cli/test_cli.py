@@ -301,6 +301,19 @@ def test_mcp_scope_from_roots_acts_for_the_project_each_call_names(tmp_path: Pat
     assert scopes == [[Scope.for_folder(here.cwd).id], [Scope.for_folder(folder).id]]
 
 
+def test_open_in_a_git_worktree_shows_the_projects_simulator_rather_than_a_new_one(tmp_path: Path) -> None:
+    here = Terminal(tmp_path)
+    repo = main_checkout(tmp_path / "repo")
+    linked_worktree(repo, here.cwd)
+    assert here("open", "--print") == 0
+    inherit = f"/api/v1/admin/scopes/{Scope.for_folder(here.cwd).id}/inherit"
+    assert here.daemon.made("POST", inherit) == [{"source": Scope.for_folder(repo).id}]
+    named = Terminal(tmp_path / "named")
+    linked_worktree(repo, named.cwd, "named")
+    assert named("open", "--scope", "demo", "--print") == 0
+    assert not [path for _, path, _ in named.daemon.requests if path.endswith("/inherit")], "a named scope is left"
+
+
 def test_open_starts_the_daemon_and_opens_the_viewer_without_printing_the_code(tmp_path: Path) -> None:
     here = Terminal(tmp_path, daemon=Daemon(up=False))
     assert here("open", "--scope", "demo") == 0
