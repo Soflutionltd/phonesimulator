@@ -16,6 +16,10 @@ an iPhone 17 Pro simulator on iOS 26.5 -- with Rocketwright 0.1.0; a row says so
 | `iframe.png` | The viewer framed in another page | The `examples/iframe` page on its own origin, with a one-shot embed ticket |
 | `view-only.png` | The view-only mirror without idb_companion | The same viewer with `connectors.idb.companion_path` pointed at nothing, so the simctl connector serves it |
 | `doctor.png` | `rocketwright doctor` on a Mac | The real output of `rocketwright doctor --no-tap`, typeset for the docs rather than photographed from a terminal |
-| `social-preview.png` | GitHub's social preview, 1280×640 | The project's name and claims beside a frame of the Settings run `hero.gif` showed until 1.2.0 |
+| `social-preview.png` | GitHub's social preview, 1280×640 | The logo and the project's claim on Apple's light gray, rendered from `brand/` |
+| `brand/rocketwright-logo.svg` | The README's logo on a light page | The rocket in its orange-to-violet gradient beside the name, drawn as outlines in Inter Display SemiBold (OFL) |
+| `brand/rocketwright-logo-dark.svg` | The README's logo on a dark page | The same, the name in white |
+| `brand/rocketwright-mark.svg` | The rocket alone, where the name is already said | The gradient rocket, 128×128 |
+| `brand/rocketwright-icon.svg` | An app or avatar icon | The rocket in white on a rounded tile in the gradient, 1024×1024 |
 | `recording-demo.gif` | A recording an agent made: Settings › Appearance switched to dark and back, its taps drawn | `sim_record` itself, on 2026-09-29 with Xcode 27.0 and an iPhone 18 Pro simulator on iOS 27.0: an agent started a GIF recording with the demo status bar, tapped through Settings with `sim_act`, and stopped it; the file is as `sim_record stop` kept it, 600 px wide |
 | `settings-panel.png` | The settings panel's Server tab | A screenshot of the panel in Chrome, taken later on 2026-09-16 with Xcode 27.0 and an iOS 27.0 simulator, from a daemon started with `ROCKETWRIGHT_SERVER_PORT=7491` -- which is why the port shows as locked |

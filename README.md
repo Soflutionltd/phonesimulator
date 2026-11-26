@@ -1,6 +1,11 @@
 <!-- mcp-name: io.github.Soflutionltd/rocketwright -->
 
-# Rocketwright
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/brand/rocketwright-logo-dark.svg">
+    <img src="docs/media/brand/rocketwright-logo.svg" alt="Rocketwright" width="520">
+  </picture>
+</h1>
 
 **Playwright stops at the browser. Rocketwright puts the whole phone in your AI agent's hands.**
 
