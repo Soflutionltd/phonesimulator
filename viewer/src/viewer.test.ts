@@ -22,6 +22,7 @@ import {
   started,
 } from '../test-support/viewer-harness'
 import { ACTIVE_MS, ONGOING_MS, THINK_AFTER_MS } from './agent-cursor'
+import { TransportError } from './http-transport'
 import {
   CLOSE_BAD_MESSAGE, CLOSE_FORBIDDEN, CLOSE_RESTARTING, CLOSE_STOPPED, CLOSE_UNSUPPORTED, TAG_JPEG, TEXT_MAX_CHARS,
   type Device, type ServerHello, type Started,
@@ -29,7 +30,7 @@ import {
 import { readDevice } from './status-view'
 import { STYLE_ID } from './styles'
 import { MOVE_MS, TYPE_SETTLE_MS } from './viewer-input'
-import { RECONNECT_MS, readServerHello } from './viewer-stream'
+import { AWAY_MS, RECONNECT_MS, readServerHello } from './viewer-stream'
 import { settingsView } from '../test-support/settings'
 
 let drawImage: ReturnType<typeof vi.fn>
@@ -689,7 +690,7 @@ describe('createViewer', () => {
     away.view.destroy()
   })
 
-  it('keeps trying while the server is away, then says why it could not', async () => {
+  it('keeps trying a few times when a start is refused while reconnecting, then says why', async () => {
     vi.useFakeTimers(CLOCK)
     const start = vi.fn(async () => started({ ...DEVICE }))
     const { view, $ } = await live({ transport: { start } })
@@ -707,6 +708,57 @@ describe('createViewer', () => {
     expect($<HTMLElement>('[data-smv-state]').textContent).toBe('Failed')
     socket().end(1006, '')
     view.setActive(false)
+    view.destroy()
+  })
+
+  it('waits for a daemon that is restarting for as long as it takes, then is back by itself', async () => {
+    vi.useFakeTimers(CLOCK)
+    const start = vi.fn(async () => started({ ...DEVICE }))
+    const { view, $ } = await live({ transport: { start } })
+    start.mockRejectedValue(new TypeError('Failed to fetch'))
+    // The daemon stopping says its devices will be back.
+    socket().end(CLOSE_RESTARTING, 'the simulator is restarting')
+    vi.advanceTimersByTime(RECONNECT_MS[0])
+    await flush()
+    for (let away = 0; away < 2 * RECONNECT_MS.length; away++) {
+      expect(said(view)).toBe('The simulator is restarting. Reconnecting…')
+      expect(view.el.querySelector('[data-smv="start"]')).toBeNull()
+      vi.advanceTimersByTime(AWAY_MS)
+      await flush()
+    }
+    expect(start).toHaveBeenCalledTimes(2 + 2 * RECONNECT_MS.length)
+    // Back, and the page's session with it: the next attempt connects within `AWAY_MS`.
+    start.mockResolvedValue(started({ ...DEVICE }))
+    vi.advanceTimersByTime(AWAY_MS)
+    await flush()
+    socket().open()
+    socket().message({ type: 'status', ...DEVICE })
+    expect($('[data-smv-state]').textContent).toBe('Ready')
+    expect(view.connected()).toBe(true)
+    view.destroy()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('takes a proxy saying the server is away for the server away, and a person’s Try again waits for it', async () => {
+    vi.useFakeTimers(CLOCK)
+    const start = vi.fn().mockRejectedValueOnce(new Error('authentication required'))
+      .mockRejectedValueOnce(new TransportError('Bad Gateway', 502))
+      .mockRejectedValueOnce(new TransportError('Service Unavailable', 503))
+      .mockRejectedValueOnce(new TransportError('Gateway Timeout', 504))
+      .mockResolvedValue(started({ ...DEVICE }))
+    const { view, $ } = setup({ transport: { start } })
+    view.setActive(true)
+    await flush()
+    expect(said(view)).toContain('authentication required')
+    $<HTMLButtonElement>('[data-smv="start"]').click()
+    await flush()
+    expect(said(view)).toBe('Bad Gateway. Reconnecting…')
+    for (let away = 0; away < 3; away++) {
+      vi.advanceTimersByTime(AWAY_MS)
+      await flush()
+    }
+    expect(start).toHaveBeenCalledTimes(5)
+    expect(view.el.querySelector('[data-smv="start"]')).toBeNull()
     view.destroy()
   })
 

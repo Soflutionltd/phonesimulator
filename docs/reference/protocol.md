@@ -14,7 +14,7 @@ How a viewer and a Simtrail server talk over the screen socket: a hello each way
 | `4403` | `CLOSE_FORBIDDEN` | The simulator is off for this scope, or the Host or Origin is not allowed. The close reason says which. |
 | `4406` | `CLOSE_UNSUPPORTED` | The client's protocol version is not supported, or none of the encodings it decodes is offered. |
 | `4410` | `CLOSE_STOPPED` | The device was stopped. There is nothing to reconnect to. |
-| `4412` | `CLOSE_RESTARTING` | The device is restarting and will be back. Reconnect. |
+| `4412` | `CLOSE_RESTARTING` | The device is restarting, or the server is stopping and leaves it running: it will be back. Reconnect. |
 
 ## Constants
 

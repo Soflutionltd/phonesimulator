@@ -29,13 +29,10 @@ export interface TicketedSocketOptions {
 export interface TicketedSocket {
   connect(): Promise<void>
   close(): void
-  /** Send when open; answers whether it was sent. */
-  send(data: string | ArrayBufferLike | ArrayBufferView | Blob): boolean
+  /** Send a message as JSON when open; answers whether it was sent. */
   sendJson(message: object): boolean
   /** Open and able to send. */
   readonly open: boolean
-  /** Connecting or open. */
-  readonly live: boolean
 }
 
 export function createTicketedSocket(options: TicketedSocketOptions): TicketedSocket {
@@ -81,12 +78,6 @@ export function createTicketedSocket(options: TicketedSocketOptions): TicketedSo
     }
   }
 
-  function send(data: string | ArrayBufferLike | ArrayBufferView | Blob): boolean {
-    if (!socket || socket.readyState !== WebSocket.OPEN) return false
-    socket.send(data as string)
-    return true
-  }
-
   return {
     connect,
     close() {
@@ -96,13 +87,13 @@ export function createTicketedSocket(options: TicketedSocketOptions): TicketedSo
       socket = null
       ws?.close()
     },
-    send,
-    sendJson: (message: object) => send(JSON.stringify(message)),
+    sendJson(message) {
+      if (!socket || socket.readyState !== WebSocket.OPEN) return false
+      socket.send(JSON.stringify(message))
+      return true
+    },
     get open() {
       return socket !== null && socket.readyState === WebSocket.OPEN
-    },
-    get live() {
-      return socket !== null
     },
   }
 }

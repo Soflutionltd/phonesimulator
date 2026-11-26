@@ -69,7 +69,7 @@ screenshots.
   it starts, so the agent's first call does not wait for it (`agent.warm_up`). It never boots or creates a simulator
   for that, never touches a real or Android device, and does not hold the device for the agent.
 - `simtrail open` asked the daemon for a one-shot code and opened the viewer with it; the code was spent for a
-  viewer token that lives only in that tab.
+  viewer token that lives only in that tab. A daemon restarted -- an upgrade, say -- lets the tab back in by itself.
 - A device nobody watches, no agent holds and nothing builds on is stopped after 15 minutes.
 
 ## Stopping

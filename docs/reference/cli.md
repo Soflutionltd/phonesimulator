@@ -43,6 +43,7 @@ Every command answers `--help`. A refusal a person can act on -- a setting, a sc
 | `simtrail token create` | Make a token; it is printed only this once |
 | `simtrail token list` | List the scoped tokens |
 | `simtrail token revoke` | Stop accepting a token |
+| `simtrail token sign-out` | End every viewer page's session; each needs `simtrail open` again |
 | `simtrail tools` | List the agent tools this install offers |
 | `simtrail xcode` | Let Simtrail use Xcode 27's tools |
 | `simtrail xcode approve` | Open a project through Xcode's tools, which is when Xcode approves Simtrail |
@@ -393,6 +394,12 @@ Stop accepting a token.
 | Argument | Meaning |
 |---|---|
 | `ID` |  |
+
+## `simtrail token sign-out`
+
+End every viewer page's session; each needs `simtrail open` again.
+
+It takes no arguments.
 
 ## `simtrail tools`
 

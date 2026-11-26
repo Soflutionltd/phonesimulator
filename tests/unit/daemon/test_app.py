@@ -222,6 +222,24 @@ async def test_a_login_code_opens_its_scopes_viewer_once(tmp_path: Path) -> None
         )
 
 
+async def test_a_page_s_session_outlives_a_restart_of_the_daemon_until_the_admin_signs_every_page_out(
+    tmp_path: Path,
+) -> None:
+    first = site(tmp_path)
+    async with first.http() as http:
+        token = await session(first, http)
+    # Started again on the same state folder -- an upgrade, say: the open tab is let in without a new code.
+    again = site(tmp_path)
+    async with again.http() as http:
+        assert (await http.get("/api/v1/scopes/tp-1", headers=bearer(token))).status_code == 200
+        assert detail(await http.delete("/api/v1/admin/viewer-sessions", headers=bearer(token))) == (403, ADMIN_ONLY)
+        ended = await http.delete("/api/v1/admin/viewer-sessions", headers=again.admin)
+        assert ended.json() == {"ok": True, "data": {"ended": 1}}
+        assert detail(await http.get("/api/v1/scopes/tp-1", headers=bearer(token))) == (401, AUTHENTICATION_REQUIRED)
+    async with site(tmp_path).http() as http:
+        assert detail(await http.get("/api/v1/scopes/tp-1", headers=bearer(token))) == (401, AUTHENTICATION_REQUIRED)
+
+
 async def test_a_hosts_backend_gets_an_embed_ticket_that_a_frame_spends_for_its_scope(tmp_path: Path) -> None:
     here = site(tmp_path)
     async with here.http() as http:
