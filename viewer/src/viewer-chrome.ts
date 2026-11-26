@@ -118,9 +118,11 @@ export function createChrome(options: ChromeOptions): Chrome {
       keepPreferences({ lang: value })
     },
   })
-  const languages: MenuEntry[] = [
+  const locales = Object.keys(LOCALES) as Locale[]
+  // A choice of one is no choice: the section shows once the viewer speaks two languages.
+  const languages: MenuEntry[] = locales.length < 2 ? [] : [
     { ...languageRow('auto'), group: () => t('language.heading') },
-    ...(Object.keys(LOCALES) as Locale[]).map(languageRow),
+    ...locales.map(languageRow),
   ]
 
   const menus: MenuBar = createMenuBar({

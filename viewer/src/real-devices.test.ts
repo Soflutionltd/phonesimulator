@@ -562,16 +562,15 @@ describe('the note', () => {
 })
 
 describe('what stands in a device\'s way', () => {
-  it('is said in the viewer\'s language when the server names it, and as the server says it otherwise', () => {
-    const french = translator(() => 'fr')
-    expect(detailLabel({ detail: 'Developer Mode off', detail_code: 'developer_mode_off' }, french))
-      .toBe('Mode développeur désactivé')
+  it('is said in the viewer\'s words when the server names it, and as the server says it otherwise', () => {
+    const english = translator(() => 'en')
+    expect(detailLabel({ detail: 'dev mode', detail_code: 'developer_mode_off' }, english)).toBe(english('detail.developer_mode_off'))
     expect(detailLabel({ detail: 'Developer Mode off', detail_code: 'developer_mode_off' })).toBe('Developer Mode off')
     // A name a newer server gives that this viewer does not know, and an older server that names none.
-    expect(detailLabel({ detail: 'it is sideloading', detail_code: 'sideloading' as never }, french))
+    expect(detailLabel({ detail: 'it is sideloading', detail_code: 'sideloading' as never }, english))
       .toBe('it is sideloading')
-    expect(detailLabel({ detail: 'Locked' } as never, french)).toBe('Locked')
-    expect(detailLabel({ detail: null, detail_code: null }, french)).toBeNull()
+    expect(detailLabel({ detail: 'Locked' } as never, english)).toBe('Locked')
+    expect(detailLabel({ detail: null, detail_code: null }, english)).toBeNull()
   })
 
   it('has a message for every name the protocol gives one', () => {

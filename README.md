@@ -94,7 +94,7 @@ The first time, press **Set up touch** in the viewer: it builds WebDriverAgent w
 **Live viewer.** H.264 through WebCodecs where the page can decode it, JPEG otherwise, negotiated per connection.
 Touch, drag, scroll, typing and paste, Home and Lock, light and dark, and a device picker. It reconnects by itself
 after a blip and says plainly when the simulator is off. Its menus, toolbar, settings panel and messages are in
-English or French -- the browser's language, or the one picked in View > Language.
+English.
 
 **Agent cursor.** Every agent gesture -- tap, long press, swipe, drag, typing -- reaches the viewer before it lands, and
 the viewer's own pointer glides there first (`agent.cursor_lead_ms`), labelled with what the agent is doing --
