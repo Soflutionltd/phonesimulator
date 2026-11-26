@@ -11,7 +11,7 @@ screen, take a person's input, and show the agent's cursor.
 It is [on npm](https://www.npmjs.com/package/@soflution/simtrail):
 
 ```sh
-npm install @soflution/simtrail@3.11.1
+npm install @soflution/simtrail@3.11.2
 ```
 
 It is an ES module with TypeScript types and no runtime dependencies; its styles are built in.

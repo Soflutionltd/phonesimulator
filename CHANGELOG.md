@@ -6,6 +6,22 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.11.2] - 2026-11-26
+
+### Added
+
+- `simtrail helper allow` opens System Settings at the Accessibility and Screen Recording lists and shows the helper in
+  the Finder, to drag it in.
+
+### Changed
+
+- `simtrail helper status` says which permissions the helper actually holds (and `--json` gives them), instead of always
+  asking to allow it.
+
+### Fixed
+
+- A Flutter run test that sent a KILL after the TERM on a busy machine: its rig gave a stopping run 10 ms.
+
 ## [3.11.1] - 2026-11-26
 
 ### Removed
