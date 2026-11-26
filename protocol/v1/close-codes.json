@@ -27,7 +27,7 @@
     },
     "restarting": {
       "code": 4412,
-      "meaning": "The device is restarting and will be back. Reconnect."
+      "meaning": "The device is restarting, or the server is stopping and leaves it running: it will be back. Reconnect."
     }
   }
 }

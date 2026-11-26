@@ -31,8 +31,6 @@ export interface TextOverlayOptions {
 
 export interface TextOverlayHandle {
   readonly el: HTMLElement
-  /** How many boxes are drawn now. */
-  readonly count: number
   /** Draw a reading's boxes in place of the last; none clears them. */
   show(text: ScreenText): void
   clear(): void
@@ -188,9 +186,6 @@ export function createTextOverlay(overlay: HTMLElement, options: TextOverlayOpti
 
   return {
     el,
-    get count() {
-      return boxes.length
-    },
     show,
     clear,
     layout,

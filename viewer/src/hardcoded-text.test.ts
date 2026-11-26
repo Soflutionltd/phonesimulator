@@ -22,9 +22,8 @@ const ALLOWED: Record<string, string[]> = {
   './http-transport.ts': ['Bearer'],
   // How the server's own note of a recording still being rendered begins: read, never shown.
   './recording-control.ts': ['still being rendered'],
-  // Why a picture or a start was given up, for the code that asked: caught there, and shown to nobody.
+  // Why a picture was given up, for the code that asked: caught there, and shown to nobody.
   './screen-canvas.ts': ['a frame that does not decode'],
-  './viewer-stream.ts': ['the simulator view was closed'],
 }
 
 const scanned = Object.entries(SOURCES)

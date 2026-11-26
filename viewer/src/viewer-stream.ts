@@ -8,8 +8,9 @@
  * device's state, what an agent is about to do, and the text read from the screen's pixels.
  *
  * A live device's connection that drops -- a server restart, a network blip -- is tried again by itself a few times
- * (`RECONNECT_MS`) before the viewer asks; a device being restarted is always reconnected to. A device switched off
- * (4403) or stopped (4410), or a server that does not speak this protocol (4400, 4406), is not.
+ * (`RECONNECT_MS`) before the viewer asks; a device being restarted is always reconnected to, and a server that cannot be
+ * reached at all -- restarting, or a proxy saying it is away -- is tried every `AWAY_MS` for as long as it takes. A
+ * device switched off (4403) or stopped (4410), or a server that does not speak this protocol (4400, 4406), is not.
  */
 import { readAgentEvent, type AgentCursorHandle } from './agent-cursor'
 import { deviceNoun } from './device-kind'
@@ -28,6 +29,11 @@ import type { SimtrailTransport } from './transport'
 
 /** How long a dropped connection to a live device waits before each attempt to reconnect by itself. */
 export const RECONNECT_MS: readonly number[] = [1000, 3000, 10000]
+/** How long the viewer waits between attempts while its server cannot be reached at all. */
+export const AWAY_MS = 2000
+
+/** No answer at all -- fetch's TypeError -- or a proxy's in front of the server, saying it is away. */
+const away = (err: Error & { status?: number }) => err instanceof TypeError || err.status! > 501 && err.status! < 505
 
 const strings = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === 'string')
@@ -118,16 +124,16 @@ export function createViewerStream(options: StreamOptions): ViewerStream {
     dropped = null
   }
 
-  /** Try again in a while, when there are attempts left; answers whether one was planned. */
-  function reconnectLater(why: Said): boolean {
-    if (!options.wanted() || reconnects >= RECONNECT_MS.length) return false
+  /** Try again in a while -- `wait`, else when there are attempts left; answers whether one was planned. */
+  function reconnectLater(why: Said, wait?: number): boolean {
+    if (!options.wanted() || (!wait && reconnects >= RECONNECT_MS.length)) return false
     dropped = why
     status.showState('stalled')
     status.say(() => t('status.reconnecting', { why: sentence(resolve(why)) }))
     reconnectTimer = window.setTimeout(() => {
       reconnectTimer = null
       void connect()
-    }, RECONNECT_MS[reconnects++])
+    }, wait ?? RECONNECT_MS[reconnects++])
     return true
   }
 
@@ -242,7 +248,8 @@ export function createViewerStream(options: StreamOptions): ViewerStream {
       if (dropped === null) starting()
       const started = await transport.start()
       // Closed or put away while the start was asked for: nothing is painted and no timer starts on a view that is gone.
-      if (!options.wanted()) throw new Error('the simulator view was closed')
+      // The socket was let go with it, so this ending is shown to nobody.
+      if (!options.wanted()) throw new Error()
       applyDevice(started.device)
       // Told nothing of the device yet: still starting until the socket's first status says how it stands.
       if (!started.device) starting()
@@ -258,8 +265,9 @@ export function createViewerStream(options: StreamOptions): ViewerStream {
     onMessage: heard,
     onEnd: ended,
     onRefused: (err) => {
-      // While reconnecting, a refused start is the server still away: keep trying while there are attempts left.
-      if (dropped !== null && reconnectLater(dropped)) return
+      // While reconnecting, a refused start is the server still away: keep trying while there are attempts left -- and
+      // for as long as it cannot be reached at all, as while it restarts, so a person's Try again waits for it too.
+      if (away(err) ? reconnectLater(dropped ?? err.message, AWAY_MS) : dropped !== null && reconnectLater(dropped)) return
       cancelReconnect()
       status.showState('failed')
       status.say(() => err.message || t('status.failed.simulator'), 'retry')

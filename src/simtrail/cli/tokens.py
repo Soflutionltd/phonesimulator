@@ -7,6 +7,9 @@ what its agent held is let go with it. A new token is printed once, on stdout, a
 
 A ``host`` token is for an application sharing the daemon: ``--scope 'notes:*'`` gives it the scopes whose ids start
 ``notes:``, and ``--root`` the folders its agents may reach. Revoking it revokes every token it made.
+
+``sign-out`` ends every page's session (``simtrail open``, a host's frame), which outlives a restart of the daemon
+(`daemon.passes`): each open page needs a new code to get in again.
 """
 
 from __future__ import annotations
@@ -16,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from simtrail.cli.context import CliContext
+from simtrail.daemon.passes import VIEWER_SESSIONS_FILE, ViewerSessions
 from simtrail.daemon.tokens import KINDS
 
 
@@ -37,6 +41,7 @@ def register(commands: Any) -> None:
     actions.add_parser("list", help="list the scoped tokens")
     revoking = actions.add_parser("revoke", help="stop accepting a token")
     revoking.add_argument("id")
+    actions.add_parser("sign-out", help="end every viewer page's session; each needs `simtrail open` again")
     command.set_defaults(handler=run)
 
 
@@ -56,6 +61,14 @@ def run(args: argparse.Namespace, ctx: CliContext) -> int:
             label = f"  {record.label}" if record.label else ""
             maker = f"  (made by host {record.host})" if record.host else ""
             ctx.say(f"{record.id}  {record.kind}  {', '.join(record.scopes)}{label}{maker}")
+        return 0
+    if args.action == "sign-out":
+        client = ctx.client()
+        if client.healthy():
+            ended = int(client.admin("DELETE", "/api/v1/admin/viewer-sessions")["ended"])
+        else:
+            ended = ViewerSessions(path=store.path.with_name(VIEWER_SESSIONS_FILE)).end_all()
+        ctx.say(f"ended {ended} viewer session{'' if ended == 1 else 's'}")
         return 0
     made = [record.id for record in store.records() if record.host == args.id]
     if revoke(args.id, ctx):

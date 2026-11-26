@@ -32,21 +32,18 @@ afterEach(() => {
 describe('createTicketedSocket', () => {
   it('connects with a fresh ticket, says when it opens, and passes messages on', async () => {
     const { options, socket } = setup({ binaryType: 'arraybuffer' })
-    expect(socket.live).toBe(false)
+    expect(FakeSocket.instances).toHaveLength(0)
     await socket.connect()
     const ws = FakeSocket.last()
     expect(ws.url).toBe('ws://x/screen?ticket=tk1')
     expect(ws.binaryType).toBe('arraybuffer')
-    expect(socket.live).toBe(true)
     expect(socket.open).toBe(false)
     expect(socket.sendJson({ type: 'early' })).toBe(false)
     ws.open()
     expect(options.onOpen).toHaveBeenCalledOnce()
     expect(socket.open).toBe(true)
     expect(socket.sendJson({ type: 'touch' })).toBe(true)
-    const bytes = new ArrayBuffer(2)
-    expect(socket.send(bytes)).toBe(true)
-    expect(ws.sent).toEqual([{ type: 'touch' }, bytes])
+    expect(ws.sent).toEqual([{ type: 'touch' }])
     ws.message({ type: 'status' })
     expect(options.onMessage).toHaveBeenCalledWith({ data: '{"type":"status"}' })
   })
@@ -71,7 +68,7 @@ describe('createTicketedSocket', () => {
     await flush()
     expect(FakeSocket.instances).toHaveLength(2)
     expect(options.onEnd).toHaveBeenCalledWith({ code: CLOSE_UNAUTHORIZED, reason: 'no ticket' })
-    expect(socket.live).toBe(false)
+    expect(socket.open).toBe(false)
   })
 
   it('earns another quiet retry once a connection has opened', async () => {
@@ -110,7 +107,7 @@ describe('createTicketedSocket', () => {
     expect(options.onOpen).toHaveBeenCalledOnce()
     expect(options.onEnd).not.toHaveBeenCalled()
     expect(socket.open).toBe(false)
-    expect(socket.send('x')).toBe(false)
+    expect(socket.sendJson({ type: 'x' })).toBe(false)
     socket.close()
   })
 

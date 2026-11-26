@@ -39,6 +39,7 @@ from simtrail.core.devices import JsonDeviceMemory
 from simtrail.core.recordings import STOP_WAIT_S
 from simtrail.core.runtime import Runtime
 from simtrail.daemon.lifecycle import DaemonInfo, info_path, mark_stopped, read_info, stopped_mark, write_info
+from simtrail.daemon.passes import VIEWER_SESSIONS_FILE, ViewerSessions
 from simtrail.doctor.checks import DoctorContext
 from simtrail.doctor.report import CheckResult, Report
 from simtrail.host_copy import HostCopy
@@ -634,6 +635,19 @@ def test_a_token_is_revoked_through_the_running_daemon_so_what_its_agent_held_is
     assert here.daemon.made("DELETE", gone) == [None], "the daemon revoked it, and let go of what it held"
     here.daemon.answers[("DELETE", gone)] = {"revoked": False}
     assert here("token", "revoke", record.id) == 1 and f"there is no token {record.id}" in here.err.getvalue()
+
+
+def test_signing_out_ends_every_page_s_session_through_the_running_daemon_or_in_its_file(tmp_path: Path) -> None:
+    here = Terminal(tmp_path)
+    here.daemon.admin = here.ctx.tokens().admin_token
+    here.daemon.answers[("DELETE", "/api/v1/admin/viewer-sessions")] = {"ended": 2}
+    assert here("token", "sign-out") == 0 and here.said()[-1] == "ended 2 viewer sessions"
+    assert here.daemon.made("DELETE", "/api/v1/admin/viewer-sessions") == [None]
+    here.daemon.up = False
+    kept = here.ctx.tokens().path.with_name(VIEWER_SESSIONS_FILE)
+    page = ViewerSessions(path=kept).open("demo")
+    assert here("token", "sign-out") == 0 and here.said()[-1] == "ended 1 viewer session"
+    assert ViewerSessions(path=kept).session(page) is None
 
 
 class OneLogin(Source):

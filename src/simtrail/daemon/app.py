@@ -9,7 +9,8 @@
     /api/v1/scopes/{scope}/pause               a person's pause on agents' gestures, with an expiry (`daemon.pauses`)
     /api/v1/agent/manifest|call|lease          an agent's routes, and its lease (`daemon.lease`)
     /api/v1/auth/exchange                      a code or an embed ticket, spent for a viewer token
-    /api/v1/admin/reload|login-codes|tokens    the admin token's routes, and the settings changes waiting to be
+    /api/v1/admin/reload|login-codes|tokens    the admin token's routes, every page's session ended
+    /api/v1/admin/viewer-sessions              (`daemon.passes`), and the settings changes waiting to be
     /api/v1/admin/settings-confirmations       confirmed, with their codes (`daemon.confirmations`), and which
     /api/v1/admin/in-use                       scopes it serves now, and one device let go for every scope
     /api/v1/admin/devices/{udid}
@@ -45,7 +46,7 @@ from simtrail.daemon import health
 from simtrail.daemon.auth import TokenAuthenticator
 from simtrail.daemon.confirmations import PendingChanges
 from simtrail.daemon.lease import LEASE_S, Leases
-from simtrail.daemon.passes import CODE_TTL_S, OneShotCodes, ViewerSessions, ttl_of
+from simtrail.daemon.passes import CODE_TTL_S, VIEWER_SESSIONS_FILE, OneShotCodes, ViewerSessions, ttl_of
 from simtrail.daemon.pauses import PAUSE_MAX_S, Pauses
 from simtrail.daemon.policy import ConfigPolicy
 from simtrail.daemon.tokens import TokenRecord, TokenRefused, TokenStore
@@ -196,7 +197,8 @@ def build_daemon(
         leases=leases,
         pauses=pauses,
         codes=OneShotCodes(clock=clock),
-        viewers=ViewerSessions(clock=clock),
+        # Beside the admin token: a restart of the same install lets its open pages in again.
+        viewers=ViewerSessions(clock=clock, path=tokens.path.with_name(VIEWER_SESSIONS_FILE)),
         static_dir=static_dir,
         settings=settings,
         confirmations=PendingChanges(clock=clock),
@@ -424,6 +426,12 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         scope = named(body.scope)
         code = daemon.codes.mint(scope.id, "settings" if body.settings else "viewer")
         return ok({"code": code, "url": f"/viewer/{scope.id}#code={code}", "expires_in_s": CODE_TTL_S})
+
+    @app.delete(ADMIN + "/viewer-sessions")
+    async def end_viewer_sessions(request: Request) -> dict[str, Any]:
+        """End every page's session (``simtrail token sign-out``): each open page needs ``simtrail open`` again."""
+        admin(request)
+        return ok({"ended": daemon.viewers.end_all()})
 
     @app.post(ADMIN + "/scopes/{scope_id}/inherit")
     async def inherit(scope_id: str, body: InheritRequest, request: Request) -> dict[str, Any]:

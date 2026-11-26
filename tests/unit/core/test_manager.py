@@ -487,6 +487,15 @@ async def test_a_screen_source_in_trouble_stalls_the_device_until_frames_come_ag
     await rig.manager.shutdown()
 
 
+async def test_a_server_stopping_tells_its_viewers_to_come_back_to_the_device_it_leaves_running(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    instance = await rig.up()
+    closed, close = closer_log()
+    rig.manager.attach(instance, close)
+    await rig.manager.shutdown()
+    assert closed == [(CLOSE_RESTARTING, "the simulator is restarting")] and rig.manager.instance(TP1) is None
+
+
 async def test_a_watched_simulator_shut_down_outside_simtrail_is_ended_as_its_screen_fails(tmp_path: Path) -> None:
     engine = FakeEngine()
     rig = DeviceRig(tmp_path, idb=FakeConnector("idb", engine=engine))

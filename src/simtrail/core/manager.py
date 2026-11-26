@@ -1463,7 +1463,8 @@ class DeviceManager:
         return done
 
     async def shutdown(self) -> None:
-        """Let go of every device's session, leaving the devices themselves running for the next start."""
+        """Let go of every device's session, leaving the devices themselves running for the next start -- which its
+        viewers are told to wait for, as for a restart (`CLOSE_RESTARTING`): a daemon started again finds them."""
         async with self._lock:
             for instance in list(self._instances.values()):
-                await self._end(instance, shutdown=False)
+                await self._end(instance, shutdown=False, restarting=True)

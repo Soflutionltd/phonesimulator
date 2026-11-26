@@ -46,7 +46,7 @@ token (an HMAC-SHA256 of the nonce keyed by it). Something else on the port is r
 | **Admin token** | Made on the daemon's first start; may do everything | A file readable only by you, in Application Support |
 | **Scoped tokens** (`agent`, `viewer`, `admin`, `host`) | For a kind of client and a list of scopes, namespaces (`notes:*`) or `*`; an agent or host token may name folders; a token a host made names that host | Only their SHA-256, in `tokens.json` (0600); shown once when made; compared in constant time |
 | **Login codes and embed tickets** | One-shot, 60 seconds, for one scope | In a URL **fragment**, which browsers never send to a server; spent at `/api/v1/auth/exchange` for a viewer token |
-| **Viewer sessions** | A viewer token from a code, 12 hours; one from `simtrail open --settings` may change settings, for 1 hour | In the page's memory and the daemon's; never on disk |
+| **Viewer sessions** | A viewer token from a code, 12 hours; one from `simtrail open --settings` may change settings, for 1 hour | In the page's memory; the daemon keeps only its SHA-256 and expiry, in `viewer-sessions.json` (0600) in the state folder, so an open page outlives a daemon restart. `simtrail token sign-out` ends every one |
 | **Settings confirmation codes** | One-shot, 5 minutes, bound to one waiting settings change, dropped after 5 wrong tries | In the daemon's memory; shown only to the admin token, by `simtrail settings confirm` |
 | **Screen socket tickets** | One-shot, 60 seconds, for one scope and -- when minted for a page -- that page's origin | Minted only by an authenticated start |
 

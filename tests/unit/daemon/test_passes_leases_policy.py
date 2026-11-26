@@ -5,6 +5,7 @@ do."""
 from __future__ import annotations
 
 import logging
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -53,6 +54,59 @@ def test_a_viewer_token_is_for_its_scope_until_it_expires() -> None:
     clock.advance(VIEWER_TTL_S)
     fresh = viewers.open("tp-2")
     assert viewers.scope_of(token) is None and viewers.scope_of(fresh) == "tp-2"
+
+
+def test_a_page_s_session_outlives_a_restart_of_its_daemon_until_it_expires_as_it_would_have(tmp_path: Path) -> None:
+    path, wall = tmp_path / "state" / "viewer-sessions.json", ManualClock(1_000_000.0)
+    before = ViewerSessions(clock=ManualClock(), path=path, wall=wall)
+    viewer, settings = before.open("tp-1"), before.open("tp-1", "settings")
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    kept = path.read_text(encoding="utf-8")
+    assert viewer not in kept and settings not in kept, "only a session's digest is kept"
+    wall.advance(SETTINGS_TTL_S)
+    # A new daemon: another monotonic clock, the same state folder.
+    after = ViewerSessions(clock=ManualClock(50.0), path=path, wall=wall)
+    assert after.session(viewer) == Pass("tp-1", "viewer") and after.session(settings) is None
+    assert ViewerSessions(path=None).session(viewer) is None
+    wall.advance(VIEWER_TTL_S - SETTINGS_TTL_S)
+    assert ViewerSessions(clock=ManualClock(), path=path, wall=wall).session(viewer) is None
+
+
+def test_a_clock_set_back_does_not_stretch_a_kept_session_and_signing_out_ends_every_one(tmp_path: Path) -> None:
+    path, clock, wall = tmp_path / "viewer-sessions.json", ManualClock(), ManualClock(1_000_000.0)
+    token = ViewerSessions(clock=clock, path=path, wall=wall).open("tp-1", "settings")
+    wall.advance(-10 * SETTINGS_TTL_S)
+    again = ViewerSessions(clock=clock, path=path, wall=wall)
+    clock.advance(SETTINGS_TTL_S)
+    assert again.session(token) is None
+    other = again.open("tp-2")
+    assert again.end_all() == 1 and again.session(other) is None
+    assert ViewerSessions(clock=clock, path=path, wall=wall).session(other) is None
+
+
+@pytest.mark.parametrize(
+    "kept",
+    ["not json", "{}", '{"sessions": []}', '{"sessions": {"d": [1, "tp-1", "root"]}}', '{"sessions": {"d": [1, 2]}}'],
+)
+def test_a_sessions_file_that_cannot_be_read_lets_no_page_in(
+    tmp_path: Path, kept: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = tmp_path / "viewer-sessions.json"
+    path.write_text(kept, encoding="utf-8")
+    with caplog.at_level(logging.WARNING):
+        sessions = ViewerSessions(path=path)
+    assert sessions.end_all() == 0 and "could not be read" in caplog.text
+
+
+def test_a_session_still_opens_when_its_file_cannot_be_written(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    blocked = tmp_path / "blocked"
+    blocked.write_text("a file where the folder should be", encoding="utf-8")
+    sessions = ViewerSessions(path=blocked / "viewer-sessions.json")
+    with caplog.at_level(logging.WARNING):
+        token = sessions.open("tp-1")
+    assert sessions.scope_of(token) == "tp-1" and "could not be written" in caplog.text
 
 
 @dataclass

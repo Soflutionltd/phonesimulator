@@ -66,7 +66,7 @@ screenshots.
 - The first tool call created a simulator for the scope, named `Simtrail · project-<folder name>-<short hash>` (the scope's id), booted it and attached
   Simtrail's native helper to it. A second project gets a device of its own, so agents never tap on each other's apps.
 - `simtrail open` asked the daemon for a one-shot code and opened the viewer with it; the code was spent for a
-  viewer token that lives only in that tab.
+  viewer token that lives only in that tab. A daemon restarted -- an upgrade, say -- lets the tab back in by itself.
 - A device nobody watches, no agent holds and nothing builds on is stopped after 15 minutes.
 
 ## Stopping

@@ -6,6 +6,20 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `simtrail token sign-out` (and `DELETE /api/v1/admin/viewer-sessions`): end every viewer page's session at once --
+  what restarting the daemon used to do -- so each open tab needs `simtrail open` again.
+
+### Fixed
+
+- An open viewer tab survives the daemon restarting -- `simtrail stop --daemon` then a start, an upgrade -- and comes
+  back by itself, instead of "authentication required" and a Try again that could not work. Its session is kept
+  beside the admin token, as its token's SHA-256 and its expiry, in `viewer-sessions.json` (0600), and still ends when
+  it would have; a daemon stopping tells its viewers the devices it leaves running will be back (`CLOSE_RESTARTING`);
+  and a viewer that cannot reach its server at all -- no answer, or a proxy's 502, 503 or 504 -- tries again every two
+  seconds for as long as it takes, a person's Try again included.
+
 ## [3.10.1] - 2026-11-26
 
 ### Added
