@@ -88,7 +88,9 @@ class Rig:
             clock=lambda: 100.0,
             wall=lambda: 0.0,
             signal_group=self.signal,
-            stop_grace_s=0.01,
+            # Every fake process here ends on its first signal, but a run's session sees that only once it has read
+            # flutter's last words: 10 ms was too short on a busy machine, and a KILL followed the TERM.
+            stop_grace_s=5.0,
             source=self.read_source,
             projects=(self.toolchain,),
         )
