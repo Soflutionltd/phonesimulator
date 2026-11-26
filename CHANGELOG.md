@@ -6,6 +6,12 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.11.8] - 2026-11-26
+
+### Changed
+
+- A folder inside a repository is called by the repository and its own name (`courly · mobile`), a worktree's too.
+
 ## [3.11.7] - 2026-11-26
 
 ### Changed

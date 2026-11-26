@@ -121,7 +121,7 @@ async def open_flutter_run(sdk: FlutterSdk, args: Sequence[str], *, folder: Path
 
 
 async def flutter_version(sdk: FlutterSdk, *, runner: Runner | None = None) -> str | None:
-    """The Flutter version a flutter command says it is, with its Dart's -- ``3.41.5 (Dart 3.11.7)`` -- or None when
+    """The Flutter version a flutter command says it is, with its Dart's -- ``3.41.5 (Dart 3.11.8)`` -- or None when
     it does not answer."""
     if runner is None:
         rc, out = await run([str(sdk.path), "--version", "--machine"], timeout=VERSION_TIMEOUT_S)
