@@ -6,6 +6,13 @@ All notable changes to Simtrail are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.11.5] - 2026-11-26
+
+### Added
+
+- `device.template_days` (30 by default, 0 keeps them): a simulator template no device has been copied from for that
+  many days is deleted, and made again the next time a device of its runtime and type is asked for.
+
 ## [3.11.4] - 2026-11-26
 
 ### Fixed
