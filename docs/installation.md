@@ -75,7 +75,7 @@ uses it when the native helper cannot be used, and `connectors.preferred = "idb"
 The viewer is [on npm](https://www.npmjs.com/package/@soflution/rocketwright) as `@soflution/rocketwright`:
 
 ```sh
-npm install @soflution/rocketwright@3.12.0
+npm install @soflution/rocketwright@3.12.1
 ```
 
 See [the web component](embedding/web-component.md).

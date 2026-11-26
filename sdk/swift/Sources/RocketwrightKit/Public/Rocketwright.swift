@@ -9,7 +9,7 @@ import Foundation
 /// the server. Catalyst and Designed for iPad apps use Rocketwright's per-process Accessibility adapter.
 public enum Rocketwright {
     /// The version of Rocketwright this SDK came with.
-    public static let sdkVersion = "3.12.0"
+    public static let sdkVersion = "3.12.1"
 
     /// Posted on the main thread when a native macOS Debug app starts answering Rocketwright -- `userInfo["wanted"]` is
     /// `true` -- and when it stops (`false`). An app that embeds a web engine which builds its accessibility tree only

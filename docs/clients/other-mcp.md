@@ -5,7 +5,7 @@ Rocketwright is an MCP server over stdio. Any client that starts one and lists i
 | Field | Value |
 |---|---|
 | Command | `uvx` (or `rocketwright` if it is installed on `PATH`) |
-| Arguments | `--from rocketwright==3.12.0 rocketwright mcp` (or just `mcp`) |
+| Arguments | `--from rocketwright==3.12.1 rocketwright mcp` (or just `mcp`) |
 | Optional arguments | `--scope NAME` for a scope other than the folder's; `--root DIR`, repeatable, for the folders installs and builds may reach |
 | Environment | None needed |
 | Transport | stdio, newline-delimited JSON-RPC |

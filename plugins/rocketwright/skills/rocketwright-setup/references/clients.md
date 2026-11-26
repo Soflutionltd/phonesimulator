@@ -6,7 +6,7 @@ agent to that Mac. Use the host's supported local integration; keep the relay lo
 - **Claude plugin:** `/plugin marketplace add Soflutionltd/rocketwright`, then
   `/plugin install rocketwright@rocketwright`. It bundles MCP, four skills and `/rocketwright:open`. Update marketplace
   and plugin through `/plugin`, then reconnect/start a fresh session. Auto-update depends on client settings.
-- **Other stdio clients:** configure `uvx` with arguments `--from`, `rocketwright==3.12.0`, `rocketwright`, `mcp`.
+- **Other stdio clients:** configure `uvx` with arguments `--from`, `rocketwright==3.12.1`, `rocketwright`, `mcp`.
   Preserve unrelated settings. Append `--scope`, scope id, `--root`, absolute project path if needed. Configure
   supported call timeouts or use bounded build polling.
 - **Portable skills:** install all four directories from `plugins/rocketwright/skills` at the MCP release version,

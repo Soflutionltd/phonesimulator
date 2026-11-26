@@ -3,7 +3,7 @@
   "name": "io.github.Soflutionltd/rocketwright",
   "title": "Rocketwright",
   "description": "Drive iOS Simulators, iPhones, Android devices and macOS apps: UI snapshots, live viewer, recording.",
-  "version": "3.12.0",
+  "version": "3.12.1",
   "websiteUrl": "https://github.com/Soflutionltd/rocketwright#readme",
   "repository": {
     "url": "https://github.com/Soflutionltd/rocketwright",
@@ -14,7 +14,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "rocketwright",
-      "version": "3.12.0",
+      "version": "3.12.1",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

@@ -6,6 +6,25 @@ All notable changes to Rocketwright -- called Simtrail until 3.12.0 -- are docum
 
 ## [Unreleased]
 
+## [3.12.1] - 2026-11-26
+
+### Added
+
+- One simulator for every session of a project. A git worktree whose main checkout runs no device used to get a blank
+  simulator of its own; now the first worktree's device is remembered for the main checkout, so every other worktree
+  of the repository, and the main checkout itself, lands on it. A worktree that already had a device gives it to a
+  main checkout that has none. `rocketwright open` in a worktree shows the project's simulator too, as `rocketwright
+  mcp` and `rocketwright login` did.
+- The viewer says when other projects share its device: a "Shared · 3 projects" chip, naming the others on hover.
+  A device's status carries `projects`, the names of the projects using it.
+
+### Fixed
+
+- `rocketwright stop` lets go of a device the scope joined by UDID (`rocketwright open --device`) as well as its own:
+  a scope that only joined another's device used to keep holding it, and say no device was running.
+- A simulator Rocketwright made that was already running when its project's name was learned takes that name at
+  once, instead of keeping the scope's id (or Simtrail's prefix) until it next starts.
+
 ## [3.12.0] - 2026-11-26
 
 ### Changed
