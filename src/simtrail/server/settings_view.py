@@ -84,6 +84,7 @@ def settings_view(
     access = access_of(editor)
     return {
         "scope": scope.id,
+        "label": scope.label,
         "access": access,
         "notice": copy.settings_read_only() if access == "read" else None,
         "sections": [{"id": section.id, "title": section.title, "doc": section.doc} for section in schema.SECTIONS],

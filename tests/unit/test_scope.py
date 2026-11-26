@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from simtrail.scope import LABEL_MAX, STANDALONE_GROUP, InvalidScope, Scope
+from simtrail.scope import LABEL_MAX, STANDALONE_GROUP, InvalidScope, Scope, project_name
 
 
 def test_a_scope_takes_a_url_safe_id_a_group_and_a_one_line_label() -> None:
@@ -53,3 +53,41 @@ def test_a_folder_whose_name_has_nothing_usable_still_gets_a_scope(tmp_path: Pat
     odd.mkdir()
     assert Scope.for_folder(odd).id.startswith("project-project-")
     assert Scope.for_folder(Path("/")).label == "root"
+
+
+def test_a_folders_label_is_its_projects_name_and_a_worktrees_is_its_repositorys(tmp_path: Path) -> None:
+    repository = tmp_path / "Notes"
+    (repository / ".git" / "worktrees" / "fix-login").mkdir(parents=True)
+    worktree = tmp_path / "worktrees" / "fix-login"
+    worktree.mkdir(parents=True)
+    (worktree / ".git").write_text(f"gitdir: {repository / '.git' / 'worktrees' / 'fix-login'}\n")
+    plain = Scope.for_folder(repository)
+    copy = Scope.for_folder(worktree)
+    assert (plain.label, copy.label) == ("Notes", "Notes")
+    assert copy.id.startswith("project-fix-login-"), "the id keeps the folder's own name: devices are remembered by it"
+    relative = tmp_path / "Notes" / "nested"
+    relative.mkdir()
+    (relative / ".git").write_text("gitdir: ../.git/worktrees/fix-login\n")
+    assert project_name(relative) == "Notes"
+
+
+@pytest.mark.parametrize("marker", ["gitdir: /somewhere/else/.git", "not a gitdir line", None])
+def test_a_folder_that_is_not_a_worktree_is_called_by_its_own_name(tmp_path: Path, marker: str | None) -> None:
+    folder = tmp_path / "app"
+    folder.mkdir()
+    if marker is not None:
+        (folder / ".git").write_text(marker)
+    assert project_name(folder) == "app"
+    assert project_name(Path("/")) == "root"
+
+
+def test_an_unreadable_git_file_leaves_the_folders_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    folder = tmp_path / "app"
+    folder.mkdir()
+    (folder / ".git").write_text("gitdir: x")
+
+    def refuse(self: Path, encoding: str = "") -> str:
+        raise PermissionError("no")
+
+    monkeypatch.setattr(Path, "read_text", refuse)
+    assert project_name(folder) == "app"

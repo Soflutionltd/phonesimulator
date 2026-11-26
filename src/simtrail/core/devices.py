@@ -341,7 +341,12 @@ class DeviceDirectory:
             device = next((d for d in await simctl.devices() if d.udid == remembered and d.available), None)
             if device is not None:
                 created = device.udid in self.memory.created(scope)
-                return DeviceRef(device.udid, device.name, runtime_label(device.runtime_id), created=created)
+                name = device.name
+                # Only by a name a person reads -- a scope known by its id alone would undo another's name -- and
+                # only a device this scope alone holds: two scopes sharing one would rename it back and forth.
+                if created and scope.label != scope.id and self._held_alone(device.udid, scope):
+                    name = await self._renamed(simctl, device, device_name(config.device_name_prefix, scope, shared))
+                return DeviceRef(device.udid, name, runtime_label(device.runtime_id), created=created)
         runtime = pick_runtime(await simctl.runtimes(), config.runtime)
         if runtime is None:
             raise NoDevice(self._copy.no_runtime(config.runtime))
@@ -356,6 +361,24 @@ class DeviceDirectory:
         udid = await self._new_device(simctl, name, runtime, kind, config)
         self.memory.remember_created(scope, shared, udid)
         return DeviceRef(udid, name, runtime.name, created=True)
+
+    def _held_alone(self, udid: str, scope: Scope) -> bool:
+        """Whether no scope but this one remembers the device -- unknown, and so not, under a memory that cannot say."""
+        return isinstance(self.memory, CreatedDevices) and self.memory.holders(udid) <= memory_keys(scope)
+
+    async def _renamed(self, simctl: Simctl, device: Device, wanted: str) -> str:
+        """The name of a device Simtrail made, given the one it would make it with now when it has another -- as a
+        project's name read from its folder replaces the id it was once called by. A rename simctl refuses leaves the
+        old one; a device a person made is never asked about."""
+        if device.name == wanted:
+            return device.name
+        try:
+            await simctl.rename(device.udid, wanted)
+        except DeviceControlError as exc:
+            logger.warning("could not rename the simulator %s to %s: %s", device.name, wanted, exc)
+            return device.name
+        logger.info("renamed the simulator %s to %s", device.name, wanted)
+        return wanted
 
     async def _new_device(
         self, simctl: Simctl, name: str, runtime: Runtime, kind: DeviceType, config: SimConfig

@@ -171,3 +171,28 @@ def test_choosing_forgetting_and_a_file_that_cannot_be_read(tmp_path: Path) -> N
     stored.write_text("[1]")
     assert memory.assigned(SCOPE, False) is None
     assert DeviceDirectory(memory).memory is memory
+
+
+async def test_a_device_simtrail_made_takes_the_name_it_would_be_made_with_now(
+    tmp_path: Path, made: FakeXcrun, caplog: pytest.LogCaptureFixture
+) -> None:
+    found = directory(tmp_path)
+    found.memory.remember_created(SCOPE, False, BOOTED_UDID)
+    ref = await found.resolve(Simctl(made), SCOPE, config())
+    assert ref == DeviceRef(BOOTED_UDID, "Simtrail · alpha · tp-1", "iOS 26.5", created=True)
+    assert made.argv()[-1] == ("simctl", "rename", BOOTED_UDID, "Simtrail · alpha · tp-1")
+    made.on("simctl", "rename", rc=1, err="Unable to rename")
+    kept = await found.resolve(Simctl(made), SCOPE, config())
+    assert kept.name == "iPhone 17 Pro" and "could not rename the simulator iPhone 17 Pro" in caplog.text
+
+
+async def test_a_device_is_never_renamed_for_a_scope_known_by_its_id_alone_nor_one_a_person_made(
+    tmp_path: Path, made: FakeXcrun
+) -> None:
+    found = directory(tmp_path)
+    unnamed = Scope.named("project-notes-1a2b3c4d")
+    found.memory.remember_created(unnamed, False, BOOTED_UDID)
+    assert (await found.resolve(Simctl(made), unnamed, config())).name == "iPhone 17 Pro"
+    found.memory.choose(OTHER, False, BOOTED_UDID)
+    assert (await found.resolve(Simctl(made), OTHER, config())).name == "iPhone 17 Pro"
+    assert not any(args[1] == "rename" for args in made.argv())

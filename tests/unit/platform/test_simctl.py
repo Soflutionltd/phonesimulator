@@ -262,3 +262,9 @@ def test_a_runtime_id_reads_as_a_person_says_it_and_a_udid_is_recognised() -> No
     assert runtime_label("com.apple.CoreSimulator.SimRuntime.xrOS-2-0") == "xrOS 2.0"
     assert runtime_label("custom") == "custom"
     assert is_udid(UDID) and not is_udid("nope") and not is_udid(3)
+
+
+async def test_a_device_is_renamed_by_its_udid_and_a_name_with_spaces_is_one_argument() -> None:
+    simctl, fake = make()
+    await simctl.rename(UDID, "Simtrail · Notes app")
+    assert fake.calls[-1].args == ("simctl", "rename", UDID, "Simtrail · Notes app")

@@ -6,12 +6,14 @@ Simtrail knows nothing about the application embedding it. A standalone install 
 device is kept per scope (``device.mode = "per_scope"``) or one per group (``"shared"``).
 
 A scope's id is safe in a URL path segment and a file name: letters, digits and ``_ . : -``, starting with a letter or
-digit, at most 128 characters.
+digit, at most 128 characters. Its label is what a person reads -- in a tab's title, a simulator's name -- and for a
+folder it is the project's name: a git worktree's is its repository's, not the worktree's own folder (`project_name`).
 """
 
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,6 +35,22 @@ def _slug(text: str) -> str:
 
 def _one_line(text: str) -> str:
     return " ".join(text.split())[:LABEL_MAX]
+
+
+def project_name(folder: Path) -> str:
+    """What a person calls the project in `folder`: the folder's name -- or, for a git worktree, its repository's, so a
+    worktree named after a branch reads as the project it is a copy of. Read from the worktree's ``.git`` file, which
+    names ``<repository>/.git/worktrees/<name>``; no git is run."""
+    marker = folder / ".git"
+    try:
+        text = marker.read_text(encoding="utf-8") if marker.is_file() else ""
+    except OSError:
+        text = ""
+    if text.startswith("gitdir:"):
+        gitdir = Path(os.path.normpath(folder / text.removeprefix("gitdir:").strip()))
+        if gitdir.parent.name == "worktrees" and gitdir.parent.parent.name == ".git":
+            return gitdir.parents[2].name or folder.name
+    return folder.name or "root"
 
 
 @dataclass(frozen=True)
@@ -64,4 +82,5 @@ class Scope:
         real = folder.resolve()
         digest = hashlib.blake2b(str(real).encode("utf-8"), digest_size=4).hexdigest()
         name = real.name or "root"
-        return cls(id=f"project-{_slug(name)}-{digest}", group=STANDALONE_GROUP, label=_one_line(name))
+        # The id keeps the folder's own name, as it always has: a device and its settings are remembered by it.
+        return cls(id=f"project-{_slug(name)}-{digest}", group=STANDALONE_GROUP, label=_one_line(project_name(real)))

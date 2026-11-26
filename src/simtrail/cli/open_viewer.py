@@ -40,7 +40,9 @@ def run(args: argparse.Namespace, ctx: CliContext) -> int:
         # Not found -- refused, as one line -- when the project could not use it.
         client.get(f"/api/v1/scopes/{scope.id}?udid={quote(args.device, safe='')}")
         place = "?" + urlencode({"device": args.device})
-    made = client.post("/api/v1/admin/login-codes", {"scope": scope.id, "settings": args.settings})
+    made = client.post(
+        "/api/v1/admin/login-codes", {"scope": scope.id, "settings": args.settings, "label": scope.label}
+    )
     path, _, fragment = str(made["url"]).partition("#")
     url = f"{client.url}{path}{place}#{fragment}"
     if args.print_url or not ctx.open_url(url):

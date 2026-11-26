@@ -48,6 +48,7 @@ from simtrail.daemon.auth import (
 )
 from simtrail.daemon.passes import ViewerSessions
 from simtrail.daemon.pauses import PAUSE_MAX_S
+from simtrail.daemon.scope_names import SCOPE_NAMES_FILE, ScopeNames
 from simtrail.daemon.tokens import TokenStore
 from simtrail.mcp.launcher import SCOPE_ENV, TOKEN_ENV, URL_ENV
 from simtrail.platform.device_data import devices_dir
@@ -1017,3 +1018,27 @@ async def test_revoking_an_agent_s_token_lets_go_of_the_device_it_drove(tmp_path
         assert instance.driver.key == record.id
         await http.delete(f"/api/v1/admin/tokens/{record.id}", headers=here.admin)
         assert instance.driver is None, "an agent started again is not kept off its own device"
+
+
+async def test_a_scope_is_called_by_the_name_its_folder_gave_it_in_settings_and_for_its_simulator(
+    tmp_path: Path,
+) -> None:
+    here = site(tmp_path, settings=True)
+    folder = tmp_path / "Notes"
+    folder.mkdir()
+    project = Scope.for_folder(folder)
+    async with here.http() as http:
+        unnamed = await http.get("/api/v1/scopes/tp-1/settings", headers=here.admin)
+        assert unnamed.json()["data"]["label"] == "tp-1", "never named: called by its id"
+        # `simtrail open` names the scope it opens.
+        await session(here, http, label="Notes app")
+        named = await http.get("/api/v1/scopes/tp-1/settings", headers=here.admin)
+        assert named.json()["data"]["label"] == "Notes app" and here.daemon.names.name("tp-1") == "Notes app"
+        # An agent token made for folders names the scopes they are.
+        await here.token(http, "agent", project.id, roots=[str(folder)])
+        assert here.daemon.names.name(project.id) == "Notes"
+        await here.started(http)
+    instance = here.daemon.runtime.manager.instance(TP1)
+    assert instance is not None and instance.name.endswith("· Notes app"), instance.name
+    # Kept beside the tokens: a restart still knows the names.
+    assert ScopeNames(here.daemon.tokens.path.with_name(SCOPE_NAMES_FILE)).name("tp-1") == "Notes app"

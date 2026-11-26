@@ -109,19 +109,24 @@ class TokenAuthenticator:
         tokens: TokenStore,
         viewers: ViewerSessions,
         own_origins: Callable[[], frozenset[str]] = frozenset,
+        *,
+        names: Callable[[str], str | None] = lambda scope_id: None,
     ) -> None:
         self._tokens = tokens
         self._viewers = viewers
         self._own_origins = own_origins
+        #: What a scope is called, when what knows its folder named it (`daemon.scope_names`).
+        self._names = names
 
     def scope(self, scope_id: str, *, status: int = 404) -> Scope:
-        """A scope by id, in its host's group when a host's namespace has it."""
+        """A scope by id, called by the name it was given, in its host's group when a host's namespace has it."""
         scope = scope_named(scope_id, status=status)
+        label = self._names(scope.id) or scope.label
         host = self._tokens.host_of(scope.id)
         if host is None:
-            return scope
+            return Scope(scope.id, scope.group, label)
         group = next(namespace for namespace in host.namespaces if scope.id.startswith(f"{namespace}:"))
-        return Scope(scope.id, group, scope.label)
+        return Scope(scope.id, group, label)
 
     def _record(self, headers: Mapping[str, str]) -> tuple[str, TokenRecord | None]:
         token = presented_token(headers)

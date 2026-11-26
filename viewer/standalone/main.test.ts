@@ -172,7 +172,7 @@ describe('a tab of its own device', () => {
     await flush()
     expect(replaceState).toHaveBeenCalledWith(null, '', '/viewer/demo?device=U2')
     expect(asked).toContain('POST /api/v1/scopes/demo?udid=U2')
-    expect(titles).toEqual(['demo · Simtrail', 'iPhone Air · demo · Simtrail'])
+    expect(titles).toEqual(['demo · Simtrail', 'demo · iPhone Air'])
     FakeSocket.last().open()
 
     const picker = async () => {
@@ -185,7 +185,7 @@ describe('a tab of its own device', () => {
     await flush()
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/viewer/demo')
     expect(asked.at(-1)).toBe('POST /api/v1/scopes/demo')
-    expect(titles.at(-1)).toBe('iPhone 17 Pro · demo · Simtrail')
+    expect(titles.at(-1)).toBe('demo · iPhone 17 Pro')
     FakeSocket.last().open()
 
     await picker()
@@ -215,6 +215,16 @@ describe('start', () => {
     expect(view).not.toBeNull()
     expect(document.title).toBe('demo · Simtrail')
     view!.destroy()
+    // A scope the server knows the name of is called by it: the project's name, not its id.
+    const meta = document.createElement('meta')
+    meta.name = 'simtrail-project'
+    meta.content = 'Sociomator'
+    document.head.appendChild(meta)
+    window.history.replaceState(null, '', '/viewer/demo#code=c0de')
+    const named = await start()
+    expect(document.title).toBe('Sociomator · Simtrail')
+    named!.destroy()
+    meta.remove()
   })
 })
 

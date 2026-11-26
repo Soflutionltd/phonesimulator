@@ -260,6 +260,10 @@ class Simctl:
     async def delete(self, udid: str) -> None:
         await self._run("delete", _udid(udid), timeout=60.0)
 
+    async def rename(self, udid: str, name: str) -> None:
+        """Give a device another name in Xcode's list; what it holds is untouched."""
+        await self._run("rename", _udid(udid), _text(name, "device name"), timeout=30.0)
+
     # -- apps and the screen ------------------------------------------------------------------------------------------
 
     async def install(self, udid: str, app_path: str) -> None:

@@ -311,10 +311,14 @@ def test_open_starts_the_daemon_and_opens_the_viewer_without_printing_the_code(t
     assert printing.said() == ["http://127.0.0.1:7466/viewer/demo#code=c0de"]
     no_browser = Terminal(tmp_path / "no-browser", browser=False)
     assert no_browser("open", "--scope", "demo") == 0 and no_browser.said() == [no_browser.opened[0]]
-    assert here.daemon.made("POST", "/api/v1/admin/login-codes") == [{"scope": "demo", "settings": False}]
+    assert here.daemon.made("POST", "/api/v1/admin/login-codes") == [
+        {"scope": "demo", "settings": False, "label": "demo"}
+    ]
     settings = Terminal(tmp_path / "settings")
     assert settings("open", "--scope", "demo", "--settings") == 0
-    assert settings.daemon.made("POST", "/api/v1/admin/login-codes") == [{"scope": "demo", "settings": True}]
+    assert settings.daemon.made("POST", "/api/v1/admin/login-codes") == [
+        {"scope": "demo", "settings": True, "label": "demo"}
+    ]
 
 
 def test_open_with_a_device_opens_a_tab_on_that_device_once_the_project_could_use_it(tmp_path: Path) -> None:

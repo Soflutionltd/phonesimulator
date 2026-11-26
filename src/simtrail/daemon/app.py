@@ -50,13 +50,14 @@ from simtrail.daemon.lease import LEASE_S, Leases
 from simtrail.daemon.passes import CODE_TTL_S, VIEWER_SESSIONS_FILE, OneShotCodes, ViewerSessions, ttl_of
 from simtrail.daemon.pauses import PAUSE_MAX_S, Pauses
 from simtrail.daemon.policy import ConfigPolicy
+from simtrail.daemon.scope_names import SCOPE_NAMES_FILE, ScopeNames
 from simtrail.daemon.tokens import TokenRecord, TokenRefused, TokenStore
 from simtrail.host_copy import HostCopy
 from simtrail.platform.errors import DeviceControlError
 from simtrail.platform.passwords import Credentials
 from simtrail.platform.xcrun import XcrunRunner, run_xcrun
 from simtrail.protocol import PROTOCOL_VERSION, SERVER
-from simtrail.scope import Scope
+from simtrail.scope import LABEL_MAX, Scope
 from simtrail.seams import ConfigSource, DeviceMemory, Refused, SettingsStore, StateStore
 from simtrail.server import log_redaction
 from simtrail.server.agent_routes import create_agent_router
@@ -79,6 +80,8 @@ BAD_CODE = "invalid or expired code"
 
 class LoginCodeRequest(BaseModel):
     scope: str = Field(min_length=1, max_length=128)
+    #: What a person calls the scope -- its project's name -- shown instead of its id (`daemon.scope_names`).
+    label: str = Field(default="", max_length=LABEL_MAX)
     #: Open a session that may change settings, rather than only read them.
     settings: bool = False
 
@@ -142,6 +145,8 @@ class Daemon:
     #: Where the settings panel reads and writes settings; without one, it is not served.
     settings: SettingsStore | None = None
     confirmations: PendingChanges = field(default_factory=PendingChanges)
+    #: What each scope is called: its project's name, as what knows its folder told it.
+    names: ScopeNames = field(default_factory=lambda: ScopeNames(None))
 
     def site_rules(self) -> SiteRules:
         """Who the server answers to, from the settings as they are now."""
@@ -200,6 +205,7 @@ def build_daemon(
         codes=OneShotCodes(clock=clock),
         # Beside the admin token: a restart of the same install lets its open pages in again.
         viewers=ViewerSessions(clock=clock, path=tokens.path.with_name(VIEWER_SESSIONS_FILE)),
+        names=ScopeNames(tokens.path.with_name(SCOPE_NAMES_FILE)),
         static_dir=static_dir,
         settings=settings,
         confirmations=PendingChanges(clock=clock),
@@ -225,7 +231,9 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         title="Simtrail", version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
     )
     app.add_middleware(SecurityMiddleware, rules=daemon.site_rules)
-    auth = TokenAuthenticator(daemon.tokens, daemon.viewers, lambda: daemon.site_rules().own_origins)
+    auth = TokenAuthenticator(
+        daemon.tokens, daemon.viewers, lambda: daemon.site_rules().own_origins, names=daemon.names.name
+    )
 
     def source() -> Runtime:
         return daemon.runtime
@@ -238,7 +246,7 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
             source, daemon.settings, auth, confirmations=daemon.confirmations, daemon_scope=SERVER_SCOPE
         )
         app.include_router(settings, prefix=SCOPES + "/settings")
-    app.include_router(create_page_router(daemon.static_dir))
+    app.include_router(create_page_router(daemon.static_dir, name_of=daemon.names.name))
 
     def admin(request: Request) -> None:
         try:
@@ -437,6 +445,8 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         asked for with ``settings``."""
         admin(request)
         scope = named(body.scope)
+        if body.label:
+            daemon.names.remember(scope.id, body.label)
         code = daemon.codes.mint(scope.id, "settings" if body.settings else "viewer")
         return ok({"code": code, "url": f"/viewer/{scope.id}#code={code}", "expires_in_s": CODE_TTL_S})
 
@@ -480,6 +490,7 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
             record, token = daemon.tokens.create(body.kind, body.scopes, label=body.label, roots=body.roots)
         except TokenRefused as exc:
             raise HTTPException(400, str(exc)) from exc
+        daemon.names.remember_folders(body.scopes, body.roots)
         return ok({**record.public(), "token": token})
 
     @app.get(ADMIN + "/tokens")

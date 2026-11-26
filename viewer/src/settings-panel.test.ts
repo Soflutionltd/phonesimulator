@@ -62,6 +62,15 @@ afterEach(() => {
 })
 
 describe('the settings panel', () => {
+  it('names the project by its name, its id on hover, and by its id when it was never named', async () => {
+    const named = await opened({ settings: vi.fn(async () => settingsView({ scope: 'project-app-1a2b', label: 'Sociomator' })) })
+    expect([named.$('.smv-settings-scope').textContent, named.$<HTMLElement>('.smv-settings-scope').title])
+      .toEqual(['Sociomator', 'project-app-1a2b'])
+    document.body.innerHTML = ''
+    const unnamed = await opened({ settings: vi.fn(async () => settingsView({ scope: 'project-app-1a2b', label: '' })) })
+    expect(unnamed.$('.smv-settings-scope').textContent).toBe('project-app-1a2b')
+  })
+
   it('opens over the screen with a tab per section, the first chosen and focused, holding input back', async () => {
     const { settings, panel, toggle, layers, tabs, selected, $, $$ } = await opened()
     expect([settings.isOpen, panel.hidden, toggle.getAttribute('aria-expanded'), layers.open]).toEqual([true, false, 'true', true])
@@ -69,6 +78,7 @@ describe('the settings panel', () => {
     expect(selected()).toBe('General')
     expect(document.activeElement).toBe(tabs()[0])
     expect($('.smv-settings-scope').textContent).toBe('demo')
+    expect($<HTMLElement>('.smv-settings-scope').title).toBe('demo')
     expect(panel.getAttribute('aria-labelledby')).toBe($('.smv-settings-title').id)
     const panes = $$<HTMLElement>('[role="tabpanel"]')
     expect(panes.map((pane) => pane.hidden)).toEqual([false, true, true])

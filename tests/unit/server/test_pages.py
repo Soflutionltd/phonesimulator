@@ -60,3 +60,16 @@ async def test_a_page_names_its_assets_with_this_installs_version_so_no_older_sc
         f'<script type="module" src="/viewer-assets/start.js?v={__version__}"></script>'
         f'<link href="/viewer-assets/s.css?v={__version__}"><a href="/elsewhere/x.js">'
     )
+
+
+async def test_a_named_scopes_page_carries_its_name_made_safe_for_its_title(tmp_path: Path) -> None:
+    (tmp_path / "index.html").write_text("<html><head><title>Simtrail</title></head><body></body></html>")
+    names = {"project-notes-1a2b3c4d": 'Notes "beta" <app>'}
+    app = FastAPI()
+    app.include_router(create_page_router(tmp_path, name_of=names.get))
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=f"http://{HOST}") as http:
+        named = await http.get("/viewer/project-notes-1a2b3c4d")
+        unnamed = await http.get("/viewer/tp-1")
+    assert '<meta name="simtrail-project" content="Notes &quot;beta&quot; &lt;app&gt;" />' in named.text
+    assert named.text.index("simtrail-project") < named.text.index("</head>")
+    assert "simtrail-project" not in unnamed.text

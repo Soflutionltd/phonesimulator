@@ -41,6 +41,8 @@ export interface PageEnv {
   title(text: string): void
   /** Told the language the page speaks, by its tag, as it starts and whenever it changes. */
   lang?(tag: string): void
+  /** What the page's scope is called -- its project's name, from the page's `simtrail-project` meta -- if anything. */
+  project?: string | null
 }
 
 /** Which page this is, for which scope, the code or ticket that lets it in, and the device it shows. */
@@ -104,7 +106,9 @@ export async function boot(root: HTMLElement, env: PageEnv): Promise<ViewHandle 
   } catch (error) {
     return notice(root, `${(error as Error).message}. ${again}`)
   }
-  let titled = `${place.scope} · Simtrail`
+  // The project's name when the server knows it, its id otherwise.
+  const project = env.project || place.scope
+  let titled = `${project} · Simtrail`
   env.title(titled)
   const view = createViewer(root, {
     transport: createHttpTransport({
@@ -115,7 +119,7 @@ export async function boot(root: HTMLElement, env: PageEnv): Promise<ViewHandle 
     device: place.device,
     // A tab says which device it shows, so two tabs side by side are told apart.
     onState: ({ device }) => {
-      const next = device ? `${device.name} · ${place.scope} · Simtrail` : titled
+      const next = device ? `${project} · ${device.name}` : titled
       if (next !== titled) env.title((titled = next))
     },
     onDevice: (udid) => env.history.replaceState(null, '', addressOf(pathname, udid)),
@@ -139,5 +143,6 @@ export function start(doc: Document = document, win: Window = window): Promise<V
     lang: (tag) => {
       doc.documentElement.lang = tag
     },
+    project: doc.querySelector('meta[name="simtrail-project"]')?.getAttribute('content') ?? null,
   })
 }

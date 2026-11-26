@@ -1124,6 +1124,8 @@ class SettingsView(TypedDict):
     """Every setting as a scope sees it, grouped into sections, and what the asker may do with them.
     """
     scope: str
+    #: What a person calls the scope -- its project's name -- or its id when it was never named.
+    label: str
     access: SettingsAccess
     #: What the asker should know before changing anything -- such as how to open settings that may be changed -- or
     #: null.

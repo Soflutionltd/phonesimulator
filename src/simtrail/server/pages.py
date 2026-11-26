@@ -6,12 +6,15 @@ A page gets in with the code or ticket in its URL's fragment (`daemon.passes`), 
 are never cached -- a new install's viewer is the one shown -- and an install without a bundle says so rather than
 serving a blank page. Assets are the bundle's own files, by name, at ``/viewer-assets/<name>``: a page names them with
 this install's version (``?v=3.10.0``), and they are served to be checked again before each use, so a browser that kept
-an older install's script loads this one's.
+an older install's script loads this one's. A page whose scope was named carries the name in a
+``<meta name="simtrail-project">``, for its title: the project's name, not its id (`daemon.scope_names`).
 """
 
 from __future__ import annotations
 
+import html as markup
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -36,7 +39,13 @@ NO_SUCH_SCOPE = "<!doctype html><meta charset=utf-8><title>Simtrail</title><p>Th
 _ASSET_NAME = re.compile(r"\A[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}\Z")
 
 
-def create_page_router(static_dir: Path | None = STATIC_VIEWER) -> APIRouter:
+#: The meta tag a page's scope name goes in, read by the standalone viewer for its title.
+PROJECT_META = "simtrail-project"
+
+
+def create_page_router(
+    static_dir: Path | None = STATIC_VIEWER, *, name_of: Callable[[str], str | None] = lambda scope_id: None
+) -> APIRouter:
     router = APIRouter()
 
     def page(name: str, scope_id: str) -> Response:
@@ -48,6 +57,10 @@ def create_page_router(static_dir: Path | None = STATIC_VIEWER) -> APIRouter:
         # Each asset named with this install's version: a browser never runs an older install's script with it.
         html = path.read_text(encoding="utf-8")
         html = re.sub(rf'({re.escape(ASSETS)}[A-Za-z0-9_.-]+)(?=")', rf"\1?v={__version__}", html)
+        project = name_of(scope_id)
+        if project:
+            meta = f'<meta name="{PROJECT_META}" content="{markup.escape(project, quote=True)}" />'
+            html = html.replace("</head>", f"    {meta}\n  </head>", 1)
         return HTMLResponse(html, headers=NO_STORE)
 
     @router.get("/viewer/{scope_id}")

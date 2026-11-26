@@ -23,6 +23,7 @@ export function entry(path: string, overrides: Partial<SettingEntry> = {}): Sett
 export function settingsView(overrides: Partial<SettingsView> = {}): SettingsView {
   return {
     scope: 'demo',
+    label: 'demo',
     access: 'write',
     notice: null,
     sections: [

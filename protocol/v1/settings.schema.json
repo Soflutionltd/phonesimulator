@@ -144,6 +144,10 @@
       "type": "object",
       "properties": {
         "scope": { "type": "string" },
+        "label": {
+          "type": "string",
+          "description": "What a person calls the scope -- its project's name -- or its id when it was never named."
+        },
         "access": { "$ref": "#/$defs/SettingsAccess" },
         "notice": {
           "type": ["string", "null"],
@@ -152,7 +156,7 @@
         "sections": { "type": "array", "items": { "$ref": "#/$defs/SettingsSection" } },
         "settings": { "type": "array", "items": { "$ref": "#/$defs/SettingEntry" } }
       },
-      "required": ["scope", "access", "notice", "sections", "settings"]
+      "required": ["scope", "label", "access", "notice", "sections", "settings"]
     },
     "SettingValueChange": {
       "type": "object",

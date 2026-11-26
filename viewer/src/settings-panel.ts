@@ -137,7 +137,10 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     name(close, t, 'settings.close')
     close.innerHTML = icon('close')
     close.addEventListener('click', () => popover.close('api'))
-    header.append(title, make('span', 'smv-settings-scope', next.scope), close)
+    // The project's name, with its id on hover: what a person reads, and what a command names.
+    const scope = make('span', 'smv-settings-scope', next.label || next.scope)
+    scope.title = next.scope
+    header.append(title, scope, close)
 
     const tablist = make('div', 'smv-tabs')
     tablist.setAttribute('role', 'tablist')
