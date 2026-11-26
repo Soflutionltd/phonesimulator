@@ -2,7 +2,11 @@
 
 # Rocketwright
 
-**Mirror and drive iOS Simulators, real iPhones and Android devices from Claude Code, CLI agents and the browser.**
+**Playwright stops at the browser. Rocketwright puts the whole phone in your AI agent's hands.**
+
+iOS Simulators, real iPhones and iPads, Android emulators and phones, and macOS apps -- driven by Claude Code, Codex,
+Cursor or any MCP agent, watched live in a browser tab, at the speed of a few milliseconds a step. One tool, every
+device, no glue.
 
 *Formerly Simtrail: the `simtrail` command still works, and an existing install is taken up as it is.*
 
@@ -14,17 +18,45 @@
   alt="A Claude Code session driving a calendar app on an iPhone 17 simulator in the viewer: it opens an event, scrolls
 through its notes, then fills in and saves a new one, the agent's cursor gliding to each spot before it taps">
 
+## Fast where an agent feels it
 
-A live iOS Simulator -- or your own iPhone, over its cable, or an Android emulator or phone -- in any browser tab or
-web page, an animated cursor that
-shows exactly what your AI agent is about to tap, and token-efficient UI snapshots so agents read the screen as compact
-text instead of screenshots. Record any screen as an MP4 or a GIF for a pull request. Works with Claude Code, Codex,
-Cursor and any other MCP client.
+Measured on an Apple Silicon Mac with an iOS 26.5 simulator, Rocketwright 3.11 (November 2026):
 
+| What the agent does | Time | Calls |
+|---|---|---|
+| Act, then read the screen that resulted | **41 ms** | 1 -- the answer carries the new screen |
+| First screen of a session | **57 ms** | the device is attached while the agent is still thinking |
+| Launch an app and read its real first screen | **~2 s** | 1 -- not the splash screen, the app |
+| A new project's own simulator, ready | **17 s** | copied from a booted template instead of 31 s from blank |
+| Hot reload of a Flutter change on the device | **~1 s** | each compile error as `file:line` |
+| The viewer, after the daemon restarts | **4.4 s** | back by itself, no click |
+
+Snapshots are a few lines of text -- `e2 button "General" (201,319)` -- instead of screenshots, so an agent spends a
+fraction of the tokens to read a screen, and reaches for a picture only when a question is visual.
+
+## Everything, in one tool
+
+| | Rocketwright | Playwright | Maestro | mobile-mcp |
+|---|:---:|:---:|:---:|:---:|
+| iOS Simulator apps | ✅ | ❌ browsers only | ✅ | ✅ |
+| Real iPhones and iPads | ✅ | ❌ | ❌ not yet supported | ✅ |
+| Android emulators and phones | ✅ | Chrome and WebView only, experimental | ✅ | ✅ |
+| macOS apps | ✅ | ❌ | -- | -- |
+| Live viewer in any browser tab, with the agent's cursor | ✅ | -- | ✅ | ✅ |
+| Builds, tests and installs (Xcode, Gradle, Flutter hot reload) | ✅ | -- | -- | -- |
+| Signs in from 1Password, Bitwarden or the Keychain; the agent never sees the password | ✅ | -- | -- | -- |
+| Reads a game or a canvas from its pixels | ✅ | -- | -- | -- |
+| Each project its own simulator; several agents at once, never on each other's device | ✅ | -- | -- | -- |
+| Records any flow as an MP4 or a GIF, every touch drawn in | ✅ | ✅ video | -- | -- |
+
+✅ documented · ❌ documented as unsupported · -- not documented. Checked against each project's own documentation on
+26 November 2026: [Playwright](https://playwright.dev/docs/api/class-android),
+[Maestro](https://github.com/mobile-dev-inc/maestro), [mobile-mcp](https://github.com/mobile-next/mobile-mcp).
+Something out of date? Open an issue and we fix it.
 
 ## Why Rocketwright
 
-- **See the simulator anywhere.** A live H.264 or JPEG stream in a Chrome tab, an iframe or a `<rocketwright>` web
+- **See the simulator anywhere.** A live H.264 or JPEG stream in a Chrome tab, an iframe or a `<rocket-wright>` web
   component, with touch, scrolling, typing, hardware buttons and light and dark mode.
 - **Watch what the agent does.** Every agent gesture is announced before it lands, and the viewer's cursor glides to
   the spot first -- so you can follow along, and step in: an agent waits for your hand to be still.
@@ -34,9 +66,8 @@ Cursor and any other MCP client.
   share its own views, so icon-only buttons and hand-drawn controls read by name.
 - **Test on a real iPhone.** Plug it in and it sits beside the simulators: live over the cable at up to 60 fps, touched
   and typed on from the browser or by an agent, and given back everything Rocketwright changed on it.
-- **Check connection recovery.** Open Control Center on a real iPhone to manage Wi-Fi and Bluetooth connections or
-  toggle airplane mode, then return to your app to check how it reconnects to a BLE or Wi-Fi accessory.
-  See [the connectivity workflow](docs/real-devices.md#connectivity-workflows).
+- **Type like a person, on any keyboard.** Text goes in as the real keys of the Mac's own layout -- AZERTY, QWERTZ,
+  US -- with no paste prompt, on iOS 26 and 27.
 - **Show what happened.** Record a flow as an MP4 or a GIF with every touch drawn in -- at 60 or 120 frames a second
   for a short animation, or only the part of the screen that matters -- and put it in a pull request.
 
