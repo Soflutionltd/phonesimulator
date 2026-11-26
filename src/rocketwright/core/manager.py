@@ -830,6 +830,27 @@ class DeviceManager:
         instance.state, instance.reason, instance.since = state, reason, self._clock()
         self.publish_status(instance)
 
+    async def name_again(self, scope: Scope) -> None:
+        """Give the simulator Rocketwright made for a scope, running now, the name it would be made with today -- once
+        the scope's project name is learned, after the device came up under its id. Only a running simulator this
+        scope's own, and Rocketwright's, is asked about (`DeviceDirectory.resolve` renames it when it may); one that
+        cannot be renamed keeps its name."""
+        instance = self.instance(scope)
+        if instance is None or not instance.live or not instance.created or instance.kind != "simulator":
+            return
+        config = self._config.get(scope)
+        if self._remembered(scope, config) != instance.udid:
+            # Resolving a scope that remembers another device could make one: never, just to rename.
+            return
+        try:
+            ref = await self.backend(instance.kind).resolve(scope, instance.udid, config)
+        except (NoDevice, DeviceControlError) as exc:
+            logger.warning("could not name the simulator %s again: %s", instance.udid, exc)
+            return
+        if ref.udid == instance.udid and ref.name != instance.name:
+            instance.name = ref.name
+            self.publish_status(instance)
+
     def publish_status(self, instance: DeviceInstance) -> None:
         """Tell every screen watching how the device stands now: its state, and what it is busy with."""
         instance.events.publish({"type": "status", **instance.describe(self._clock())})

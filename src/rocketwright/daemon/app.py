@@ -28,6 +28,7 @@ namespace never shares a device with a scope outside it.
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -448,6 +449,8 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         scope = named(body.scope)
         if body.label:
             daemon.names.remember(scope.id, body.label)
+            # A simulator that came up while the scope was known by its id alone takes its project's name now.
+            await daemon.runtime.manager.name_again(named(body.scope))
         code = daemon.codes.mint(scope.id, "settings" if body.settings else "viewer")
         return ok({"code": code, "url": f"/viewer/{scope.id}#code={code}", "expires_in_s": CODE_TTL_S})
 
@@ -493,6 +496,9 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         except TokenRefused as exc:
             raise HTTPException(400, str(exc)) from exc
         daemon.names.remember_folders(body.scopes, body.roots)
+        for scope_id in body.scopes:
+            with contextlib.suppress(HTTPException):  # a scope no person names, such as a host's namespace
+                await daemon.runtime.manager.name_again(named(scope_id))
         return ok({**record.public(), "token": token})
 
     @app.get(ADMIN + "/tokens")

@@ -24,6 +24,7 @@ from rocketwright.core.signing import SigningTeams
 from rocketwright.platform.errors import DeviceControlError
 from rocketwright.platform.keychain import Team
 from rocketwright.protocol import CLOSE_FORBIDDEN, CLOSE_RESTARTING, CLOSE_STOPPED, AppHierarchy
+from rocketwright.scope import Scope
 from rocketwright.storage.claims import Claims
 from rocketwright.testing.fakes import (
     BOOTED_UDID,
@@ -36,7 +37,7 @@ from rocketwright.testing.fakes import (
     fixture_udid,
     made,
 )
-from rocketwright.testing.rig import DeviceRig, closer_log, scope, settle
+from rocketwright.testing.rig import GROUP, DeviceRig, closer_log, scope, settle
 
 SHUTDOWN_UDID = fixture_udid("iPhone 17 Pro Max")
 TP1 = scope("tp-1")
@@ -1312,3 +1313,26 @@ async def test_a_main_checkout_with_no_device_is_given_the_one_a_worktree_alread
     assert rig.manager.inherit(worktree, TP1) is None, "it keeps its own"
     assert rig.manager.default_udid(TP1) == BOOTED_UDID
     assert rig.manager.inherit(scope("tp-3"), TP1) == BOOTED_UDID
+
+
+async def test_a_running_simulator_takes_its_projects_name_once_the_name_is_learned(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    unnamed = Scope(id="tp-1", group=GROUP, label="tp-1")
+    rig.manager.directory.memory.remember_created(unnamed, False, BOOTED_UDID)
+    running = await rig.manager.ensure(unnamed)
+    assert running.task is not None
+    await running.task
+    assert running.name == "iPhone 17 Pro", "known by its id alone, it keeps the name it has"
+    await rig.manager.name_again(Scope(id="tp-1", group=GROUP, label="Notes"))
+    assert running.name == "Rocketwright · Notes"
+    assert ("simctl", "rename", BOOTED_UDID, "Rocketwright · Notes") in rig.argv()
+    await rig.manager.name_again(scope("tp-9"))
+    assert sum(args[1] == "rename" for args in rig.argv()) == 1, "a scope running nothing renames nothing"
+
+
+async def test_a_simulator_a_person_made_is_never_renamed_by_a_name_learned(tmp_path: Path) -> None:
+    rig = DeviceRig(tmp_path)
+    rig.manager.directory.memory.choose(TP1, False, BOOTED_UDID)
+    running = await rig.up()
+    await rig.manager.name_again(Scope(id="tp-1", group=GROUP, label="Notes"))
+    assert running.name == "iPhone 17 Pro" and not any(args[1] == "rename" for args in rig.argv())
