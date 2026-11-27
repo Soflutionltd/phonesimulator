@@ -7,6 +7,12 @@ documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `sim_device list` only counts the simulators that are shut down, by runtime, instead of spelling each one out: on a
+  Mac with sixty of them the answer goes from about 7,000 characters to a few hundred. One PhoneSimulator made, one
+  in use, a running one, a real device and an Android device are always listed; `all: true` lists every simulator.
+
 ## [3.13.0] - 2026-11-27
 
 ### Changed

@@ -154,21 +154,29 @@ def choice_line(choice: DeviceChoice, chosen: bool, last_error: str | None = Non
     return " · ".join(parts)
 
 
-async def _listing(ctx: ToolContext) -> str:
+async def _listing(ctx: ToolContext, *, everything: bool = False) -> str:
+    """The devices an agent could use. Unless `everything` is asked for, a simulator that is shut down, that nobody
+    works on and that PhoneSimulator did not make is only counted, by runtime: a Mac lists dozens of them, and an
+    agent seldom wants one it has to boot first."""
     try:
         listed = await ctx.manager.devices(ctx.scope)
     except SimulatorUnavailable as exc:
         raise ToolRefused(str(exc)) from exc
     running = ctx.instance()
-    lines = [
-        choice_line(
-            choice,
-            running is not None and choice["udid"] == running.udid,
-            ctx.manager.last_error(choice["udid"]) if choice["kind"] != "simulator" else None,
-            _who(ctx, choice["udid"], running),
-        )
-        for choice in listed
-    ]
+    lines: list[str] = []
+    left_out: dict[str, int] = {}
+    for choice in listed:
+        chosen = running is not None and choice["udid"] == running.udid
+        who = _who(ctx, choice["udid"], running)
+        idle = choice["kind"] == "simulator" and choice["state"] == "Shutdown" and not choice["created"]
+        if idle and not everything and not chosen and not who:
+            left_out[choice["runtime"]] = left_out.get(choice["runtime"], 0) + 1
+            continue
+        last_error = ctx.manager.last_error(choice["udid"]) if choice["kind"] != "simulator" else None
+        lines.append(choice_line(choice, chosen, last_error, who))
+    if left_out:
+        by_runtime = ", ".join(f"{count} on {runtime}" for runtime, count in left_out.items())
+        lines.append(f"{sum(left_out.values())} more simulators are shut down ({by_runtime}): all: true lists them")
     lines += dict.fromkeys(why for choice in listed if (why := _agents_may_not_choose(choice["udid"], ctx)))
     return "\n".join(lines) or "No device is available here."
 
@@ -479,7 +487,7 @@ async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
             )
         )
     if action == "list":
-        return text(await _listing(ctx))
+        return text(await _listing(ctx, everything=args.get("all") is True))
     if action == "choose":
         return await _choose(args, ctx)
     if action == "stop":

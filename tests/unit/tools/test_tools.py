@@ -741,6 +741,13 @@ async def test_an_agent_lists_the_devices_it_could_use_and_switches_to_one_its_v
     here = next(line for line in lines if made(1) in line)
     assert here.startswith("simulator · PhoneSimulator · alpha · tp-1 · iOS 26.5") and here.endswith("in use here")
     assert f"real device · Test iPhone · iOS 26.3 · Connected · usb · udid {PHONE_UDID}" in lines
+    # The simulators that are shut down and nobody's are counted, not listed: a Mac has dozens of them.
+    idle = [line for line in lines if " · Shutdown · " in line]
+    assert idle == [], "none is spelled out"
+    assert lines[-1].endswith(": all: true lists them") and " more simulators are shut down (" in lines[-1]
+    everything = said(await use(rig, "sim_device", {"action": "list", "all": True})).splitlines()
+    assert len(everything) > len(lines) and any(" · Shutdown · " in line for line in everything)
+    assert not any("more simulators are shut down" in line for line in everything)
     running = rig.manager.instance(CALLER.scope)
     assert running is not None
     closed, close = closer_log()

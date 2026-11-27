@@ -134,7 +134,8 @@ _DESTINATION = {
 SCHEMAS: dict[str, tuple[str, dict[str, Any]]] = {
     "sim_device": (
         "Your iOS Simulator, a real iPhone or iPad, or an Android emulator or phone. info: which device, its state "
-        "and how to build for it (does not start it). list: the simulators and connected devices you could use. "
+        "and how to build for it (does not start it). list: the simulators and connected devices you could use -- the "
+        "simulators that are shut down only counted, unless all: true. "
         "choose: switch to one by udid -- your own: other agents keep theirs, and the viewer follows when you are the "
         "only agent here or pass default: true. boot: start it and wait until it is ready; on a real "
         "device, open a session (it is never powered on). restart: shut it down and start it again -- for when its "
@@ -173,6 +174,7 @@ SCHEMAS: dict[str, tuple[str, dict[str, Any]]] = {
                 "size": {"type": "string", "enum": list(CONTENT_SIZES)},
                 "on": {"type": "boolean"},
                 "shutdown": {"type": "boolean", "description": "stop: shut the simulator down too"},
+                "all": {"type": "boolean", "description": "list: the simulators that are shut down too"},
                 "default": {
                     "type": "boolean",
                     "description": "choose: make it the project's own device too, which the viewer shows and agents "
