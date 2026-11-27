@@ -10,32 +10,13 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  # Run by hand, once: the last `rocketwright` release on PyPI, which only installs `phonesimulator`.
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  renamed:
-    name: The last rocketwright release, which installs phonesimulator
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    environment: release
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.0
-      - run: uv build packaging/renamed --out-dir dist/renamed
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/renamed/
-
   build:
     name: Build the packages
-    if: github.event_name == 'push'
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
