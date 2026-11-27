@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# The last `rocketwright` release on PyPI: it holds no code, and installs PhoneSimulator, the project's name from 3.13.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rocketwright"
+version = "3.12.2"
+description = "Renamed to phonesimulator: this release only installs it."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+dependencies = ["phonesimulator>=3.13.0"]
+classifiers = ["Development Status :: 7 - Inactive"]
+
+[project.urls]
+Homepage = "https://github.com/Soflutionltd/phonesimulator"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
