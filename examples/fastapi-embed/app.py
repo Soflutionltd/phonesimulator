@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
-"""A Python host application embedding PhoneSimulator: its own FastAPI app, its own sign-in, PhoneSimulator's routers under
-its own paths.
+"""A Python host application embedding PhoneSimulator: its own FastAPI app, its own sign-in, PhoneSimulator's routers
+under its own paths.
 
     EXAMPLE_KEY=change-me uv run uvicorn --factory app:create_app --port 7484
 
-Everything a host decides is a seam (`phonesimulator.api`). Here settings are PhoneSimulator's embedded defaults with the
-simulator switched on; state lives under ``~/.phonesimulator-example``; every project may have a simulator but none may
-run commands; and a request is let in by a shared key in ``X-Example-Key``. A real host checks its own session there.
+Everything a host decides is a seam (`phonesimulator.api`). Here settings are PhoneSimulator's embedded defaults with
+the simulator switched on; state lives under ``~/.phonesimulator-example``; every project may have a simulator but none
+may run commands; and a request is let in by a shared key in ``X-Example-Key``. A real host checks its own session
+there.
 """
 
 from __future__ import annotations
@@ -143,8 +144,8 @@ class SharedKey:
 
 
 def build_runtime(state: ExampleState | None = None) -> Runtime:
-    # `memory` says where a scope's device is remembered. This example takes the one PhoneSimulator ships, over a file of
-    # its own; a host with a database puts it there instead by passing its own `DeviceMemory`, and then implements
+    # `memory` says where a scope's device is remembered. This example takes the one PhoneSimulator ships, over a file
+    # of its own; a host with a database puts it there instead by passing its own `DeviceMemory`, and then implements
     # nothing about files at all.
     state = state or ExampleState()
     return Runtime.build(
