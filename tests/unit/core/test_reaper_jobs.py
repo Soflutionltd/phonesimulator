@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.core.reaper import Reaper
-from rocketwright.testing.rig import DeviceRig
+from phonesimulator.core.reaper import Reaper
+from phonesimulator.testing.rig import DeviceRig
 
 
 async def test_the_reaper_runs_its_jobs_after_each_reap_and_logs_one_that_fails(

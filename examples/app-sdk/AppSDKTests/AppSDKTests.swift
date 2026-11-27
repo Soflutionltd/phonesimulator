@@ -5,9 +5,9 @@ import Testing
 import UIKit
 
 @testable import AppSDK
-@testable import RocketwrightKit
+@testable import PhoneSimulatorKit
 
-/// The SDK inside a running app: the app started it, so a listing is written and Rocketwright's request is answered with
+/// The SDK inside a running app: the app started it, so a listing is written and PhoneSimulator's request is answered with
 /// what the app shows. These are the parts a unit test cannot reach -- a real application, its scenes and a real
 /// presentation.
 @MainActor
@@ -38,9 +38,9 @@ struct AppSDKTests {
         }
     }
 
-    @Test func theAppAnswersRocketwrightWithWhatItShows() async throws {
+    @Test func theAppAnswersPhoneSimulatorWithWhatItShows() async throws {
         try await waitUntilActive()
-        #expect(Rocketwright.isRunning)
+        #expect(PhoneSimulator.isRunning)
         let listing = try listing()
         #expect(listing.bundleID == Bundle.main.bundleIdentifier && listing.pid == getpid())
         let (status, data) = try await ask(listing, secret: listing.secret)

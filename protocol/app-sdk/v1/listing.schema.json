@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/app-sdk/v1/listing.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/app-sdk/v1/listing.schema.json",
   "title": "Listing",
-  "description": "What an app built with Rocketwright's debug SDK writes to say where it listens: <simulator data>/Library/Caches/Rocketwright/apps/<bundle_id>.json, readable by its owner only (0600), rewritten whenever the app comes to the front or leaves it. When the simulator's data folder cannot be written, the app writes the same file under its own Library/Caches/Rocketwright/apps.",
+  "description": "What an app built with PhoneSimulator's debug SDK writes to say where it listens: <simulator data>/Library/Caches/PhoneSimulator/apps/<bundle_id>.json, readable by its owner only (0600), rewritten whenever the app comes to the front or leaves it. When the simulator's data folder cannot be written, the app writes the same file under its own Library/Caches/PhoneSimulator/apps.",
   "type": "object",
   "properties": {
     "protocol": {
@@ -61,7 +61,7 @@
         "ios-simulator",
         "macos"
       ],
-      "description": "Absent for older iOS SDKs. macos listings live under Library/Application Support/Rocketwright/apps in the app home or sandbox container."
+      "description": "Absent for older iOS SDKs. macos listings live under Library/Application Support/PhoneSimulator/apps in the app home or sandbox container."
     },
     "capabilities": {
       "type": "array",

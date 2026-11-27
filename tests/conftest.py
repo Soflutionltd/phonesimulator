@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""What every test runs under: no real Simulator, Xcode or agent, and Rocketwright's folders in a temporary one."""
+"""What every test runs under: no real Simulator, Xcode or agent, and PhoneSimulator's folders in a temporary one."""
 
 from __future__ import annotations
 
@@ -7,18 +7,18 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.testing import guards
-from rocketwright.testing.macos import FakeMacOS
+from phonesimulator.testing import guards
+from phonesimulator.testing.macos import FakeMacOS
 
 
 @pytest.fixture(autouse=True)
 def _isolated_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    guards.isolate_state(monkeypatch, tmp_path / "rocketwright")
+    guards.isolate_state(monkeypatch, tmp_path / "phonesimulator")
 
 
 @pytest.fixture(autouse=True)
 def _fake_mac_targets(monkeypatch: pytest.MonkeyPatch) -> None:
-    from rocketwright.core import runtime
+    from phonesimulator.core import runtime
 
     monkeypatch.setattr(runtime, "MacOS", lambda: FakeMacOS().mac)
 

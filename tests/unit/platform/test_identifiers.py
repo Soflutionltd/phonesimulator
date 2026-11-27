@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from rocketwright.platform.identifiers import (
+from phonesimulator.platform.identifiers import (
     android_id,
     build_destination,
     is_android_id,
@@ -13,7 +13,7 @@ from rocketwright.platform.identifiers import (
     is_simulator_udid,
     kind_of,
 )
-from rocketwright.platform.simctl import is_udid
+from phonesimulator.platform.simctl import is_udid
 
 
 @pytest.mark.parametrize(
@@ -78,7 +78,7 @@ def test_xcodebuild_is_sent_to_a_simulator_or_a_real_device_by_the_shape_of_its_
 
 
 def test_mac_identifiers_are_stable_bounded_and_build_for_the_host():
-    from rocketwright.platform.identifiers import is_mac_id, mac_id
+    from phonesimulator.platform.identifiers import is_mac_id, mac_id
 
     identifier = mac_id("dev.example.Sample")
     assert is_mac_id(identifier) and kind_of(identifier) == "mac"

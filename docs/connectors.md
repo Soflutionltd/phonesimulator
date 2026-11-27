@@ -1,6 +1,6 @@
 # Connectors
 
-A connector is how Rocketwright reaches a device: it says what it can do there, and hands over the parts to drive it.
+A connector is how PhoneSimulator reaches a device: it says what it can do there, and hands over the parts to drive it.
 Booting, installing and launching are simctl's for a simulator, `devicectl`'s for a real iPhone and adb's for an
 Android device, whichever connector is in use; a connector owns the screen, input and the element tree.
 
@@ -34,7 +34,7 @@ cannot serve is refused saying why: without `input_touch`, `sim_act`; without `e
 
 | Connector | Needs | Can do |
 |---|---|---|
-| `native` | Only Xcode: Rocketwright's own helper comes in the package, or `rocketwright helper build` builds it | Everything above except `build_preview`: JPEG and H.264, all input, the element tree, and turning the simulator |
+| `native` | Only Xcode: PhoneSimulator's own helper comes in the package, or `phonesimulator helper build` builds it | Everything above except `build_preview`: JPEG and H.264, all input, the element tree, and turning the simulator |
 | `idb` | idb_companion 1.5, from Homebrew or `connectors.idb.companion_path` | Everything above except `build_preview` and `rotate`: JPEG and H.264, all input, the element tree |
 | `simctl` | Only Xcode | View-only: JPEG at up to 4 frames a second, lifecycle, device list, appearance, open URL, install, launch, logs, screenshots, recording, a demo status bar, a location and accessibility; its screen is [read from its pixels](screen-understanding.md#read-from-pixels) while `perception.ocr` is on |
 | `mcpbridge` | Xcode 27, and Xcode's approval | Everything simctl can, and the element tree, read through Xcode's UI hierarchy; no input |
@@ -52,17 +52,17 @@ See [macOS apps](macos.md) for setup, permissions, the three app types and actio
 
 ### native
 
-Rocketwright's own helper, `rocketwright-helper`, drives a device without idb_companion. It is a small Swift program that
+PhoneSimulator's own helper, `phonesimulator-helper`, drives a device without idb_companion. It is a small Swift program that
 reaches the simulator through the Mac's CoreSimulator and Xcode's SimulatorKit, as Simulator.app does: it reads the
 device's screen straight from its framebuffer, encodes H.264 with VideoToolbox's low-latency encoder only when the
 screen changes, sends touches, buttons and keys through the simulator's own input service, and reads the element tree
 -- and what is at a point of the screen -- through the accessibility translator. One helper serves each device on a unix socket in the run folder, in a process
-group of its own; it ends when the device is let go, when the Rocketwright that started it goes, and when the device
+group of its own; it ends when the device is let go, when the PhoneSimulator that started it goes, and when the device
 shuts down.
 
 - **Which helper.** `connectors.native.helper_path` when set; else the one in the package (the wheel on PyPI carries
-  one built for both Mac architectures); else the one `rocketwright helper build` built with the Xcode in use. A helper
-  from another Rocketwright version is not used. `rocketwright helper status` says which is used and why.
+  one built for both Mac architectures); else the one `phonesimulator helper build` built with the Xcode in use. A helper
+  from another PhoneSimulator version is not used. `phonesimulator helper status` says which is used and why.
 - **Input.** `connectors.native.hid_transport`: `auto` sends through dtuhid, the input service simulators run with
   CoreSimulator 1155.4 or later, and through SimulatorKit's older Indigo messages before that.
 - **Starting.** The helper opens the device's screen and warms its encoders before it answers, so the first frame
@@ -116,7 +116,7 @@ for a simulator, so `connectors.preferred` refuses it.
 ### idb
 
 The idb connector starts one idb_companion per booted device, in a process group of its own, serving on a unix socket
-in the run folder -- no TCP port -- and ends it when the device is let go. A companion a crashed Rocketwright left behind is
+in the run folder -- no TCP port -- and ends it when the device is let go. A companion a crashed PhoneSimulator left behind is
 ended the next time it starts, and never one another host started.
 
 ### mcpbridge
@@ -129,18 +129,18 @@ a Mac without idb_companion. What was measured on Xcode 27.0 with an iOS 27.0 si
   running; Xcode itself is never opened. It follows `device.developer_dir`, so it works while `xcode-select` names an
   older Xcode.
 - **Xcode approves it first.** Xcode lets an agent use its tools once the agent has opened a project through them,
-  and asks you then if it is set to ask. Run `rocketwright xcode approve` in a project's folder, or give it a
+  and asks you then if it is set to ask. Run `phonesimulator xcode approve` in a project's folder, or give it a
   `.xcodeproj` or `.xcworkspace`: it opens that project through Xcode's tools and closes it again. The approval is
-  for the program that runs mcpbridge -- Rocketwright's own Python -- and outlasts Xcode restarting.
+  for the program that runs mcpbridge -- PhoneSimulator's own Python -- and outlasts Xcode restarting.
 - **A read takes 0.2 to 0.9 seconds** once a session is open, and opening one 0.05 to 1.8. A simulator can be in one
-  session at a time, so Rocketwright ends its session a minute after the last read and when the device is let go; an
-  agent working in Xcode can use the simulator in between. A session Rocketwright left behind is taken back; another
-  agent's is left alone, and Rocketwright says whose it is.
+  session at a time, so PhoneSimulator ends its session a minute after the last read and when the device is let go; an
+  agent working in Xcode can use the simulator in between. A session PhoneSimulator left behind is taken back; another
+  agent's is left alone, and PhoneSimulator says whose it is.
 - **It does not touch.** A tap through Xcode's tools answered after 3.3 seconds and a button press after 5.7, since
   each waits for the screen to settle and captures it -- too slow for a person's hand or an agent's steps -- so it
   offers no input, and an agent's `sim_act` is refused saying so.
 
-Xcode 26.6 also has an `mcpbridge`, but it reaches only an Xcode that is open, and was not measured; Rocketwright counts
+Xcode 26.6 also has an `mcpbridge`, but it reaches only an Xcode that is open, and was not measured; PhoneSimulator counts
 only Xcode 27 and later.
 
 ## Choosing one
@@ -150,7 +150,7 @@ only Xcode 27 and later.
 - **`auto`** (the default) tries `native`, then `idb`, then `simctl`, fastest first, and uses the first that can be
   used here. A connector that can be used here but cannot reach a device -- the helper does not start in time, or the
   device's input does not answer -- gives way to the next one that can do as much, for that device. When it falls back
-  it says why -- in the viewer, in `rocketwright doctor`, and in the refusal of a tool that needs more -- so a Mac with
+  it says why -- in the viewer, in `phonesimulator doctor`, and in the refusal of a tool that needs more -- so a Mac with
   neither still shows the screen and says what to do to touch it.
 - **A connector's name** uses that one, or refuses with its reasons. It never quietly uses another. `mcpbridge` is
   used only this way.
@@ -172,11 +172,11 @@ approved, another agent's session -- the snapshot still comes from idb, and says
 
 ## Merging an app's own hierarchy
 
-An app under development that links [RocketwrightKit](app-sdk.md) shares its own UIKit and SwiftUI views. With
+An app under development that links [PhoneSimulatorKit](app-sdk.md) shares its own UIKit and SwiftUI views. With
 **`connectors.app.merge`** on -- the default, which changes nothing while no app shares -- every snapshot of a device
 also asks the app in front for them, whichever connector drives it, and merges them the same way: the connector's tree
 whole, adding what it does not say in the same place. With **`connectors.app.name_unlabeled`** on, it also names what
-the connector found without a label, and what the app's developer named with `.rocketwright`, keeping each element where
+the connector found without a label, and what the app's developer named with `.phonesimulator`, keeping each element where
 it was. Taps on an added element go through the connector like any other. The app's views come first, then Xcode's,
 then [a screen's pixels](screen-understanding.md#read-from-pixels).
 
@@ -187,7 +187,7 @@ debugger, busy -- is skipped, and the snapshot says so while it is in front.
 
 ## More connectors
 
-A package registers a connector under the `rocketwright.connectors` entry point, and Rocketwright finds it when it starts;
-`rocketwright version` and `rocketwright doctor` list it. Choose it by name in `connectors.preferred`.
+A package registers a connector under the `phonesimulator.connectors` entry point, and PhoneSimulator finds it when it starts;
+`phonesimulator version` and `phonesimulator doctor` list it. Choose it by name in `connectors.preferred`.
 
 Write your own with the [connector guide](contributing/connector-guide.md).

@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.rocketwright.example"
+    namespace = "dev.phonesimulator.example"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.rocketwright.example"
+        applicationId = "dev.phonesimulator.example"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

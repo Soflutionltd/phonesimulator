@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""scrcpy's server: the release Rocketwright speaks to and fetching it, its protocol, and the screen, input and text it
+"""scrcpy's server: the release PhoneSimulator speaks to and fetching it, its protocol, and the screen, input and text it
 gives an Android session."""
 
 from __future__ import annotations
@@ -11,22 +11,22 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.connectors.android import scrcpy, scrcpy_roles
-from rocketwright.connectors.android.geometry import Rotation
-from rocketwright.connectors.android.scrcpy_roles import ScrcpyControl, ScrcpyInput, ScrcpyScreen, ScrcpyText
-from rocketwright.connectors.android.scrcpy_source import (
+from phonesimulator.connectors.android import scrcpy, scrcpy_roles
+from phonesimulator.connectors.android.geometry import Rotation
+from phonesimulator.connectors.android.scrcpy_roles import ScrcpyControl, ScrcpyInput, ScrcpyScreen, ScrcpyText
+from phonesimulator.connectors.android.scrcpy_source import (
     PINNED,
     Hashes,
     ScrcpyJars,
     ScrcpySourceError,
     download,
 )
-from rocketwright.connectors.android.screen import AdbScreen
-from rocketwright.connectors.base import ConnectorError, HidEvent, Screen
-from rocketwright.core import gestures
-from rocketwright.core.frames import is_sync_point
-from rocketwright.testing.adb import FakeAdbServer
-from rocketwright.testing.scrcpy import IDR, P_FRAME, TEST_JAR, TEST_RELEASE, FakeScrcpy, fetched_jars
+from phonesimulator.connectors.android.screen import AdbScreen
+from phonesimulator.connectors.base import ConnectorError, HidEvent, Screen
+from phonesimulator.core import gestures
+from phonesimulator.core.frames import is_sync_point
+from phonesimulator.testing.adb import FakeAdbServer
+from phonesimulator.testing.scrcpy import IDR, P_FRAME, TEST_JAR, TEST_RELEASE, FakeScrcpy, fetched_jars
 
 PIXEL = Screen(1080, 2424, 411, 923, 2.625)
 SERIAL = "emulator-5554"
@@ -53,7 +53,7 @@ def test_the_pinned_release_is_githubs_own_asset() -> None:
     assert PINNED.file_name == "scrcpy-server-v5.0.1"
 
 
-def test_a_server_is_used_only_when_it_is_a_release_rocketwright_speaks_to(tmp_path: Path) -> None:
+def test_a_server_is_used_only_when_it_is_a_release_phonesimulator_speaks_to(tmp_path: Path) -> None:
     jars = fetched_jars(tmp_path / "fetched")
     found = jars.find()
     assert found is not None and found.release == TEST_RELEASE and found.path.read_bytes() == TEST_JAR
@@ -64,7 +64,7 @@ def test_a_server_is_used_only_when_it_is_a_release_rocketwright_speaks_to(tmp_p
     other = tmp_path / "other"
     other.write_bytes(b"something else")
     assert jars.find(str(other)) is None
-    assert "is not a scrcpy server Rocketwright knows" in (jars.why_not(str(other)) or "")
+    assert "is not a scrcpy server PhoneSimulator knows" in (jars.why_not(str(other)) or "")
     empty = fetched_jars(tmp_path / "empty", fetched=False)
     assert empty.find() is None and "is not set up" in (empty.why_not() or "")
 
@@ -133,7 +133,7 @@ def test_a_download_is_refused_past_its_size_or_when_it_fails(monkeypatch: pytes
         def read(self, most: int) -> bytes:
             return self.data[:most]
 
-    from rocketwright.connectors.android import scrcpy_source
+    from phonesimulator.connectors.android import scrcpy_source
 
     monkeypatch.setattr(scrcpy_source.urllib.request, "urlopen", lambda url, timeout: Answer(b"jar"))
     assert download("https://x") == b"jar"
@@ -152,9 +152,9 @@ def test_a_download_is_refused_past_its_size_or_when_it_fails(monkeypatch: pytes
 # -- the protocol -----------------------------------------------------------------------------------------------------
 
 
-def test_a_server_runs_as_its_own_pid_with_rocketwrights_options() -> None:
-    assert scrcpy.remote_jar("Rocketwright Test") == "/data/local/tmp/rocketwright-scrcpy-Rocketwright-Test.jar"
-    assert scrcpy.remote_jar("") == "/data/local/tmp/rocketwright-scrcpy-host.jar"
+def test_a_server_runs_as_its_own_pid_with_phonesimulators_options() -> None:
+    assert scrcpy.remote_jar("PhoneSimulator Test") == "/data/local/tmp/phonesimulator-scrcpy-PhoneSimulator-Test.jar"
+    assert scrcpy.remote_jar("") == "/data/local/tmp/phonesimulator-scrcpy-host.jar"
     command = scrcpy.server_command("/data/local/tmp/x.jar", "5.0.1", 0xABC, {"video": "false"})
     assert command[:6] == ["env", "CLASSPATH=/data/local/tmp/x.jar", "app_process", "/", scrcpy.SERVER_CLASS, "5.0.1"]
     assert "scid=00000abc" in command and "cleanup=false" in command and "video=false" in command
@@ -243,7 +243,9 @@ async def test_a_server_is_pushed_once_and_started_and_reached_and_ended(server:
     started = await launcher.start(SERIAL, "9.9.9", scrcpy.CONTROL_OPTIONS)
     assert started.running and len(started.sockets) == 1
     command = next(iter(server.running.values()))
-    assert "scid=00000abc" in command and command.startswith("env CLASSPATH=/data/local/tmp/rocketwright-scrcpy-host-a")
+    assert "scid=00000abc" in command and command.startswith(
+        "env CLASSPATH=/data/local/tmp/phonesimulator-scrcpy-host-a"
+    )
     await started.close()
     await started.close()
     assert server.running == {} and not started.running

@@ -9,18 +9,18 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.registry import ConnectorRegistry
-from rocketwright.doctor.android import check_android_devices, check_android_sdk, check_gradle, check_scrcpy
-from rocketwright.doctor.checks import INSTALL_XCODE, DoctorContext, check_connectors, check_xcode
-from rocketwright.doctor.report import CheckResult
-from rocketwright.platform.adb import Adb
-from rocketwright.platform.android_sdk import AndroidSdk, avds
-from rocketwright.platform.java import Jdk
-from rocketwright.testing.adb import FakeAdbServer
-from rocketwright.testing.android_sdk import avd, image, sdk_at
-from rocketwright.testing.fakes import FakeConnector
-from rocketwright.testing.scrcpy import fetched_jars
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.registry import ConnectorRegistry
+from phonesimulator.doctor.android import check_android_devices, check_android_sdk, check_gradle, check_scrcpy
+from phonesimulator.doctor.checks import INSTALL_XCODE, DoctorContext, check_connectors, check_xcode
+from phonesimulator.doctor.report import CheckResult
+from phonesimulator.platform.adb import Adb
+from phonesimulator.platform.android_sdk import AndroidSdk, avds
+from phonesimulator.platform.java import Jdk
+from phonesimulator.testing.adb import FakeAdbServer
+from phonesimulator.testing.android_sdk import avd, image, sdk_at
+from phonesimulator.testing.fakes import FakeConnector
+from phonesimulator.testing.scrcpy import fetched_jars
 
 ON = SimConfig.defaults().with_values(android=True, android_phones=True, build_tools=True)
 JDK = Jdk(Path("/opt/jdk"), "android.java_home")
@@ -52,7 +52,7 @@ def context(
 
 async def test_while_android_is_off_nothing_is_checked(tmp_path: Path) -> None:
     ctx = context(tmp_path, sdk=None, config=SimConfig.defaults().with_values(android=False))
-    assert (await check_android_sdk(ctx)).detail.startswith("off; `rocketwright config set android.enabled true`")
+    assert (await check_android_sdk(ctx)).detail.startswith("off; `phonesimulator config set android.enabled true`")
     for check, name in (
         (check_android_devices, "android devices"),
         (check_scrcpy, "scrcpy"),

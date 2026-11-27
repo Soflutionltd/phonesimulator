@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* The Rocketwright viewer. A host themes it with --rocketwright-* custom properties, which pass into a shadow root by
+/* The PhoneSimulator viewer. A host themes it with --phonesimulator-* custom properties, which pass into a shadow root by
    inheritance; every one has a default. The device keeps its shape inside the stage, and what an agent does is drawn
    over it -- never with the machine's own pointer. */
 /* The viewer's own colours, light and dark: the system's unless the viewer is told one (data-theme). A host's
-   --rocketwright-* properties win over both. */
+   --phonesimulator-* properties win over both. */
 .smv,
 .smv[data-theme="dark"] {
   --smv-t-accent: #0a84ff;
@@ -63,34 +63,34 @@
 
 :host,
 .smv {
-  --smv-accent: var(--rocketwright-accent, var(--smv-t-accent, #0a84ff));
-  --smv-on-accent: var(--rocketwright-on-accent, #ffffff);
-  --smv-cursor: var(--rocketwright-cursor, var(--smv-accent));
-  --smv-cursor-text: var(--rocketwright-cursor-text, var(--smv-on-accent));
-  --smv-surface: var(--rocketwright-surface, var(--smv-t-surface, #1c1c1e));
-  --smv-surface-sunken: var(--rocketwright-surface-sunken, var(--smv-t-surface-sunken, #111113));
-  --smv-raised: var(--rocketwright-raised, var(--smv-t-raised, #2c2c2e));
-  --smv-border: var(--rocketwright-border, var(--smv-t-border, rgb(255 255 255 / 0.12)));
-  --smv-text: var(--rocketwright-text, var(--smv-t-text, #f5f5f7));
-  --smv-text-muted: var(--rocketwright-text-muted, var(--smv-t-text-muted, #a1a1a6));
-  --smv-success: var(--rocketwright-success, var(--smv-t-success, #30d158));
-  --smv-warning: var(--rocketwright-warning, var(--smv-t-warning, #ffd60a));
-  --smv-danger: var(--rocketwright-danger, var(--smv-t-danger, #ff453a));
-  --smv-screen-text: var(--rocketwright-screen-text, var(--smv-t-screen-text, #bf5af2));
-  --smv-device: var(--rocketwright-device, var(--smv-t-device, #000000));
-  --smv-device-edge: var(--rocketwright-device-edge, var(--smv-t-device-edge, #4a4a4e));
+  --smv-accent: var(--phonesimulator-accent, var(--smv-t-accent, #0a84ff));
+  --smv-on-accent: var(--phonesimulator-on-accent, #ffffff);
+  --smv-cursor: var(--phonesimulator-cursor, var(--smv-accent));
+  --smv-cursor-text: var(--phonesimulator-cursor-text, var(--smv-on-accent));
+  --smv-surface: var(--phonesimulator-surface, var(--smv-t-surface, #1c1c1e));
+  --smv-surface-sunken: var(--phonesimulator-surface-sunken, var(--smv-t-surface-sunken, #111113));
+  --smv-raised: var(--phonesimulator-raised, var(--smv-t-raised, #2c2c2e));
+  --smv-border: var(--phonesimulator-border, var(--smv-t-border, rgb(255 255 255 / 0.12)));
+  --smv-text: var(--phonesimulator-text, var(--smv-t-text, #f5f5f7));
+  --smv-text-muted: var(--phonesimulator-text-muted, var(--smv-t-text-muted, #a1a1a6));
+  --smv-success: var(--phonesimulator-success, var(--smv-t-success, #30d158));
+  --smv-warning: var(--phonesimulator-warning, var(--smv-t-warning, #ffd60a));
+  --smv-danger: var(--phonesimulator-danger, var(--smv-t-danger, #ff453a));
+  --smv-screen-text: var(--phonesimulator-screen-text, var(--smv-t-screen-text, #bf5af2));
+  --smv-device: var(--phonesimulator-device, var(--smv-t-device, #000000));
+  --smv-device-edge: var(--phonesimulator-device-edge, var(--smv-t-device-edge, #4a4a4e));
   --smv-shadow: var(--smv-t-shadow, rgb(0 0 0 / 0.5));
-  --smv-radius: var(--rocketwright-radius, 8px);
-  --smv-radius-full: var(--rocketwright-radius-full, 999px);
-  --smv-space-1: var(--rocketwright-space-1, 2px);
-  --smv-space-2: var(--rocketwright-space-2, 4px);
-  --smv-space-3: var(--rocketwright-space-3, 6px);
-  --smv-space-4: var(--rocketwright-space-4, 8px);
-  --smv-space-5: var(--rocketwright-space-5, 12px);
-  --smv-space-6: var(--rocketwright-space-6, 16px);
-  --smv-space-7: var(--rocketwright-space-7, 24px);
-  --smv-font: var(--rocketwright-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif);
-  --smv-font-size: var(--rocketwright-font-size, 13px);
+  --smv-radius: var(--phonesimulator-radius, 8px);
+  --smv-radius-full: var(--phonesimulator-radius-full, 999px);
+  --smv-space-1: var(--phonesimulator-space-1, 2px);
+  --smv-space-2: var(--phonesimulator-space-2, 4px);
+  --smv-space-3: var(--phonesimulator-space-3, 6px);
+  --smv-space-4: var(--phonesimulator-space-4, 8px);
+  --smv-space-5: var(--phonesimulator-space-5, 12px);
+  --smv-space-6: var(--phonesimulator-space-6, 16px);
+  --smv-space-7: var(--phonesimulator-space-7, 24px);
+  --smv-font: var(--phonesimulator-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif);
+  --smv-font-size: var(--phonesimulator-font-size, 13px);
   /* What floats over the stage -- the toolbar, a menu, a popover -- lifted by a soft, layered shadow and a hairline. */
   --smv-float: 0 0 0 0.5px var(--smv-border), 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px -6px var(--smv-shadow);
   --smv-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -1207,7 +1207,7 @@ button.smv-home-button:hover {
    `scale` it grows by is applied before a transform, so a translate in one would be scaled too, and the ring would
    sweep in from the overlay's corner and on past where it was meant to be. */
 /* Its colour: the scope's agent.cursor_color, set on the element when there is one; else the host's
-   --rocketwright-cursor, else the accent. */
+   --phonesimulator-cursor, else the accent. */
 .smv .ac {
   --ac-color: var(--smv-cursor);
   --ac-text: var(--smv-cursor-text);

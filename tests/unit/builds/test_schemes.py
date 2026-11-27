@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.build import schemes
-from rocketwright.build.schemes import action_configuration, scheme_configuration, scheme_files
-from rocketwright.testing.fakes import fixture
+from phonesimulator.build import schemes
+from phonesimulator.build.schemes import action_configuration, scheme_configuration, scheme_files
+from phonesimulator.testing.fakes import fixture
 
 STAGING = fixture("xcscheme-staging.xcscheme")
 

@@ -10,10 +10,10 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import ConnectorError, Screen, Shot
-from rocketwright.perception.model import PIXELS, Frame
-from rocketwright.perception.ocr import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import ConnectorError, Screen, Shot
+from phonesimulator.perception.model import PIXELS, Frame
+from phonesimulator.perception.ocr import (
     CACHE_SIZE,
     OCR_QUALITY,
     NoRecognizer,
@@ -27,11 +27,11 @@ from rocketwright.perception.ocr import (
     on_device,
     tree_from_lines,
 )
-from rocketwright.perception.orientation import Interface, Orientation
-from rocketwright.perception.snapshot import build
-from rocketwright.testing.fakes import SCREEN, FakeEngine
-from rocketwright.testing.pictures import picture
-from rocketwright.testing.vision import FakeTextRecognizer, text_line
+from phonesimulator.perception.orientation import Interface, Orientation
+from phonesimulator.perception.snapshot import build
+from phonesimulator.testing.fakes import SCREEN, FakeEngine
+from phonesimulator.testing.pictures import picture
+from phonesimulator.testing.vision import FakeTextRecognizer, text_line
 
 CONFIG = SimConfig.defaults()
 SIGN_IN = text_line("Sign in", 150, 400, 100, 20)

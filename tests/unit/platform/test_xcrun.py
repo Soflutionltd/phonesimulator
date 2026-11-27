@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from rocketwright.platform import xcrun
-from rocketwright.platform.xcrun import (
+from phonesimulator.platform import xcrun
+from phonesimulator.platform.xcrun import (
     CANNOT_RUN,
     TIMED_OUT,
     XCRUN_MISSING,

@@ -13,8 +13,8 @@ from typing import Any
 
 import pytest
 
-from rocketwright.build import runner, xcodebuild
-from rocketwright.build.xcodebuild import (
+from phonesimulator.build import runner, xcodebuild
+from phonesimulator.build.xcodebuild import (
     Build,
     BuildRefused,
     BuildRunner,
@@ -26,8 +26,8 @@ from rocketwright.build.xcodebuild import (
     signing,
     source_paths,
 )
-from rocketwright.testing.fakes import BOOTED_UDID, PHONE_UDID, FakeProcess, FakeXcrun, MemoryStateStore, fixture
-from rocketwright.testing.rig import scope
+from phonesimulator.testing.fakes import BOOTED_UDID, PHONE_UDID, FakeProcess, FakeXcrun, MemoryStateStore, fixture
+from phonesimulator.testing.rig import scope
 
 SCOPE = scope("topic-1", "ws")
 SECOND_UDID = "00000000-0000-0000-0000-000000000002"
@@ -562,7 +562,7 @@ async def test_a_workspaces_scheme_may_be_its_own_or_one_of_its_projects(rig: Ri
 
 async def test_xcrun_that_is_missing_points_at_the_doctor(rig: Rig) -> None:
     rig.xcrun.on("xcodebuild", "-list", rc=127, err="Xcode command-line tools are not installed (no xcrun)")
-    with pytest.raises(BuildRefused, match=r"not installed \(no xcrun\) Run `rocketwright doctor` to see why\."):
+    with pytest.raises(BuildRefused, match=r"not installed \(no xcrun\) Run `phonesimulator doctor` to see why\."):
         await rig.begin()
 
 
@@ -610,7 +610,7 @@ async def test_xcodebuild_that_cannot_start_is_refused_and_leaves_the_scope_free
     rig.start_error = FileNotFoundError("Xcode command-line tools are not installed (no xcrun)")
     with pytest.raises(
         BuildRefused,
-        match=r"could not be started: Xcode command-line tools .*\. Run `rocketwright doctor` to see why\.",
+        match=r"could not be started: Xcode command-line tools .*\. Run `phonesimulator doctor` to see why\.",
     ):
         await rig.begin()
     assert rig.runner.running(SCOPE.id) is None
@@ -895,7 +895,7 @@ async def test_a_run_past_its_timeout_is_ended_with_its_process_group(rig: Rig) 
     build = await rig.begin(timeout_s=0.01)
     answer = await rig.runner.result(SCOPE.id, build.id, wait_s=5)
     assert answer == (
-        "build b1 was stopped after 0s, the longest a run may take here (build.timeout_minutes, `rocketwright config`)"
+        "build b1 was stopped after 0s, the longest a run may take here (build.timeout_minutes, `phonesimulator config`)"
         f"\nlog {build.log}"
     )
     assert rig.signals == [(4000, signal.SIGTERM)] and build.state == "timed_out"
@@ -1068,7 +1068,7 @@ def test_a_project_s_team_is_the_one_its_settings_name_most(tmp_path: Path) -> N
 
 @pytest.mark.parametrize("catalyst", [False, True])
 async def test_mac_builds_use_the_host_destination_and_preserve_signed_products(rig: Rig, catalyst: bool):
-    from rocketwright.platform.identifiers import mac_id
+    from phonesimulator.platform.identifiers import mac_id
 
     build = await rig.runner.start(
         SCOPE,
@@ -1097,7 +1097,7 @@ async def test_mac_builds_use_the_host_destination_and_preserve_signed_products(
 )
 @pytest.mark.parametrize("hosted", [False, True])
 async def test_mac_test_schemes_must_prove_they_run_only_unit_tests(rig: Rig, product: str | None, hosted: bool):
-    from rocketwright.platform.identifiers import mac_id
+    from phonesimulator.platform.identifiers import mac_id
 
     settings = (
         []

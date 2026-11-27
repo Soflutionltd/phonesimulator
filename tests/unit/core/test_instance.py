@@ -3,10 +3,10 @@
 
 from __future__ import annotations
 
-from rocketwright.connectors.base import Capability, DeviceSession
-from rocketwright.core.instance import BOOTING, READY, STOPPED, DeviceInstance
-from rocketwright.scope import Scope
-from rocketwright.testing.fakes import SCREEN, FakeEngine
+from phonesimulator.connectors.base import Capability, DeviceSession
+from phonesimulator.core.instance import BOOTING, READY, STOPPED, DeviceInstance
+from phonesimulator.scope import Scope
+from phonesimulator.testing.fakes import SCREEN, FakeEngine
 
 
 def instance(**changes: object) -> DeviceInstance:
@@ -65,7 +65,7 @@ def test_a_device_describes_its_state_and_screen_as_the_protocol_does() -> None:
     assert attached.describe(10.0)["buttons"] == ["back"]
 
 
-def test_only_what_rocketwright_booted_or_made_may_be_shut_down() -> None:
+def test_only_what_phonesimulator_booted_or_made_may_be_shut_down() -> None:
     assert not instance().may_shut_down
     assert instance(booted_by_us=True).may_shut_down and instance(created=True).may_shut_down
 

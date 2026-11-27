@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 [package]
-name = "rocketwright-web"
+name = "phonesimulator-web"
 version = "0.1.0"
 edition = "2021"
 publish = false
 license = "Apache-2.0"
-description = "Debug-only Rocketwright host hook for macOS webviews"
+description = "Debug-only PhoneSimulator host hook for macOS webviews"
 
 [dependencies]
 serde_json = "1"

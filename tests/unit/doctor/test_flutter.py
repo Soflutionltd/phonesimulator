@@ -6,12 +6,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.registry import ConnectorRegistry
-from rocketwright.doctor.checks import CHECKS, DoctorContext
-from rocketwright.doctor.flutter import INSTALL, check_flutter
-from rocketwright.doctor.report import CheckResult
-from rocketwright.platform.flutter import FlutterSdk
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.registry import ConnectorRegistry
+from phonesimulator.doctor.checks import CHECKS, DoctorContext
+from phonesimulator.doctor.flutter import INSTALL, check_flutter
+from phonesimulator.doctor.report import CheckResult
+from phonesimulator.platform.flutter import FlutterSdk
 
 SDK = FlutterSdk(Path("/opt/homebrew/share/flutter/bin/flutter"), "PATH")
 

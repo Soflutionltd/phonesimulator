@@ -13,7 +13,7 @@ import Testing
         #expect(job.codec == "h264" && job.speed == 2 && job.gifFps == 12 && job.gifWidth == 600)
         #expect(job.touches == [RecordedTouch(t: 1.5, kind: "tap", points: [[0.5, 0.25]], duration: 0.1, by: "agent")])
         #expect(job.mp4Width == 0 && job.movieWidth == nil && job.mp4Quality == .high)
-        #expect(job.mp4Fps == 30 && job.crop == nil, "a Rocketwright that does not say asks for 30 a second of all of it")
+        #expect(job.mp4Fps == 30 && job.crop == nil, "a PhoneSimulator that does not say asks for 30 a second of all of it")
         #expect(job.kept(width: 1206, height: 2622) == (1206, 2622))
     }
 
@@ -123,7 +123,7 @@ import Testing
     }
 
     @Test(arguments: [
-        (Data("SMRF".utf8) + Data([2]), "not a Rocketwright frame file"),
+        (Data("SMRF".utf8) + Data([2]), "not a PhoneSimulator frame file"),
         (FrameFile.magic + Data([1, 0]), "ends inside a frame"),
         (FrameFile.magic + frame(3, 0, [1]), "a frame of an unknown kind 3"),
         (FrameFile.magic + frame(1, -1, [1]), "has a frame of 1 bytes at -1.0s"),
@@ -218,7 +218,7 @@ import Testing
     @Test func pictureLongerThanTheClockSaysOrAnUnknownLengthIsWhatCounts() throws {
         let job = try Self.lasting("2.5")
         #expect(job.length(of: 4) == 4 && job.length(of: .nan) == 2.5 && job.length(of: .infinity) == 2.5)
-        // A Rocketwright that does not say how long it ran renders as long as the pictures run, as before.
+        // A PhoneSimulator that does not say how long it ran renders as long as the pictures run, as before.
         let older = try RenderJob.read(Data(Self.job.utf8))
         #expect(older.durationS == 0 && older.length(of: 3) == 3)
         #expect(older.ticks(pictures: 3, fps: 4) == Ticks.make(duration: 3, speed: 2, fps: 4))

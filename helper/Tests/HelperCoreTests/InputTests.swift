@@ -21,7 +21,7 @@ final class RecordingTransport: HIDTransport, @unchecked Sendable {
 }
 
 @Suite struct InputTests {
-    @Test func anEventReadsWhatRocketwrightSendsAndDefaultsWhatItLeavesOut() throws {
+    @Test func anEventReadsWhatPhoneSimulatorSendsAndDefaultsWhatItLeavesOut() throws {
         let events = try JSONDecoder().decode(
             [HIDEvent].self,
             from: Data(#"[{"kind":"touch","phase":"down","x":1.5,"y":2},{"kind":"button","phase":"up","button":"home"},{"kind":"key","phase":"down","code":4}]"#.utf8)

@@ -96,9 +96,9 @@ describe('renderField', () => {
     const commandLine = renderField(entry('server.host', { origin: { layer: 'command_line', detail: null },
       locked: 'Set by the command line.' }), options())  // prettier-ignore
     expect(chips(commandLine.el)).toEqual(['from command line'])
-    const variable = renderField(entry('stream.fps', { origin: { layer: 'environment', detail: 'ROCKETWRIGHT_STREAM_FPS' },
-      locked: 'Set by ROCKETWRIGHT_STREAM_FPS.' }), options())  // prettier-ignore
-    expect(chips(variable.el)).toEqual(['from ROCKETWRIGHT_STREAM_FPS'])
+    const variable = renderField(entry('stream.fps', { origin: { layer: 'environment', detail: 'PHONESIMULATOR_STREAM_FPS' },
+      locked: 'Set by PHONESIMULATOR_STREAM_FPS.' }), options())  // prettier-ignore
+    expect(chips(variable.el)).toEqual(['from PHONESIMULATOR_STREAM_FPS'])
   })
 
   it('puts back a value config.toml holds, never a default or a locked one', () => {
@@ -116,11 +116,11 @@ describe('renderField', () => {
   })
 
   it('cannot be changed while something above config.toml sets it, and says so without a command that could not', () => {
-    const locked = renderField(entry('stream.fps', { origin: { layer: 'environment', detail: 'ROCKETWRIGHT_STREAM_FPS' },
-      locked: 'Set by ROCKETWRIGHT_STREAM_FPS in the environment.', command: 'rocketwright config set stream.fps <value>' }),
+    const locked = renderField(entry('stream.fps', { origin: { layer: 'environment', detail: 'PHONESIMULATOR_STREAM_FPS' },
+      locked: 'Set by PHONESIMULATOR_STREAM_FPS in the environment.', command: 'phonesimulator config set stream.fps <value>' }),
       options())  // prettier-ignore
     expect(input<HTMLInputElement>(locked.el).disabled).toBe(true)
-    expect(locked.el.querySelector('.smv-field-locked')!.textContent).toBe('Set by ROCKETWRIGHT_STREAM_FPS in the environment.')
+    expect(locked.el.querySelector('.smv-field-locked')!.textContent).toBe('Set by PHONESIMULATOR_STREAM_FPS in the environment.')
     expect(locked.el.querySelector('code')).toBeNull()
     expect(locked.el.querySelector('.smv-link')).toBeNull()
   })

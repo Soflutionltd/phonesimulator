@@ -15,5 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "RocketwrightAndroidExample"
+rootProject.name = "PhoneSimulatorAndroidExample"
 include(":app")

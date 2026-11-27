@@ -9,15 +9,15 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.idb.connector import IdbConnector
-from rocketwright.connectors.mcpbridge.connector import McpBridgeConnector
-from rocketwright.connectors.native.connector import NativeConnector
-from rocketwright.connectors.registry import ENTRY_POINT_GROUP, ConnectorContext, ConnectorRegistry
-from rocketwright.connectors.simctl.connector import SimctlConnector
-from rocketwright.host_copy import HostCopy
-from rocketwright.platform.simctl import Simctl
-from rocketwright.testing.fakes import FakeConnector, FakeXcrun, MemoryStateStore
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.idb.connector import IdbConnector
+from phonesimulator.connectors.mcpbridge.connector import McpBridgeConnector
+from phonesimulator.connectors.native.connector import NativeConnector
+from phonesimulator.connectors.registry import ENTRY_POINT_GROUP, ConnectorContext, ConnectorRegistry
+from phonesimulator.connectors.simctl.connector import SimctlConnector
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.testing.fakes import FakeConnector, FakeXcrun, MemoryStateStore
 
 CONFIG = SimConfig.defaults()
 

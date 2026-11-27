@@ -1,16 +1,16 @@
 {
-  "name": "@soflution/rocketwright",
+  "name": "@soflution/phonesimulator",
   "version": "3.12.1",
-  "description": "The Rocketwright viewer: a live iOS Simulator, iPhone, Android or macOS app screen, a person's touches and keys, and an agent's cursor, as a web component or a function.",
+  "description": "The PhoneSimulator viewer: a live iOS Simulator, iPhone, Android or macOS app screen, a person's touches and keys, and an agent's cursor, as a web component or a function.",
   "license": "Apache-2.0",
   "author": "Soflution Ltd",
-  "homepage": "https://github.com/Soflutionltd/rocketwright#readme",
+  "homepage": "https://github.com/Soflutionltd/phonesimulator#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Soflutionltd/rocketwright.git",
+    "url": "git+https://github.com/Soflutionltd/phonesimulator.git",
     "directory": "viewer"
   },
-  "bugs": "https://github.com/Soflutionltd/rocketwright/issues",
+  "bugs": "https://github.com/Soflutionltd/phonesimulator/issues",
   "keywords": ["ios-simulator", "simulator", "screen-mirroring", "web-component", "mcp", "agent-cursor"],
   "type": "module",
   "files": ["dist"],

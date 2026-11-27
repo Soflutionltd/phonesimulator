@@ -1727,7 +1727,7 @@ wheels = [
 ]
 
 [[package]]
-name = "rocketwright"
+name = "phonesimulator"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

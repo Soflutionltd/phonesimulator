@@ -7,9 +7,9 @@ import re
 
 import pytest
 
-from rocketwright.connectors.base import BUTTONS, HidEvent
-from rocketwright.core import gestures
-from rocketwright.protocol import KEY_NAMES
+from phonesimulator.connectors.base import BUTTONS, HidEvent
+from phonesimulator.core import gestures
+from phonesimulator.protocol import KEY_NAMES
 
 
 def test_the_keys_are_the_protocols_own() -> None:

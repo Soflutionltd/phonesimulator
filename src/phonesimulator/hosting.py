@@ -1,0 +1,221 @@
+# SPDX-License-Identifier: Apache-2.0
+"""A host application sharing the local daemon with others, instead of running a PhoneSimulator of its own.
+
+The person who installed PhoneSimulator makes the host a token for its namespaces::
+
+    phonesimulator token create --kind host --scope 'notes:*' --root ~/Projects --label "Notes app"
+
+and the host's backend uses it through `DaemonHost` -- only for scopes in those namespaces, such as ``notes:42``. It
+brings their devices up and lets them go, frames their screens with embed tickets, changes their settings, pauses
+agents' gestures on their devices while its person has one in hand, and makes agent and viewer tokens for them, whose
+folders are inside its own. What another host does, and the devices another
+host's scopes run, it neither sees nor reaches.
+
+A credential goes only to a listener that proved it is the daemon: before its first request the host sends
+``/healthz`` a fresh nonce and its token's id, and believes the answer only when it carries a proof keyed by its token's
+digest, which the daemon keeps and nothing else on the port has (`daemon.health`).
+
+It speaks to the daemon over the standard library's HTTP, as the command line does, and gives an agent the same relay.
+Each method answers the protocol's shape for its route (`protocol/v1/`), typed as `phonesimulator.protocol` names it.
+"""
+
+from __future__ import annotations
+
+import os
+import urllib.error
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any, cast
+from urllib.parse import quote
+
+from phonesimulator._version import __version__
+from phonesimulator.mcp import relay
+from phonesimulator.mcp.launcher import (
+    AGENT_PATH,
+    CLIENT_HEADER,
+    ROOTS_HEADER,
+    SCOPE_ENV,
+    SCOPE_HEADER,
+    TOKEN_ENV,
+    TOKEN_HEADER,
+    URL_ENV,
+    DaemonClient,
+    DaemonUnavailable,
+    NotTheDaemon,
+)
+from phonesimulator.protocol import DeviceChoice, MadeToken, Pause, ScopeStatus, SettingsView, Started, TokenRecord
+
+SCOPES_PATH = "/api/v1/scopes"
+HOST_PATH = "/api/v1/host"
+
+
+def unproven(url: str) -> str:
+    return (
+        f"what answers on {url} did not prove it knows this host token, so nothing was sent to it: the token was "
+        "revoked or does not match its id, or it is not your PhoneSimulator daemon"
+    )
+
+
+class DaemonRefused(Exception):
+    """The daemon refused a host's request: its HTTP status, and what it said."""
+
+    def __init__(self, status: int, message: str) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+@dataclass(frozen=True)
+class AgentAccess:
+    """What an agent a host starts needs: its MCP server's command line, and the environment to run it with.
+
+    The token is in `env` only, never `argv`. `token_id` revokes it when the agent is done.
+    """
+
+    token_id: str
+    argv: list[str]
+    env: dict[str, str]
+
+
+class DaemonHost:
+    """One host's view of the local daemon, through its host token."""
+
+    def __init__(self, url: str, token: str, token_id: str, *, opener: relay.Opener | None = None) -> None:
+        if not relay.is_loopback(url):
+            raise ValueError("the daemon is reached on this Mac only: its URL is http://127.0.0.1:<port>")
+        self._client = DaemonClient(url, token, token_id=token_id, opener=opener)
+        self.url = self._client.url
+
+    def _call(self, method: str, path: str, payload: object = None, *, token: str | None = None) -> Any:
+        try:
+            return self._client.request(method, path, payload, token=token)
+        except NotTheDaemon:
+            raise DaemonUnavailable(unproven(self.url)) from None
+        except urllib.error.HTTPError as exc:
+            raise DaemonRefused(exc.code, relay.refusal(exc)) from exc
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            raise DaemonUnavailable(f"the daemon could not be reached: {exc}") from exc
+
+    @staticmethod
+    def _scope(scope_id: str) -> str:
+        return f"{SCOPES_PATH}/{quote(scope_id, safe='')}"
+
+    # -- the host itself -------------------------------------------------------------------------------------------
+
+    def record(self) -> TokenRecord:
+        """This host's token record: its namespaces, folders and label."""
+        return cast(TokenRecord, self._call("GET", HOST_PATH))
+
+    # -- a scope's simulator ---------------------------------------------------------------------------------------
+
+    def status(self, scope_id: str) -> ScopeStatus:
+        """Whether the scope can have a simulator, why not, and how its device stands."""
+        return cast(ScopeStatus, self._call("GET", self._scope(scope_id)))
+
+    def start(self, scope_id: str) -> Started:
+        """Bring the scope's device up; the answer is its status with a ticket for its screen socket."""
+        return cast(Started, self._call("POST", self._scope(scope_id), {}))
+
+    def stop(self, scope_id: str, *, shutdown: bool = False) -> bool:
+        """Let the scope's device go -- shutting it down too, with `shutdown`. Answers whether one was running."""
+        path = self._scope(scope_id) + ("?shutdown=true" if shutdown else "")
+        return bool(self._call("DELETE", path)["stopped"])
+
+    def devices(self, scope_id: str) -> list[DeviceChoice]:
+        """The simulators this scope could use: this Mac's, less those another host's scopes are running."""
+        return cast(list[DeviceChoice], self._call("GET", self._scope(scope_id) + "/devices")["devices"])
+
+    def choose(self, scope_id: str, udid: str) -> None:
+        """Use this simulator for the scope from now on."""
+        self._call("PUT", self._scope(scope_id) + "/device", {"udid": udid})
+
+    def embed_url(self, scope_id: str) -> str:
+        """The URL a page frames to show the scope's screen, with a one-shot ticket in its fragment."""
+        return self.url + str(self._call("POST", self._scope(scope_id) + "/embed-tickets", {})["url"])
+
+    # -- a person's pause ------------------------------------------------------------------------------------------
+
+    def pause(self, scope_id: str, seconds: float = 60.0) -> Pause:
+        """Keep agents' gestures off the scope's device for `seconds` from now, ten minutes at most: while a person
+        has the real phone in hand, say, whose touches PhoneSimulator cannot see. It lifts by itself when it runs out; set
+        it again before then to keep it, and `resume` to lift it early."""
+        return cast(Pause, self._call("PUT", self._scope(scope_id) + "/pause", {"seconds": seconds}))
+
+    def resume(self, scope_id: str) -> Pause:
+        """Lift the scope's pause: agents may touch its device again."""
+        return cast(Pause, self._call("DELETE", self._scope(scope_id) + "/pause"))
+
+    def paused(self, scope_id: str) -> Pause:
+        """Whether agents are paused on the scope's device, and for how much longer."""
+        return cast(Pause, self._call("GET", self._scope(scope_id) + "/pause"))
+
+    # -- a scope's settings ----------------------------------------------------------------------------------------
+
+    def settings(self, scope_id: str) -> SettingsView:
+        """Every setting as the scope sees it, where each value comes from, and what this host may change."""
+        return cast(SettingsView, self._call("GET", self._scope(scope_id) + "/settings"))
+
+    def change_settings(
+        self, scope_id: str, values: Mapping[str, Any] | None = None, unset: Sequence[str] = ()
+    ) -> SettingsView:
+        """Set values and put settings back for this scope, all or none. A sensitive one waits for a person at the
+        terminal, and is refused with 428 until then."""
+        change = {
+            "target": "scope",
+            "set": [{"path": path, "value": value} for path, value in (values or {}).items()],
+            "unset": list(unset),
+        }
+        return cast(SettingsView, self._call("PATCH", self._scope(scope_id) + "/settings", change))
+
+    # -- tokens ----------------------------------------------------------------------------------------------------
+
+    def create_token(
+        self, kind: str, scopes: Sequence[str], *, label: str = "", roots: Sequence[str] = ()
+    ) -> MadeToken:
+        """An agent or viewer token for scopes in this host's namespaces. The answer's ``token`` is shown only once."""
+        payload = {"kind": kind, "scopes": list(scopes), "label": label, "roots": list(roots)}
+        return cast(MadeToken, self._call("POST", HOST_PATH + "/tokens", payload))
+
+    def tokens(self) -> list[TokenRecord]:
+        """The tokens this host made."""
+        return cast(list[TokenRecord], self._call("GET", HOST_PATH + "/tokens")["tokens"])
+
+    def revoke(self, token_id: str) -> bool:
+        """Revoke a token this host made. Answers whether there was one."""
+        return bool(self._call("DELETE", f"{HOST_PATH}/tokens/{quote(token_id, safe='')}")["revoked"])
+
+    def agent(
+        self,
+        scope_id: str,
+        *,
+        label: str = "",
+        roots: Sequence[str] = (),
+        python: str | None = None,
+        server_name: str = relay.DEFAULT_SERVER_NAME,
+        run_dir: str | os.PathLike[str] | None = None,
+    ) -> AgentAccess:
+        """An agent token for one scope, as the MCP server command an agent's client runs and its environment. With
+        `run_dir`, the daemon's run folder, the agent's relay follows a daemon started again on another port."""
+        made = self.create_token("agent", [scope_id], label=label, roots=roots)
+        headers = {TOKEN_HEADER: TOKEN_ENV, SCOPE_HEADER: SCOPE_ENV}
+        extra = {} if python is None else {"python": python}
+        argv = relay.relay_command(
+            url_env=URL_ENV,
+            headers=headers,
+            client_header=CLIENT_HEADER,
+            roots_header=ROOTS_HEADER,
+            server_name=server_name,
+            run_dir=run_dir,
+            server_version=__version__,
+            **extra,
+        )
+        env = {URL_ENV: self.url + AGENT_PATH, TOKEN_ENV: str(made["token"]), SCOPE_ENV: scope_id}
+        return AgentAccess(str(made["id"]), argv, env)
+
+    def keep(self, access: AgentAccess) -> bool:
+        """Renew the lease that keeps an agent's device from being stopped as idle between its calls; renew it more
+        often than every 90 seconds while the agent runs. Answers whether the daemon took it."""
+        try:
+            self._call("POST", AGENT_PATH + "/lease", {}, token=access.env[TOKEN_ENV])
+        except (DaemonRefused, DaemonUnavailable):
+            return False
+        return True

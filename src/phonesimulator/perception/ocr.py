@@ -1,0 +1,289 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Text read from a screen's pixels, as elements with a place: the reader for what accessibility does not say.
+
+A game, a canvas, an app still loading, an app whose accessibility stopped answering, or a device whose connector cannot
+read a tree at all: each still shows text. An `OcrReader` takes a screenshot, has a `TextRecognizer` read the lines of
+text in it -- macOS's Vision, in PhoneSimulator's own helper (`perception.vision`) -- and answers them as a `ScreenTree`
+of text elements whose frames are where the text is, so an agent can find ``Sign in`` and tap its ref. Their source is
+`PIXELS`, so a snapshot can say which lines were read this way.
+
+An app turned to landscape or upside down is drawn turned on the device's portrait screen, its text running sideways
+or upside down there. Read in with an accessibility tree (`read_in`), the screenshot is turned upright the way the
+tree says the interface is (`perception.orientation`) before it is read, so its text reads as the app shows it and its
+frames are in the interface's points, as the tree's are. The lines told to a viewer are put back on the device's own
+screen, which is what a viewer shows.
+
+What is recognised is kept per device for a few screenshots (`RecognitionCache`): a screen that did not change is not
+read again, and reads the same -- the same text, the same refs. Lines the reader is less sure of than the scope's
+``perception.ocr_min_confidence`` are left out after the cache, so changing it needs no new reading.
+
+`OcrReaders` answers, per device, whether its scope reads pixels at all (``perception.ocr`` and a Mac to read them on)
+and the reader to read them with -- and how the text reader stands for a scope (`OcrReaders.state`): running, stopped,
+not compiled and why, and its last slow reading -- with what tells why, when it did not answer in time -- for
+`sim_device health` to say.
+"""
+
+from __future__ import annotations
+
+import hashlib
+from collections import OrderedDict
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass, replace
+from typing import Literal, Protocol, runtime_checkable
+
+from phonesimulator.config.model import SimConfig
+from phonesimulator.config.schema import language_codes
+from phonesimulator.connectors.base import ConnectorError, Crop, Screen, ScreenSource
+from phonesimulator.perception.model import PIXELS, ElementNode, Frame, ScreenTree
+from phonesimulator.perception.orientation import PORTRAIT, Interface, Orientation, shaped_as
+
+#: How many screenshot pixels a point is read at: enough for Vision to read small text, at most the screen's own.
+PIXELS_PER_POINT = 2
+#: The JPEG quality of the screenshot read: high, since compression blurs the edges of letters.
+OCR_QUALITY = 85
+#: How many screenshots' readings a device keeps.
+CACHE_SIZE = 8
+
+
+class TextRecognitionError(ConnectorError):
+    """Text could not be read from the screen's pixels."""
+
+
+@dataclass(frozen=True)
+class RecognitionOptions:
+    """How a screenshot is read: with which Xcode's helper, how carefully, in which languages, and for how long."""
+
+    developer_dir: str
+    level: Literal["accurate", "fast"]
+    languages: tuple[str, ...]
+    correction: bool
+    timeout_s: float
+
+    @classmethod
+    def from_config(cls, config: SimConfig) -> RecognitionOptions:
+        return cls(
+            developer_dir=config.developer_dir,
+            level=config.ocr_level,
+            languages=language_codes(config.ocr_languages),
+            correction=config.ocr_correction,
+            timeout_s=config.ocr_timeout_ms / 1000,
+        )
+
+    def reads_alike(self) -> tuple[object, ...]:
+        """What makes two readings of the same picture the same: not the Xcode, nor how long one may take."""
+        return self.level, self.languages, self.correction
+
+
+@dataclass(frozen=True)
+class TextBox:
+    """Where a line of text is, as shares of the screenshot's width and height from its top left."""
+
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+@dataclass(frozen=True)
+class RecognizedLine:
+    text: str
+    #: How sure the reading is, from 0 to 1.
+    confidence: float
+    box: TextBox
+
+
+class TextRecognizer(Protocol):
+    async def recognize(self, jpeg: bytes, options: RecognitionOptions) -> tuple[RecognizedLine, ...]:
+        """Every line of text in a JPEG, however unsure. Raises `TextRecognitionError`."""
+        ...
+
+    async def close(self) -> None:
+        """Let go of whatever reads text."""
+        ...
+
+
+@runtime_checkable
+class ReportsState(Protocol):
+    """A recognizer that can say how it stands for an Xcode, without starting or compiling anything."""
+
+    def state(self, developer_dir: str) -> str:
+        """How the text reader for this Xcode stands now, as a person reads it."""
+        ...
+
+
+class NoRecognizer:
+    """Reads nothing: for where no text reader can run."""
+
+    async def recognize(self, jpeg: bytes, options: RecognitionOptions) -> tuple[RecognizedLine, ...]:
+        raise TextRecognitionError("text in the screen's pixels can only be read on a Mac")
+
+    async def close(self) -> None:
+        return None
+
+
+def frame_of(box: TextBox, screen: Screen) -> Frame:
+    """A text box's place on the screen, in points."""
+    width, height = float(screen.width_pt), float(screen.height_pt)
+    return Frame(box.x * width, box.y * height, box.width * width, box.height * height)
+
+
+def tree_from_lines(lines: Sequence[RecognizedLine], screen: Screen, orientation: Orientation = PORTRAIT) -> ScreenTree:
+    """Lines of text read from pixels, as text elements where each is on `screen` -- an interface's, turned as
+    `orientation` says."""
+    roots = tuple(
+        ElementNode(role="StaticText", label=line.text, frame=frame_of(line.box, screen), source=PIXELS)
+        for line in lines
+    )
+    return ScreenTree(roots=roots, pixels=True, orientation=orientation)
+
+
+def on_device(line: RecognizedLine, interface: Interface) -> RecognizedLine:
+    """A line read from an interface's upright screenshot, where it is on the device's screen."""
+    if not interface.turned:
+        return line
+    frame = frame_of(line.box, interface.screen)
+    region = interface.crop(Crop(frame.x, frame.y, frame.width, frame.height))
+    width, height = float(interface.device.width_pt), float(interface.device.height_pt)
+    box = TextBox(region.x / width, region.y / height, region.width / width, region.height / height)
+    return replace(line, box=box)
+
+
+class RecognitionCache:
+    """The last few screenshots read, by their bytes, how they were read and which way they were turned upright first,
+    most recently used kept longest."""
+
+    def __init__(self, size: int = CACHE_SIZE) -> None:
+        self._size = size
+        self._kept: OrderedDict[tuple[bytes, Orientation, tuple[object, ...]], tuple[RecognizedLine, ...]] = (
+            OrderedDict()
+        )
+
+    @staticmethod
+    def _key(
+        jpeg: bytes, options: RecognitionOptions, turned: Orientation
+    ) -> tuple[bytes, Orientation, tuple[object, ...]]:
+        return hashlib.blake2b(jpeg, digest_size=16).digest(), turned, options.reads_alike()
+
+    def get(
+        self, jpeg: bytes, options: RecognitionOptions, turned: Orientation = PORTRAIT
+    ) -> tuple[RecognizedLine, ...] | None:
+        key = self._key(jpeg, options, turned)
+        lines = self._kept.get(key)
+        if lines is not None:
+            self._kept.move_to_end(key)
+        return lines
+
+    def put(
+        self,
+        jpeg: bytes,
+        options: RecognitionOptions,
+        lines: tuple[RecognizedLine, ...],
+        turned: Orientation = PORTRAIT,
+    ) -> None:
+        self._kept[self._key(jpeg, options, turned)] = lines
+        while len(self._kept) > self._size:
+            self._kept.popitem(last=False)
+
+
+#: Told the lines each reading kept, as they are drawn: the viewer's overlay.
+OnRead = Callable[[tuple[RecognizedLine, ...]], None]
+
+
+class OcrReader:
+    """The text in a device's screenshot, as a tree."""
+
+    def __init__(
+        self,
+        *,
+        source: ScreenSource,
+        screen: Screen,
+        recognizer: TextRecognizer,
+        options: RecognitionOptions,
+        min_confidence: float,
+        cache: RecognitionCache,
+        on_read: OnRead | None = None,
+    ) -> None:
+        self._source = source
+        self._screen = screen
+        self._recognizer = recognizer
+        self._options = options
+        self._min_confidence = min_confidence
+        self._cache = cache
+        self._on_read = on_read
+
+    async def read(self) -> ScreenTree:
+        """The text on the device's screen, as it lies there."""
+        return await self._read(None)
+
+    async def read_in(self, orientation: Awaitable[Orientation]) -> ScreenTree:
+        """The text of an interface turned as `orientation` comes to say, in its points: the screenshot is taken at
+        once, and turned upright once the way is known."""
+        return await self._read(orientation)
+
+    async def _read(self, orientation: Awaitable[Orientation] | None) -> ScreenTree:
+        screen = self._screen
+        width = min(screen.width_px, PIXELS_PER_POINT * screen.width_pt)
+        shot = await self._source.screenshot(max_width=width, quality=OCR_QUALITY)
+        interface = Interface(screen, PORTRAIT if orientation is None else await orientation)
+        if not interface.turned:
+            interface = Interface(shaped_as(screen, shot.width, shot.height))
+        turned = interface.orientation
+        lines = self._cache.get(shot.jpeg, self._options, turned)
+        if lines is None:
+            upright = await interface.upright(shot, quality=OCR_QUALITY)
+            lines = await self._recognizer.recognize(upright.jpeg, self._options)
+            self._cache.put(shot.jpeg, self._options, lines, turned)
+        kept = tuple(line for line in lines if line.confidence >= self._min_confidence)
+        if self._on_read is not None:
+            self._on_read(tuple(on_device(line, interface) for line in kept))
+        return replace(tree_from_lines(kept, interface.screen, turned), screen=interface.device)
+
+
+class OcrReaders:
+    """Whether a device's screen may be read from its pixels, and the reader for it -- each device keeping its own
+    cache until it ends."""
+
+    def __init__(self, recognizer: TextRecognizer, *, supported: bool) -> None:
+        self._recognizer = recognizer
+        self._supported = supported
+        self._caches: dict[str, RecognitionCache] = {}
+
+    def enabled(self, config: SimConfig) -> bool:
+        """Whether a scope reads pixels: its ``perception.ocr`` is on, on a Mac that can read them."""
+        return self._supported and config.ocr_mode != "off"
+
+    def reader(
+        self, udid: str, source: ScreenSource, screen: Screen, config: SimConfig, on_read: OnRead | None = None
+    ) -> OcrReader | None:
+        """The reader of this device's pixels under its scope's settings as they are now; None when it reads none."""
+        if not self.enabled(config):
+            return None
+        return OcrReader(
+            source=source,
+            screen=screen,
+            recognizer=self._recognizer,
+            options=RecognitionOptions.from_config(config),
+            min_confidence=config.ocr_min_confidence / 100,
+            cache=self._caches.setdefault(udid, RecognitionCache()),
+            on_read=on_read,
+        )
+
+    def state(self, config: SimConfig) -> str:
+        """How the text reader stands for a scope with these settings -- off, or as its recognizer says -- without
+        starting it."""
+        if not self._supported:
+            return "not available: text is read from pixels only on a Mac"
+        if config.ocr_mode == "off":
+            return "off (perception.ocr)"
+        recognizer = self._recognizer
+        if isinstance(recognizer, ReportsState):
+            return recognizer.state(RecognitionOptions.from_config(config).developer_dir)
+        return "ready"
+
+    def forget(self, udid: str) -> None:
+        """The device ended: its readings are no use to the next one."""
+        self._caches.pop(udid, None)
+
+    async def close(self) -> None:
+        self._caches.clear()
+        await self._recognizer.close()

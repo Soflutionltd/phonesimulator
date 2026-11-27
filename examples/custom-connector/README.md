@@ -1,7 +1,7 @@
 # Custom connector
 
-A connector is how Rocketwright reaches a device. Rocketwright ships two -- `idb` (full control, through idb_companion) and
-`simctl` (view-only) -- and finds more through the `rocketwright.connectors` entry point.
+A connector is how PhoneSimulator reaches a device. PhoneSimulator ships two -- `idb` (full control, through idb_companion) and
+`simctl` (view-only) -- and finds more through the `phonesimulator.connectors` entry point.
 
 [recorded_connector.py](recorded_connector.py) is a complete one that needs nothing installed: its "device" is a folder
 of JPEG screenshots, shown one after another. Use it as the skeleton for a real one.
@@ -16,13 +16,13 @@ of JPEG screenshots, shown one after another. Use it as the skeleton for a real 
 | `reap_orphans()` | Ends processes an earlier run left behind, and answers how many |
 | `create(context)` | The entry point: gets the host's state folders, wording and simctl |
 
-Rocketwright offers exactly what the capabilities promise: no touch tools and no input from the viewer without
-`input_touch`, no snapshots without `element_tree`. A connector that cannot be used says why, and `rocketwright doctor`
+PhoneSimulator offers exactly what the capabilities promise: no touch tools and no input from the viewer without
+`input_touch`, no snapshots without `element_tree`. A connector that cannot be used says why, and `phonesimulator doctor`
 shows it.
 
 ## Test it
 
-`rocketwright.testing.contract.check_connector` checks every promise at once -- the report, each role, closing twice --
+`phonesimulator.testing.contract.check_connector` checks every promise at once -- the report, each role, closing twice --
 against your connector's own fakes. [test_recorded_connector.py](test_recorded_connector.py) uses it:
 
 ```sh
@@ -33,11 +33,11 @@ uv run --group dev pytest
 ## Use it
 
 ```sh
-uv pip install ./examples/custom-connector     # into the environment Rocketwright runs in
+uv pip install ./examples/custom-connector     # into the environment PhoneSimulator runs in
 ```
 
 ```toml
-# Rocketwright's config (`rocketwright config path`)
+# PhoneSimulator's config (`phonesimulator config path`)
 [connectors]
 preferred = "recorded"
 ```

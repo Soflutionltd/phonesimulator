@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Settling by what the screen shows: animations that never stop are let go, real changes are not, and a slow fade is
-not taken for stillness. The exact way Rocketwright 1.0 settled is pinned in test_wait.py."""
+not taken for stillness. The exact way PhoneSimulator 1.0 settled is pinned in test_wait.py."""
 
 from __future__ import annotations
 
@@ -9,20 +9,20 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import Crop
-from rocketwright.perception.orientation import Orientation
-from rocketwright.perception.readers import tree_from_document
-from rocketwright.perception.settle import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import Crop
+from phonesimulator.perception.orientation import Orientation
+from phonesimulator.perception.readers import tree_from_document
+from phonesimulator.perception.settle import (
     ExactStillness,
     PerceptualStillness,
     ScreenshotSettle,
     Stillness,
     stillness_for,
 )
-from rocketwright.perception.snapshot import Snapshot, build
-from rocketwright.testing.fakes import SCREEN, ManualClock
-from rocketwright.testing.pictures import HEIGHT, WIDTH, Box, PictureEngine, picture
+from phonesimulator.perception.snapshot import Snapshot, build
+from phonesimulator.testing.fakes import SCREEN, ManualClock
+from phonesimulator.testing.pictures import HEIGHT, WIDTH, Box, PictureEngine, picture
 
 TITLE: Box = (10, 20, 100, 12, 20)
 

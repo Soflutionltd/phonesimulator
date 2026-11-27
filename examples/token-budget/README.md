@@ -4,7 +4,7 @@ What each tool's answer costs an agent, measured on your own screens with
 [benchmarks/tool_budget.py](../../benchmarks/tool_budget.py).
 
 ```sh
-rocketwright open --scope demo     # start the device and put something on its screen
+phonesimulator open --scope demo     # start the device and put something on its screen
 uv run python benchmarks/tool_budget.py --scope demo --runs 5
 ```
 
@@ -29,7 +29,7 @@ refresh uses 30 calls per tool.
 
 See [the dated performance report](../../docs/performance.md) for the current results and historical baselines.
 
-It starts `rocketwright mcp` for the scope, speaks MCP to it over stdio as a client does, and calls each read-only tool
+It starts `phonesimulator mcp` for the scope, speaks MCP to it over stdio as a client does, and calls each read-only tool
 `--runs` times: device info, a full snapshot, a diff snapshot of the unchanged screen, and screenshots at 400 and 1200
 pixels wide. Nothing is tapped or typed. For each call it prints a Markdown table row:
 

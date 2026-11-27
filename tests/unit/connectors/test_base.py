@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from rocketwright.connectors.base import (
+from phonesimulator.connectors.base import (
     INPUT_CAPABILITIES,
     IOS_BUTTONS,
     Capability,
@@ -15,8 +15,8 @@ from rocketwright.connectors.base import (
     HidEvent,
     button_refusal,
 )
-from rocketwright.protocol import CAPABILITIES
-from rocketwright.testing.fakes import FakeEngine
+from phonesimulator.protocol import CAPABILITIES
+from phonesimulator.testing.fakes import FakeEngine
 
 
 def test_the_capabilities_are_the_protocols_own_in_its_order() -> None:

@@ -19,12 +19,12 @@ public struct RecordedTouch: Equatable, Sendable, Codable {
     }
 }
 
-/// What Rocketwright asks to be rendered: a recording, the touches to draw on it, and the files to write.
+/// What PhoneSimulator asks to be rendered: a recording, the touches to draw on it, and the files to write.
 public struct RenderJob: Equatable, Sendable, Codable {
     public enum InputKind: String, Sendable, Codable {
         /// A movie the device's own tool wrote.
         case movie
-        /// Rocketwright's own frame file (`FrameFile`).
+        /// PhoneSimulator's own frame file (`FrameFile`).
         case frames
     }
 
@@ -37,14 +37,14 @@ public struct RenderJob: Equatable, Sendable, Codable {
     public let speed: Double
     public let gifFps: Int
     public let gifWidth: Int
-    /// How wide the MP4 is drawn; 0, or a job from a Rocketwright that did not say, keeps the recording's own width.
+    /// How wide the MP4 is drawn; 0, or a job from a PhoneSimulator that did not say, keeps the recording's own width.
     public let mp4Width: Int
     /// How many bits the MP4 spends on its size; a job that does not say is `high`, as every MP4 was before.
     public let mp4Quality: MovieQuality
     /// How long the recording ran by the clock, in seconds: a still screen sends its last picture long before the
-    /// recording stops. 0, or a job from a Rocketwright that did not say, is as long as its pictures run.
+    /// recording stops. 0, or a job from a PhoneSimulator that did not say, is as long as its pictures run.
     public let durationS: Double
-    /// Frames a second in the MP4; a job from a Rocketwright that did not say is 30, as every MP4 was before.
+    /// Frames a second in the MP4; a job from a PhoneSimulator that did not say is 30, as every MP4 was before.
     public let mp4Fps: Int
     /// The part of the screen kept, as fractions of the recording's picture; nil, or a job that did not say, keeps all.
     public let crop: RecordingCrop?
@@ -56,7 +56,7 @@ public struct RenderJob: Equatable, Sendable, Codable {
     public static let mp4FpsRange = 1...120
     /// What an MP4's rate is when the job does not say.
     public static let defaultMp4Fps = 30
-    /// Up to a day: longer than any recording Rocketwright lets run.
+    /// Up to a day: longer than any recording PhoneSimulator lets run.
     public static let durationRange = 0.0...86_400
 
     enum CodingKeys: String, CodingKey {
@@ -104,7 +104,7 @@ public struct RenderJob: Equatable, Sendable, Codable {
         Ticks.make(duration: length(of: pictures), speed: speed, fps: fps)
     }
 
-    /// A job read from Rocketwright's JSON, refused when it asks for something that cannot be made.
+    /// A job read from PhoneSimulator's JSON, refused when it asks for something that cannot be made.
     public static func read(_ data: Data) throws -> RenderJob {
         let job: RenderJob
         do {
@@ -142,7 +142,7 @@ public struct RecordingCrop: Equatable, Sendable, Codable {
         self.height = height
     }
 
-    /// How far past the picture's edge a crop may reach, for rounding on Rocketwright's side.
+    /// How far past the picture's edge a crop may reach, for rounding on PhoneSimulator's side.
     static let slack = 1e-6
 
     var isWithinPicture: Bool {
@@ -251,7 +251,7 @@ public struct RenderReport: Equatable, Sendable, Encodable {
     }
 }
 
-/// Rocketwright's frame file: the frames a screen streamed while it was recorded, each with its time.
+/// PhoneSimulator's frame file: the frames a screen streamed while it was recorded, each with its time.
 ///
 /// `SMRF` and a version byte, then per frame: its kind (1 an H.264 access unit, 2 a JPEG), its time in seconds after
 /// the recording began as a big-endian double, its length as a big-endian 32-bit count, and its bytes.
@@ -278,7 +278,7 @@ public enum FrameFile {
         public init(read: @escaping (Int) throws -> Data) throws {
             self.read = read
             guard try read(FrameFile.magic.count) == FrameFile.magic else {
-                throw HelperFailure("not a Rocketwright frame file, or one of a newer version")
+                throw HelperFailure("not a PhoneSimulator frame file, or one of a newer version")
             }
         }
 

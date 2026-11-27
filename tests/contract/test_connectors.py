@@ -8,22 +8,22 @@ from typing import Any
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.android.connector import AndroidConnector
-from rocketwright.connectors.base import Capability, ConnectorError, ConnectorReport, DeviceSession
-from rocketwright.connectors.idb.connector import IdbConnector
-from rocketwright.connectors.native.connector import NativeConnector
-from rocketwright.connectors.native.helper import HelperLauncher, HelperVersion
-from rocketwright.connectors.simctl.connector import SimctlConnector
-from rocketwright.core.android_devices import AndroidDirectory, AndroidServices
-from rocketwright.platform.identifiers import android_id
-from rocketwright.platform.simctl import Simctl
-from rocketwright.testing import contract
-from rocketwright.testing.adb import FakeAdbServer
-from rocketwright.testing.android_sdk import sdk_at
-from rocketwright.testing.contract import check_connector
-from rocketwright.testing.fakes import (
+from phonesimulator._version import __version__
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.android.connector import AndroidConnector
+from phonesimulator.connectors.base import Capability, ConnectorError, ConnectorReport, DeviceSession
+from phonesimulator.connectors.idb.connector import IdbConnector
+from phonesimulator.connectors.native.connector import NativeConnector
+from phonesimulator.connectors.native.helper import HelperLauncher, HelperVersion
+from phonesimulator.connectors.simctl.connector import SimctlConnector
+from phonesimulator.core.android_devices import AndroidDirectory, AndroidServices
+from phonesimulator.platform.identifiers import android_id
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.testing import contract
+from phonesimulator.testing.adb import FakeAdbServer
+from phonesimulator.testing.android_sdk import sdk_at
+from phonesimulator.testing.contract import check_connector
+from phonesimulator.testing.fakes import (
     BOOTED_UDID,
     FakeConnector,
     FakeEngine,
@@ -33,7 +33,7 @@ from rocketwright.testing.fakes import (
     MemoryStateStore,
     tiny_jpeg,
 )
-from rocketwright.testing.native import FakeHelperSpawn, short_run_dir
+from phonesimulator.testing.native import FakeHelperSpawn, short_run_dir
 
 CONFIG = SimConfig.defaults()
 
@@ -44,7 +44,7 @@ async def test_the_idb_connector_keeps_the_contract() -> None:
 
 
 async def test_the_native_connector_keeps_the_contract(tmp_path: Path) -> None:
-    binary = tmp_path / "rocketwright-helper"
+    binary = tmp_path / "phonesimulator-helper"
     binary.write_text("#!/bin/sh\n")
     binary.chmod(0o755)
     spawn = FakeHelperSpawn()
@@ -54,7 +54,7 @@ async def test_the_native_connector_keeps_the_contract(tmp_path: Path) -> None:
 
     with short_run_dir() as run:
         launcher = HelperLauncher(
-            run_dir=run, log_dir=tmp_path, owner_tag="RocketwrightTest", spawn=spawn, signal_group=spawn.signal_group
+            run_dir=run, log_dir=tmp_path, owner_tag="PhoneSimulatorTest", spawn=spawn, signal_group=spawn.signal_group
         )
         connector = NativeConnector(
             launcher, candidates=lambda: [binary], ask_version=version, choose=FakeXcodeSelect()

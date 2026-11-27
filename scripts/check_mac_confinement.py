@@ -13,7 +13,7 @@ from pathlib import Path
 
 from _repo import REPO_ROOT
 
-FOLDERS = ("sdk/swift/Sources/RocketwrightKit/AppKit", "examples/mac-app-sdk/Sources")
+FOLDERS = ("sdk/swift/Sources/PhoneSimulatorKit/AppKit", "examples/mac-app-sdk/Sources")
 PATTERN = re.compile(
     r"\b(?:CGEventPost|CGEventPostToPid|CGWarpMouseCursorPosition|CGAssociateMouseAndMouseCursorPosition|"
     r"AXUIElementCreateSystemWide)\s*\(|\.\s*(?:postToPid|makeKeyAndOrderFront)\s*\(|"

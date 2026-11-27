@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.core.devices import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.core.devices import (
     DeviceDirectory,
     DeviceRef,
     JsonDeviceMemory,
@@ -19,10 +19,10 @@ from rocketwright.core.devices import (
     pick_device_type,
     pick_runtime,
 )
-from rocketwright.host_copy import HostCopy
-from rocketwright.platform.simctl import DeviceType, Runtime, Simctl
-from rocketwright.scope import Scope
-from rocketwright.testing.fakes import BOOTED_UDID, FakeXcrun, MemoryStateStore
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.platform.simctl import DeviceType, Runtime, Simctl
+from phonesimulator.scope import Scope
+from phonesimulator.testing.fakes import BOOTED_UDID, FakeXcrun, MemoryStateStore
 
 NEW = "11111111-2222-3333-4444-555555555555"
 GONE = "99999999-9999-9999-9999-999999999999"
@@ -66,7 +66,7 @@ def test_the_newest_iphone_is_the_default_device_type() -> None:
 
 
 def test_a_made_device_is_named_for_its_scope_or_the_group_sharing_it() -> None:
-    assert device_name("Rocketwright", SCOPE, shared=False) == "Rocketwright · alpha · tp-1"
+    assert device_name("PhoneSimulator", SCOPE, shared=False) == "PhoneSimulator · alpha · tp-1"
     assert device_name("Host", SCOPE, shared=True) == "Host · alpha"
 
 
@@ -86,11 +86,11 @@ async def test_a_scope_with_no_device_gets_the_newest_iphone_and_it_is_remembere
 ) -> None:
     found = directory(tmp_path)
     ref = await found.resolve(Simctl(made), SCOPE, config())
-    assert ref == DeviceRef(NEW, "Rocketwright · alpha · tp-1", "iOS 26.5", created=True)
+    assert ref == DeviceRef(NEW, "PhoneSimulator · alpha · tp-1", "iOS 26.5", created=True)
     assert made.argv()[-1] == (
         "simctl",
         "create",
-        "Rocketwright · alpha · tp-1",
+        "PhoneSimulator · alpha · tp-1",
         "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
         "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
     )
@@ -120,14 +120,14 @@ async def test_a_shared_group_has_one_device_for_every_scope(tmp_path: Path, mad
     found = directory(tmp_path)
     shared = config(device_mode="shared", runtime="iOS 18.6", device_type="iPhone 16e")
     first = await found.resolve(Simctl(made), SCOPE, shared)
-    assert first.name == "Rocketwright · alpha" and first.runtime == "iOS 18.6"
+    assert first.name == "PhoneSimulator · alpha" and first.runtime == "iOS 18.6"
     assert made.argv()[-1][3] == "com.apple.CoreSimulator.SimDeviceType.iPhone-16e"
     listed = {"devices": {"com.apple.CoreSimulator.SimRuntime.iOS-18-6": [
-        {"udid": NEW, "name": "Rocketwright · alpha", "state": "Shutdown", "isAvailable": True,
+        {"udid": NEW, "name": "PhoneSimulator · alpha", "state": "Shutdown", "isAvailable": True,
          "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-16e"}]}}  # fmt: skip
     made.on("simctl", "list", "devices", "-j", out=json.dumps(listed))
     second = await found.resolve(Simctl(made), OTHER, shared)
-    assert second == DeviceRef(NEW, "Rocketwright · alpha", "iOS 18.6", created=True)
+    assert second == DeviceRef(NEW, "PhoneSimulator · alpha", "iOS 18.6", created=True)
     assert found.memory.assigned(Scope(id="alpha-tp-9", group="alpha", label="x"), True) == NEW
 
 
@@ -173,14 +173,14 @@ def test_choosing_forgetting_and_a_file_that_cannot_be_read(tmp_path: Path) -> N
     assert DeviceDirectory(memory).memory is memory
 
 
-async def test_a_device_rocketwright_made_takes_the_name_it_would_be_made_with_now(
+async def test_a_device_phonesimulator_made_takes_the_name_it_would_be_made_with_now(
     tmp_path: Path, made: FakeXcrun, caplog: pytest.LogCaptureFixture
 ) -> None:
     found = directory(tmp_path)
     found.memory.remember_created(SCOPE, False, BOOTED_UDID)
     ref = await found.resolve(Simctl(made), SCOPE, config())
-    assert ref == DeviceRef(BOOTED_UDID, "Rocketwright · alpha · tp-1", "iOS 26.5", created=True)
-    assert made.argv()[-1] == ("simctl", "rename", BOOTED_UDID, "Rocketwright · alpha · tp-1")
+    assert ref == DeviceRef(BOOTED_UDID, "PhoneSimulator · alpha · tp-1", "iOS 26.5", created=True)
+    assert made.argv()[-1] == ("simctl", "rename", BOOTED_UDID, "PhoneSimulator · alpha · tp-1")
     made.on("simctl", "rename", rc=1, err="Unable to rename")
     kept = await found.resolve(Simctl(made), SCOPE, config())
     assert kept.name == "iPhone 17 Pro" and "could not rename the simulator iPhone 17 Pro" in caplog.text

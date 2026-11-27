@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.build import flutter_log
-from rocketwright.build.flutter_log import compile_errors, read_log, read_tests
-from rocketwright.build.xcresult import Failure, Issue, SuiteSummary
-from rocketwright.testing.fakes import fixture
-from rocketwright.testing.flutter import COMPILE_ERROR
+from phonesimulator.build import flutter_log
+from phonesimulator.build.flutter_log import compile_errors, read_log, read_tests
+from phonesimulator.build.xcresult import Failure, Issue, SuiteSummary
+from phonesimulator.testing.fakes import fixture
+from phonesimulator.testing.flutter import COMPILE_ERROR
 
 
 def read(path: Path, seconds: float | None = None) -> SuiteSummary:

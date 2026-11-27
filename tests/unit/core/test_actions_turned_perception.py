@@ -14,16 +14,16 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from rocketwright.connectors.base import Crop, Screen, Shot
-from rocketwright.core.actions import AgentActions
-from rocketwright.core.instance import DeviceInstance
-from rocketwright.perception.ocr import OcrReaders, RecognitionOptions, RecognizedLine
-from rocketwright.perception.orientation import Interface, Orientation
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import SCREEN, FakeConnector, FakeEngine, fixture_json
-from rocketwright.testing.pictures import picture
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.testing.vision import text_line
+from phonesimulator.connectors.base import Crop, Screen, Shot
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.perception.ocr import OcrReaders, RecognitionOptions, RecognizedLine
+from phonesimulator.perception.orientation import Interface, Orientation
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import SCREEN, FakeConnector, FakeEngine, fixture_json
+from phonesimulator.testing.pictures import picture
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.testing.vision import text_line
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code")
 IPAD = Screen(width_px=2064, height_px=2752, width_pt=1032, height_pt=1376, scale=2.0)

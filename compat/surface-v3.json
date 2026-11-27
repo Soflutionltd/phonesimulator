@@ -1783,42 +1783,42 @@
     }
   },
   "cli": {
-    "rocketwright": {
+    "phonesimulator": {
       "options": {
         "--version": false
       },
       "positionals": []
     },
-    "rocketwright android": {
+    "phonesimulator android": {
       "options": {},
       "positionals": []
     },
-    "rocketwright android avds": {
+    "phonesimulator android avds": {
       "options": {},
       "positionals": []
     },
-    "rocketwright android clean": {
+    "phonesimulator android clean": {
       "options": {},
       "positionals": []
     },
-    "rocketwright android setup": {
+    "phonesimulator android setup": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright android status": {
+    "phonesimulator android status": {
       "options": {
         "--json": false,
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright app": {
+    "phonesimulator app": {
       "options": {},
       "positionals": []
     },
-    "rocketwright app hierarchy": {
+    "phonesimulator app hierarchy": {
       "options": {
         "--device": false,
         "--json": false,
@@ -1826,18 +1826,18 @@
       },
       "positionals": []
     },
-    "rocketwright config": {
+    "phonesimulator config": {
       "options": {},
       "positionals": []
     },
-    "rocketwright config copy": {
+    "phonesimulator config copy": {
       "options": {
         "--from": true,
         "--scope": true
       },
       "positionals": []
     },
-    "rocketwright config get": {
+    "phonesimulator config get": {
       "options": {
         "--scope": false
       },
@@ -1848,23 +1848,23 @@
         ]
       ]
     },
-    "rocketwright config list": {
+    "phonesimulator config list": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright config path": {
+    "phonesimulator config path": {
       "options": {},
       "positionals": []
     },
-    "rocketwright config scope": {
+    "phonesimulator config scope": {
       "options": {
         "--folder": false
       },
       "positionals": []
     },
-    "rocketwright config set": {
+    "phonesimulator config set": {
       "options": {
         "--scope": false
       },
@@ -1879,7 +1879,7 @@
         ]
       ]
     },
-    "rocketwright config unset": {
+    "phonesimulator config unset": {
       "options": {
         "--scope": false
       },
@@ -1890,17 +1890,17 @@
         ]
       ]
     },
-    "rocketwright config validate": {
+    "phonesimulator config validate": {
       "options": {},
       "positionals": []
     },
-    "rocketwright device": {
+    "phonesimulator device": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright device appearance": {
+    "phonesimulator device appearance": {
       "options": {
         "--scope": false
       },
@@ -1911,13 +1911,13 @@
         ]
       ]
     },
-    "rocketwright device clear-location": {
+    "phonesimulator device clear-location": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright device contrast": {
+    "phonesimulator device contrast": {
       "options": {
         "--scope": false
       },
@@ -1928,7 +1928,7 @@
         ]
       ]
     },
-    "rocketwright device location": {
+    "phonesimulator device location": {
       "options": {
         "--scope": false
       },
@@ -1943,7 +1943,7 @@
         ]
       ]
     },
-    "rocketwright device reduce-motion": {
+    "phonesimulator device reduce-motion": {
       "options": {
         "--scope": false
       },
@@ -1954,7 +1954,7 @@
         ]
       ]
     },
-    "rocketwright device status-bar": {
+    "phonesimulator device status-bar": {
       "options": {
         "--scope": false
       },
@@ -1965,7 +1965,7 @@
         ]
       ]
     },
-    "rocketwright device text-size": {
+    "phonesimulator device text-size": {
       "options": {
         "--scope": false
       },
@@ -1976,13 +1976,13 @@
         ]
       ]
     },
-    "rocketwright devices": {
+    "phonesimulator devices": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright devices choose": {
+    "phonesimulator devices choose": {
       "options": {
         "--scope": false
       },
@@ -1993,13 +1993,13 @@
         ]
       ]
     },
-    "rocketwright devices list": {
+    "phonesimulator devices list": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright doctor": {
+    "phonesimulator doctor": {
       "options": {
         "--device": false,
         "--json": false,
@@ -2007,32 +2007,32 @@
       },
       "positionals": []
     },
-    "rocketwright helper": {
+    "phonesimulator helper": {
       "options": {},
       "positionals": []
     },
-    "rocketwright helper build": {
+    "phonesimulator helper build": {
       "options": {
         "--force": false,
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright helper status": {
+    "phonesimulator helper status": {
       "options": {
         "--json": false,
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright mcp": {
+    "phonesimulator mcp": {
       "options": {
         "--root": false,
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright open": {
+    "phonesimulator open": {
       "options": {
         "--print": false,
         "--scope": false,
@@ -2040,19 +2040,19 @@
       },
       "positionals": []
     },
-    "rocketwright record": {
+    "phonesimulator record": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright record list": {
+    "phonesimulator record list": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright record start": {
+    "phonesimulator record start": {
       "options": {
         "--also": false,
         "--format": false,
@@ -2066,13 +2066,13 @@
       },
       "positionals": []
     },
-    "rocketwright record stop": {
+    "phonesimulator record stop": {
       "options": {
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright serve": {
+    "phonesimulator serve": {
       "options": {
         "--config": false,
         "--detach": false,
@@ -2081,15 +2081,15 @@
       },
       "positionals": []
     },
-    "rocketwright settings": {
+    "phonesimulator settings": {
       "options": {},
       "positionals": []
     },
-    "rocketwright settings confirm": {
+    "phonesimulator settings confirm": {
       "options": {},
       "positionals": []
     },
-    "rocketwright stop": {
+    "phonesimulator stop": {
       "options": {
         "--daemon": false,
         "--device": false,
@@ -2099,11 +2099,11 @@
       },
       "positionals": []
     },
-    "rocketwright token": {
+    "phonesimulator token": {
       "options": {},
       "positionals": []
     },
-    "rocketwright token create": {
+    "phonesimulator token create": {
       "options": {
         "--kind": true,
         "--label": false,
@@ -2112,11 +2112,11 @@
       },
       "positionals": []
     },
-    "rocketwright token list": {
+    "phonesimulator token list": {
       "options": {},
       "positionals": []
     },
-    "rocketwright token revoke": {
+    "phonesimulator token revoke": {
       "options": {},
       "positionals": [
         [
@@ -2125,39 +2125,39 @@
         ]
       ]
     },
-    "rocketwright tools": {
+    "phonesimulator tools": {
       "options": {
         "--json": false
       },
       "positionals": []
     },
-    "rocketwright version": {
+    "phonesimulator version": {
       "options": {},
       "positionals": []
     },
-    "rocketwright wda": {
+    "phonesimulator wda": {
       "options": {},
       "positionals": []
     },
-    "rocketwright wda setup": {
+    "phonesimulator wda setup": {
       "options": {
         "--device": false,
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright wda status": {
+    "phonesimulator wda status": {
       "options": {
         "--json": false,
         "--scope": false
       },
       "positionals": []
     },
-    "rocketwright wda teams": {
+    "phonesimulator wda teams": {
       "options": {},
       "positionals": []
     },
-    "rocketwright wda uninstall": {
+    "phonesimulator wda uninstall": {
       "options": {
         "--scope": false
       },
@@ -2168,11 +2168,11 @@
         ]
       ]
     },
-    "rocketwright xcode": {
+    "phonesimulator xcode": {
       "options": {},
       "positionals": []
     },
-    "rocketwright xcode approve": {
+    "phonesimulator xcode approve": {
       "options": {
         "--scope": false
       },
@@ -2351,7 +2351,7 @@
             "type": "array"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/agent-event.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/agent-event.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "oneOf": [
           {
@@ -2590,7 +2590,7 @@
             "type": "object"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/client-input.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/client-input.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "oneOf": [
           {
@@ -2912,7 +2912,7 @@
             "type": "object"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/common.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/common.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema"
       },
       "hello.schema.json": {
@@ -2989,7 +2989,7 @@
             "type": "object"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/hello.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/hello.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "anyOf": [
           {
@@ -3664,11 +3664,11 @@
             "x-constant": "TOUCH_SETUP_STATES"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/http.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/http.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema"
       },
       "input-refused.schema.json": {
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/input-refused.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/input-refused.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "reason": {
@@ -3720,7 +3720,7 @@
             "type": "object"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/screen-text.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/screen-text.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "boxes": {
@@ -4164,7 +4164,7 @@
             "type": "object"
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/settings.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/settings.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema"
       },
       "status.schema.json": {
@@ -4328,7 +4328,7 @@
             ]
           }
         },
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/status.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/status.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "allOf": [
           {
@@ -4348,7 +4348,7 @@
         ]
       },
       "stream.schema.json": {
-        "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/stream.schema.json",
+        "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/stream.schema.json",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
           "encoding": {
@@ -4368,14 +4368,14 @@
   },
   "settings": {
     "agent.cursor": {
-      "env": "ROCKETWRIGHT_AGENT_CURSOR",
+      "env": "PHONESIMULATOR_AGENT_CURSOR",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "agent.cursor_lead_ms": {
-      "env": "ROCKETWRIGHT_AGENT_CURSOR_LEAD_MS",
+      "env": "PHONESIMULATOR_AGENT_CURSOR_LEAD_MS",
       "reach": "scope",
       "rule": {
         "high": 1000,
@@ -4384,7 +4384,7 @@
       }
     },
     "agent.cursor_linger_s": {
-      "env": "ROCKETWRIGHT_AGENT_CURSOR_LINGER_S",
+      "env": "PHONESIMULATOR_AGENT_CURSOR_LINGER_S",
       "reach": "scope",
       "rule": {
         "high": 3600,
@@ -4393,14 +4393,14 @@
       }
     },
     "agent.observe": {
-      "env": "ROCKETWRIGHT_AGENT_OBSERVE",
+      "env": "PHONESIMULATOR_AGENT_OBSERVE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "agent.observe_languages": {
-      "env": "ROCKETWRIGHT_AGENT_OBSERVE_LANGUAGES",
+      "env": "PHONESIMULATOR_AGENT_OBSERVE_LANGUAGES",
       "reach": "scope",
       "rule": {
         "format": "languages",
@@ -4411,7 +4411,7 @@
       }
     },
     "agent.observe_words": {
-      "env": "ROCKETWRIGHT_AGENT_OBSERVE_WORDS",
+      "env": "PHONESIMULATOR_AGENT_OBSERVE_WORDS",
       "reach": "scope",
       "rule": {
         "format": "words",
@@ -4422,7 +4422,7 @@
       }
     },
     "agent.screenshot_width": {
-      "env": "ROCKETWRIGHT_AGENT_SCREENSHOT_WIDTH",
+      "env": "PHONESIMULATOR_AGENT_SCREENSHOT_WIDTH",
       "reach": "scope",
       "rule": {
         "high": 1200,
@@ -4431,7 +4431,7 @@
       }
     },
     "agent.snapshot_max_elements": {
-      "env": "ROCKETWRIGHT_AGENT_SNAPSHOT_MAX_ELEMENTS",
+      "env": "PHONESIMULATOR_AGENT_SNAPSHOT_MAX_ELEMENTS",
       "reach": "scope",
       "rule": {
         "high": 400,
@@ -4440,21 +4440,21 @@
       }
     },
     "agent.tools": {
-      "env": "ROCKETWRIGHT_AGENT_TOOLS",
+      "env": "PHONESIMULATOR_AGENT_TOOLS",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "android.agents_choose": {
-      "env": "ROCKETWRIGHT_ANDROID_AGENTS_CHOOSE",
+      "env": "PHONESIMULATOR_ANDROID_AGENTS_CHOOSE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "android.emulator.boot_timeout": {
-      "env": "ROCKETWRIGHT_ANDROID_EMULATOR_BOOT_TIMEOUT",
+      "env": "PHONESIMULATOR_ANDROID_EMULATOR_BOOT_TIMEOUT",
       "reach": "scope",
       "rule": {
         "high": 900,
@@ -4463,14 +4463,14 @@
       }
     },
     "android.emulator.cold_boot": {
-      "env": "ROCKETWRIGHT_ANDROID_EMULATOR_COLD_BOOT",
+      "env": "PHONESIMULATOR_ANDROID_EMULATOR_COLD_BOOT",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "android.emulator.gpu": {
-      "env": "ROCKETWRIGHT_ANDROID_EMULATOR_GPU",
+      "env": "PHONESIMULATOR_ANDROID_EMULATOR_GPU",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4482,21 +4482,21 @@
       }
     },
     "android.emulator.window": {
-      "env": "ROCKETWRIGHT_ANDROID_EMULATOR_WINDOW",
+      "env": "PHONESIMULATOR_ANDROID_EMULATOR_WINDOW",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "android.enabled": {
-      "env": "ROCKETWRIGHT_ANDROID_ENABLED",
+      "env": "PHONESIMULATOR_ANDROID_ENABLED",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "android.java_home": {
-      "env": "ROCKETWRIGHT_ANDROID_JAVA_HOME",
+      "env": "PHONESIMULATOR_ANDROID_JAVA_HOME",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -4507,21 +4507,21 @@
       }
     },
     "android.phones": {
-      "env": "ROCKETWRIGHT_ANDROID_PHONES",
+      "env": "PHONESIMULATOR_ANDROID_PHONES",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "android.scrcpy.enabled": {
-      "env": "ROCKETWRIGHT_ANDROID_SCRCPY_ENABLED",
+      "env": "PHONESIMULATOR_ANDROID_SCRCPY_ENABLED",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "android.scrcpy.path": {
-      "env": "ROCKETWRIGHT_ANDROID_SCRCPY_PATH",
+      "env": "PHONESIMULATOR_ANDROID_SCRCPY_PATH",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -4532,7 +4532,7 @@
       }
     },
     "android.sdk_path": {
-      "env": "ROCKETWRIGHT_ANDROID_SDK_PATH",
+      "env": "PHONESIMULATOR_ANDROID_SDK_PATH",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -4543,7 +4543,7 @@
       }
     },
     "build.configuration": {
-      "env": "ROCKETWRIGHT_BUILD_CONFIGURATION",
+      "env": "PHONESIMULATOR_BUILD_CONFIGURATION",
       "reach": "scope",
       "rule": {
         "format": "configuration",
@@ -4554,7 +4554,7 @@
       }
     },
     "build.expected_bundle_id": {
-      "env": "ROCKETWRIGHT_BUILD_EXPECTED_BUNDLE_ID",
+      "env": "PHONESIMULATOR_BUILD_EXPECTED_BUNDLE_ID",
       "reach": "scope",
       "rule": {
         "format": "bundle_id",
@@ -4565,21 +4565,21 @@
       }
     },
     "build.stamp_source": {
-      "env": "ROCKETWRIGHT_BUILD_STAMP_SOURCE",
+      "env": "PHONESIMULATOR_BUILD_STAMP_SOURCE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "build.test_diagnostics": {
-      "env": "ROCKETWRIGHT_BUILD_TEST_DIAGNOSTICS",
+      "env": "PHONESIMULATOR_BUILD_TEST_DIAGNOSTICS",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "build.timeout_minutes": {
-      "env": "ROCKETWRIGHT_BUILD_TIMEOUT_MINUTES",
+      "env": "PHONESIMULATOR_BUILD_TIMEOUT_MINUTES",
       "reach": "scope",
       "rule": {
         "high": 60,
@@ -4588,14 +4588,14 @@
       }
     },
     "build.tools": {
-      "env": "ROCKETWRIGHT_BUILD_TOOLS",
+      "env": "PHONESIMULATOR_BUILD_TOOLS",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "connectors.app.max_nodes": {
-      "env": "ROCKETWRIGHT_CONNECTORS_APP_MAX_NODES",
+      "env": "PHONESIMULATOR_CONNECTORS_APP_MAX_NODES",
       "reach": "scope",
       "rule": {
         "high": 20000,
@@ -4604,21 +4604,21 @@
       }
     },
     "connectors.app.merge": {
-      "env": "ROCKETWRIGHT_CONNECTORS_APP_MERGE",
+      "env": "PHONESIMULATOR_CONNECTORS_APP_MERGE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "connectors.app.name_unlabeled": {
-      "env": "ROCKETWRIGHT_CONNECTORS_APP_NAME_UNLABELED",
+      "env": "PHONESIMULATOR_CONNECTORS_APP_NAME_UNLABELED",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "connectors.app.timeout_ms": {
-      "env": "ROCKETWRIGHT_CONNECTORS_APP_TIMEOUT_MS",
+      "env": "PHONESIMULATOR_CONNECTORS_APP_TIMEOUT_MS",
       "reach": "scope",
       "rule": {
         "high": 5000,
@@ -4627,7 +4627,7 @@
       }
     },
     "connectors.idb.companion_path": {
-      "env": "ROCKETWRIGHT_CONNECTORS_IDB_COMPANION_PATH",
+      "env": "PHONESIMULATOR_CONNECTORS_IDB_COMPANION_PATH",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -4638,14 +4638,14 @@
       }
     },
     "connectors.mcpbridge.merge": {
-      "env": "ROCKETWRIGHT_CONNECTORS_MCPBRIDGE_MERGE",
+      "env": "PHONESIMULATOR_CONNECTORS_MCPBRIDGE_MERGE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "connectors.native.helper_path": {
-      "env": "ROCKETWRIGHT_CONNECTORS_NATIVE_HELPER_PATH",
+      "env": "PHONESIMULATOR_CONNECTORS_NATIVE_HELPER_PATH",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -4656,7 +4656,7 @@
       }
     },
     "connectors.native.hid_transport": {
-      "env": "ROCKETWRIGHT_CONNECTORS_NATIVE_HID_TRANSPORT",
+      "env": "PHONESIMULATOR_CONNECTORS_NATIVE_HID_TRANSPORT",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4668,14 +4668,14 @@
       }
     },
     "connectors.native.idle_key_frames": {
-      "env": "ROCKETWRIGHT_CONNECTORS_NATIVE_IDLE_KEY_FRAMES",
+      "env": "PHONESIMULATOR_CONNECTORS_NATIVE_IDLE_KEY_FRAMES",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "connectors.native.startup_timeout": {
-      "env": "ROCKETWRIGHT_CONNECTORS_NATIVE_STARTUP_TIMEOUT",
+      "env": "PHONESIMULATOR_CONNECTORS_NATIVE_STARTUP_TIMEOUT",
       "reach": "scope",
       "rule": {
         "high": 120,
@@ -4684,7 +4684,7 @@
       }
     },
     "connectors.preferred": {
-      "env": "ROCKETWRIGHT_CONNECTORS_PREFERRED",
+      "env": "PHONESIMULATOR_CONNECTORS_PREFERRED",
       "reach": "scope",
       "rule": {
         "format": "connector",
@@ -4695,7 +4695,7 @@
       }
     },
     "device.agent_idle_minutes": {
-      "env": "ROCKETWRIGHT_DEVICE_AGENT_IDLE_MINUTES",
+      "env": "PHONESIMULATOR_DEVICE_AGENT_IDLE_MINUTES",
       "reach": "scope",
       "rule": {
         "high": 240,
@@ -4704,7 +4704,7 @@
       }
     },
     "device.developer_dir": {
-      "env": "ROCKETWRIGHT_DEVICE_DEVELOPER_DIR",
+      "env": "PHONESIMULATOR_DEVICE_DEVELOPER_DIR",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -4715,7 +4715,7 @@
       }
     },
     "device.exclusive": {
-      "env": "ROCKETWRIGHT_DEVICE_EXCLUSIVE",
+      "env": "PHONESIMULATOR_DEVICE_EXCLUSIVE",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4727,7 +4727,7 @@
       }
     },
     "device.idle_minutes": {
-      "env": "ROCKETWRIGHT_DEVICE_IDLE_MINUTES",
+      "env": "PHONESIMULATOR_DEVICE_IDLE_MINUTES",
       "reach": "scope",
       "rule": {
         "high": 240,
@@ -4736,7 +4736,7 @@
       }
     },
     "device.max_booted": {
-      "env": "ROCKETWRIGHT_DEVICE_MAX_BOOTED",
+      "env": "PHONESIMULATOR_DEVICE_MAX_BOOTED",
       "reach": "scope",
       "rule": {
         "high": 8,
@@ -4745,7 +4745,7 @@
       }
     },
     "device.mode": {
-      "env": "ROCKETWRIGHT_DEVICE_MODE",
+      "env": "PHONESIMULATOR_DEVICE_MODE",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4756,7 +4756,7 @@
       }
     },
     "device.name_prefix": {
-      "env": "ROCKETWRIGHT_DEVICE_NAME_PREFIX",
+      "env": "PHONESIMULATOR_DEVICE_NAME_PREFIX",
       "reach": "scope",
       "rule": {
         "format": "name",
@@ -4767,7 +4767,7 @@
       }
     },
     "device.restore_changes": {
-      "env": "ROCKETWRIGHT_DEVICE_RESTORE_CHANGES",
+      "env": "PHONESIMULATOR_DEVICE_RESTORE_CHANGES",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4779,7 +4779,7 @@
       }
     },
     "device.runtime": {
-      "env": "ROCKETWRIGHT_DEVICE_RUNTIME",
+      "env": "PHONESIMULATOR_DEVICE_RUNTIME",
       "reach": "scope",
       "rule": {
         "format": "name",
@@ -4790,14 +4790,14 @@
       }
     },
     "device.shutdown_on_idle": {
-      "env": "ROCKETWRIGHT_DEVICE_SHUTDOWN_ON_IDLE",
+      "env": "PHONESIMULATOR_DEVICE_SHUTDOWN_ON_IDLE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "device.status_bar": {
-      "env": "ROCKETWRIGHT_DEVICE_STATUS_BAR",
+      "env": "PHONESIMULATOR_DEVICE_STATUS_BAR",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4808,7 +4808,7 @@
       }
     },
     "device.type": {
-      "env": "ROCKETWRIGHT_DEVICE_TYPE",
+      "env": "PHONESIMULATOR_DEVICE_TYPE",
       "reach": "scope",
       "rule": {
         "format": "name",
@@ -4819,7 +4819,7 @@
       }
     },
     "device.typing": {
-      "env": "ROCKETWRIGHT_DEVICE_TYPING",
+      "env": "PHONESIMULATOR_DEVICE_TYPING",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4831,42 +4831,42 @@
       }
     },
     "enabled": {
-      "env": "ROCKETWRIGHT_ENABLED",
+      "env": "PHONESIMULATOR_ENABLED",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "mac.apps.accessibility": {
-      "env": "ROCKETWRIGHT_MAC_APPS_ACCESSIBILITY",
+      "env": "PHONESIMULATOR_MAC_APPS_ACCESSIBILITY",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "mac.apps.agents_choose": {
-      "env": "ROCKETWRIGHT_MAC_APPS_AGENTS_CHOOSE",
+      "env": "PHONESIMULATOR_MAC_APPS_AGENTS_CHOOSE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "mac.apps.enabled": {
-      "env": "ROCKETWRIGHT_MAC_APPS_ENABLED",
+      "env": "PHONESIMULATOR_MAC_APPS_ENABLED",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "mac.apps.keys_to_process": {
-      "env": "ROCKETWRIGHT_MAC_APPS_KEYS_TO_PROCESS",
+      "env": "PHONESIMULATOR_MAC_APPS_KEYS_TO_PROCESS",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "perception.ocr": {
-      "env": "ROCKETWRIGHT_PERCEPTION_OCR",
+      "env": "PHONESIMULATOR_PERCEPTION_OCR",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4878,14 +4878,14 @@
       }
     },
     "perception.ocr_correction": {
-      "env": "ROCKETWRIGHT_PERCEPTION_OCR_CORRECTION",
+      "env": "PHONESIMULATOR_PERCEPTION_OCR_CORRECTION",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "perception.ocr_languages": {
-      "env": "ROCKETWRIGHT_PERCEPTION_OCR_LANGUAGES",
+      "env": "PHONESIMULATOR_PERCEPTION_OCR_LANGUAGES",
       "reach": "scope",
       "rule": {
         "format": "languages",
@@ -4896,7 +4896,7 @@
       }
     },
     "perception.ocr_level": {
-      "env": "ROCKETWRIGHT_PERCEPTION_OCR_LEVEL",
+      "env": "PHONESIMULATOR_PERCEPTION_OCR_LEVEL",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4907,7 +4907,7 @@
       }
     },
     "perception.ocr_min_confidence": {
-      "env": "ROCKETWRIGHT_PERCEPTION_OCR_MIN_CONFIDENCE",
+      "env": "PHONESIMULATOR_PERCEPTION_OCR_MIN_CONFIDENCE",
       "reach": "scope",
       "rule": {
         "high": 100,
@@ -4916,14 +4916,14 @@
       }
     },
     "perception.ocr_overlay": {
-      "env": "ROCKETWRIGHT_PERCEPTION_OCR_OVERLAY",
+      "env": "PHONESIMULATOR_PERCEPTION_OCR_OVERLAY",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "perception.ocr_timeout_ms": {
-      "env": "ROCKETWRIGHT_PERCEPTION_OCR_TIMEOUT_MS",
+      "env": "PHONESIMULATOR_PERCEPTION_OCR_TIMEOUT_MS",
       "reach": "scope",
       "rule": {
         "high": 30000,
@@ -4932,7 +4932,7 @@
       }
     },
     "perception.settle": {
-      "env": "ROCKETWRIGHT_PERCEPTION_SETTLE",
+      "env": "PHONESIMULATOR_PERCEPTION_SETTLE",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -4943,7 +4943,7 @@
       }
     },
     "perception.settle_grid": {
-      "env": "ROCKETWRIGHT_PERCEPTION_SETTLE_GRID",
+      "env": "PHONESIMULATOR_PERCEPTION_SETTLE_GRID",
       "reach": "scope",
       "rule": {
         "high": 64,
@@ -4952,7 +4952,7 @@
       }
     },
     "perception.settle_tolerance": {
-      "env": "ROCKETWRIGHT_PERCEPTION_SETTLE_TOLERANCE",
+      "env": "PHONESIMULATOR_PERCEPTION_SETTLE_TOLERANCE",
       "reach": "scope",
       "rule": {
         "high": 64,
@@ -4961,14 +4961,14 @@
       }
     },
     "real_devices.agents_choose": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_AGENTS_CHOOSE",
+      "env": "PHONESIMULATOR_REAL_DEVICES_AGENTS_CHOOSE",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "real_devices.capture_timeout": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_CAPTURE_TIMEOUT",
+      "env": "PHONESIMULATOR_REAL_DEVICES_CAPTURE_TIMEOUT",
       "reach": "scope",
       "rule": {
         "high": 60,
@@ -4977,7 +4977,7 @@
       }
     },
     "real_devices.developer_dir": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_DEVELOPER_DIR",
+      "env": "PHONESIMULATOR_REAL_DEVICES_DEVELOPER_DIR",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -4988,14 +4988,14 @@
       }
     },
     "real_devices.enabled": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_ENABLED",
+      "env": "PHONESIMULATOR_REAL_DEVICES_ENABLED",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "real_devices.log_buffer_mb": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_LOG_BUFFER_MB",
+      "env": "PHONESIMULATOR_REAL_DEVICES_LOG_BUFFER_MB",
       "reach": "scope",
       "rule": {
         "high": 256,
@@ -5004,7 +5004,7 @@
       }
     },
     "real_devices.screen": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_SCREEN",
+      "env": "PHONESIMULATOR_REAL_DEVICES_SCREEN",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -5017,7 +5017,7 @@
       }
     },
     "real_devices.team_id": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_TEAM_ID",
+      "env": "PHONESIMULATOR_REAL_DEVICES_TEAM_ID",
       "reach": "scope",
       "rule": {
         "format": "team",
@@ -5028,21 +5028,21 @@
       }
     },
     "real_devices.wda.enabled": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_WDA_ENABLED",
+      "env": "PHONESIMULATOR_REAL_DEVICES_WDA_ENABLED",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "real_devices.wda.keep_running": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_WDA_KEEP_RUNNING",
+      "env": "PHONESIMULATOR_REAL_DEVICES_WDA_KEEP_RUNNING",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "real_devices.wda.path": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_WDA_PATH",
+      "env": "PHONESIMULATOR_REAL_DEVICES_WDA_PATH",
       "reach": "scope",
       "rule": {
         "format": "path",
@@ -5053,7 +5053,7 @@
       }
     },
     "real_devices.wda.source_max_children": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_WDA_SOURCE_MAX_CHILDREN",
+      "env": "PHONESIMULATOR_REAL_DEVICES_WDA_SOURCE_MAX_CHILDREN",
       "reach": "scope",
       "rule": {
         "high": 10000,
@@ -5062,7 +5062,7 @@
       }
     },
     "real_devices.wda.source_timeout_ms": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_WDA_SOURCE_TIMEOUT_MS",
+      "env": "PHONESIMULATOR_REAL_DEVICES_WDA_SOURCE_TIMEOUT_MS",
       "reach": "scope",
       "rule": {
         "high": 60000,
@@ -5071,7 +5071,7 @@
       }
     },
     "real_devices.wda.startup_timeout": {
-      "env": "ROCKETWRIGHT_REAL_DEVICES_WDA_STARTUP_TIMEOUT",
+      "env": "PHONESIMULATOR_REAL_DEVICES_WDA_STARTUP_TIMEOUT",
       "reach": "scope",
       "rule": {
         "high": 600,
@@ -5080,7 +5080,7 @@
       }
     },
     "recording.codec": {
-      "env": "ROCKETWRIGHT_RECORDING_CODEC",
+      "env": "PHONESIMULATOR_RECORDING_CODEC",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -5091,14 +5091,14 @@
       }
     },
     "recording.do_not_disturb": {
-      "env": "ROCKETWRIGHT_RECORDING_DO_NOT_DISTURB",
+      "env": "PHONESIMULATOR_RECORDING_DO_NOT_DISTURB",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "recording.folder": {
-      "env": "ROCKETWRIGHT_RECORDING_FOLDER",
+      "env": "PHONESIMULATOR_RECORDING_FOLDER",
       "reach": "global",
       "rule": {
         "format": "path",
@@ -5109,7 +5109,7 @@
       }
     },
     "recording.format": {
-      "env": "ROCKETWRIGHT_RECORDING_FORMAT",
+      "env": "PHONESIMULATOR_RECORDING_FORMAT",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -5121,7 +5121,7 @@
       }
     },
     "recording.fps": {
-      "env": "ROCKETWRIGHT_RECORDING_FPS",
+      "env": "PHONESIMULATOR_RECORDING_FPS",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -5133,7 +5133,7 @@
       }
     },
     "recording.gif_fps": {
-      "env": "ROCKETWRIGHT_RECORDING_GIF_FPS",
+      "env": "PHONESIMULATOR_RECORDING_GIF_FPS",
       "reach": "scope",
       "rule": {
         "high": 30,
@@ -5142,7 +5142,7 @@
       }
     },
     "recording.gif_width": {
-      "env": "ROCKETWRIGHT_RECORDING_GIF_WIDTH",
+      "env": "PHONESIMULATOR_RECORDING_GIF_WIDTH",
       "reach": "scope",
       "rule": {
         "high": 1200,
@@ -5151,7 +5151,7 @@
       }
     },
     "recording.keep": {
-      "env": "ROCKETWRIGHT_RECORDING_KEEP",
+      "env": "PHONESIMULATOR_RECORDING_KEEP",
       "reach": "global",
       "rule": {
         "high": 1000,
@@ -5160,7 +5160,7 @@
       }
     },
     "recording.max_seconds": {
-      "env": "ROCKETWRIGHT_RECORDING_MAX_SECONDS",
+      "env": "PHONESIMULATOR_RECORDING_MAX_SECONDS",
       "reach": "scope",
       "rule": {
         "high": 3600,
@@ -5169,7 +5169,7 @@
       }
     },
     "recording.mp4_quality": {
-      "env": "ROCKETWRIGHT_RECORDING_MP4_QUALITY",
+      "env": "PHONESIMULATOR_RECORDING_MP4_QUALITY",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -5181,7 +5181,7 @@
       }
     },
     "recording.mp4_width": {
-      "env": "ROCKETWRIGHT_RECORDING_MP4_WIDTH",
+      "env": "PHONESIMULATOR_RECORDING_MP4_WIDTH",
       "reach": "scope",
       "rule": {
         "high": 2400,
@@ -5190,7 +5190,7 @@
       }
     },
     "recording.speed": {
-      "env": "ROCKETWRIGHT_RECORDING_SPEED",
+      "env": "PHONESIMULATOR_RECORDING_SPEED",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -5203,21 +5203,21 @@
       }
     },
     "recording.status_bar": {
-      "env": "ROCKETWRIGHT_RECORDING_STATUS_BAR",
+      "env": "PHONESIMULATOR_RECORDING_STATUS_BAR",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "recording.touches": {
-      "env": "ROCKETWRIGHT_RECORDING_TOUCHES",
+      "env": "PHONESIMULATOR_RECORDING_TOUCHES",
       "reach": "scope",
       "rule": {
         "kind": "flag"
       }
     },
     "security.allowed_origins": {
-      "env": "ROCKETWRIGHT_SECURITY_ALLOWED_ORIGINS",
+      "env": "PHONESIMULATOR_SECURITY_ALLOWED_ORIGINS",
       "reach": "global",
       "rule": {
         "kind": "origins",
@@ -5225,7 +5225,7 @@
       }
     },
     "security.frame_ancestors": {
-      "env": "ROCKETWRIGHT_SECURITY_FRAME_ANCESTORS",
+      "env": "PHONESIMULATOR_SECURITY_FRAME_ANCESTORS",
       "reach": "global",
       "rule": {
         "kind": "origins",
@@ -5233,7 +5233,7 @@
       }
     },
     "server.host": {
-      "env": "ROCKETWRIGHT_SERVER_HOST",
+      "env": "PHONESIMULATOR_SERVER_HOST",
       "reach": "global",
       "rule": {
         "kind": "choice",
@@ -5243,7 +5243,7 @@
       }
     },
     "server.port": {
-      "env": "ROCKETWRIGHT_SERVER_PORT",
+      "env": "PHONESIMULATOR_SERVER_PORT",
       "reach": "global",
       "rule": {
         "high": 65535,
@@ -5252,7 +5252,7 @@
       }
     },
     "stream.encoding": {
-      "env": "ROCKETWRIGHT_STREAM_ENCODING",
+      "env": "PHONESIMULATOR_STREAM_ENCODING",
       "reach": "scope",
       "rule": {
         "kind": "choice",
@@ -5264,7 +5264,7 @@
       }
     },
     "stream.fps": {
-      "env": "ROCKETWRIGHT_STREAM_FPS",
+      "env": "PHONESIMULATOR_STREAM_FPS",
       "reach": "scope",
       "rule": {
         "high": 60,
@@ -5273,7 +5273,7 @@
       }
     },
     "stream.max_width": {
-      "env": "ROCKETWRIGHT_STREAM_MAX_WIDTH",
+      "env": "PHONESIMULATOR_STREAM_MAX_WIDTH",
       "reach": "scope",
       "rule": {
         "high": 1600,
@@ -5282,7 +5282,7 @@
       }
     },
     "stream.quality": {
-      "env": "ROCKETWRIGHT_STREAM_QUALITY",
+      "env": "PHONESIMULATOR_STREAM_QUALITY",
       "reach": "scope",
       "rule": {
         "high": 100,
@@ -5822,30 +5822,30 @@
       "placement"
     ],
     "custom_properties": [
-      "--rocketwright-accent",
-      "--rocketwright-border",
-      "--rocketwright-danger",
-      "--rocketwright-font",
-      "--rocketwright-font-size",
-      "--rocketwright-on-accent",
-      "--rocketwright-radius",
-      "--rocketwright-radius-full",
-      "--rocketwright-screen-text",
-      "--rocketwright-space-1",
-      "--rocketwright-space-2",
-      "--rocketwright-space-3",
-      "--rocketwright-space-4",
-      "--rocketwright-space-5",
-      "--rocketwright-space-6",
-      "--rocketwright-space-7",
-      "--rocketwright-success",
-      "--rocketwright-surface",
-      "--rocketwright-surface-sunken",
-      "--rocketwright-text",
-      "--rocketwright-text-muted",
-      "--rocketwright-warning"
+      "--phonesimulator-accent",
+      "--phonesimulator-border",
+      "--phonesimulator-danger",
+      "--phonesimulator-font",
+      "--phonesimulator-font-size",
+      "--phonesimulator-on-accent",
+      "--phonesimulator-radius",
+      "--phonesimulator-radius-full",
+      "--phonesimulator-screen-text",
+      "--phonesimulator-space-1",
+      "--phonesimulator-space-2",
+      "--phonesimulator-space-3",
+      "--phonesimulator-space-4",
+      "--phonesimulator-space-5",
+      "--phonesimulator-space-6",
+      "--phonesimulator-space-7",
+      "--phonesimulator-success",
+      "--phonesimulator-surface",
+      "--phonesimulator-surface-sunken",
+      "--phonesimulator-text",
+      "--phonesimulator-text-muted",
+      "--phonesimulator-warning"
     ],
-    "element": "rocket-wright",
+    "element": "phone-simulator",
     "events": [
       "close",
       "place",
@@ -5858,8 +5858,8 @@
       "IconName",
       "IconRenderer",
       "Placement",
-      "RocketwrightElement",
-      "RocketwrightTransport",
+      "PhoneSimulatorElement",
+      "PhoneSimulatorTransport",
       "TransportError",
       "VIEWER_CSS",
       "ViewHandle",
@@ -5867,7 +5867,7 @@
       "ViewerState",
       "createHttpTransport",
       "createViewer",
-      "defineRocketwrightElement",
+      "definePhoneSimulatorElement",
       "lucideSvg"
     ],
     "interfaces": {
@@ -5880,7 +5880,7 @@
         "settings": true,
         "token": true
       },
-      "RocketwrightTransport": {
+      "PhoneSimulatorTransport": {
         "changeDevice": true,
         "changeSettings": true,
         "choose": false,

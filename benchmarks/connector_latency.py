@@ -31,19 +31,19 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import IO, Any
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.android.connector import AndroidConnector
-from rocketwright.connectors.base import Capability, Connector, ConnectorError, DeviceSession, HidEvent, Screen
-from rocketwright.connectors.registry import ConnectorContext, ConnectorRegistry
-from rocketwright.core.android_control import AndroidControl
-from rocketwright.core.android_devices import AndroidServices
-from rocketwright.host_copy import HostCopy
-from rocketwright.perception.model import ElementNode
-from rocketwright.perception.readers import tree_from_document
-from rocketwright.platform.errors import DeviceControlError
-from rocketwright.platform.simctl import Simctl, SimctlError
-from rocketwright.platform.xcrun import run_xcrun
-from rocketwright.storage.app_support import AppSupportStateStore
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.android.connector import AndroidConnector
+from phonesimulator.connectors.base import Capability, Connector, ConnectorError, DeviceSession, HidEvent, Screen
+from phonesimulator.connectors.registry import ConnectorContext, ConnectorRegistry
+from phonesimulator.core.android_control import AndroidControl
+from phonesimulator.core.android_devices import AndroidServices
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.perception.model import ElementNode
+from phonesimulator.perception.readers import tree_from_document
+from phonesimulator.platform.errors import DeviceControlError
+from phonesimulator.platform.simctl import Simctl, SimctlError
+from phonesimulator.platform.xcrun import run_xcrun
+from phonesimulator.storage.app_support import AppSupportStateStore
 from tool_budget import percentile
 
 SETTINGS_APP = "com.apple.Preferences"

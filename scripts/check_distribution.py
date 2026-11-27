@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Fail when what installs Rocketwright disagrees with the package itself.
+"""Fail when what installs PhoneSimulator disagrees with the package itself.
 
 The Claude Code plugin and its marketplace entry, the MCP registry entry, the viewer's npm package, the app SDK's
-`Rocketwright.sdkVersion` and every install command pinned to a release tag must name the package's version, and each
+`PhoneSimulator.sdkVersion` and every install command pinned to a release tag must name the package's version, and each
 file must have the fields its reader needs. A release that bumps `_version.py` and forgets one of them would hand people
 the previous release.
 
@@ -20,24 +20,24 @@ from typing import Any
 
 from _repo import REPO_ROOT, read_text, repo_files
 
-NAME = "rocketwright"
+NAME = "phonesimulator"
 #: What the plugin names its MCP server. Claude shows a plugin's server as ``plugin:<plugin>:<server>`` and names its
 #: tools ``mcp__plugin_<plugin>_<server>__…``: a server named as the plugin is, said twice.
 PLUGIN_SERVER = "device"
 LICENSE = "Apache-2.0"
-REGISTRY_NAME = "io.github.Soflutionltd/rocketwright"
+REGISTRY_NAME = "io.github.Soflutionltd/phonesimulator"
 REGISTRY_SCHEMA = "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json"
 REGISTRY_DESCRIPTION_MAX = 100
-VERSION_FILE = "src/rocketwright/_version.py"
+VERSION_FILE = "src/phonesimulator/_version.py"
 VIEWER_PACKAGE = "viewer/package.json"
-SDK_SOURCE = "sdk/swift/Sources/RocketwrightKit/Public/Rocketwright.swift"
+SDK_SOURCE = "sdk/swift/Sources/PhoneSimulatorKit/Public/PhoneSimulator.swift"
 MARKETPLACE = ".claude-plugin/marketplace.json"
-PLUGIN = "plugins/rocketwright"
+PLUGIN = "plugins/phonesimulator"
 REGISTRY = "server.json"
-#: An install pinned to a release: ``rocketwright==0.2.0`` from PyPI, ``@soflution/rocketwright@0.2.0`` from npm, or a
-#: release tag -- ``…/rocketwright@v0.1.0``, ``…/rocketwright/releases/download/v0.1.0/…``.
+#: An install pinned to a release: ``phonesimulator==0.2.0`` from PyPI, ``@soflution/phonesimulator@0.2.0`` from npm, or a
+#: release tag -- ``…/phonesimulator@v0.1.0``, ``…/phonesimulator/releases/download/v0.1.0/…``.
 PINNED = re.compile(
-    r"(?:rocketwright==|@soflution/rocketwright@|rocketwright(?:@|/releases/download/)v)"
+    r"(?:phonesimulator==|@soflution/phonesimulator@|phonesimulator(?:@|/releases/download/)v)"
     r"(\d+\.\d+\.\d+(?:[-.+][0-9A-Za-z.]+)?)"
 )
 #: What follows a release tag when the link is to a recording attached to that release -- ``…/v1.2.0/demo.mp4`` --
@@ -183,15 +183,15 @@ def viewer_problems(root: Path, version: str) -> list[str]:
 
 
 def sdk_problems(root: Path, version: str) -> list[str]:
-    """The app SDK says the version it came with, which is the package's: apps send it to Rocketwright."""
+    """The app SDK says the version it came with, which is the package's: apps send it to PhoneSimulator."""
     source = read_text(root / SDK_SOURCE) if (root / SDK_SOURCE).is_file() else None
     if source is None:
         return [f"{SDK_SOURCE} is missing"]
     match = _SDK_VERSION.search(source)
     if match is None:
-        return [f"{SDK_SOURCE}: Rocketwright.sdkVersion is not set"]
+        return [f"{SDK_SOURCE}: PhoneSimulator.sdkVersion is not set"]
     if match.group(1) != version:
-        return [f"{SDK_SOURCE}: Rocketwright.sdkVersion is {version}, not {match.group(1)!r}"]
+        return [f"{SDK_SOURCE}: PhoneSimulator.sdkVersion is {version}, not {match.group(1)!r}"]
     return []
 
 
@@ -227,7 +227,7 @@ def main(root: Path = REPO_ROOT) -> int:
     if not found:
         print("distribution ok: the plugin, marketplace, registry entry, viewer, app SDK and pinned installs agree")
         return 0
-    print("what installs Rocketwright disagrees with the package:\n", file=sys.stderr)
+    print("what installs PhoneSimulator disagrees with the package:\n", file=sys.stderr)
     for problem in found:
         print(f"  {problem}", file=sys.stderr)
     return 1

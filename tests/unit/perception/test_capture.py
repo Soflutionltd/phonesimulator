@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Only visible device views are selectable in a frozen frame."""
 
-from rocketwright.connectors.base import Screen
-from rocketwright.perception.capture import views
-from rocketwright.perception.model import PIXELS, ElementNode, Frame, ScreenTree
-from rocketwright.perception.orientation import Interface
+from phonesimulator.connectors.base import Screen
+from phonesimulator.perception.capture import views
+from phonesimulator.perception.model import PIXELS, ElementNode, Frame, ScreenTree
+from phonesimulator.perception.orientation import Interface
 
 
 def test_visible_children_keep_the_nearest_selectable_parent() -> None:

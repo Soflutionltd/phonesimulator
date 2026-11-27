@@ -1,4 +1,4 @@
-# Rocketwright development commands. Run `make help` for the list.
+# PhoneSimulator development commands. Run `make help` for the list.
 
 PYTHON_DIRS := src tests scripts benchmarks examples
 COVERAGE_MIN := 98
@@ -9,14 +9,14 @@ HELPER_CODECOV = $$(swift test --package-path $(HELPER) --show-codecov-path)
 # One build per architecture, each in a folder of its own, joined with lipo: swift build's own multi-arch build
 # (XCBuild) mishandles the targets' Swift language modes on Swift 6.1, the toolchain CI's macOS runners have.
 HELPER_ARCHS := arm64 x86_64
-HELPER_RELEASE := $(HELPER)/.build/universal/rocketwright-helper
+HELPER_RELEASE := $(HELPER)/.build/universal/phonesimulator-helper
 # A development identity preserves local permission grants over rebuilds. Release artifacts stay ad hoc.
 HELPER_SIGN_IDENTITY ?= -
-HELPER_SIGN_IDENTIFIER := dev.rocketwright.helper
-# Where `make helper-release` leaves the signed helper a release wheel carries (ROCKETWRIGHT_HELPER_BINARY).
-HELPER_DIST := dist/helper/rocketwright-helper
+HELPER_SIGN_IDENTIFIER := dev.phonesimulator.helper
+# Where `make helper-release` leaves the signed helper a release wheel carries (PHONESIMULATOR_HELPER_BINARY).
+HELPER_DIST := dist/helper/phonesimulator-helper
 
-# The app SDK (RocketwrightKit, the package at the top of the repository) is tested on an iOS simulator. SDK_DEVELOPER_DIR
+# The app SDK (PhoneSimulatorKit, the package at the top of the repository) is tested on an iOS simulator. SDK_DEVELOPER_DIR
 # picks the Xcode -- never xcode-select -- and SDK_DESTINATION the simulator: run the tests with each Xcode you support.
 # The coverage gate is held with an iOS 26 simulator, the one runtime where SwiftUI's debug data is read.
 SDK_DEVELOPER_DIR ?=
@@ -26,7 +26,7 @@ SDK_APP := examples/app-sdk/AppSDK.xcodeproj
 SDK_XCRUN = $(if $(SDK_DEVELOPER_DIR),DEVELOPER_DIR="$(SDK_DEVELOPER_DIR)") xcrun
 SDK_XCODEBUILD = $(if $(SDK_DEVELOPER_DIR),DEVELOPER_DIR="$(SDK_DEVELOPER_DIR)") xcodebuild
 # What only the SDK's workings contain: a Release build of an app that links it must contain none of them.
-SDK_MARKERS := /v1/hierarchy Rocketwright/apps SWIFTUI_VIEW_DEBUG
+SDK_MARKERS := /v1/hierarchy PhoneSimulator/apps SWIFTUI_VIEW_DEBUG
 
 .PHONY: help install lint lint-python typecheck guards lint-viewer test test-python test-viewer coverage \
 	coverage-python coverage-viewer viewer-bundle format generate helper-build helper-release helper-test \
@@ -92,7 +92,7 @@ helper-build: ## Build and sign the native helper for both Mac architectures (ad
 	set -e; built=""; for arch in $(HELPER_ARCHS); do \
 		build="swift build --package-path $(HELPER) -c release --triple $$arch-apple-macosx14.0 \
 			--scratch-path $(HELPER)/.build/release-$$arch"; \
-		$$build; built="$$built $$($$build --show-bin-path)/rocketwright-helper"; \
+		$$build; built="$$built $$($$build --show-bin-path)/phonesimulator-helper"; \
 	done; lipo -create -output $(HELPER_RELEASE) $$built
 	lipo $(HELPER_RELEASE) -verify_arch arm64 x86_64
 	# Linker signatures alone do not give live runs the release helper's code identity. Signed ad hoc, its designated
@@ -125,7 +125,7 @@ sdk-lint: ## swift-format over the app SDK and its sample app
 
 sdk-test: ## The app SDK's tests on an iOS simulator (SDK_DEVELOPER_DIR, SDK_DESTINATION)
 	rm -rf $(SDK_OUT)/tests.xcresult $(SDK_OUT)/derived/Build/ProfileData
-	TEST_RUNNER_SWIFTUI_VIEW_DEBUG=27 $(SDK_XCODEBUILD) test -scheme Rocketwright -destination "$(SDK_DESTINATION)" \
+	TEST_RUNNER_SWIFTUI_VIEW_DEBUG=27 $(SDK_XCODEBUILD) test -scheme PhoneSimulator -destination "$(SDK_DESTINATION)" \
 		-derivedDataPath $(SDK_OUT)/derived -resultBundlePath $(SDK_OUT)/tests.xcresult -enableCodeCoverage YES -quiet \
 		|| { $(SDK_XCRUN) xcresulttool get test-results summary --path $(SDK_OUT)/tests.xcresult; exit 1; }
 
@@ -142,9 +142,9 @@ sdk-coverage: sdk-test sdk-app-test ## Both test runs, with every SDK source fil
 	$(SDK_XCRUN) llvm-profdata merge -o $(SDK_OUT)/sdk.profdata \
 		$(SDK_OUT)/derived/Build/ProfileData/*/Coverage.profdata $(SDK_OUT)/app-derived/Build/ProfileData/*/Coverage.profdata
 	$(SDK_XCRUN) llvm-cov export -summary-only -instr-profile $(SDK_OUT)/sdk.profdata \
-		$(SDK_OUT)/derived/$(SDK_PRODUCTS)/RocketwrightKitTests.xctest/RocketwrightKitTests \
+		$(SDK_OUT)/derived/$(SDK_PRODUCTS)/PhoneSimulatorKitTests.xctest/PhoneSimulatorKitTests \
 		-object $(SDK_OUT)/app-derived/$(SDK_PRODUCTS)/AppSDK.app/AppSDK.debug.dylib > $(SDK_OUT)/coverage.json
-	uv run python scripts/check_swift_coverage.py --min $(COVERAGE_MIN) --under sdk/swift/Sources/RocketwrightKit/ \
+	uv run python scripts/check_swift_coverage.py --min $(COVERAGE_MIN) --under sdk/swift/Sources/PhoneSimulatorKit/ \
 		$(SDK_OUT)/coverage.json
 
 sdk-release-check: ## The sample app built for Release holds none of the SDK's workings; built for Debug it does
@@ -191,7 +191,7 @@ sdk-mac-test: ## Run the macOS SDK's tests, separately from Python tests
 	swift test --enable-code-coverage $(SDK_MAC_TEST_ARGS)
 
 sdk-mac-coverage: sdk-mac-test ## Gate the macOS SDK's per-file coverage
-	uv run python scripts/check_swift_coverage.py --min $(COVERAGE_MIN) --under sdk/swift/Sources/RocketwrightKit/ .build/debug/codecov/Rocketwright.json
+	uv run python scripts/check_swift_coverage.py --min $(COVERAGE_MIN) --under sdk/swift/Sources/PhoneSimulatorKit/ .build/debug/codecov/PhoneSimulator.json
 
 sdk-mac-release-check: ## Prove that macOS Release binaries contain no SDK server or input bridge
 	swift build --package-path $(SDK_MAC_SAMPLE) -c release
@@ -212,7 +212,7 @@ sdk-web-test: ## Test the web bridge's loopback boundary and DOM behavior
 sdk-web-release-check: ## Prove that a Release host contains no web bridge or server
 	cargo build --locked --manifest-path sdk/web/Cargo.toml --example release_probe
 	cargo build --locked --manifest-path sdk/web/Cargo.toml --example release_probe --release
-	set -e; for marker in /v1/input /v1/hierarchy __RocketwrightWeb 'Rocketwright/apps'; do \
+	set -e; for marker in /v1/input /v1/hierarchy __PhoneSimulatorWeb 'PhoneSimulator/apps'; do \
 		if grep -qa -- "$$marker" sdk/web/target/release/examples/release_probe; then \
 			echo "the Release host holds $$marker"; exit 1; \
 		fi; \
@@ -229,20 +229,20 @@ sdk-cef-test: ## Test the CEF host adapter's core (98% line gate) and that it em
 	xcrun clang++ $(SDK_CEF_FLAGS) -fprofile-instr-generate -fcoverage-mapping sdk/cef/tests/core_test.cc -o $(SDK_CEF_OUT)/core_test
 	LLVM_PROFILE_FILE=$(SDK_CEF_OUT)/core.profraw $(SDK_CEF_OUT)/core_test
 	xcrun llvm-profdata merge -o $(SDK_CEF_OUT)/core.profdata $(SDK_CEF_OUT)/core.profraw
-	xcrun llvm-cov report $(SDK_CEF_OUT)/core_test -instr-profile=$(SDK_CEF_OUT)/core.profdata sdk/cef/include/rocketwright_cef/core.h \
+	xcrun llvm-cov report $(SDK_CEF_OUT)/core_test -instr-profile=$(SDK_CEF_OUT)/core.profdata sdk/cef/include/phonesimulator_cef/core.h \
 		| awk '/^TOTAL/ { gsub("%", "", $$10); print "core.h lines covered: " $$10 "%"; if ($$10 + 0 < 98) exit 1 }'
 
-sdk-cef-release-check: ## Prove that a host built without ROCKETWRIGHT_CEF_BRIDGE holds no bridge, server or script
+sdk-cef-release-check: ## Prove that a host built without PHONESIMULATOR_CEF_BRIDGE holds no bridge, server or script
 	mkdir -p $(SDK_CEF_OUT)
-	xcrun clang++ $(SDK_CEF_FLAGS) -O2 -DROCKETWRIGHT_CEF_BRIDGE=1 sdk/cef/tests/release_probe.cc -o $(SDK_CEF_OUT)/probe-debug
+	xcrun clang++ $(SDK_CEF_FLAGS) -O2 -DPHONESIMULATOR_CEF_BRIDGE=1 sdk/cef/tests/release_probe.cc -o $(SDK_CEF_OUT)/probe-debug
 	xcrun clang++ $(SDK_CEF_FLAGS) -O2 sdk/cef/tests/release_probe.cc -o $(SDK_CEF_OUT)/probe-release
-	set -e; for marker in /v1/input /v1/hierarchy __RocketwrightWeb 'Rocketwright/apps'; do \
+	set -e; for marker in /v1/input /v1/hierarchy __PhoneSimulatorWeb 'PhoneSimulator/apps'; do \
 		if grep -qa -- "$$marker" $(SDK_CEF_OUT)/probe-release; then \
 			echo "a host without the CEF bridge holds $$marker"; exit 1; \
 		fi; \
 		grep -qa -- "$$marker" $(SDK_CEF_OUT)/probe-debug; \
 	done
-	@echo "CEF release check ok: a host without ROCKETWRIGHT_CEF_BRIDGE holds no bridge"
+	@echo "CEF release check ok: a host without PHONESIMULATOR_CEF_BRIDGE holds no bridge"
 
 sdk-cef-sample: ## Build the synthetic CEF sample; needs CEF_ROOT, an extracted CEF binary distribution
 	@test -n "$(CEF_ROOT)" || { echo "set CEF_ROOT to an extracted CEF binary distribution"; exit 1; }
@@ -257,17 +257,17 @@ sdk-mac-app-test: ## Run the macOS sample's unhosted logic tests; no GUI test ho
 .PHONY: sdk-tauri-sample sdk-tauri-release-check
 sdk-tauri-sample: ## Build the synthetic WKWebView sample without launching it
 	cargo build --locked --manifest-path examples/tauri-app-sdk/Cargo.toml
-	uv run python scripts/package_mac_sample.py examples/tauri-app-sdk/target/debug/mac-web-sample examples/tauri-app-sdk/target/MacWebSample.app MacWebSample dev.rocketwright.WebSample
+	uv run python scripts/package_mac_sample.py examples/tauri-app-sdk/target/debug/mac-web-sample examples/tauri-app-sdk/target/MacWebSample.app MacWebSample dev.phonesimulator.WebSample
 	codesign --force --sign - examples/tauri-app-sdk/target/MacWebSample.app
 
 sdk-tauri-release-check: ## Check the actual Tauri host and frontend, as well as the generic web SDK
 	cargo build --locked --manifest-path examples/tauri-app-sdk/Cargo.toml
 	cargo build --locked --release --manifest-path examples/tauri-app-sdk/Cargo.toml
-	set -e; for marker in /v1/input /v1/hierarchy __RocketwrightWeb 'Rocketwright/apps'; do \
+	set -e; for marker in /v1/input /v1/hierarchy __PhoneSimulatorWeb 'PhoneSimulator/apps'; do \
 		if grep -qa -- "$$marker" examples/tauri-app-sdk/target/release/mac-web-sample; then \
 			echo "the Release Tauri host holds $$marker"; exit 1; \
 		fi; \
 		grep -qa -- "$$marker" examples/tauri-app-sdk/target/debug/mac-web-sample; \
 	done
-	! grep -rq -- __RocketwrightWeb examples/tauri-app-sdk/ui
+	! grep -rq -- __PhoneSimulatorWeb examples/tauri-app-sdk/ui
 	@echo "Tauri release check ok: the host and frontend contain no Debug bridge"

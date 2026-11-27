@@ -1,8 +1,8 @@
 # Recording
 
-Rocketwright records a device's screen -- a simulator's or a [real device's](real-devices.md) -- as an MP4, an animated GIF
+PhoneSimulator records a device's screen -- a simulator's or a [real device's](real-devices.md) -- as an MP4, an animated GIF
 or both, with each touch drawn where it landed: the agent's and a person's. A person records from the viewer, an agent
-with `sim_record`, and a terminal with `rocketwright record`; all three record the same way and keep the files in the
+with `sim_record`, and a terminal with `phonesimulator record`; all three record the same way and keep the files in the
 same folder.
 
 ![A recording an agent made with sim_record: Settings › Appearance switched to dark and back, each tap drawn as a ring, under a demo status bar](media/recording-demo.gif)
@@ -60,13 +60,13 @@ that fails is logged and noted, and loses nothing: see [what is kept](#what-is-k
 ## From a terminal
 
 ```sh
-rocketwright record start --format gif
-rocketwright record start --preset pr          # or --width 450 --quality low
-rocketwright record start --also pr            # full size, and a pr copy beside it
-rocketwright record start --max-seconds 2400 --label "firmware update"
-rocketwright record start --fps 60             # a short animation, smooth
-rocketwright record stop
-rocketwright record list
+phonesimulator record start --format gif
+phonesimulator record start --preset pr          # or --width 450 --quality low
+phonesimulator record start --also pr            # full size, and a pr copy beside it
+phonesimulator record start --max-seconds 2400 --label "firmware update"
+phonesimulator record start --fps 60             # a short animation, smooth
+phonesimulator record stop
+phonesimulator record list
 ```
 
 for this folder's project, or `--scope` another. The daemon records; the command asks it to, and `stop` waits as
@@ -74,8 +74,8 @@ long as the daemon does for rendering.
 
 ## What is kept
 
-A simulator is recorded by `simctl io recordVideo`; a real device from the screen Rocketwright shows, which over the cable
-is the live screen. Rocketwright's native helper then renders it with the Mac's own frameworks -- AVFoundation,
+A simulator is recorded by `simctl io recordVideo`; a real device from the screen PhoneSimulator shows, which over the cable
+is the live screen. PhoneSimulator's native helper then renders it with the Mac's own frameworks -- AVFoundation,
 VideoToolbox and ImageIO, no ffmpeg:
 
 - **MP4**, H.264 or HEVC (`recording.codec`), sped up when asked, without sound: at the screen's own size, or
@@ -97,7 +97,7 @@ animation is about 10 frames at 30, and 42 at 120. The file runs at a steady rat
 picture then, so a frame rate higher than the screen sent repeats pictures rather than adding any.
 
 How many pictures there are to show is the device's: a simulator's are as many as `simctl` records, and a real or an
-Android device's are its stream's. While one of those is recorded, Rocketwright streams it at least as fast as the
+Android device's are its stream's. While one of those is recorded, PhoneSimulator streams it at least as fast as the
 recording's frame rate and at the width its files need -- the screen's own for an MP4 kept at it -- whatever
 `stream.fps` and `stream.max_width` say, and as they say again once it stops; a viewer watching meanwhile sees that
 stream too. Its connection decides the most it can send:
@@ -128,7 +128,7 @@ landed, and a ring at its edge shows the part inside. Two recordings of the same
 
 A simulator's recording that the helper cannot render is kept as recorded, without its touches, and says so; a real
 device's needs the helper. A recording that cannot be rendered at all is never lost: its raw recording is kept beside
-the others, as `<id>.raw` (Rocketwright's frame file) or `<id>.raw.mp4` (a simulator's movie), and its note -- which `list`
+the others, as `<id>.raw` (PhoneSimulator's frame file) or `<id>.raw.mp4` (a simulator's movie), and its note -- which `list`
 shows -- and the answer say why and where.
 
 A file is rendered under a hidden name, `.<id>.partial.mp4`, and takes its own name only once it is finished, so a file
@@ -147,14 +147,14 @@ device, `recording.do_not_disturb` turns Do Not Disturb on while it records, and
 iPhone cannot be told from the Mac: turn on a Focus on it before you record or take screenshots, and `sim_record start`
 reminds you when the setting is on. A simulator shows only its own apps' notifications.
 
-Recordings are kept in `recording.folder` -- Rocketwright in your Movies folder
+Recordings are kept in `recording.folder` -- PhoneSimulator in your Movies folder
 when it is empty -- which only you can open (0700), each file readable only by you (0600). The oldest go once there are
 more than `recording.keep`. `recording.folder` is [sensitive](settings.md#sensitive-settings): a page cannot move it
 without a code from the terminal. The viewer's download reads a file only by its name, and only from that folder.
 
 ## Put a demo in a pull request
 
-1. Record the flow: `sim_record` `start` with `preset: "pr"` (or `rocketwright record start --preset pr`, or the
+1. Record the flow: `sim_record` `start` with `preset: "pr"` (or `phonesimulator record start --preset pr`, or the
    viewer's Record set to For a pull request), the steps, `stop`. The preset keeps an MP4 450 pixels wide, H.264 --
    which every browser plays -- at `medium` quality, fast start, without sound, at the recording's frame rate; what the call says besides comes first, so `preset: "pr", width: 600` is the preset at 600 wide. `speed: "2"`
    halves its size again. `stop` answers its size. For a GIF instead, `format: "gif"`.
@@ -169,7 +169,7 @@ without a code from the terminal. The viewer's download reads a file only by its
 ### A copy beside the full-size recording
 
 To keep the recording at full size for yourself and a small one for the pull request, give `also: "pr"` -- on
-`start`, so whatever stops the recording keeps the copy, or on `stop` -- or `rocketwright record start --also pr`, or the viewer's Record set to Both. Both
+`start`, so whatever stops the recording keeps the copy, or on `stop` -- or `phonesimulator record start --also pr`, or the viewer's Record set to Both. Both
 come from the same recording, with the same touches and speed: the files the call and the settings ask for, and
 `<id>.pr.mp4` beside them, as the `pr` preset makes it. `stop` lists both and says which is the copy. A full-size MP4
 over 10 MB is not told to be smaller when its copy is there, since the copy is the one for the pull request. A

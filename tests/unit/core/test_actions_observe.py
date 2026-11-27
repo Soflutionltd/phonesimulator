@@ -13,20 +13,20 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.schema import OBSERVE_WORDS
-from rocketwright.connectors.app.merge import AppHierarchyMerge
-from rocketwright.connectors.base import ConnectorError, HidEvent
-from rocketwright.core.actions import PAUSED, AgentActions
-from rocketwright.core.instance import DeviceInstance
-from rocketwright.core.refusals import ObserveGuard
-from rocketwright.perception.model import Frame
-from rocketwright.perception.readers import CombinedExtraReaders
-from rocketwright.perception.snapshot import Element, Snapshot
-from rocketwright.platform.device_data import DEVICES_DIR_ENV
-from rocketwright.seams import Caller
-from rocketwright.testing.app_sdk import FakeAppSdk, write_listing
-from rocketwright.testing.fakes import FakeConnector, FakeEngine, FakeInputPause, fixture_json, point_key
-from rocketwright.testing.rig import DeviceRig, scope
+from phonesimulator.config.schema import OBSERVE_WORDS
+from phonesimulator.connectors.app.merge import AppHierarchyMerge
+from phonesimulator.connectors.base import ConnectorError, HidEvent
+from phonesimulator.core.actions import PAUSED, AgentActions
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.core.refusals import ObserveGuard
+from phonesimulator.perception.model import Frame
+from phonesimulator.perception.readers import CombinedExtraReaders
+from phonesimulator.perception.snapshot import Element, Snapshot
+from phonesimulator.platform.device_data import DEVICES_DIR_ENV
+from phonesimulator.seams import Caller
+from phonesimulator.testing.app_sdk import FakeAppSdk, write_listing
+from phonesimulator.testing.fakes import FakeConnector, FakeEngine, FakeInputPause, fixture_json, point_key
+from phonesimulator.testing.rig import DeviceRig, scope
 
 #: What the app SDK's sample app shared, recorded: protocol/app-sdk/v1's examples.
 APP_SDK_EXAMPLES = Path(__file__).resolve().parents[3] / "protocol" / "app-sdk" / "v1" / "examples"
@@ -445,7 +445,7 @@ async def test_a_device_that_cannot_say_what_is_at_a_point_leaves_the_snapshot_t
             await asyncio.sleep(3600)
             raise AssertionError("never answers")
 
-    monkeypatch.setattr("rocketwright.perception.in_front.BUDGET_S", 0.01)
+    monkeypatch.setattr("phonesimulator.perception.in_front.BUDGET_S", 0.01)
     folder = tmp_path / "slow"
     folder.mkdir()
     rig = DeviceRig(folder, idb=FakeConnector("idb", engine=Slow(document=ACCOUNT)))

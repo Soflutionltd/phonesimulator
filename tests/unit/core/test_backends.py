@@ -8,19 +8,19 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import Capability, ConnectorUnavailable
-from rocketwright.core.backends import PhysicalBackend, SimulatorBackend
-from rocketwright.core.control import SimulatorControl
-from rocketwright.core.devices import DeviceDirectory, JsonDeviceMemory
-from rocketwright.core.instance import READY, STOPPED, DeviceInstance
-from rocketwright.core.manager import RESTARTING_REASON, SimulatorUnavailable
-from rocketwright.host_copy import HostCopy
-from rocketwright.platform.devicectl import Devicectl
-from rocketwright.platform.errors import DeviceControlError
-from rocketwright.platform.simctl import Simctl
-from rocketwright.protocol import CLOSE_RESTARTING
-from rocketwright.testing.fakes import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import Capability, ConnectorUnavailable
+from phonesimulator.core.backends import PhysicalBackend, SimulatorBackend
+from phonesimulator.core.control import SimulatorControl
+from phonesimulator.core.devices import DeviceDirectory, JsonDeviceMemory
+from phonesimulator.core.instance import READY, STOPPED, DeviceInstance
+from phonesimulator.core.manager import RESTARTING_REASON, SimulatorUnavailable
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.platform.devicectl import Devicectl
+from phonesimulator.platform.errors import DeviceControlError
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.protocol import CLOSE_RESTARTING
+from phonesimulator.testing.fakes import (
     BOOTED_UDID,
     PHONE_UDID,
     FakeConnector,
@@ -28,7 +28,7 @@ from rocketwright.testing.fakes import (
     FakeXcrun,
     fixture_udid,
 )
-from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
+from phonesimulator.testing.rig import VIEW_ONLY, DeviceRig, scope
 
 PHYSICAL = frozenset({"physical"})
 TP1 = scope("tp-1")
@@ -139,7 +139,7 @@ async def test_a_note_whose_cause_was_put_right_goes_with_the_session_that_said_
     phone.note = unplugged
     assert await rig.manager.reconnect(TP1)
     assert up.fallback_reason == unplugged
-    phone.helper_error = "macOS has not let rocketwright-helper use the Camera"
+    phone.helper_error = "macOS has not let phonesimulator-helper use the Camera"
     assert up.live_note == f"{unplugged} Its screen's helper said: {phone.helper_error}", "said live, with its note"
 
 

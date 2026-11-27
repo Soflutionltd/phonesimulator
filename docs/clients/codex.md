@@ -1,20 +1,20 @@
 # OpenAI Codex
 
-Add Rocketwright to `~/.codex/config.toml`:
+Add PhoneSimulator to `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.rocketwright]
+[mcp_servers.phonesimulator]
 command = "uvx"
-args = ["--from", "git+https://github.com/Soflutionltd/rocketwright", "rocketwright", "mcp"]
+args = ["--from", "git+https://github.com/Soflutionltd/phonesimulator", "phonesimulator", "mcp"]
 tool_timeout_sec = 900
 ```
 
-- **Which project**: `rocketwright mcp` uses the folder Codex starts in -- its scope's own simulator, and that folder as
+- **Which project**: `phonesimulator mcp` uses the folder Codex starts in -- its scope's own simulator, and that folder as
   the only place installs and builds may reach. Append `"--scope", "my-app", "--root", "/path/to/my-app"` to `args`
   to pin one.
-- **Timeouts**: `sim_build_run` and `sim_test` can take minutes when build tools are on; Rocketwright bounds each tool
+- **Timeouts**: `sim_build_run` and `sim_test` can take minutes when build tools are on; PhoneSimulator bounds each tool
   itself, and a long build answers with a `build_id` to wait on.
-- **Watch**: `rocketwright open` in the same folder.
+- **Watch**: `phonesimulator open` in the same folder.
 
 A copy of this configuration is in [examples/codex](../../examples/codex/).
 

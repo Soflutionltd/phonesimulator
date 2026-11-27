@@ -55,7 +55,7 @@ impl Server {
         let port = listener.local_addr()?.port();
         let folder = options
             .home
-            .join("Library/Application Support/Rocketwright/apps");
+            .join("Library/Application Support/PhoneSimulator/apps");
         fs::create_dir_all(&folder)?;
         fs::set_permissions(&folder, fs::Permissions::from_mode(0o700))?;
         let listing = folder.join(format!("{}.json", options.bundle_id));
@@ -319,10 +319,10 @@ mod tests {
     #[test]
     fn fragmented_requests_wait_for_headers_and_body() {
         let folder =
-            std::env::temp_dir().join(format!("rocketwright-fragmented-{}", std::process::id()));
+            std::env::temp_dir().join(format!("phonesimulator-fragmented-{}", std::process::id()));
         let server = Server::start(
             Options {
-                bundle_id: "dev.rocketwright.Fragmented".into(),
+                bundle_id: "dev.phonesimulator.Fragmented".into(),
                 name: "Sample".into(),
                 home: folder.clone(),
                 windows: vec![7],
@@ -353,12 +353,12 @@ mod tests {
     #[test]
     fn a_private_listing_is_bound_to_this_process_and_newer_launches_are_not_removed() {
         let folder = std::env::temp_dir().join(format!(
-            "rocketwright-web-test-{}-{}",
+            "phonesimulator-web-test-{}-{}",
             std::process::id(),
             time::OffsetDateTime::now_utc().unix_timestamp_nanos()
         ));
         let options = || Options {
-            bundle_id: "dev.rocketwright.Sample".into(),
+            bundle_id: "dev.phonesimulator.Sample".into(),
             name: "Sample".into(),
             home: folder.clone(),
             windows: vec![7],

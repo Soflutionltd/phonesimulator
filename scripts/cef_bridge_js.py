@@ -12,8 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "sdk" / "web" / "bridge.js"
-HEADER = ROOT / "sdk" / "cef" / "include" / "rocketwright_cef" / "bridge_js.h"
-DELIMITER = "ROCKETWRIGHTJS"
+HEADER = ROOT / "sdk" / "cef" / "include" / "phonesimulator_cef" / "bridge_js.h"
+DELIMITER = "PHONESIMULATORJS"
 
 
 def render() -> str:
@@ -24,11 +24,11 @@ def render() -> str:
         "// SPDX-License-Identifier: Apache-2.0\n"
         "// Generated from sdk/web/bridge.js by scripts/cef_bridge_js.py; do not edit.\n"
         "#pragma once\n\n"
-        "#if defined(ROCKETWRIGHT_CEF_BRIDGE) && ROCKETWRIGHT_CEF_BRIDGE\n"
-        "namespace rocketwright_cef {\n"
+        "#if defined(PHONESIMULATOR_CEF_BRIDGE) && PHONESIMULATOR_CEF_BRIDGE\n"
+        "namespace phonesimulator_cef {\n"
         f'inline constexpr const char* kBridgeScript = R"{DELIMITER}({script}){DELIMITER}";\n'
-        "}  // namespace rocketwright_cef\n"
-        "#endif  // ROCKETWRIGHT_CEF_BRIDGE\n"
+        "}  // namespace phonesimulator_cef\n"
+        "#endif  // PHONESIMULATOR_CEF_BRIDGE\n"
     )
 
 

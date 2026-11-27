@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """The screen as an agent reads it: a line per element, refs that follow an element, a digest, and what changed --
-the same text, byte for byte, as the implementation Rocketwright's snapshots were first measured with (golden/)."""
+the same text, byte for byte, as the implementation PhoneSimulator's snapshots were first measured with (golden/)."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.base import Screen
-from rocketwright.perception.model import PIXELS, ElementNode, Frame, ScreenTree
-from rocketwright.perception.readers import tree_from_document
-from rocketwright.perception.snapshot import (
+from phonesimulator.connectors.base import Screen
+from phonesimulator.perception.model import PIXELS, ElementNode, Frame, ScreenTree
+from phonesimulator.perception.readers import tree_from_document
+from phonesimulator.perception.snapshot import (
     LABEL_MAX,
     NOTHING_READ,
     NOTHING_SEEN,
@@ -26,7 +26,7 @@ from rocketwright.perception.snapshot import (
     line_parts,
     says_anything,
 )
-from rocketwright.testing.fakes import SCREEN, fixture_json
+from phonesimulator.testing.fakes import SCREEN, fixture_json
 
 DEVICE = "iOS 26.5"
 GOLDEN = Path(__file__).parent / "golden"

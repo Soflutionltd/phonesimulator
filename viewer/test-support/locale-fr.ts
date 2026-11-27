@@ -109,7 +109,7 @@ export const fr: Messages = {
   'agent.usingSuffix': ' utilise cet appareil',
   'agent.thinking': 'Réflexion…',
   'agent.idle': 'Inactif',
-  'app.shares': '{name} ({bundle}) partage sa hiérarchie de vues via le SDK {version} de Rocketwright',
+  'app.shares': '{name} ({bundle}) partage sa hiérarchie de vues via le SDK {version} de PhoneSimulator',
 
   'start.real': 'Afficher l’appareil',
   'start.simulator': 'Démarrer le simulateur',
@@ -207,7 +207,7 @@ export const fr: Messages = {
   'recording.saveCopy': 'Enregistrer en {format} pour une pull request',
   'recording.noCopy': 'Aucune copie pour une pull request n’a été conservée\u00a0: ce serveur n’en produit pas.',
   'recording.recorded': 'Enregistrement de {device}\u00a0: {duration}.',
-  'recording.lost': 'L’enregistrement de {device} n’a pas pu être conservé\u202f; le journal de Rocketwright dit pourquoi.',
+  'recording.lost': 'L’enregistrement de {device} n’a pas pu être conservé\u202f; le journal de PhoneSimulator dit pourquoi.',
   'recording.failed': 'L’enregistrement n’a pas pu être réalisé.',
   'recording.saveFailed': 'Impossible d’enregistrer {name}.',
 
@@ -280,9 +280,9 @@ export const fr: Messages = {
   'field.reset': 'Réinitialiser',
   'field.resetTitle': 'Rétablir pour {path} la valeur qui s’applique sans ce réglage',
 
-  'page.notViewer': 'Ceci n’est pas une adresse de visualiseur Rocketwright.',
+  'page.notViewer': 'Ceci n’est pas une adresse de visualiseur PhoneSimulator.',
   'page.oneTime': 'Cette page s’ouvre avec un lien à usage unique. {again}',
-  'page.again.viewer': 'Rouvrez le visualiseur avec `rocketwright open`.',
+  'page.again.viewer': 'Rouvrez le visualiseur avec `phonesimulator open`.',
   'page.again.embed': 'Rechargez la page qui affiche ce cadre.',
 }
 

@@ -185,7 +185,7 @@ public final class Connection: Sendable {
     }
 }
 
-/// Lines for the helper's log, each with its level; the log folder is Rocketwright's.
+/// Lines for the helper's log, each with its level; the log folder is PhoneSimulator's.
 public struct Log: Sendable {
     public enum Level: Int, Sendable, Comparable {
         case debug, info, warning, error

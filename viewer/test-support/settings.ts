@@ -15,7 +15,7 @@ export function entry(path: string, overrides: Partial<SettingEntry> = {}): Sett
     reach: 'scope',
     sensitive: false,
     locked: null,
-    command: `rocketwright config set ${path} <value> --scope demo`,
+    command: `phonesimulator config set ${path} <value> --scope demo`,
     ...overrides,
   }
 }
@@ -38,10 +38,10 @@ export function settingsView(overrides: Partial<SettingsView> = {}): SettingsVie
       entry('stream.encoding', { rule: { kind: 'choice', options: ['auto', 'jpeg', 'h264'] }, value: 'auto',
         default: 'auto', effect: 'next_connection', origin: { layer: 'file', detail: 'config.toml' } }),
       entry('stream.quality', { rule: { kind: 'whole', low: 30, high: 100 }, value: 60, default: 75,
-        origin: { layer: 'environment', detail: 'ROCKETWRIGHT_STREAM_QUALITY' },
-        locked: "Set by ROCKETWRIGHT_STREAM_QUALITY in the daemon's environment, which config.toml cannot override: change it there." }),
+        origin: { layer: 'environment', detail: 'PHONESIMULATOR_STREAM_QUALITY' },
+        locked: "Set by PHONESIMULATOR_STREAM_QUALITY in the daemon's environment, which config.toml cannot override: change it there." }),
       entry('server.port', { rule: { kind: 'whole', low: 1024, high: 65535 }, value: 7466, default: 7466,
-        reach: 'global', effect: 'restart', sensitive: true, command: 'rocketwright config set server.port <value>' }),
+        reach: 'global', effect: 'restart', sensitive: true, command: 'phonesimulator config set server.port <value>' }),
     ],
     ...overrides,
   }

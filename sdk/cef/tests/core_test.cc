@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Tests for the CEF-independent core: run by `make sdk-cef-test`.
-#define ROCKETWRIGHT_CEF_BRIDGE 1
-#include "rocketwright_cef/core.h"
+#define PHONESIMULATOR_CEF_BRIDGE 1
+#include "phonesimulator_cef/core.h"
 
 #include <sys/stat.h>
 
@@ -24,7 +24,7 @@ int checks = 0;
     }                                                                                       \
   } while (0)
 
-using namespace rocketwright_cef;
+using namespace phonesimulator_cef;
 using Type = json::Value::Type;
 
 json::Value Parsed(const std::string& text) {
@@ -61,11 +61,11 @@ void TestJson() {
 }
 
 void TestIdentity() {
-  CHECK(ValidBundleId("dev.rocketwright.CEFSample") && !ValidBundleId("") && !ValidBundleId("a b") &&
+  CHECK(ValidBundleId("dev.phonesimulator.CEFSample") && !ValidBundleId("") && !ValidBundleId("a b") &&
         !ValidBundleId(std::string(156, 'a')));
-  // Matches rocketwright.platform.identifiers.mac_id.
-  CHECK(MacDeviceId("dev.rocketwright.MacAppSDK").rfind("macapp-dev.rocketwright.MacAppSDK-", 0) == 0);
-  CHECK(MacDeviceId("dev.rocketwright.MacAppSDK").size() == std::string("macapp-dev.rocketwright.MacAppSDK-").size() + 8);
+  // Matches phonesimulator.platform.identifiers.mac_id.
+  CHECK(MacDeviceId("dev.phonesimulator.MacAppSDK").rfind("macapp-dev.phonesimulator.MacAppSDK-", 0) == 0);
+  CHECK(MacDeviceId("dev.phonesimulator.MacAppSDK").size() == std::string("macapp-dev.phonesimulator.MacAppSDK-").size() + 8);
   CHECK(MacDeviceId(std::string(60, 'a')).find(std::string(43, 'a')) == std::string::npos);
   const std::string a = NewSecret(), b = NewSecret();
   CHECK(a.size() == 64 && a != b);
@@ -79,7 +79,7 @@ std::string Home() {
 
 void TestListing() {
   const std::string home = Home();
-  ListingInfo info{"dev.rocketwright.CEFSample", "Sample", 42, 50000, std::string(64, 'a'), {"menu", "gestures"},
+  ListingInfo info{"dev.phonesimulator.CEFSample", "Sample", 42, 50000, std::string(64, 'a'), {"menu", "gestures"},
                    "2026-11-02T00:00:00Z"};
   std::string path, error;
   CHECK(WriteListing(home, info, &path, &error));
@@ -92,7 +92,7 @@ void TestListing() {
   json::Value listing = Parsed(text.str());
   CHECK(listing.get("platform")->string == "macos" && listing.get("pid")->number == 42);
   CHECK(listing.get("capabilities")->array.size() == 2 && listing.get("device_udid")->string ==
-        MacDeviceId("dev.rocketwright.CEFSample"));
+        MacDeviceId("dev.phonesimulator.CEFSample"));
   RemoveListing(path, "someone else");
   CHECK(stat(path.c_str(), &st) == 0);
   RemoveListing(path, info.secret);
@@ -301,7 +301,7 @@ void TestPlans() {
   CHECK(DefaultCapabilities().size() == 9);
 }
 
-// A full round trip through the loopback server, as Rocketwright's client makes it.
+// A full round trip through the loopback server, as PhoneSimulator's client makes it.
 std::string Exchange(int port, const std::string& request, size_t split = 0) {
   const int fd = socket(AF_INET, SOCK_STREAM, 0);
   sockaddr_in address{};
@@ -329,12 +329,12 @@ void TestServer() {
   Server server;
   std::string error;
   CHECK(!server.Start({"bad id", "x", home, {1}, {}}, nullptr, &error) && !error.empty());
-  CHECK(!server.Start({"dev.rocketwright.CEFSample", "x", home, {}, {}}, nullptr, &error));
-  CHECK(!server.Start({"dev.rocketwright.CEFSample", "x", home, {0}, {}}, nullptr, &error));
+  CHECK(!server.Start({"dev.phonesimulator.CEFSample", "x", home, {}, {}}, nullptr, &error));
+  CHECK(!server.Start({"dev.phonesimulator.CEFSample", "x", home, {0}, {}}, nullptr, &error));
   error.clear();
-  CHECK(!server.Start({"dev.rocketwright.CEFSample", "x", "/dev/null/nowhere", {7}, {}}, nullptr, &error) &&
+  CHECK(!server.Start({"dev.phonesimulator.CEFSample", "x", "/dev/null/nowhere", {7}, {}}, nullptr, &error) &&
         error == "cannot create the listing folder");
-  CHECK(server.Start({"dev.rocketwright.CEFSample", "Sample", home, {7}, DefaultCapabilities()},
+  CHECK(server.Start({"dev.phonesimulator.CEFSample", "Sample", home, {7}, DefaultCapabilities()},
                      [](const Request& request) {
                        Answer answer;
                        if (request.kind == Request::Kind::Hierarchy) {
@@ -346,7 +346,7 @@ void TestServer() {
                        return answer;
                      },
                      &error));
-  CHECK(server.Start({"dev.rocketwright.CEFSample", "Sample", home, {7}, {}}, nullptr, &error));  // already running
+  CHECK(server.Start({"dev.phonesimulator.CEFSample", "Sample", home, {7}, {}}, nullptr, &error));  // already running
   const std::string auth = "\r\nHost: 127.0.0.1:" + std::to_string(server.port()) +
                            "\r\nAuthorization: Bearer " + server.secret();
   std::string response = Exchange(server.port(), "GET /v1/hierarchy?window_id=7&max_nodes=12 HTTP/1.1" + auth +

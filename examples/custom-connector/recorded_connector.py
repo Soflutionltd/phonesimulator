@@ -4,10 +4,10 @@
 It has the whole shape of a connector and needs nothing installed. `probe` says whether it can be used here, and why not
 when it cannot; `attach` hands over a `DeviceSession` whose roles match the capabilities it promised; `reap_orphans`
 ends what an earlier run left behind (nothing, here). It is view-only -- no `InputSink`, no `ScreenReader` -- so
-Rocketwright offers neither input nor snapshots on a device it shows.
+PhoneSimulator offers neither input nor snapshots on a device it shows.
 
-Installed, it is found through the ``rocketwright.connectors`` entry point (see pyproject.toml). Point it at a folder
-with ``RECORDED_FRAMES_DIR`` and choose it with ``connectors.preferred = "recorded"`` in Rocketwright's config.
+Installed, it is found through the ``phonesimulator.connectors`` entry point (see pyproject.toml). Point it at a folder
+with ``RECORDED_FRAMES_DIR`` and choose it with ``connectors.preferred = "recorded"`` in PhoneSimulator's config.
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ import os
 from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import (
     Capability,
     ConnectorReport,
     ConnectorUnavailable,
@@ -27,7 +27,7 @@ from rocketwright.connectors.base import (
     Screen,
     Shot,
 )
-from rocketwright.connectors.registry import ConnectorContext
+from phonesimulator.connectors.registry import ConnectorContext
 
 NAME = "recorded"
 FRAMES_ENV = "RECORDED_FRAMES_DIR"
@@ -122,5 +122,5 @@ class RecordedConnector:
 
 
 def create(context: ConnectorContext) -> RecordedConnector:
-    """The entry point Rocketwright calls, with what a connector may need from its host."""
+    """The entry point PhoneSimulator calls, with what a connector may need from its host."""
     return RecordedConnector()

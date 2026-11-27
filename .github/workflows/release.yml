@@ -27,13 +27,13 @@ jobs:
           cache: npm
           cache-dependency-path: viewer/package-lock.json
       - name: The tag is the package's version
-        run: grep -qx "__version__ = \"${GITHUB_REF_NAME#v}\"" src/rocketwright/_version.py
+        run: grep -qx "__version__ = \"${GITHUB_REF_NAME#v}\"" src/phonesimulator/_version.py
       - name: Release notes from CHANGELOG.md
         run: uv run --no-project python scripts/release_notes.py "$GITHUB_REF_NAME" > release-notes.md
       - name: The native helper, for both Mac architectures
         run: make helper-release
       - name: Python sdist and wheel
-        run: ROCKETWRIGHT_HELPER_BINARY="$PWD/dist/helper/rocketwright-helper" uv build --out-dir dist/python
+        run: PHONESIMULATOR_HELPER_BINARY="$PWD/dist/helper/phonesimulator-helper" uv build --out-dir dist/python
       - name: The wheel carries the helper
         run: uv run --no-project python scripts/check_wheel.py --helper dist/python/*.whl
       - name: Viewer package
@@ -44,7 +44,7 @@ jobs:
           mkdir -p ../dist/viewer
           npm pack --pack-destination ../dist/viewer
       - name: Portable agent skills
-        run: uv run python scripts/check_skills.py --output "dist/skills/rocketwright-skills-${GITHUB_REF_NAME#v}.zip"
+        run: uv run python scripts/check_skills.py --output "dist/skills/phonesimulator-skills-${GITHUB_REF_NAME#v}.zip"
       - uses: actions/upload-artifact@v7
         with:
           name: packages
@@ -72,7 +72,7 @@ jobs:
           # 0.x versions are previews.
           case "$GITHUB_REF_NAME" in v0.*) set -- "$@" --prerelease ;; esac
           gh release create "$GITHUB_REF_NAME" "$@" --verify-tag \
-            --title "Rocketwright ${GITHUB_REF_NAME#v}" --notes-file release-notes.md
+            --title "PhoneSimulator ${GITHUB_REF_NAME#v}" --notes-file release-notes.md
 
   pypi:
     name: Publish to PyPI

@@ -8,8 +8,8 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from rocketwright.connectors.base import Crop, HidEvent, Screen, Shot
-from rocketwright.perception.orientation import (
+from phonesimulator.connectors.base import Crop, HidEvent, Screen, Shot
+from phonesimulator.perception.orientation import (
     ORIENTATIONS,
     Interface,
     Orientation,
@@ -17,8 +17,8 @@ from rocketwright.perception.orientation import (
     quarter_turned,
     shaped_as,
 )
-from rocketwright.testing.fakes import JPEG, SCREEN
-from rocketwright.testing.pictures import picture
+from phonesimulator.testing.fakes import JPEG, SCREEN
+from phonesimulator.testing.pictures import picture
 
 
 def test_a_document_says_its_orientation_or_is_portrait() -> None:

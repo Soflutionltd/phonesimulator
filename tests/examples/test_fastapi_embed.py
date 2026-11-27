@@ -12,9 +12,9 @@ import app as example
 import httpx
 import pytest
 
-from rocketwright.api import Admission, Refused, Runtime, Scope
-from rocketwright.testing.asgi import HOST
-from rocketwright.testing.rig import DeviceRig
+from phonesimulator.api import Admission, Refused, Runtime, Scope
+from phonesimulator.testing.asgi import HOST
+from phonesimulator.testing.rig import DeviceRig
 
 KEY = "change-me"
 
@@ -62,7 +62,7 @@ async def test_an_agent_names_its_project_and_is_given_the_tools(tmp_path: Path)
 async def test_the_seams_say_what_this_host_decided(tmp_path: Path) -> None:
     scope = Scope(id="demo", group=example.GROUP, label="demo")
     state = example.ExampleState(tmp_path / "state", claims=tmp_path / "claims")
-    assert state.owner_tag == "RocketwrightExample"
+    assert state.owner_tag == "PhoneSimulatorExample"
     # No `devices_file`: a host says where a device is remembered by passing a `DeviceMemory`, so a store that
     # remembers none implements nothing for it.
     assert not hasattr(state, "devices_file")
@@ -99,4 +99,4 @@ async def test_simulators_start_and_stop_with_the_application(tmp_path: Path) ->
 def test_the_key_comes_from_the_environment_by_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(example.KEY_ENV, "from-env")
     application = example.create_app(runtime(tmp_path))
-    assert application.title == "Rocketwright embedded in an application"
+    assert application.title == "PhoneSimulator embedded in an application"

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``rocketwright wda``: teams, setting WebDriverAgent up with the team this folder's project signs with, having a
+"""``phonesimulator wda``: teams, setting WebDriverAgent up with the team this folder's project signs with, having a
 running daemon start it, what is set up, and removing it -- without Xcode or a daemon."""
 
 from __future__ import annotations
@@ -11,22 +11,22 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.cli.context import CliContext
-from rocketwright.cli.main import main
-from rocketwright.connectors.iphone import wda_source
-from rocketwright.connectors.iphone.wda_setup import derived_for
-from rocketwright.connectors.iphone.wda_source import MJPEG_ON_LOOPBACK
-from rocketwright.scope import Scope
-from rocketwright.testing.daemon import Daemon
-from rocketwright.testing.fakes import PHONE_UDID, FakeXcrun, fixture
-from rocketwright.testing.wda import ARCHIVE, FOLDER, TEST_RELEASE, builds_wda
+from phonesimulator.cli.context import CliContext
+from phonesimulator.cli.main import main
+from phonesimulator.connectors.iphone import wda_source
+from phonesimulator.connectors.iphone.wda_setup import derived_for
+from phonesimulator.connectors.iphone.wda_source import MJPEG_ON_LOOPBACK
+from phonesimulator.scope import Scope
+from phonesimulator.testing.daemon import Daemon
+from phonesimulator.testing.fakes import PHONE_UDID, FakeXcrun, fixture
+from phonesimulator.testing.wda import ARCHIVE, FOLDER, TEST_RELEASE, builds_wda
 
 TEAM = "TESTTEAM01"
 #: What devicectl lists of a device's apps by the runner's bundle id: none, or the runner.
 APPS_NONE = {"info": {"outcome": "success", "jsonVersion": 5}, "result": {"apps": []}}
 APPS_RUNNER = {
     "info": {"outcome": "success", "jsonVersion": 5},
-    "result": {"apps": [{"bundleIdentifier": "dev.rocketwright.testteam01.WebDriverAgentRunner.xctrunner"}]},
+    "result": {"apps": [{"bundleIdentifier": "dev.phonesimulator.testteam01.WebDriverAgentRunner.xctrunner"}]},
 }
 XCODE = "/Applications/Xcode27.app/Contents/Developer"
 PEM = fixture("development-certificate.pem")
@@ -46,7 +46,7 @@ class Here:
         team_line = f'team_id = "{team}"\n' if team else ""
         (root / "config.toml").write_text(f'[device]\ndeveloper_dir = "{XCODE}"\n[real_devices]\n{team_line}{settings}')
         self.ctx = CliContext(
-            env={"ROCKETWRIGHT_STATE_DIR": str(self.state), "ROCKETWRIGHT_CONFIG": str(root / "config.toml")},
+            env={"PHONESIMULATOR_STATE_DIR": str(self.state), "PHONESIMULATOR_CONFIG": str(root / "config.toml")},
             cwd=root,
             stdout=self.out,
             stderr=self.err,
@@ -87,9 +87,9 @@ class Here:
 
 @pytest.fixture(autouse=True)
 def pinned(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The release Rocketwright pins is the test's archive, so nothing is fetched from GitHub."""
+    """The release PhoneSimulator pins is the test's archive, so nothing is fetched from GitHub."""
     monkeypatch.setattr(wda_source, "PINNED", TEST_RELEASE)
-    monkeypatch.setattr("rocketwright.cli.wda.PINNED", TEST_RELEASE)
+    monkeypatch.setattr("phonesimulator.cli.wda.PINNED", TEST_RELEASE)
 
 
 def test_the_teams_here_are_listed_with_their_certificates_expiry(tmp_path: Path) -> None:
@@ -105,7 +105,7 @@ def test_setup_fetches_checks_changes_and_builds_it_then_says_what_to_do_on_the_
     assert here("wda", "setup") == 0
     said = here.said()
     assert "signing with team TESTTEAM01 (real_devices.team_id)" in said
-    assert "fetching WebDriverAgent 9.9.9" in said and "built WebDriverAgent as dev.rocketwright.testteam01" in said
+    assert "fetching WebDriverAgent 9.9.9" in said and "built WebDriverAgent as dev.phonesimulator.testteam01" in said
     assert "Enable UI Automation" in said and "is off here" not in said
     source = here.state / "wda" / "source" / FOLDER
     assert MJPEG_ON_LOOPBACK.new in (source / MJPEG_ON_LOOPBACK.path).read_text()
@@ -172,7 +172,7 @@ def test_status_says_what_is_set_up(tmp_path: Path) -> None:
     status = json.loads(again.said())
     assert status["enabled"] is True and status["team_id"] == TEAM and status["built"].endswith(".xctestrun")
     assert (
-        status["bundle_id"] == "dev.rocketwright.testteam01.WebDriverAgentRunner" and status["team_from"] == "setting"
+        status["bundle_id"] == "dev.phonesimulator.testteam01.WebDriverAgentRunner" and status["team_from"] == "setting"
     )
     (tmp_path / "bare").mkdir()
     bare = Here(tmp_path / "bare", team="")
@@ -262,7 +262,7 @@ def test_uninstall_removes_the_runner_this_team_built(tmp_path: Path) -> None:
     here.xcrun.with_devicectl()
     assert here("wda", "uninstall", PHONE_UDID) == 0
     argv = here.xcrun.calls[-1].args
-    runner = "dev.rocketwright.testteam01.WebDriverAgentRunner.xctrunner"
+    runner = "dev.phonesimulator.testteam01.WebDriverAgentRunner.xctrunner"
     assert argv[argv.index("--device") + 1 :][:2] == (PHONE_UDID, runner)
     assert here("wda", "uninstall", "not-a-udid") == 1
     unknown = Here(tmp_path, team="")

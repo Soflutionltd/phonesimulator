@@ -5,8 +5,8 @@ from __future__ import annotations
 
 from dataclasses import fields
 
-from rocketwright.config import schema
-from rocketwright.config.model import SimConfig
+from phonesimulator.config import schema
+from phonesimulator.config.model import SimConfig
 
 
 def test_it_has_exactly_one_attribute_per_setting() -> None:

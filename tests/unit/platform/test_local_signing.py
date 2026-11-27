@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.platform import local_signing
-from rocketwright.platform.local_signing import (
+from phonesimulator.platform import local_signing
+from phonesimulator.platform.local_signing import (
     CERTIFICATE,
     CODESIGN,
     IDENTITY_ENV,
@@ -51,7 +51,7 @@ class Programs:
         if call[:2] == (SECURITY, "list-keychains") and len(call) == 4:
             return (1, "no list") if self.no_list else (0, '    "/Users/a/Library/Keychains/login.keychain-db"\n')
         if call[:2] == (SECURITY, "find-identity"):
-            return 0, f'  1) {FINGERPRINT} "Rocketwright"' if self.trusted else "0 valid identities found"
+            return 0, f'  1) {FINGERPRINT} "PhoneSimulator"' if self.trusted else "0 valid identities found"
         return 0, ""
 
     def named(self, word: str) -> list[tuple[str, ...]]:
@@ -97,7 +97,7 @@ def test_a_helper_is_signed_with_this_macs_certificate_from_its_keychain_or_with
 ) -> None:
     programs = Programs()
     signing = LocalSigning(tmp_path / "signing", run=programs, env={})
-    with pytest.raises(SigningError, match="no Rocketwright signing certificate"):
+    with pytest.raises(SigningError, match="no PhoneSimulator signing certificate"):
         signing.sign(tmp_path / "helper")
     signing.set_up()
     signing.sign(tmp_path / "helper")
@@ -108,7 +108,7 @@ def test_a_helper_is_signed_with_this_macs_certificate_from_its_keychain_or_with
     )
     [signed] = programs.named(CODESIGN)
     assert signed[signed.index("--sign") + 1] == FINGERPRINT and str(signing.keychain) in signed
-    assert signed[signed.index("--identifier") + 1] == "dev.rocketwright.helper"
+    assert signed[signed.index("--identifier") + 1] == "dev.phonesimulator.helper"
     named = LocalSigning(
         tmp_path / "other", run=(other := Programs()), env={IDENTITY_ENV: " Developer ID Application: A "}
     )

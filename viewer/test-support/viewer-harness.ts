@@ -9,7 +9,7 @@ import { FakeSocket } from './fake-socket'
 import {
   CAPABILITIES, type Capability, type Device, type ServerHello, type Started,
 } from '../src/protocol.generated'
-import type { RocketwrightTransport } from '../src/transport'
+import type { PhoneSimulatorTransport } from '../src/transport'
 import { createViewer, type ViewerOptions } from '../src/viewer'
 
 /** Timers and the date are faked. */
@@ -25,7 +25,7 @@ export const flush = async () => { for (let i = 0; i < 10; i++) await Promise.re
 export const FULL: Capability[] = CAPABILITIES.filter((capability) => capability !== 'build_preview' && capability !== 'input_pointer')
 export const VIEW_ONLY: Capability[] = ['lifecycle', 'device_list', 'appearance', 'screenshot', 'stream_jpeg']
 export const HELLO: ServerHello = {
-  type: 'hello', v: 1, server: 'rocketwright/0.1.0', encodings: ['h264', 'jpeg'], connector: 'idb', capabilities: FULL,
+  type: 'hello', v: 1, server: 'phonesimulator/0.1.0', encodings: ['h264', 'jpeg'], connector: 'idb', capabilities: FULL,
   fallback_reason: null,
 }
 
@@ -45,7 +45,7 @@ export function started(device: Device | null = { ...DEVICE, state: 'booting', s
   }
 }
 
-export type Calls = Partial<Record<keyof RocketwrightTransport, unknown>>
+export type Calls = Partial<Record<keyof PhoneSimulatorTransport, unknown>>
 
 export function transportWith(overrides: Calls = {}) {
   const calls = {
@@ -74,7 +74,7 @@ export function setup(overrides: SetupOptions = {}) {
   const transport = transportWith(calls)
   const onState = vi.fn()
   const options: ViewerOptions = {
-    transport: transport as unknown as RocketwrightTransport,
+    transport: transport as unknown as PhoneSimulatorTransport,
     canDecodeH264: () => false,
     placement: 'dock',
     onPlace: vi.fn(),

@@ -11,9 +11,9 @@ from typing import Any
 
 import pytest
 
-from rocketwright.platform import json_lines
-from rocketwright.platform.json_lines import JsonLines, LinesError, spawn_lines
-from rocketwright.testing.fakes import FakeLineProcess, ManualClock
+from phonesimulator.platform import json_lines
+from phonesimulator.platform.json_lines import JsonLines, LinesError, spawn_lines
+from phonesimulator.testing.fakes import FakeLineProcess, ManualClock
 
 
 class Echo:

@@ -1,8 +1,8 @@
 # The app SDK
 
 A screen whose controls say nothing to accessibility reads badly to an agent: an icon-only button has no name, a card
-with a tap gesture is only its text, a control drawn by hand is not there at all. **RocketwrightKit** is a small Swift
-package an app under development links so Rocketwright reads the app's own UIKit and SwiftUI views instead, and snapshots
+with a tap gesture is only its text, a control drawn by hand is not there at all. **PhoneSimulatorKit** is a small Swift
+package an app under development links so PhoneSimulator reads the app's own UIKit and SwiftUI views instead, and snapshots
 name and add what accessibility left out.
 
 It is optional and never required: nothing changes for an app without it. It does anything only in a **Debug build on
@@ -11,30 +11,30 @@ and none of its workings are compiled in.
 
 ## Add it
 
-In Xcode, **File → Add Package Dependencies…**, enter `https://github.com/Soflutionltd/rocketwright`, and add the
-**RocketwrightKit** library to your app target. In a `Package.swift`:
+In Xcode, **File → Add Package Dependencies…**, enter `https://github.com/Soflutionltd/phonesimulator`, and add the
+**PhoneSimulatorKit** library to your app target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/Soflutionltd/rocketwright", from: "3.9.0"),
+.package(url: "https://github.com/Soflutionltd/phonesimulator", from: "3.9.0"),
 // and in your app target's dependencies:
-.product(name: "RocketwrightKit", package: "rocketwright"),
+.product(name: "PhoneSimulatorKit", package: "phonesimulator"),
 ```
 
-The package is at the top of this repository; Rocketwright's Python daemon and native helper are not part of it. It needs
+The package is at the top of this repository; PhoneSimulator's Python daemon and native helper are not part of it. It needs
 iOS 16 or later and Swift 6.
 
 ## Start it
 
-Call `Rocketwright.start()` once, early -- in your `App`'s `init`, or `application(_:didFinishLaunchingWithOptions:)`:
+Call `PhoneSimulator.start()` once, early -- in your `App`'s `init`, or `application(_:didFinishLaunchingWithOptions:)`:
 
 ```swift
-import RocketwrightKit
+import PhoneSimulatorKit
 import SwiftUI
 
 @main
 struct NotesApp: App {
     init() {
-        Rocketwright.start()
+        PhoneSimulator.start()
     }
 
     var body: some Scene {
@@ -43,14 +43,14 @@ struct NotesApp: App {
 }
 ```
 
-That is all Rocketwright needs: the next snapshot of the app reads its views. The viewer shows a **`Notes · SDK`** chip
-beside the device's name while it does, `rocketwright doctor` has an **app hierarchy** check, and
-`rocketwright app hierarchy` prints what the app in front shares. [examples/app-sdk](../examples/app-sdk/) is a small app
+That is all PhoneSimulator needs: the next snapshot of the app reads its views. The viewer shows a **`Notes · SDK`** chip
+beside the device's name while it does, `phonesimulator doctor` has an **app hierarchy** check, and
+`phonesimulator app hierarchy` prints what the app in front shares. [examples/app-sdk](../examples/app-sdk/) is a small app
 that uses every part of it.
 
-## What Rocketwright reads
+## What PhoneSimulator reads
 
-The app walks its windows from the front, the key window first, on the main thread when Rocketwright asks, and answers
+The app walks its windows from the front, the key window first, on the main thread when PhoneSimulator asks, and answers
 with the views that show:
 
 - **What each view is**, in a snapshot's words: a `UIButton` is a button, a `UISwitch` a switch with its `1` or `0`, a
@@ -75,24 +75,24 @@ as `slider "Rating" ="3 of 5"`, the card with a tap gesture as a button an agent
 ## Name views yourself
 
 SwiftUI views that are not UIKit underneath -- most of them -- are not in the walk, and some views are best named by
-the person who wrote them. Tag a SwiftUI view with **`.rocketwright`**:
+the person who wrote them. Tag a SwiftUI view with **`.phonesimulator`**:
 
 ```swift
 Button { showSettings() } label: { Image(systemName: "gearshape") }
-    .rocketwright("Settings")
+    .phonesimulator("Settings")
 
 Toggle("", isOn: $notifications).labelsHidden()
-    .rocketwright(kind: .switch, name: "Notifications", identifier: "notifications")
+    .phonesimulator(kind: .switch, name: "Notifications", identifier: "notifications")
 
 PromoCard()
     .onTapGesture { open() }
-    .rocketwright(kind: .button, name: "Play daily mix")
+    .phonesimulator(kind: .button, name: "Play daily mix")
 ```
 
 A tag puts an invisible view behind the tagged one, in its exact place -- in a sheet, a list row or a cell alike. The
 name a tag gives is the developer's own, so it names what is in its place even when accessibility already calls it
 something else: the button above reads `button "Settings"`, not `button "gearshape"`. A tag with a kind is added where
-nothing is. Outside a Debug build on the simulator `.rocketwright` returns the view unchanged.
+nothing is. Outside a Debug build on the simulator `.phonesimulator` returns the view unchanged.
 
 For a UIKit view of your own, **register a describer**:
 
@@ -104,19 +104,19 @@ struct RatingControlDescriber: ViewDescribing {
     }
 }
 
-Rocketwright.register(describer: RatingControlDescriber())
+PhoneSimulator.register(describer: RatingControlDescriber())
 ```
 
-Describers are asked before Rocketwright's own reading, in the order registered; `nil` leaves a view to the rest, and
+Describers are asked before PhoneSimulator's own reading, in the order registered; `nil` leaves a view to the rest, and
 `ViewDescription.hidden` leaves it, and everything inside it, out.
 
 ## SwiftUI's debug data
 
-SwiftUI keeps debug data of its own views, which tells which have a tap gesture and which images they show. RocketwrightKit
+SwiftUI keeps debug data of its own views, which tells which have a tap gesture and which images they show. PhoneSimulatorKit
 can read it, **opt-in and on iOS 26 only**:
 
 ```swift
-Rocketwright.start(Rocketwright.Options(swiftUIDebugData: true))
+PhoneSimulator.start(PhoneSimulator.Options(swiftUIDebugData: true))
 ```
 
 It is SwiftUI's undocumented debugging aid, and it costs. On iOS 26.5 the sample app's first read held the main thread
@@ -139,7 +139,7 @@ unless the call confirms it:
 - **An alert or an action sheet**: each `UIAlertAction` styled `.destructive`. SwiftUI's `.alert` and
   `.confirmationDialog` are alert controllers too, so a `Button(role: .destructive)` in one is marked as well. UIKit
   draws each action as a private view that says nothing of its style, so what in the alert says a destructive
-  action's title is marked: the action's button while accessibility is in use, as it is while Rocketwright reads the
+  action's title is marked: the action's button while accessibility is in use, as it is while PhoneSimulator reads the
   screen, and its title's text while it is not. Two actions with the same title are both marked if either is
   destructive, and so is an alert's title or message that says exactly a destructive action's title.
 - **A SwiftUI `Button(role: .destructive)` drawn in place**, only while the SDK reads
@@ -155,11 +155,11 @@ still refuses them by what they say, and a sideways swipe on any row.
 | Option | Default | What it does |
 |---|---|---|
 | `port` | `0` | The port to listen on, on 127.0.0.1 only; `0` lets the system pick one each launch |
-| `maxNodes` | `3000` | The most views an answer holds; Rocketwright may ask for fewer, and a larger answer says it was cut short |
+| `maxNodes` | `3000` | The most views an answer holds; PhoneSimulator may ask for fewer, and a larger answer says it was cut short |
 | `redactValues` | `false` | Leaves every value out, for screens with data you would rather not hand an agent |
 | `swiftUIDebugData` | `false` | Also reads SwiftUI's debug data, on iOS 26 only |
 
-`Rocketwright.stop()` stops answering, and `Rocketwright.isRunning` says whether it does.
+`PhoneSimulator.stop()` stops answering, and `PhoneSimulator.isRunning` says whether it does.
 
 ## Settings
 
@@ -168,17 +168,17 @@ In the settings panel's **Connectors** tab, per project or for every project:
 | Setting | Default | |
 |---|---|---|
 | `connectors.app.merge` | on | Whether snapshots read the hierarchy an app in front shares at all |
-| `connectors.app.name_unlabeled` | on | Whether it names what accessibility found without a label, and what `.rocketwright` named, or only adds |
+| `connectors.app.name_unlabeled` | on | Whether it names what accessibility found without a label, and what `.phonesimulator` named, or only adds |
 | `connectors.app.timeout_ms` | 500 | How long a snapshot waits for the app, before going on without it |
 | `connectors.app.max_nodes` | 3000 | The most views read |
 
 See [the configuration reference](reference/configuration.md#connectorsappmerge).
 
-## How Rocketwright finds the app, and who else can
+## How PhoneSimulator finds the app, and who else can
 
 When it starts, the app listens on `127.0.0.1` on a port of its own, makes a new random 32-byte secret, and writes a
 **listing** -- its bundle identifier, process, port and secret -- to the simulator's data folder, at
-`Library/Caches/Rocketwright/apps/<bundle id>.json`, readable by the Mac user only (0600), or to the app's own caches when
+`Library/Caches/PhoneSimulator/apps/<bundle id>.json`, readable by the Mac user only (0600), or to the app's own caches when
 that folder cannot be written. It rewrites the listing as it comes to the front or leaves it, and removes it when it
 stops. A snapshot reads the listings of the device's apps, trusting one only when it is a regular file owned by the
 Mac user, readable by nobody else, for this device and a process still running, and asks the app in front for its
@@ -189,14 +189,14 @@ page (an `Origin` header) or addressed to another host, answers only a small `GE
 and while the app is not in front answers 409 without reading anything. What it answers is the app's view hierarchy, which an agent
 driving the simulator could already see on screen. `make sdk-release-check` builds the sample app for Release and fails
 if the build holds any of it. The wire format is [protocol/app-sdk/v1](../protocol/README.md#app-sdk-protocol-version-1),
-versioned apart from Rocketwright's screen protocol. See [Security](security.md#apps-that-share-their-hierarchy).
+versioned apart from PhoneSimulator's screen protocol. See [Security](security.md#apps-that-share-their-hierarchy).
 
 ## Limits
 
 - A **Debug build**: the SDK compiles its workings only where `DEBUG` is defined, as it is for a package built in
   Xcode's Debug configuration. A configuration of your own that SwiftPM builds for release leaves them out.
 - **The iOS Simulator**, iOS 16 or later. A device, Mac Catalyst and app extensions are not read.
-- **SwiftUI** is read through its UIKit views, `.rocketwright` tags and, opt-in on iOS 26, its debug data. A view none of
+- **SwiftUI** is read through its UIKit views, `.phonesimulator` tags and, opt-in on iOS 26, its debug data. A view none of
   these reach reads as accessibility reads it.
 - **One app**, the one in front. An app suspended in the debugger does not answer; the snapshot goes on without it,
   and says so while the app is in front.
@@ -217,22 +217,22 @@ its own Xcode; the coverage gate runs on iOS 26, where every path, SwiftUI's deb
 
 ## macOS
 
-RocketwrightKit supports native AppKit and SwiftUI apps on macOS 14 or later. Add the local or Git Swift package, link
-its `RocketwrightKit` product, then start it early in your app delegate or SwiftUI `App.init`:
+PhoneSimulatorKit supports native AppKit and SwiftUI apps on macOS 14 or later. Add the local or Git Swift package, link
+its `PhoneSimulatorKit` product, then start it early in your app delegate or SwiftUI `App.init`:
 
 ```swift
-import RocketwrightKit
+import PhoneSimulatorKit
 
 // On the main actor, before constructing the app's windows:
-Rocketwright.start()
+PhoneSimulator.start()
 ```
 
 The public API is a no-op in Release, previews and extensions. The AppKit walker reads only this process's views and
-public accessibility selectors. `.rocketwright(...)` tags work in macOS SwiftUI views; optional `swiftUIDebugData: true`
+public accessibility selectors. `.phonesimulator(...)` tags work in macOS SwiftUI views; optional `swiftUIDebugData: true`
 is limited to macOS 26. Text and menu actions execute in the app, without activation or global events.
 
 Sandboxed Debug apps need `com.apple.security.network.server` for loopback listening. Listings use the app home's
-`Library/Application Support/Rocketwright/apps`, including the sandbox container home, and the existing owner/mode/PID
+`Library/Application Support/PhoneSimulator/apps`, including the sandbox container home, and the existing owner/mode/PID
 trust checks. Capture remains the helper's ScreenCaptureKit responsibility, so the app itself needs no Screen
 Recording permission for the SDK.
 

@@ -8,14 +8,14 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.android.adb_input import AdbInput, AdbText, stroke_command, typed_argument
-from rocketwright.connectors.android.geometry import Rotation
-from rocketwright.connectors.android.keys import ANDROID_BUTTONS, BUTTON_KEYCODES, keycode_of
-from rocketwright.connectors.android.uiautomator import Box, UiAutomatorReader, document, role_of, window_covers
-from rocketwright.connectors.base import ConnectorError, HidEvent, Screen
-from rocketwright.core import gestures
-from rocketwright.testing.adb import FakeAdbServer
-from rocketwright.testing.fakes import fixture
+from phonesimulator.connectors.android.adb_input import AdbInput, AdbText, stroke_command, typed_argument
+from phonesimulator.connectors.android.geometry import Rotation
+from phonesimulator.connectors.android.keys import ANDROID_BUTTONS, BUTTON_KEYCODES, keycode_of
+from phonesimulator.connectors.android.uiautomator import Box, UiAutomatorReader, document, role_of, window_covers
+from phonesimulator.connectors.base import ConnectorError, HidEvent, Screen
+from phonesimulator.core import gestures
+from phonesimulator.testing.adb import FakeAdbServer
+from phonesimulator.testing.fakes import fixture
 
 PIXEL = Screen(1080, 2424, 411, 923, 2.625)
 SERIAL = "emulator-5554"

@@ -5,8 +5,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rocketwright.platform.android_sdk import AndroidSdk, avd_home, avds, find_sdk, read_properties
-from rocketwright.testing.android_sdk import avd, image, sdk_at
+from phonesimulator.platform.android_sdk import AndroidSdk, avd_home, avds, find_sdk, read_properties
+from phonesimulator.testing.android_sdk import avd, image, sdk_at
 
 
 def test_the_sdk_is_the_one_named_else_the_environments_else_android_studios(tmp_path: Path) -> None:

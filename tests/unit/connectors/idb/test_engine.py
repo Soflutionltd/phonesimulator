@@ -13,15 +13,15 @@ from grpclib.const import Status
 from grpclib.exceptions import GRPCError, StreamTerminatedError
 from grpclib.testing import ChannelFor
 
-from rocketwright.connectors.base import ConnectorError, Crop, HidEvent, Screen, Shot
-from rocketwright.connectors.idb.engine import IdbEngine, to_proto
-from rocketwright.connectors.idb.proto import idb_pb2 as pb
-from rocketwright.connectors.idb.proto.idb_grpc import CompanionServiceBase
-from rocketwright.core.actions import AgentActions
-from rocketwright.perception.model import Frame
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import BOOTED_UDID, FakeConnector, FakeEngine, fixture, fixture_json, no_wait
-from rocketwright.testing.rig import DeviceRig, scope
+from phonesimulator.connectors.base import ConnectorError, Crop, HidEvent, Screen, Shot
+from phonesimulator.connectors.idb.engine import IdbEngine, to_proto
+from phonesimulator.connectors.idb.proto import idb_pb2 as pb
+from phonesimulator.connectors.idb.proto.idb_grpc import CompanionServiceBase
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.perception.model import Frame
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import BOOTED_UDID, FakeConnector, FakeEngine, fixture, fixture_json, no_wait
+from phonesimulator.testing.rig import DeviceRig, scope
 
 H = pb.HIDEvent
 #: What idb_companion answers at a point with nothing there.

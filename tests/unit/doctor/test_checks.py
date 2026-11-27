@@ -12,15 +12,15 @@ from typing import Any
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.app.reader import probe
-from rocketwright.connectors.base import ConnectorUnavailable
-from rocketwright.connectors.mcpbridge.client import BridgeClient
-from rocketwright.connectors.mcpbridge.reader import BridgeReader
-from rocketwright.connectors.native.helper import SelfCheck, SelfCheckPart
-from rocketwright.connectors.registry import ConnectorRegistry
-from rocketwright.doctor.checks import (
+from phonesimulator._version import __version__
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.app.reader import probe
+from phonesimulator.connectors.base import ConnectorUnavailable
+from phonesimulator.connectors.mcpbridge.client import BridgeClient
+from phonesimulator.connectors.mcpbridge.reader import BridgeReader
+from phonesimulator.connectors.native.helper import SelfCheck, SelfCheckPart
+from phonesimulator.connectors.registry import ConnectorRegistry
+from phonesimulator.doctor.checks import (
     CHECKS,
     FIRST_LAUNCH,
     INSTALL_RUNTIME,
@@ -34,15 +34,15 @@ from rocketwright.doctor.checks import (
     diagnose,
     vision_for,
 )
-from rocketwright.doctor.report import CheckResult
-from rocketwright.perception.vision.helper import VisionHelpers
-from rocketwright.perception.vision.probe import PROBE_TEXT
-from rocketwright.platform.developer_dir import ChosenXcode
-from rocketwright.platform.device_data import DEVICES_DIR_ENV
-from rocketwright.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
-from rocketwright.testing.fakes import BOOTED_UDID, FakeBridge, FakeConnector, FakeXcrun, ManualClock
-from rocketwright.testing.rig import VIEW_ONLY
-from rocketwright.testing.vision import FakeVisionHelper
+from phonesimulator.doctor.report import CheckResult
+from phonesimulator.perception.vision.helper import VisionHelpers
+from phonesimulator.perception.vision.probe import PROBE_TEXT
+from phonesimulator.platform.developer_dir import ChosenXcode
+from phonesimulator.platform.device_data import DEVICES_DIR_ENV
+from phonesimulator.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
+from phonesimulator.testing.fakes import BOOTED_UDID, FakeBridge, FakeConnector, FakeXcrun, ManualClock
+from phonesimulator.testing.rig import VIEW_ONLY
+from phonesimulator.testing.vision import FakeVisionHelper
 
 VERSION = '{"build_date": "Sep 15 2026", "build_time": "10:00:00"}'
 HELPER_VERSION = (
@@ -76,7 +76,7 @@ class Mac:
             ("launchctl", "managername"): (0, "Aqua\n"),
             (str(self.companion), "--version"): (0, VERSION),
         }
-        self.helper = root / "helper" / "rocketwright-helper"
+        self.helper = root / "helper" / "phonesimulator-helper"
         self.helper.parent.mkdir()
         self.helper.write_text("#!/bin/sh\n")
         self.helper.chmod(0o755)
@@ -86,7 +86,7 @@ class Mac:
         self.xcrun.with_swift()
         self.installed: str | None = str(self.companion)
         self.helpers = root / "helpers"
-        #: Rocketwright's text reader, reading the doctor's test picture as Vision did.
+        #: PhoneSimulator's text reader, reading the doctor's test picture as Vision did.
         self.reader = FakeVisionHelper([{"text": PROBE_TEXT, "confidence": 1, "box": {"x": 0.1, "y": 0.3, "w": 0.8,
                                                                                       "h": 0.4}}])  # fmt: skip
         #: Where a native helper is looked for; empty for a Mac without one.
@@ -151,7 +151,7 @@ async def test_a_mac_with_everything_in_place_passes_and_says_what_it_found(tmp_
 async def test_off_a_mac_nothing_else_is_checked(tmp_path: Path) -> None:
     report = await diagnose(Mac(tmp_path).context(platform="linux"))
     assert report.results[0] == CheckResult(
-        "mac", "fail", "Rocketwright runs only on a Mac, where the iOS Simulator runs"
+        "mac", "fail", "PhoneSimulator runs only on a Mac, where the iOS Simulator runs"
     )
     assert {result.status for result in report.results[1:]} == {"skip"} and report.exit_code == 1
     assert (await diagnose(Mac(tmp_path / "unknown").context(mac_version=lambda: ""))).results[0].detail == (
@@ -215,10 +215,10 @@ async def test_running_companions_each_say_which_xcode_they_run_with(tmp_path: P
     mac = Mac(tmp_path)
     run_dir = tmp_path / "run"
     run_dir.mkdir()
-    (run_dir / "a.pid").write_text(f"5001 777 Rocketwright\n{mac.developer}")
-    (run_dir / "b.pid").write_text("5002 777 Rocketwright")
-    (run_dir / "c.pid").write_text("5003 777 Rocketwright")
-    (run_dir / "d.pid").write_text("5004 777 Rocketwright")
+    (run_dir / "a.pid").write_text(f"5001 777 PhoneSimulator\n{mac.developer}")
+    (run_dir / "b.pid").write_text("5002 777 PhoneSimulator")
+    (run_dir / "c.pid").write_text("5003 777 PhoneSimulator")
+    (run_dir / "d.pid").write_text("5004 777 PhoneSimulator")
 
     async def command_of(pid: int) -> str | None:
         return {5001: "idb_companion --udid A", 5002: "/opt/homebrew/bin/idb_companion", 5004: "python3"}.get(pid)
@@ -281,7 +281,7 @@ async def test_a_companion_named_but_not_runnable_fails_and_one_not_installed_le
     mac.native_helpers = ()
     absent = by_name((await diagnose(mac.context())).results)["companion"]
     assert absent.status == "warn" and absent.detail.startswith("not installed") and "brew install" in absent.fix
-    assert "rocketwright helper build" in absent.fix
+    assert "phonesimulator helper build" in absent.fix
     mac.native_helpers = (mac.helper,)
     mac.installed = str(mac.companion)
     del mac.answers[(str(mac.companion), "--version")]
@@ -358,7 +358,7 @@ async def test_reading_through_an_xcode_before_27_fails_and_says_what_to_change(
     assert result.status == "fail" and result.detail.startswith(
         "connectors.mcpbridge.merge is on, but Reading the screen through Xcode needs Xcode 27 or later"
     )
-    assert result.fix.startswith("Choose Xcode 27 with `rocketwright config set device.developer_dir`")
+    assert result.fix.startswith("Choose Xcode 27 with `phonesimulator config set device.developer_dir`")
 
 
 async def test_a_scope_reading_through_xcode_27_has_a_booted_device_read_once(tmp_path: Path) -> None:
@@ -396,7 +396,7 @@ async def test_a_scope_reading_through_xcode_hears_why_xcode_would_not_read_or_t
     result = await check_xcode_tools(tools_context(mac, bridge, config=merged, runtime=TAPPING))
     assert result.status == "fail" and result.detail.startswith(
         f"connectors.mcpbridge.merge is on, but Xcode's hierarchy of {BOOTED_UDID} could not be read: Xcode has not "
-        "approved Rocketwright"
+        "approved PhoneSimulator"
     )
     mac.xcrun.on("simctl", "list", "devices", "-j", rc=1, err="simctl failed")
     assert (await check_xcode_tools(tools_context(mac, bridge, config=merged, runtime=TAPPING))).status == "skip"
@@ -428,9 +428,9 @@ async def test_screen_reading_that_cannot_compile_or_misreads_warns_and_says_how
     chosen = mac.context(xcode=ChosenXcode(str(mac.developer), "xcode-select"))
     failed = await check_screen_reading(chosen)
     assert failed.status == "warn" and failed.detail.startswith(
-        "perception.ocr is fallback, but the text reader could not be compiled: compiling rocketwright-vision failed"
+        "perception.ocr is fallback, but the text reader could not be compiled: compiling phonesimulator-vision failed"
     )
-    assert failed.fix.startswith("`rocketwright config set perception.ocr off`")
+    assert failed.fix.startswith("`phonesimulator config set perception.ocr off`")
     mac.xcrun.with_swift()
     mac.reader.lines = [{"text": "Tap to", "confidence": 1, "box": {"x": 0, "y": 0, "w": 1, "h": 1}}]
     misread = await check_screen_reading(mac.context(xcode=ChosenXcode(str(mac.developer), "xcode-select")))
@@ -443,7 +443,7 @@ async def test_screen_reading_that_cannot_compile_or_misreads_warns_and_says_how
 
 
 def test_the_doctor_reads_with_the_text_reader_a_daemon_with_its_environment_keeps(tmp_path: Path) -> None:
-    ctx = Mac(tmp_path).context(env={"ROCKETWRIGHT_STATE_DIR": str(tmp_path / "state")})
+    ctx = Mac(tmp_path).context(env={"PHONESIMULATOR_STATE_DIR": str(tmp_path / "state")})
     assert vision_for(ctx)._folder == tmp_path / "state" / "helpers"
 
 
@@ -506,7 +506,7 @@ async def test_a_native_helper_missing_misnamed_or_of_another_version_says_how_t
     mac = Mac(tmp_path)
     mac.native_helpers = ()
     assert await check_native_helper(mac.context()) == CheckResult(
-        NATIVE, "warn", "not built for this install", "`rocketwright helper build` (it needs Xcode)."
+        NATIVE, "warn", "not built for this install", "`phonesimulator helper build` (it needs Xcode)."
     )
     other = SimConfig.defaults().with_values(connector="idb")
     unused = await check_native_helper(mac.context(config=other))
@@ -565,8 +565,8 @@ async def test_an_app_sharing_its_hierarchy_is_read_once_and_said_by_name(tmp_pa
         assert app.requests[0].line == "GET /v1/hierarchy?max_nodes=3000 HTTP/1.1"
         app.document = app_hierarchy(app_node(), protocol=2)
         newer = await check_app_hierarchy(app_context(mac))
-        assert newer.status == "warn" and "newer Rocketwright SDK (app SDK protocol 2)" in newer.detail
-        assert newer.fix == "Update Rocketwright to the version the app's SDK came with."
+        assert newer.status == "warn" and "newer PhoneSimulator SDK (app SDK protocol 2)" in newer.detail
+        assert newer.fix == "Update PhoneSimulator to the version the app's SDK came with."
         app.answer = "refuse"
         busy = await check_app_hierarchy(app_context(mac))
     assert busy.status == "warn" and busy.detail == (

@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from rocketwright.platform.simctl import Simctl, SimctlError, is_udid, runtime_label
-from rocketwright.testing.fakes import BOOTED_UDID, FakeXcrun
+from phonesimulator.platform.simctl import Simctl, SimctlError, is_udid, runtime_label
+from phonesimulator.testing.fakes import BOOTED_UDID, FakeXcrun
 
 UDID = BOOTED_UDID
 NEW = "11111111-2222-3333-4444-555555555555"
@@ -96,11 +96,11 @@ async def test_bootstatus_waits_for_springboard_within_its_timeout() -> None:
 async def test_create_returns_the_new_devices_id() -> None:
     simctl, fake = make(FakeXcrun().on("simctl", "create", out=NEW + "\n"))
     made = await simctl.create(
-        "Rocketwright · demo",
+        "PhoneSimulator · demo",
         "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
         "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
     )
-    assert made == NEW and fake.calls[0].args[1:3] == ("create", "Rocketwright · demo")
+    assert made == NEW and fake.calls[0].args[1:3] == ("create", "PhoneSimulator · demo")
 
 
 async def test_a_create_that_answers_no_id_is_an_error() -> None:
@@ -111,8 +111,8 @@ async def test_a_create_that_answers_no_id_is_an_error() -> None:
 
 async def test_clone_copies_a_device_under_a_new_name_and_returns_the_copys_id() -> None:
     simctl, fake = make(FakeXcrun().on("simctl", "clone", out=NEW + "\n"))
-    assert await simctl.clone(UDID, "Rocketwright · demo") == NEW
-    assert fake.calls[0].args == ("simctl", "clone", UDID, "Rocketwright · demo") and fake.calls[0].timeout == 120.0
+    assert await simctl.clone(UDID, "PhoneSimulator · demo") == NEW
+    assert fake.calls[0].args == ("simctl", "clone", UDID, "PhoneSimulator · demo") and fake.calls[0].timeout == 120.0
 
 
 async def test_a_clone_that_answers_no_id_or_fails_is_an_error() -> None:
@@ -266,5 +266,5 @@ def test_a_runtime_id_reads_as_a_person_says_it_and_a_udid_is_recognised() -> No
 
 async def test_a_device_is_renamed_by_its_udid_and_a_name_with_spaces_is_one_argument() -> None:
     simctl, fake = make()
-    await simctl.rename(UDID, "Rocketwright · Notes app")
-    assert fake.calls[-1].args == ("simctl", "rename", UDID, "Rocketwright · Notes app")
+    await simctl.rename(UDID, "PhoneSimulator · Notes app")
+    assert fake.calls[-1].args == ("simctl", "rename", UDID, "PhoneSimulator · Notes app")

@@ -13,9 +13,9 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import Capability
-from rocketwright.core.recordings import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import Capability
+from phonesimulator.core.recordings import (
     PRESETS,
     CaptureRate,
     RecordingOptions,
@@ -23,10 +23,10 @@ from rocketwright.core.recordings import (
     Recordings,
     RenderJob,
 )
-from rocketwright.platform.errors import DeviceControlError
-from rocketwright.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend
-from rocketwright.testing.recording import FakeRenderer, SimctlRecorder
-from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
+from phonesimulator.platform.errors import DeviceControlError
+from phonesimulator.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend
+from phonesimulator.testing.recording import FakeRenderer, SimctlRecorder
+from phonesimulator.testing.rig import VIEW_ONLY, DeviceRig, scope
 
 TP1 = scope("tp-1")
 WHEN = datetime(2026, 10, 31, 9, 41, 0, tzinfo=timezone.utc)

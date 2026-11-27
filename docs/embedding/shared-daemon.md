@@ -1,23 +1,23 @@
 # Sharing the daemon between hosts
 
-An application can use Rocketwright without running one of its own: it shares the local daemon (`rocketwright serve`) with
+An application can use PhoneSimulator without running one of its own: it shares the local daemon (`phonesimulator serve`) with
 the command line and with other applications. Each gets a **host token** for its **namespaces**, and reaches only the
 scopes in them, the devices those scopes run, and the tokens it made.
 
-Choose this over [running Rocketwright inside your process](python-fastapi.md) when several applications on one Mac show
+Choose this over [running PhoneSimulator inside your process](python-fastapi.md) when several applications on one Mac show
 simulators, and one daemon should decide how many are booted and who has which.
 
 ## Making a host
 
-The person who installed Rocketwright makes the token once, and hands it to the application's backend:
+The person who installed PhoneSimulator makes the token once, and hands it to the application's backend:
 
 ```sh
-rocketwright token create --kind host --scope 'notes:*' --root ~/Projects --label "Notes app"
+phonesimulator token create --kind host --scope 'notes:*' --root ~/Projects --label "Notes app"
 ```
 
 It prints the token once, on stdout, and its id on stderr. The host now has every scope whose id starts `notes:` --
 `notes:42`, `notes:checkout` -- and its agents may be given folders inside `~/Projects`. No two hosts share a
-namespace. `rocketwright token revoke <id>` revokes the host and every token it made.
+namespace. `phonesimulator token revoke <id>` revokes the host and every token it made.
 
 ## What a host may do
 
@@ -25,7 +25,7 @@ namespace. `rocketwright token revoke <id>` revokes the host and every token it 
 |---|---|
 | A scope's status; bring its device up and let it go; its devices, and choosing one | Another host's scopes, or the Mac's own |
 | Embed tickets, for a page to frame a scope's screen | The admin routes: login codes, reload, anyone's tokens |
-| Its scopes' settings, one scope at a time; a sensitive one waits for `rocketwright settings confirm` | Settings for every scope, or the daemon's own |
+| Its scopes' settings, one scope at a time; a sensitive one waits for `phonesimulator settings confirm` | Settings for every scope, or the daemon's own |
 | Make `agent` and `viewer` tokens for its scopes, with folders inside its own; list and revoke those | Make `admin` or `host` tokens |
 
 **Devices stay apart.** A scope never joins or picks a simulator a scope of another host -- or of the Mac itself -- is
@@ -39,10 +39,10 @@ apart from the Mac's.
 
 ## From Python
 
-`rocketwright.api.DaemonHost` is the whole of it, over the standard library's HTTP:
+`phonesimulator.api.DaemonHost` is the whole of it, over the standard library's HTTP:
 
 ```python
-from rocketwright.api import DaemonHost
+from phonesimulator.api import DaemonHost
 
 host = DaemonHost("http://127.0.0.1:7466", token=NOTES_TOKEN, token_id=NOTES_TOKEN_ID)
 
@@ -60,7 +60,7 @@ host.pause("notes:42", seconds=60)  # the person has the phone in hand: agents k
 host.resume("notes:42")  # or let it run out
 ```
 
-`host.agent(..., run_dir=...)`, given the daemon's run folder (`~/.rocketwright/run`), lets the agent's relay follow a
+`host.agent(..., run_dir=...)`, given the daemon's run folder (`~/.phonesimulator/run`), lets the agent's relay follow a
 daemon that is started again on another port ([Running the relay
 yourself](../clients/other-mcp.md#running-the-relay-yourself)).
 
@@ -75,7 +75,7 @@ For a backend in another language, the same, with `Authorization: Bearer <host t
 
 | Route | Does | Answers |
 |---|---|---|
-| `GET /healthz?nonce=N&token_id=ID` | `token_proof`: HMAC-SHA256 of `rocketwright/healthz:` + N, keyed by the hex SHA-256 of the token | `Health` |
+| `GET /healthz?nonce=N&token_id=ID` | `token_proof`: HMAC-SHA256 of `phonesimulator/healthz:` + N, keyed by the hex SHA-256 of the token | `Health` |
 | `GET, POST, DELETE /api/v1/scopes/{scope}` | Status, start (with a screen ticket), stop (`?shutdown=true`) | `ScopeStatus`, `Started`, `Stopped` |
 | `GET /api/v1/scopes/{scope}/devices`, `PUT …/device` | The picker's devices, and choosing one | `DeviceList`, `Chosen` |
 | `POST /api/v1/scopes/{scope}/embed-tickets` | A frame's URL, with a one-shot ticket in its fragment | `EmbedTicket` |
@@ -88,15 +88,15 @@ Each answers `{"ok": true, "data": …}` with the shape named, as [`protocol/v1/
 and refuses with an HTTP status and a `Refusal`, `{"detail": "why"}` -- a settings change, with a `SettingsRefusal`.
 
 An agent token a host made works like any other: `/api/v1/agent/manifest`, `call` and `lease`, with the scope in
-`X-Rocketwright-Scope`.
+`X-PhoneSimulator-Scope`.
 
 The host routes, what they answer, `DaemonHost` and the names beside it are stable from 1.0: see
 [Stability](../stability.md).
 
 ## A person's pause
 
-Rocketwright sees a person's input only through a viewer, so an agent's tap can land while someone holds the real phone.
-A host that embeds Rocketwright says when its person has it in hand with an `InputPause`
+PhoneSimulator sees a person's input only through a viewer, so an agent's tap can land while someone holds the real phone.
+A host that embeds PhoneSimulator says when its person has it in hand with an `InputPause`
 ([embedding](python-fastapi.md#real-devices)); a host sharing the daemon says it with `PUT
 /api/v1/scopes/{scope}/pause` -- `DaemonHost.pause`. While it holds, an agent's gestures on the device that scope uses
 wait up to two seconds and then are refused, saying a person paused agents, and a batch under way stops before its

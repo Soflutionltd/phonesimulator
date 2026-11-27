@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.platform.swift import MODULE_CACHE, SwiftBuildError, build_key, built_helper, swift_version
-from rocketwright.testing.fakes import SWIFT_VERSION, FakeXcrun
+from phonesimulator.platform.swift import MODULE_CACHE, SwiftBuildError, build_key, built_helper, swift_version
+from phonesimulator.testing.fakes import SWIFT_VERSION, FakeXcrun
 
 XCODE = "/Applications/Xcode.app/Contents/Developer"
 SOURCE = b"@main struct Helper { static func main() {} }\n"

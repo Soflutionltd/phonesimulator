@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.schema import BY_KEY
-from rocketwright.connectors.iphone import wda_client
-from rocketwright.connectors.iphone.wda_client import (
+from phonesimulator.config.schema import BY_KEY
+from phonesimulator.connectors.iphone import wda_client
+from phonesimulator.connectors.iphone.wda_client import (
     ANSWER_MAX,
     HTTP_PORT,
     QUICK_CAPABILITIES,
@@ -28,10 +28,10 @@ from rocketwright.connectors.iphone.wda_client import (
     exchange,
     usbmux_opener,
 )
-from rocketwright.platform.usbmux import UsbDevice, UsbmuxError
-from rocketwright.testing.fakes import PHONE_UDID, ManualClock
-from rocketwright.testing.native import short_run_dir
-from rocketwright.testing.wda import FakeWda
+from phonesimulator.platform.usbmux import UsbDevice, UsbmuxError
+from phonesimulator.testing.fakes import PHONE_UDID, ManualClock
+from phonesimulator.testing.native import short_run_dir
+from phonesimulator.testing.wda import FakeWda
 
 
 @pytest.fixture

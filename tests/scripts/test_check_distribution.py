@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The distribution check: what installs Rocketwright names the package's version and has what its reader needs."""
+"""The distribution check: what installs PhoneSimulator names the package's version and has what its reader needs."""
 
 from __future__ import annotations
 
@@ -15,39 +15,39 @@ from check_distribution import frontmatter, main, problems
 
 VERSION = "1.2.3"
 SDK = check_distribution.SDK_SOURCE
-PIN = f"rocketwright=={VERSION}"
+PIN = f"phonesimulator=={VERSION}"
 
 
 def valid_files() -> dict[str, Any]:
     return {
-        "src/rocketwright/_version.py": f'"""The version."""\n\n__version__ = "{VERSION}"\n',
-        "viewer/package.json": {"name": "@soflution/rocketwright", "version": VERSION},
-        SDK: f'public enum Rocketwright {{\n    public static let sdkVersion = "{VERSION}"\n}}\n',
+        "src/phonesimulator/_version.py": f'"""The version."""\n\n__version__ = "{VERSION}"\n',
+        "viewer/package.json": {"name": "@soflution/phonesimulator", "version": VERSION},
+        SDK: f'public enum PhoneSimulator {{\n    public static let sdkVersion = "{VERSION}"\n}}\n',
         ".claude-plugin/marketplace.json": {
-            "name": "rocketwright",
+            "name": "phonesimulator",
             "owner": {"name": "Soflution Ltd"},
-            "plugins": [{"name": "rocketwright", "source": "./plugins/rocketwright", "version": VERSION}],
+            "plugins": [{"name": "phonesimulator", "source": "./plugins/phonesimulator", "version": VERSION}],
         },
-        "plugins/rocketwright/.claude-plugin/plugin.json": {
-            "name": "rocketwright",
+        "plugins/phonesimulator/.claude-plugin/plugin.json": {
+            "name": "phonesimulator",
             "version": VERSION,
             "description": "The simulator.",
             "license": "Apache-2.0",
         },
-        "plugins/rocketwright/.mcp.json": {
-            "mcpServers": {"device": {"command": "uvx", "args": ["--from", PIN, "rocketwright", "mcp"]}}
+        "plugins/phonesimulator/.mcp.json": {
+            "mcpServers": {"device": {"command": "uvx", "args": ["--from", PIN, "phonesimulator", "mcp"]}}
         },
-        "plugins/rocketwright/skills/simulator/SKILL.md": "---\nname: simulator\ndescription: Drive it.\n---\n\nHow.\n",
-        "plugins/rocketwright/commands/open.md": "---\ndescription: Open the viewer\n---\n\nRun it.\n",
+        "plugins/phonesimulator/skills/simulator/SKILL.md": "---\nname: simulator\ndescription: Drive it.\n---\n\nHow.\n",
+        "plugins/phonesimulator/commands/open.md": "---\ndescription: Open the viewer\n---\n\nRun it.\n",
         "server.json": {
             "$schema": check_distribution.REGISTRY_SCHEMA,
-            "name": "io.github.Soflutionltd/rocketwright",
+            "name": "io.github.Soflutionltd/phonesimulator",
             "description": "Mirror and drive the simulator.",
             "version": VERSION,
-            "packages": [{"identifier": "rocketwright", "version": VERSION, "transport": {"type": "stdio"}}],
+            "packages": [{"identifier": "phonesimulator", "version": VERSION, "transport": {"type": "stdio"}}],
         },
-        "README.md": f"uvx --from {PIN} rocketwright doctor\nnpm install @soflution/rocketwright@{VERSION}\n",
-        "CHANGELOG.md": "Installed with rocketwright@v0.0.1 once.\n",
+        "README.md": f"uvx --from {PIN} phonesimulator doctor\nnpm install @soflution/phonesimulator@{VERSION}\n",
+        "CHANGELOG.md": "Installed with phonesimulator@v0.0.1 once.\n",
     }
 
 
@@ -96,58 +96,61 @@ def _remove(rel: str) -> Callable[[dict[str, Any]], None]:
 
 
 MARKET = ".claude-plugin/marketplace.json"
-PLUGIN_JSON = "plugins/rocketwright/.claude-plugin/plugin.json"
-MCP = "plugins/rocketwright/.mcp.json"
-SKILL = "plugins/rocketwright/skills/simulator/SKILL.md"
-COMMAND = "plugins/rocketwright/commands/open.md"
+PLUGIN_JSON = "plugins/phonesimulator/.claude-plugin/plugin.json"
+MCP = "plugins/phonesimulator/.mcp.json"
+SKILL = "plugins/phonesimulator/skills/simulator/SKILL.md"
+COMMAND = "plugins/phonesimulator/commands/open.md"
 
 
 @pytest.mark.parametrize(
     ("change", "said"),
     [
-        (_set(MARKET, "name", value="other"), "the marketplace is named 'rocketwright'"),
+        (_set(MARKET, "name", value="other"), "the marketplace is named 'phonesimulator'"),
         (_set(MARKET, "owner", value={}), "owner.name is required"),
-        (_set(MARKET, "plugins", value=[]), "lists the rocketwright plugin exactly once"),
-        (_set(MARKET, "plugins", "0", "source", value="./elsewhere"), "source is ./plugins/rocketwright"),
+        (_set(MARKET, "plugins", value=[]), "lists the phonesimulator plugin exactly once"),
+        (_set(MARKET, "plugins", "0", "source", value="./elsewhere"), "source is ./plugins/phonesimulator"),
         (_set(MARKET, "plugins", "0", "version", value="1.0.0"), "plugin's version is 1.2.3, not '1.0.0'"),
         (_replace(MARKET, "{not json"), "marketplace.json is not JSON"),
         (_replace(MARKET, []), "marketplace.json is not a JSON object"),
         (_remove(MARKET), "marketplace.json is missing"),
-        (_set(PLUGIN_JSON, "name", value="other"), "the plugin is named 'rocketwright'"),
+        (_set(PLUGIN_JSON, "name", value="other"), "the plugin is named 'phonesimulator'"),
         (_set(PLUGIN_JSON, "version", value="1.0.0"), "plugin.json: the version is 1.2.3"),
         (_set(PLUGIN_JSON, "description", value=""), "a description is required"),
         (_set(PLUGIN_JSON, "license", value="MIT"), "the license is Apache-2.0"),
-        (_set(MCP, "mcpServers", "device", "command", value="pipx"), "the device server runs `uvx … rocketwright mcp`"),
-        (_set(MCP, "mcpServers", "device", "args", value="mcp"), "the device server runs `uvx … rocketwright mcp`"),
+        (
+            _set(MCP, "mcpServers", "device", "command", value="pipx"),
+            "the device server runs `uvx … phonesimulator mcp`",
+        ),
+        (_set(MCP, "mcpServers", "device", "args", value="mcp"), "the device server runs `uvx … phonesimulator mcp`"),
         (_remove(SKILL), "the plugin has a skill"),
         (_replace(SKILL, "---\nname: other\ndescription: x\n---\n"), "names the skill 'simulator'"),
         (_replace(SKILL, "No frontmatter.\n"), "names the skill 'simulator'"),
         (_replace(COMMAND, "---\nargument-hint: none\n---\n"), "describes the command"),
         (_set("server.json", "$schema", value="https://example.com/schema.json"), "$schema is"),
-        (_set("server.json", "name", value="io.github.other/rocketwright"), "the name is io.github.Soflutionltd"),
+        (_set("server.json", "name", value="io.github.other/phonesimulator"), "the name is io.github.Soflutionltd"),
         (_set("server.json", "version", value="1.0.0"), "server.json: the version is 1.2.3"),
         (_set("server.json", "description", value="x" * 101), "the description is 1 to 100 characters"),
         (_set("server.json", "packages", value=[]), "lists the package"),
-        (_set("server.json", "packages", "0", "version", value="1.0.0"), "each package is rocketwright 1.2.3"),
+        (_set("server.json", "packages", "0", "version", value="1.0.0"), "each package is phonesimulator 1.2.3"),
         (_set("server.json", "packages", "0", "transport", value={"type": "sse"}), "transport is stdio"),
         (_replace("server.json", "[]"), "server.json is not a JSON object"),
         (_set("viewer/package.json", "version", value="1.0.0"), "the viewer's version is 1.2.3, not '1.0.0'"),
-        (_replace(SDK, 'let sdkVersion = "1.0.0"\n'), "Rocketwright.sdkVersion is not set"),
+        (_replace(SDK, 'let sdkVersion = "1.0.0"\n'), "PhoneSimulator.sdkVersion is not set"),
         (
             _replace(SDK, '    public static let sdkVersion = "1.0.0"\n'),
-            "Rocketwright.sdkVersion is 1.2.3, not '1.0.0'",
+            "PhoneSimulator.sdkVersion is 1.2.3, not '1.0.0'",
         ),
-        (_remove(SDK), "Rocketwright.swift is missing"),
+        (_remove(SDK), "PhoneSimulator.swift is missing"),
         (
-            _replace("README.md", "uvx --from git+https://github.com/Soflutionltd/rocketwright@v1.0.0 x\n"),
+            _replace("README.md", "uvx --from git+https://github.com/Soflutionltd/phonesimulator@v1.0.0 x\n"),
             "README.md:1: pins 1.0.0, not 1.2.3",
         ),
         (
-            _replace("docs.md", "https://github.com/Soflutionltd/rocketwright/releases/download/v1.2.4-rc.1/x.tgz\n"),
+            _replace("docs.md", "https://github.com/Soflutionltd/phonesimulator/releases/download/v1.2.4-rc.1/x.tgz\n"),
             "docs.md:1: pins 1.2.4-rc.1, not 1.2.3",
         ),
-        (_replace("docs.md", "uv tool install rocketwright==1.2.2\n"), "docs.md:1: pins 1.2.2, not 1.2.3"),
-        (_replace("docs.md", "npm install @soflution/rocketwright@1.3.0\n"), "docs.md:1: pins 1.3.0, not 1.2.3"),
+        (_replace("docs.md", "uv tool install phonesimulator==1.2.2\n"), "docs.md:1: pins 1.2.2, not 1.2.3"),
+        (_replace("docs.md", "npm install @soflution/phonesimulator@1.3.0\n"), "docs.md:1: pins 1.3.0, not 1.2.3"),
     ],
 )
 def test_each_disagreement_is_named(tmp_path: Path, change: Callable[[dict[str, Any]], None], said: str) -> None:
@@ -159,16 +162,16 @@ def test_each_disagreement_is_named(tmp_path: Path, change: Callable[[dict[str, 
 
 def test_a_recording_attached_to_an_earlier_release_is_not_a_pin(tmp_path: Path) -> None:
     files = valid_files()
-    recorded = "https://github.com/Soflutionltd/rocketwright/releases/download/v1.2.0/rocketwright-plugin-demo.mp4"
+    recorded = "https://github.com/Soflutionltd/phonesimulator/releases/download/v1.2.0/phonesimulator-plugin-demo.mp4"
     files["docs.md"] = f"[The whole recording]({recorded}) and ![a frame](…/releases/download/v1.0.0/Frame.PNG)\n"
     assert problems(tmp_path, write(tmp_path, files)) == []
 
 
 def test_a_package_without_a_version_is_named_first(tmp_path: Path) -> None:
     files = valid_files()
-    files["src/rocketwright/_version.py"] = '"""No version here."""\n'
-    assert problems(tmp_path, write(tmp_path, files)) == ["src/rocketwright/_version.py sets no __version__"]
-    assert problems(tmp_path / "empty", []) == ["src/rocketwright/_version.py sets no __version__"]
+    files["src/phonesimulator/_version.py"] = '"""No version here."""\n'
+    assert problems(tmp_path, write(tmp_path, files)) == ["src/phonesimulator/_version.py sets no __version__"]
+    assert problems(tmp_path / "empty", []) == ["src/phonesimulator/_version.py sets no __version__"]
 
 
 def test_frontmatter_is_read_between_its_fences() -> None:

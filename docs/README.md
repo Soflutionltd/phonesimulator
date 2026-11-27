@@ -1,4 +1,4 @@
-# Rocketwright documentation
+# PhoneSimulator documentation
 
 ## Start
 
@@ -33,7 +33,7 @@
 ## Put the viewer in your own app
 
 - [An iframe](embedding/iframe.md)
-- [The `<rocketwright>` web component and the viewer library](embedding/web-component.md)
+- [The `<phonesimulator>` web component and the viewer library](embedding/web-component.md)
 - [A Python host application](embedding/python-fastapi.md)
 - [Several applications sharing the daemon](embedding/shared-daemon.md) -- a host token per application, each
   reaching only its own scopes and devices
@@ -42,12 +42,12 @@
 
 - [Screen understanding](screen-understanding.md) -- snapshots, refs, diffs, waits, and what each costs
 - [Performance measurements](performance.md) -- dated tool latency and response-cost results, raw samples and limits
-- [Connectors](connectors.md) -- how Rocketwright reaches a device, and what each can do
+- [Connectors](connectors.md) -- how PhoneSimulator reaches a device, and what each can do
 - [The app SDK](app-sdk.md) -- an app under development shares its own UIKit and SwiftUI views, so screens
   without accessibility labels read well
 - [Security](security.md) -- the threat model and what keeps the daemon to itself
 - [Architecture](architecture.md) -- the parts, the seams and the rules between them
-- [Compatibility](compatibility.md) -- where Rocketwright is expected to work, and where it was checked
+- [Compatibility](compatibility.md) -- where PhoneSimulator is expected to work, and where it was checked
 - [Stability](stability.md) -- what the tools, the protocol and the embedding API promise not to break
 - [Comparison](comparison.md) -- other tools in this space, factually
 

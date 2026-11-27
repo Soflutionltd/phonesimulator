@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """A web page's own backend, for the iframe and web-component examples: it serves the page and mints embed tickets.
 
-A page that shows a Rocketwright viewer never holds a Rocketwright token. Its backend does: it asks the daemon for a
+A page that shows a PhoneSimulator viewer never holds a PhoneSimulator token. Its backend does: it asks the daemon for a
 one-shot embed ticket (``POST /api/v1/scopes/<scope>/embed-tickets``) with a viewer token for that scope, and gives the
 page only the ticket, which opens the viewer once, within a minute.
 
-    rocketwright token create --kind viewer --scope demo --label "example page"
-    ROCKETWRIGHT_TOKEN=<that token> python3 examples/embed-host/host.py --page examples/iframe
+    phonesimulator token create --kind viewer --scope demo --label "example page"
+    PHONESIMULATOR_TOKEN=<that token> python3 examples/embed-host/host.py --page examples/iframe
 
 Standard library only; it listens on 127.0.0.1.
 """
@@ -32,9 +32,9 @@ from urllib.parse import quote
 DEFAULT_SERVER = "http://127.0.0.1:7466"
 DEFAULT_PORT = 7483
 DEFAULT_SCOPE = "demo"
-TOKEN_ENV = "ROCKETWRIGHT_TOKEN"
+TOKEN_ENV = "PHONESIMULATOR_TOKEN"
 TICKET_PATH = "/api/embed-ticket"
-LIBRARY_PATH = "/rocketwright.js"
+LIBRARY_PATH = "/phonesimulator.js"
 #: The viewer library, as `npm run build` in viewer/ leaves it.
 LIBRARY = Path(__file__).resolve().parents[2] / "viewer" / "dist" / "index.js"
 NOT_BUILT = "the viewer library is not built: run `npm ci && npm run build` in viewer/"
@@ -44,7 +44,7 @@ Opener = Callable[[urllib.request.Request, float], Any]
 
 
 class TicketError(Exception):
-    """A ticket Rocketwright did not give, said so a person can act on it."""
+    """A ticket PhoneSimulator did not give, said so a person can act on it."""
 
 
 def direct_opener() -> Opener:
@@ -75,13 +75,13 @@ def mint_ticket(server: str, scope: str, token: str, opener: Opener) -> dict[str
         with opener(request, TIMEOUT_S) as response:
             body = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        raise TicketError(f"Rocketwright refused the ticket (HTTP {exc.code}): {_refusal(exc)}") from exc
+        raise TicketError(f"PhoneSimulator refused the ticket (HTTP {exc.code}): {_refusal(exc)}") from exc
     except (urllib.error.URLError, OSError, ValueError) as exc:
-        raise TicketError(f"Rocketwright could not be reached at {server}: {exc}") from exc
+        raise TicketError(f"PhoneSimulator could not be reached at {server}: {exc}") from exc
     data = body.get("data") if isinstance(body, dict) else None
     url = data.get("url") if isinstance(data, dict) else None
     if not isinstance(url, str) or "#ticket=" not in url:
-        raise TicketError("Rocketwright answered without a ticket")
+        raise TicketError("PhoneSimulator answered without a ticket")
     return {"server": server, "scope": scope, "embed_url": server + url, "ticket": url.split("#ticket=", 1)[1]}
 
 
@@ -128,10 +128,10 @@ def handler_for(
 
 
 def parser() -> argparse.ArgumentParser:
-    made = argparse.ArgumentParser(description="Serve a page that shows a Rocketwright viewer, and mint its tickets.")
+    made = argparse.ArgumentParser(description="Serve a page that shows a PhoneSimulator viewer, and mint its tickets.")
     made.add_argument("--page", required=True, help="the folder holding the page's index.html")
     made.add_argument("--scope", default=DEFAULT_SCOPE, help="the scope the page shows")
-    made.add_argument("--server", default=DEFAULT_SERVER, help="the Rocketwright daemon's address")
+    made.add_argument("--server", default=DEFAULT_SERVER, help="the PhoneSimulator daemon's address")
     made.add_argument("--port", type=int, default=DEFAULT_PORT, help="the port this page is served on")
     return made
 
@@ -154,7 +154,7 @@ def main(
     if not token:
         print(
             f"{TOKEN_ENV} is not set. Make a viewer token for the page's scope with "
-            f"`rocketwright token create --kind viewer --scope {args.scope}`.",
+            f"`phonesimulator token create --kind viewer --scope {args.scope}`.",
             file=sys.stderr,
         )
         return 2

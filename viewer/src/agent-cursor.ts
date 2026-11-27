@@ -91,7 +91,7 @@ export const FLIP_WITHIN = 150
 export const IDLE_LABEL = english('agent.idle')
 /** How long the pointer presses down as a tap lands. */
 export const PRESS_MS = 160
-/** The pointer's shape: a rounded arrow whose tip is at (4, 4) of a 24-pixel box, drawn by Rocketwright rather than taken
+/** The pointer's shape: a rounded arrow whose tip is at (4, 4) of a 24-pixel box, drawn by PhoneSimulator rather than taken
  * from an icon set, so every host shows the same pointer. */
 export const POINTER_PATH = 'M5.2 4.1 20.1 10.2Q21.3 10.8 20.1 11.3L13.6 13.6 11.3 20.1Q10.8 21.3 10.2 20.1L4.1 5.2Q3.7 3.7 5.2 4.1Z'
 let pointers = 0

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The wheel's build hook: the native helper's Swift package, and the helper itself when a release built one.
 
-Every wheel carries the helper's sources at ``rocketwright/_helper_src``, so ``rocketwright helper build`` works from
+Every wheel carries the helper's sources at ``phonesimulator/_helper_src``, so ``phonesimulator helper build`` works from
 any install. A release sets `BINARY_ENV` to the universal helper it built and signed; the wheel then also carries it at
-``rocketwright/_bin/rocketwright-helper`` and, holding a Mac binary, is tagged for macOS rather than any platform. A
+``phonesimulator/_bin/phonesimulator-helper`` and, holding a Mac binary, is tagged for macOS rather than any platform. A
 wheel built without it is the pure one, which falls back to building the helper on first use.
 
 Hatchling loads this file by path (``[tool.hatch.build.targets.wheel.hooks.custom]``); only `HelperBuildHook` needs it.
@@ -16,12 +16,12 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, NamedTuple
 
-BINARY_ENV = "ROCKETWRIGHT_HELPER_BINARY"
-PROGRAM = "rocketwright-helper"
+BINARY_ENV = "PHONESIMULATOR_HELPER_BINARY"
+PROGRAM = "phonesimulator-helper"
 HELPER = "helper"
 SOURCES = ("Package.swift", "Sources", "Support", "Tests")
-SOURCES_TARGET = "rocketwright/_helper_src"
-BINARY_TARGET = f"rocketwright/_bin/{PROGRAM}"
+SOURCES_TARGET = "phonesimulator/_helper_src"
+BINARY_TARGET = f"phonesimulator/_bin/{PROGRAM}"
 #: The helper is built for macOS 14 or later, for both Mac architectures (`make helper-build`).
 MAC_TAG = "py3-none-macosx_14_0_universal2"
 

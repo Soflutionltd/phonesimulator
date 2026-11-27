@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from rocketwright.daemon.health import new_nonce, proof, proves
+from phonesimulator.daemon.health import new_nonce, proof, proves
 
 
 def test_a_proof_is_bound_to_its_token_and_its_nonce() -> None:

@@ -9,14 +9,14 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Crop, HidEvent
-from rocketwright.connectors.simctl.capture import jpeg_size
-from rocketwright.platform.developer_dir import ChosenXcode
-from rocketwright.platform.errors import DeviceControlError
-from rocketwright.platform.xcrun import XcrunResult
-from rocketwright.scope import Scope
-from rocketwright.testing.fakes import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import Capability, ConnectorError, ConnectorUnavailable, Crop, HidEvent
+from phonesimulator.connectors.simctl.capture import jpeg_size
+from phonesimulator.platform.developer_dir import ChosenXcode
+from phonesimulator.platform.errors import DeviceControlError
+from phonesimulator.platform.xcrun import XcrunResult
+from phonesimulator.scope import Scope
+from phonesimulator.testing.fakes import (
     BOOTED_UDID,
     JPEG,
     SCREEN,
@@ -174,7 +174,7 @@ def test_memory_state_store_keeps_everything_under_its_root(tmp_path: Path) -> N
     scope = Scope(id="ws:a:b", group="a", label="a")
     paths = [store.devices_file(), store.builds_dir(scope), store.derived_data(scope), store.run_dir(),
              store.log_dir(), store.claims_dir()]  # fmt: skip
-    assert all(path.is_relative_to(tmp_path) for path in paths) and store.owner_tag == "RocketwrightTest"
+    assert all(path.is_relative_to(tmp_path) for path in paths) and store.owner_tag == "PhoneSimulatorTest"
     assert store.builds_dir(scope).name == "ws_a_b" and store.ensure_dir(tmp_path / "x").is_dir()
 
 

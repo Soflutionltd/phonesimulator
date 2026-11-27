@@ -8,11 +8,11 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-from rocketwright.connectors.iphone.wda_setup import DEVICES_FILE, Setup, WdaSetup, derived_for, devices_built_for
-from rocketwright.connectors.iphone.wda_source import MJPEG_ON_LOOPBACK, PROJECT
-from rocketwright.platform.xcrun import XcrunResult
-from rocketwright.testing.fakes import PHONE_UDID, FakeXcrun
-from rocketwright.testing.wda import ARCHIVE, SERVER, TEST_RELEASE, builds_wda
+from phonesimulator.connectors.iphone.wda_setup import DEVICES_FILE, Setup, WdaSetup, derived_for, devices_built_for
+from phonesimulator.connectors.iphone.wda_source import MJPEG_ON_LOOPBACK, PROJECT
+from phonesimulator.platform.xcrun import XcrunResult
+from phonesimulator.testing.fakes import PHONE_UDID, FakeXcrun
+from phonesimulator.testing.wda import ARCHIVE, SERVER, TEST_RELEASE, builds_wda
 
 TEAM = "TESTTEAM01"
 XCODE = "/Applications/Xcode.app/Contents/Developer"

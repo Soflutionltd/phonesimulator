@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import pytest
 
-from rocketwright.config import observe_languages
-from rocketwright.config.observe_languages import LANGUAGES, base, words_in
-from rocketwright.config.schema import OBSERVE_WORDS, find
-from rocketwright.core.refusals import (
+from phonesimulator.config import observe_languages
+from phonesimulator.config.observe_languages import LANGUAGES, base, words_in
+from phonesimulator.config.schema import OBSERVE_WORDS, find
+from phonesimulator.core.refusals import (
     DESTRUCTIVE,
     ROW,
     SWITCH,
@@ -18,8 +18,8 @@ from rocketwright.core.refusals import (
     spelled,
     touch_refusal,
 )
-from rocketwright.perception.model import Frame
-from rocketwright.perception.snapshot import Element
+from phonesimulator.perception.model import Frame
+from phonesimulator.perception.snapshot import Element
 
 
 def test_an_element_nothing_covers_may_be_touched() -> None:

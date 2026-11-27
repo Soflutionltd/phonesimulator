@@ -1,13 +1,13 @@
 # Cursor
 
-Add Rocketwright to your project's `.cursor/mcp.json`:
+Add PhoneSimulator to your project's `.cursor/mcp.json`:
 
 ```json
 {
   "mcpServers": {
-    "rocketwright": {
+    "phonesimulator": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/Soflutionltd/rocketwright", "rocketwright", "mcp"]
+      "args": ["--from", "git+https://github.com/Soflutionltd/phonesimulator", "phonesimulator", "mcp"]
     }
   }
 }
@@ -15,9 +15,9 @@ Add Rocketwright to your project's `.cursor/mcp.json`:
 
 and enable the server in Cursor's MCP settings.
 
-- **Which project**: `rocketwright mcp` uses the folder it starts in. If the tools act on the wrong project, append
+- **Which project**: `phonesimulator mcp` uses the folder it starts in. If the tools act on the wrong project, append
   `"--scope", "my-app", "--root", "/absolute/path/to/my-app"` to `args`.
-- **Watch**: `rocketwright open` in the same folder.
+- **Watch**: `phonesimulator open` in the same folder.
 
 A copy of this configuration is in [examples/cursor](../../examples/cursor/).
 

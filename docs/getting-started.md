@@ -9,14 +9,14 @@ From nothing to an AI agent tapping through an app while you watch.
 - An Apple Silicon Mac with Xcode 26 or later and an iOS runtime installed.
 - [uv](https://docs.astral.sh/uv/), or Homebrew.
 
-That is all: Rocketwright touches the screen and reads it with its own [native helper](connectors.md#native), which
+That is all: PhoneSimulator touches the screen and reads it with its own [native helper](connectors.md#native), which
 comes in the package.
 
 ## 1. Install and check the Mac
 
 ```sh
-uv tool install git+https://github.com/Soflutionltd/rocketwright    # or: brew install soflutionltd/tap/rocketwright
-rocketwright doctor
+uv tool install git+https://github.com/Soflutionltd/phonesimulator    # or: brew install soflutionltd/tap/phonesimulator
+phonesimulator doctor
 ```
 
 The doctor checks Xcode, its Simulator frameworks and runtimes, the native helper and the desktop session, then opens
@@ -28,18 +28,18 @@ See [the doctor](doctor.md).
 In Claude Code:
 
 ```
-/plugin marketplace add Soflutionltd/rocketwright
-/plugin install rocketwright@rocketwright
+/plugin marketplace add Soflutionltd/phonesimulator
+/plugin install phonesimulator@phonesimulator
 ```
 
-Or, for any client, run `rocketwright mcp` as a stdio MCP server; see [clients](clients/other-mcp.md).
+Or, for any client, run `phonesimulator mcp` as a stdio MCP server; see [clients](clients/other-mcp.md).
 
 ## 3. Watch
 
 In your app's folder:
 
 ```sh
-rocketwright open
+phonesimulator open
 ```
 
 A browser tab opens on your project's simulator. You can tap, scroll, type and press Home in it at any time.
@@ -60,40 +60,40 @@ screenshots.
 
 ## What just happened
 
-- `rocketwright mcp` started Rocketwright's daemon on `127.0.0.1:7466` (it was not running), and gave the agent a token for
+- `phonesimulator mcp` started PhoneSimulator's daemon on `127.0.0.1:7466` (it was not running), and gave the agent a token for
   **this folder's scope** -- `project-<folder name>-<short hash>` -- and this folder as the only place it may build
   and install from.
-- The first tool call created a simulator for the scope, named `Rocketwright · project-<folder name>-<short hash>` (the scope's id), booted it and attached
-  Rocketwright's native helper to it. A second project gets a device of its own, so agents never tap on each other's apps.
-- Once that simulator exists and is booted, the next `rocketwright mcp` for this project attaches it in the background as
+- The first tool call created a simulator for the scope, named `PhoneSimulator · project-<folder name>-<short hash>` (the scope's id), booted it and attached
+  PhoneSimulator's native helper to it. A second project gets a device of its own, so agents never tap on each other's apps.
+- Once that simulator exists and is booted, the next `phonesimulator mcp` for this project attaches it in the background as
   it starts, so the agent's first call does not wait for it (`agent.warm_up`). It never boots or creates a simulator
   for that, never touches a real or Android device, and does not hold the device for the agent.
-- `rocketwright open` asked the daemon for a one-shot code and opened the viewer with it; the code was spent for a
+- `phonesimulator open` asked the daemon for a one-shot code and opened the viewer with it; the code was spent for a
   viewer token that lives only in that tab. A daemon restarted -- an upgrade, say -- lets the tab back in by itself.
 - A device nobody watches, no agent holds and nothing builds on is stopped after 15 minutes.
 
 ## Stopping
 
-`rocketwright stop`, in the project's folder, ends its session on the device: the viewer closes and the companion that
+`phonesimulator stop`, in the project's folder, ends its session on the device: the viewer closes and the companion that
 drove the device stops. The simulator keeps running; `--shutdown` shuts it down too. An agent does the same with
 `sim_device stop`, `shutdown: true` for the shutdown. Either way only this project is stopped -- another project's
 device and agent are left alone -- and a real iPhone or iPad is never shut down or powered off. A simulator another
-project shares (`device.mode = "shared"`) is not shut down from under it: `rocketwright stop --shutdown` refuses and
+project shares (`device.mode = "shared"`) is not shut down from under it: `phonesimulator stop --shutdown` refuses and
 names the projects using it, and `--force` shuts it down for them too.
 
-When other projects still hold the device -- or this one held none -- `rocketwright stop` names them, and the device.
-`rocketwright stop --device <udid>` lets that device go for every project using it, says which projects and agents
+When other projects still hold the device -- or this one held none -- `phonesimulator stop` names them, and the device.
+`phonesimulator stop --device <udid>` lets that device go for every project using it, says which projects and agents
 held it, and leaves the device running.
 
-`rocketwright stop --daemon` stops the daemon too, once it serves no other project; it names those it still serves, and
-`--force` stops it anyway. An agent's MCP client still connected answers its next tool call that Rocketwright was
+`phonesimulator stop --daemon` stops the daemon too, once it serves no other project; it names those it still serves, and
+`--force` stops it anyway. An agent's MCP client still connected answers its next tool call that PhoneSimulator was
 stopped, and the call after that starts the daemon again, as its first call did; reconnecting the MCP server does the
-same. A simulator shut down from Simulator.app has its session ended by Rocketwright as soon as a viewer's stream of it
+same. A simulator shut down from Simulator.app has its session ended by PhoneSimulator as soon as a viewer's stream of it
 fails, and otherwise within a minute.
 
 ## Next
 
 - [Screen understanding](screen-understanding.md): how agents read the screen cheaply.
-- [Configuration](reference/configuration.md): every setting, such as `rocketwright config set stream.fps 60`;
-  `--scope "$(rocketwright config scope)"` sets it for this folder's project only.
+- [Configuration](reference/configuration.md): every setting, such as `phonesimulator config set stream.fps 60`;
+  `--scope "$(phonesimulator config scope)"` sets it for this folder's project only.
 - [Embedding](embedding/iframe.md): the viewer in your own pages.

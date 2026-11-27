@@ -10,7 +10,7 @@ import pytest
 
 import check_swift_coverage as check
 
-ROOT = "/Users/me/rocketwright"
+ROOT = "/Users/me/phonesimulator"
 
 
 def _report(**files: tuple[int, int]) -> dict[str, object]:
@@ -59,7 +59,7 @@ def test_it_passes_fails_and_refuses_what_it_cannot_read(tmp_path: Path, capsys:
     assert "cannot read the coverage report" in capsys.readouterr().err
 
 
-SDK = "sdk/swift/Sources/RocketwrightKit"
+SDK = "sdk/swift/Sources/PhoneSimulatorKit"
 
 
 def test_another_package_is_gated_by_the_sources_it_names(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -67,7 +67,7 @@ def test_another_package_is_gated_by_the_sources_it_names(tmp_path: Path, capsys
         **{
             f"{SDK}/Runtime/Runtime.swift": (100, 99),
             f"{SDK}/Server/Low.swift": (50, 40),
-            "sdk/swift/Tests/RocketwrightKitTests/RuntimeTests.swift": (10, 0),
+            "sdk/swift/Tests/PhoneSimulatorKitTests/RuntimeTests.swift": (10, 0),
             "helper/Sources/HelperCore/Wire.swift": (10, 0),
         }
     )

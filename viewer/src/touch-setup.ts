@@ -11,11 +11,11 @@ import { escapeHTML } from './escape'
 import { english, type Translate } from './i18n'
 import type { Note } from './note'
 import type { TouchSetup } from './protocol.generated'
-import type { RocketwrightTransport } from './transport'
+import type { PhoneSimulatorTransport } from './transport'
 
 const POLL_MS = 3000
 
-export type TouchTransport = Required<Pick<RocketwrightTransport, 'touch' | 'setUpTouch'>>
+export type TouchTransport = Required<Pick<PhoneSimulatorTransport, 'touch' | 'setUpTouch'>>
 
 export interface TouchSetupOptions {
   /** The note's element, where the setup's buttons are. */

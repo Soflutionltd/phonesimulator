@@ -16,9 +16,9 @@ function fixture() {
   let selected = w.document.getElementById('save');
   w.document.elementFromPoint = () => selected;
   w.eval(source);
-  return { w, bridge: w.__RocketwrightWeb, choose: id => { selected = w.document.getElementById(id); }, close: () => dom.window.close() };
+  return { w, bridge: w.__PhoneSimulatorWeb, choose: id => { selected = w.document.getElementById(id); }, close: () => dom.window.close() };
 }
-const options = { maxNodes: 3000, offset: { x: 0, y: 32 }, app: { bundle_id: 'dev.rocketwright.Sample', name: 'Sample', pid: 42, active: false }, screen: { width_pt: 480, height_pt: 672, scale: 2, orientation: 'portrait' } };
+const options = { maxNodes: 3000, offset: { x: 0, y: 32 }, app: { bundle_id: 'dev.phonesimulator.Sample', name: 'Sample', pid: 42, active: false }, screen: { width_pt: 480, height_pt: 672, scale: 2, orientation: 'portrait' } };
 test('capture keeps DOM identifiers and bounds and never password contents', () => {
   const f = fixture();
   try {

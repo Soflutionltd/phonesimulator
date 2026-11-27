@@ -6,26 +6,26 @@ from __future__ import annotations
 import stat
 from pathlib import Path
 
-from rocketwright.scope import Scope
-from rocketwright.storage import app_support
-from rocketwright.storage.app_support import AppSupportStateStore
+from phonesimulator.scope import Scope
+from phonesimulator.storage import app_support
+from phonesimulator.storage.app_support import AppSupportStateStore
 
 SCOPE = Scope(id="ws:alpha:tp-1", group="alpha", label="alpha")
 
 
 def test_the_folders_are_where_macos_keeps_an_apps_things(tmp_path: Path) -> None:
     store = AppSupportStateStore(env={}, home=tmp_path)
-    support = tmp_path / "Library" / "Application Support" / "Rocketwright"
+    support = tmp_path / "Library" / "Application Support" / "PhoneSimulator"
     assert store.state_dir == support
     assert store.devices_file() == support / "devices.json"
     assert store.builds_dir(SCOPE) == support / "builds" / "ws_alpha_tp-1"
-    assert store.derived_data(SCOPE) == tmp_path / "Library/Developer/Xcode/DerivedData/Rocketwright-ws_alpha_tp-1"
-    assert store.run_dir() == tmp_path / ".rocketwright" / "run"
-    assert store.log_dir() == tmp_path / "Library" / "Logs" / "Rocketwright"
+    assert store.derived_data(SCOPE) == tmp_path / "Library/Developer/Xcode/DerivedData/PhoneSimulator-ws_alpha_tp-1"
+    assert store.run_dir() == tmp_path / ".phonesimulator" / "run"
+    assert store.log_dir() == tmp_path / "Library" / "Logs" / "PhoneSimulator"
     assert store.claims_dir() == support / "claims"
     assert app_support.helpers_dir({}, tmp_path) == support / "helpers"
-    assert app_support.helpers_dir({"ROCKETWRIGHT_STATE_DIR": "/s"}) == Path("/s/helpers")
-    assert store.owner_tag == "Rocketwright"
+    assert app_support.helpers_dir({"PHONESIMULATOR_STATE_DIR": "/s"}) == Path("/s/helpers")
+    assert store.owner_tag == "PhoneSimulator"
 
 
 def test_each_folder_moves_with_its_variable(tmp_path: Path) -> None:
@@ -43,7 +43,7 @@ def test_each_folder_moves_with_its_variable(tmp_path: Path) -> None:
 
 def test_the_store_reads_this_processs_environment_by_default_and_makes_private_folders(tmp_path: Path) -> None:
     store = AppSupportStateStore()
-    assert store.run_dir().name == "run" and "rocketwright" in str(store.run_dir())
+    assert store.run_dir().name == "run" and "phonesimulator" in str(store.run_dir())
     made = store.ensure_dir(tmp_path / "a" / "b")
     assert made.is_dir() and stat.S_IMODE(made.stat().st_mode) == 0o700
     assert app_support.derived_data_root().name == "DerivedData"

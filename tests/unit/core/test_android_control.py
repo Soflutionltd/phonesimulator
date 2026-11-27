@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.build.stamp import APK_STAMP, Stamp, stamp_apk, stamp_of
-from rocketwright.core.android_control import (
+from phonesimulator.build.stamp import APK_STAMP, Stamp, stamp_apk, stamp_of
+from phonesimulator.core.android_control import (
     FONT_SCALES,
     STAMPS,
     AndroidControl,
@@ -20,11 +20,11 @@ from rocketwright.core.android_control import (
     route_fixes,
     stop_routes,
 )
-from rocketwright.core.control import DeviceControl, DisplayState, ExactRestore, Quiet
-from rocketwright.platform.adb import AdbDropped, AdbError
-from rocketwright.platform.emulator import EmulatorConsole
-from rocketwright.testing.adb import FakeAdbServer, FakeEmulatorConsole
-from rocketwright.testing.fakes import fixture
+from phonesimulator.core.control import DeviceControl, DisplayState, ExactRestore, Quiet
+from phonesimulator.platform.adb import AdbDropped, AdbError
+from phonesimulator.platform.emulator import EmulatorConsole
+from phonesimulator.testing.adb import FakeAdbServer, FakeEmulatorConsole
+from phonesimulator.testing.fakes import fixture
 
 UDID = "avd-Pixel-9-3fa2c1"
 
@@ -148,27 +148,27 @@ async def test_an_emulator_keeps_a_stamped_apks_commit_until_the_app_is_installe
     built.parent.mkdir()
     built.write_bytes(b"APK")
     mark = Stamp("a" * 40, dirty=True)
-    folder = stamp_apk(built, mark, "dev.rocketwright.example")
+    folder = stamp_apk(built, mark, "dev.phonesimulator.example")
     rig.server.on("cmd package install -r -t -S", out="Success\n")
-    rig.server.on("dumpsys package dev.rocketwright.example", out=fixture("android-package.txt"))
+    rig.server.on("dumpsys package dev.phonesimulator.example", out=fixture("android-package.txt"))
     await rig.control.install(UDID, str(folder))
-    kept = rig.server.files[("emulator-5554", f"{STAMPS}/dev.rocketwright.example.json")]
+    kept = rig.server.files[("emulator-5554", f"{STAMPS}/dev.phonesimulator.example.json")]
     assert json.loads(kept) == {"commit": "a" * 40, "dirty": True, "installed": "2026-10-25 13:53:08"}
-    rig.server.on(f"cat {STAMPS}/dev.rocketwright.example.json", out=kept)
-    app = await rig.control.app_info(UDID, "dev.rocketwright.example")
+    rig.server.on(f"cat {STAMPS}/dev.phonesimulator.example.json", out=kept)
+    app = await rig.control.app_info(UDID, "dev.phonesimulator.example")
     assert app is not None and app.info is not None and stamp_of(app.info) == mark
     # Installed again since, by anything: the install time changed, and the stamp is not that app's.
     later = fixture("android-package.txt").replace("lastUpdateTime=2026-10-25 13:53:08", "lastUpdateTime=2026-10-26")
-    rig.server.on("dumpsys package dev.rocketwright.example", out=later)
-    app = await rig.control.app_info(UDID, "dev.rocketwright.example")
+    rig.server.on("dumpsys package dev.phonesimulator.example", out=later)
+    app = await rig.control.app_info(UDID, "dev.phonesimulator.example")
     assert app is not None and app.info is not None and stamp_of(app.info) is None
     # A package name that could not be a path's last part is never looked up.
     rig.server.on("dumpsys package example", out=fixture("android-package.txt"))
     app = await rig.control.app_info(UDID, "example")
     assert app is not None and app.info is not None and stamp_of(app.info) is None
     for said in (b"not json", b"[]"):
-        rig.server.on(f"cat {STAMPS}/dev.rocketwright.example.json", out=said)
-        app = await rig.control.app_info(UDID, "dev.rocketwright.example")
+        rig.server.on(f"cat {STAMPS}/dev.phonesimulator.example.json", out=said)
+        app = await rig.control.app_info(UDID, "dev.phonesimulator.example")
         assert app is not None and app.info is not None and stamp_of(app.info) is None
 
 
@@ -186,7 +186,7 @@ async def test_a_phones_app_is_never_stamped_and_says_nothing_of_one(tmp_path: P
     async with FakeAdbServer() as server:
         server.phone()
         server.on("cmd package install -r -t -S", out="Success\n")
-        server.on("dumpsys package dev.rocketwright.example", out=fixture("android-package.txt"))
+        server.on("dumpsys package dev.phonesimulator.example", out=fixture("android-package.txt"))
 
         async def serial_of(udid: str) -> str:
             return "R58M12ABC"
@@ -196,9 +196,9 @@ async def test_a_phones_app_is_never_stamped_and_says_nothing_of_one(tmp_path: P
         built.parent.mkdir()
         built.write_bytes(b"APK")
         await control.install(
-            "adb-R58M12ABC-9b1e04", str(stamp_apk(built, Stamp("b" * 40), "dev.rocketwright.example"))
+            "adb-R58M12ABC-9b1e04", str(stamp_apk(built, Stamp("b" * 40), "dev.phonesimulator.example"))
         )
-        app = await control.app_info("adb-R58M12ABC-9b1e04", "dev.rocketwright.example")
+        app = await control.app_info("adb-R58M12ABC-9b1e04", "dev.phonesimulator.example")
         assert server.files == {} and app is not None and app.info is None
 
 
@@ -338,7 +338,7 @@ async def test_what_each_change_replaces_is_read_and_put_back_exactly(rig: Rig) 
         "settings put system user_rotation 0",
         "settings put system accelerometer_rotation 1",
     ]
-    with pytest.raises(AdbError, match="is not something Rocketwright changes"):
+    with pytest.raises(AdbError, match="is not something PhoneSimulator changes"):
         await rig.control.saved(UDID, "wallpaper")
     with pytest.raises(AdbError, match="cannot be put back"):
         await rig.control.put_back(UDID, "rotation", "sideways")

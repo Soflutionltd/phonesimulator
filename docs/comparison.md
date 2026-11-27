@@ -9,7 +9,7 @@ a source.
 
 | Tool | License | Interface | Live viewer in a browser | Reads the UI tree | Input | Platforms | Latest (date) |
 |---|---|---|---|---|---|---|---|
-| **Rocketwright** (this project) | Apache-2.0 | MCP server, CLI, local daemon, web component, Python library, Claude Code plugin | Yes: H.264 through WebCodecs, or JPEG | Yes: the accessibility tree, read by its own native helper or idb_companion, as snapshots with refs and diffs; an app's own views through its debug SDK, and text from the pixels when accessibility says nothing | Yes: its own native helper, or idb_companion; view-only fallback over simctl; WebDriverAgent on a real device | iOS simulator; a real iPhone or iPad by cable (view-only without WebDriverAgent); Android emulators and phones via adb, with scrcpy for live streaming; macOS apps, one app and window at a time | v3.9.0 |
+| **PhoneSimulator** (this project) | Apache-2.0 | MCP server, CLI, local daemon, web component, Python library, Claude Code plugin | Yes: H.264 through WebCodecs, or JPEG | Yes: the accessibility tree, read by its own native helper or idb_companion, as snapshots with refs and diffs; an app's own views through its debug SDK, and text from the pixels when accessibility says nothing | Yes: its own native helper, or idb_companion; view-only fallback over simctl; WebDriverAgent on a real device | iOS simulator; a real iPhone or iPad by cable (view-only without WebDriverAgent); Android emulators and phones via adb, with scrcpy for live streaming; macOS apps, one app and window at a time | v3.9.0 |
 | [XcodeBuildMCP](https://github.com/getsentry/XcodeBuildMCP) | MIT | MCP server and CLI | Not stated | Yes: AXe `describe-ui` | Yes: AXe | UI automation on iOS simulators; build and run also for devices and macOS | v2.7.0 (2026-07-23) |
 | [ios-simulator-mcp](https://github.com/joshuayoes/ios-simulator-mcp) | MIT | MCP server | No (screenshot and video tools) | Yes: IDB | Yes: IDB | iOS simulator | v2.1.0 (2026-08-13) |
 | [ios-simulator-skill](https://github.com/conorluddy/ios-simulator-skill) | MIT | Claude Code skill (Python scripts) | Not stated | Yes: `idb` | Yes: `idb` | iOS simulator | v1.5.0 (2026-09-12) |
@@ -43,13 +43,13 @@ a source.
 - **Xcode 27's `mcpbridge`** has device-interaction tools beside its build, preview, string catalog and debugger
   tools. Measured on Xcode 27.0 (2026-09-16): a capture answered in 0.2 to 0.9 seconds with a hierarchy and a
   screenshot written to files, a tap in 3.3 seconds, a simulator is in one session at a time, and an agent is
-  approved by opening a project first. Rocketwright reads the hierarchy through it (the `mcpbridge` connector, and
+  approved by opening a project first. PhoneSimulator reads the hierarchy through it (the `mcpbridge` connector, and
   merged into idb's snapshots).
 - **RocketSim**'s CLI talks to the running app; network control needs its Pro subscription.
 
-## Where Rocketwright sits
+## Where PhoneSimulator sits
 
-Rocketwright's combination is a live viewer in any browser tab, iframe or web component; an agent cursor that shows each
+PhoneSimulator's combination is a live viewer in any browser tab, iframe or web component; an agent cursor that shows each
 gesture before it lands; snapshots with stable refs and diffs for agents; one set of MCP tools for any client; and an
 embedding API for host applications -- all on your Mac, over loopback. It drives iOS simulators, a real
 iPhone or iPad connected to the Mac ([real devices](real-devices.md)), and Android emulators and phones

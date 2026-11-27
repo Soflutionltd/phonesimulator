@@ -13,7 +13,7 @@ import VideoToolbox
 /// A screenshot is drawn by Core Image on the GPU straight from the IOSurface -- one render and one JPEG encode, with no
 /// copy of the full screen in between. A frame for the encoder is scaled by VideoToolbox, which the encoder works with.
 final class Pictures: @unchecked Sendable {
-    private let context = CIContext(options: [.cacheIntermediates: false, .name: "rocketwright"])
+    private let context = CIContext(options: [.cacheIntermediates: false, .name: "phonesimulator"])
     private let space = CGColorSpace(name: CGColorSpace.sRGB)!
 
     func jpeg(_ surface: IOSurface, plan: ScreenshotPlan) throws -> JPEG {

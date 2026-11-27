@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Deleting the simulators Rocketwright made once nobody needs them: by the reaper as ``device.delete_created`` allows,
-and by ``rocketwright devices prune`` -- never one a person made or picked, one another scope remembers, or one
+"""Deleting the simulators PhoneSimulator made once nobody needs them: by the reaper as ``device.delete_created`` allows,
+and by ``phonesimulator devices prune`` -- never one a person made or picked, one another scope remembers, or one
 running."""
 
 from __future__ import annotations
@@ -12,15 +12,15 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.core.cleanup import NO_FOLDER, RUNNING, Pruned, holding, prune
-from rocketwright.core.devices import CreatedDevices, JsonDeviceMemory
-from rocketwright.core.manager import SimulatorUnavailable
-from rocketwright.platform.device_data import devices_dir
-from rocketwright.platform.simctl import Simctl, SimctlError
-from rocketwright.scope import Scope
-from rocketwright.seams import DeviceMemory
-from rocketwright.testing.fakes import BOOTED_UDID, FakeXcrun, MemoryStateStore, fixture_udid, made
-from rocketwright.testing.rig import DeviceRig, scope
+from phonesimulator.core.cleanup import NO_FOLDER, RUNNING, Pruned, holding, prune
+from phonesimulator.core.devices import CreatedDevices, JsonDeviceMemory
+from phonesimulator.core.manager import SimulatorUnavailable
+from phonesimulator.platform.device_data import devices_dir
+from phonesimulator.platform.simctl import Simctl, SimctlError
+from phonesimulator.scope import Scope
+from phonesimulator.seams import DeviceMemory
+from phonesimulator.testing.fakes import BOOTED_UDID, FakeXcrun, MemoryStateStore, fixture_udid, made
+from phonesimulator.testing.rig import DeviceRig, scope
 
 SHUTDOWN_UDID = fixture_udid("iPhone 17 Pro Max")
 TP1, TP2 = scope("tp-1"), scope("tp-2")
@@ -56,7 +56,7 @@ async def reaped(rig: DeviceRig) -> list[str]:
 # -- the reaper --------------------------------------------------------------------------------------------------------
 
 
-async def test_an_empty_simulator_rocketwright_made_is_deleted_once_idle_and_forgotten_so_the_next_call_makes_another(
+async def test_an_empty_simulator_phonesimulator_made_is_deleted_once_idle_and_forgotten_so_the_next_call_makes_another(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     rig = idle_rig(tmp_path)
@@ -67,7 +67,7 @@ async def test_an_empty_simulator_rocketwright_made_is_deleted_once_idle_and_for
     assert ("simctl", "shutdown", instance.udid) in rig.argv() and deleted(rig) == [instance.udid]
     assert rig.memory.all_created() == set() and rig.memory.assigned(TP1, False) is None
     assert (
-        "deleted the simulator Rocketwright · alpha · tp-1 Rocketwright made, idle (device.delete_created = empty)"
+        "deleted the simulator PhoneSimulator · alpha · tp-1 PhoneSimulator made, idle (device.delete_created = empty)"
         in (caplog.text)
     )
     again = await rig.up()
@@ -84,7 +84,8 @@ async def test_one_holding_an_app_is_kept_while_empty_ones_only_go_and_deleted_w
     await reaped(rig)
     assert deleted(rig) == [] and rig.memory.all_created() == {instance.udid}
     assert (
-        "kept the simulator Rocketwright · alpha · tp-1 Rocketwright made: it holds Demo.app, Notes.app" in caplog.text
+        "kept the simulator PhoneSimulator · alpha · tp-1 PhoneSimulator made: it holds Demo.app, Notes.app"
+        in caplog.text
     )
     rig.config.set(delete_created="idle")
     assert (await rig.up()).udid == instance.udid
@@ -135,7 +136,7 @@ async def test_one_another_scope_still_remembers_as_its_own_is_kept(
     caplog.set_level(logging.INFO)
     await reaped(rig)
     assert deleted(rig) == [] and rig.memory.holders(instance.udid) == {"tp-1", "tp-2"}
-    assert "kept the simulator Rocketwright · alpha · tp-1 Rocketwright made: tp-2 still use it" in caplog.text
+    assert "kept the simulator PhoneSimulator · alpha · tp-1 PhoneSimulator made: tp-2 still use it" in caplog.text
 
 
 async def test_a_group_shares_one_it_remembers_as_the_groups_and_that_is_deleted_too(tmp_path: Path) -> None:
@@ -158,12 +159,12 @@ async def test_a_deletion_that_fails_is_logged_the_reaper_goes_on_and_the_memory
     assert await reaped(rig) == [instance.udid]
     assert deleted(rig) == [instance.udid]
     assert rig.memory.all_created() == {instance.udid} and rig.memory.assigned(TP1, False) == instance.udid
-    assert f"could not delete the simulator {instance.udid} Rocketwright made" in caplog.text
+    assert f"could not delete the simulator {instance.udid} PhoneSimulator made" in caplog.text
     assert "Unable to delete" in caplog.text
 
 
 class HostMemory:
-    """A host's own `DeviceMemory`, which cannot list nor forget what Rocketwright made."""
+    """A host's own `DeviceMemory`, which cannot list nor forget what PhoneSimulator made."""
 
     def __init__(self, inner: JsonDeviceMemory) -> None:
         self._inner = inner
@@ -195,7 +196,7 @@ async def test_under_a_hosts_memory_that_cannot_forget_nothing_is_deleted_and_pr
     folder(instance.udid)
     await reaped(rig)
     assert deleted(rig) == [] and rig.memory.all_created() == {instance.udid}
-    with pytest.raises(SimulatorUnavailable, match="cannot list the simulators Rocketwright made"):
+    with pytest.raises(SimulatorUnavailable, match="cannot list the simulators PhoneSimulator made"):
         await rig.manager.prune(everything=False, dry_run=True)
 
 
@@ -229,7 +230,7 @@ async def test_prune_deletes_empty_ones_keeps_the_rest_saying_why_and_all_takes_
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "devices"
-    env = {"ROCKETWRIGHT_SIMULATOR_DEVICES_DIR": str(root)}
+    env = {"PHONESIMULATOR_SIMULATOR_DEVICES_DIR": str(root)}
     memory = JsonDeviceMemory(MemoryStateStore(tmp_path).devices_file())
     empty, apps, booted, elsewhere, _gone, failing = UDIDS
     for index, udid in enumerate(UDIDS):
@@ -242,11 +243,11 @@ async def test_prune_deletes_empty_ones_keeps_the_rest_saying_why_and_all_takes_
     xcrun = lister(
         {
             "iOS 26.5": [
-                entry(empty, "Rocketwright · a"),
-                entry(apps, "Rocketwright · b"),
-                entry(booted, "Rocketwright · c", "Booted"),
-                entry(elsewhere, "Rocketwright · d"),
-                entry(failing, "Rocketwright · f"),
+                entry(empty, "PhoneSimulator · a"),
+                entry(apps, "PhoneSimulator · b"),
+                entry(booted, "PhoneSimulator · c", "Booted"),
+                entry(elsewhere, "PhoneSimulator · d"),
+                entry(failing, "PhoneSimulator · f"),
                 entry(BOOTED_UDID, "iPhone 17 Pro", "Booted"),
             ]
         }
@@ -257,11 +258,11 @@ async def test_prune_deletes_empty_ones_keeps_the_rest_saying_why_and_all_takes_
     assert not any(args[1] == "delete" for args in xcrun.argv()) and memory.all_created() == set(UDIDS)
     size = 1000
     assert dry == [
-        Pruned(empty, "Rocketwright · a", (), size, False),
-        Pruned(apps, "Rocketwright · b", ("Demo.app",), size + 500, False, holding(1)),
-        Pruned(booted, "Rocketwright · c", (), 0, False, "it is not shut down (Booted)"),
-        Pruned(elsewhere, "Rocketwright · d", (), 0, False, NO_FOLDER),
-        Pruned(failing, "Rocketwright · f", (), size, False),
+        Pruned(empty, "PhoneSimulator · a", (), size, False),
+        Pruned(apps, "PhoneSimulator · b", ("Demo.app",), size + 500, False, holding(1)),
+        Pruned(booted, "PhoneSimulator · c", (), 0, False, "it is not shut down (Booted)"),
+        Pruned(elsewhere, "PhoneSimulator · d", (), 0, False, NO_FOLDER),
+        Pruned(failing, "PhoneSimulator · f", (), size, False),
     ]
 
     done = await prune(simctl, memory, running=(), everything=False, dry_run=False, env=env)
@@ -276,7 +277,7 @@ async def test_prune_deletes_empty_ones_keeps_the_rest_saying_why_and_all_takes_
     assert [found.udid for found in everything if found.deleted] == [apps]
     assert everything[0].as_json() == {
         "udid": apps,
-        "name": "Rocketwright · b",
+        "name": "PhoneSimulator · b",
         "apps": ["Demo.app"],
         "size": size + 500,
         "deleted": True,

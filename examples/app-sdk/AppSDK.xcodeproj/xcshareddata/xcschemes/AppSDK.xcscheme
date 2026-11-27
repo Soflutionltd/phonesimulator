@@ -32,9 +32,9 @@
       <CodeCoverageTargets>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "RocketwrightKit"
-            BuildableName = "RocketwrightKit"
-            BlueprintName = "RocketwrightKit"
+            BlueprintIdentifier = "PhoneSimulatorKit"
+            BuildableName = "PhoneSimulatorKit"
+            BlueprintName = "PhoneSimulatorKit"
             ReferencedContainer = "container:../..">
          </BuildableReference>
       </CodeCoverageTargets>

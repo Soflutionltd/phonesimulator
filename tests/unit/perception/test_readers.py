@@ -9,12 +9,12 @@ from dataclasses import replace
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import ConnectorError, Screen
-from rocketwright.connectors.mcpbridge.hierarchy import document_from_hierarchy
-from rocketwright.perception.model import DESTRUCTIVE, NAMED, PIXELS, ElementNode, Frame, Modal, ScreenTree
-from rocketwright.perception.orientation import Orientation
-from rocketwright.perception.readers import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import ConnectorError, Screen
+from phonesimulator.connectors.mcpbridge.hierarchy import document_from_hierarchy
+from phonesimulator.perception.model import DESTRUCTIVE, NAMED, PIXELS, ElementNode, Frame, Modal, ScreenTree
+from phonesimulator.perception.orientation import Orientation
+from phonesimulator.perception.readers import (
     ACCESSIBILITY_SAID_NOTHING,
     CombinedExtraReaders,
     DocumentReader,
@@ -28,8 +28,8 @@ from rocketwright.perception.readers import (
     name_unlabeled,
     tree_from_document,
 )
-from rocketwright.perception.snapshot import build
-from rocketwright.testing.fakes import FakeEngine, fixture, fixture_json
+from phonesimulator.perception.snapshot import build
+from phonesimulator.testing.fakes import FakeEngine, fixture, fixture_json
 
 
 def test_a_document_reads_as_its_elements_depth_first() -> None:

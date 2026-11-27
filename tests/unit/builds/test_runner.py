@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.build.runner import BuildRefused
-from rocketwright.build.xcodebuild import BuildRunner, XcodeToolchain
-from rocketwright.testing.fakes import MemoryStateStore
-from rocketwright.testing.rig import scope
+from phonesimulator.build.runner import BuildRefused
+from phonesimulator.build.xcodebuild import BuildRunner, XcodeToolchain
+from phonesimulator.testing.fakes import MemoryStateStore
+from phonesimulator.testing.rig import scope
 
 
 def test_xcodebuild_builds_for_simulators_and_iphones_and_another_kind_is_refused(tmp_path: Path) -> None:

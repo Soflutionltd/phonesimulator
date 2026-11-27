@@ -16,27 +16,27 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.app.merge import AppHierarchyMerge
-from rocketwright.connectors.base import Capability, ConnectorError, Crop, HidEvent, Screen, Shot
-from rocketwright.core import gestures
-from rocketwright.core.actions import MAX_STEPS, PAUSED, PERSON_WAIT_S, ActionError, AgentActions, check_steps
-from rocketwright.core.events import Event
-from rocketwright.core.instance import DeviceInstance
-from rocketwright.perception.model import ElementNode, Frame, ScreenTree
-from rocketwright.perception.ocr import OcrReaders, RecognizedLine, TextRecognitionError
-from rocketwright.perception.readers import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.app.merge import AppHierarchyMerge
+from phonesimulator.connectors.base import Capability, ConnectorError, Crop, HidEvent, Screen, Shot
+from phonesimulator.core import gestures
+from phonesimulator.core.actions import MAX_STEPS, PAUSED, PERSON_WAIT_S, ActionError, AgentActions, check_steps
+from phonesimulator.core.events import Event
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.perception.model import ElementNode, Frame, ScreenTree
+from phonesimulator.perception.ocr import OcrReaders, RecognizedLine, TextRecognitionError
+from phonesimulator.perception.readers import (
     MAC_ACCESSIBILITY_SAID_NOTHING,
     CombinedExtraReaders,
     TreeReader,
     tree_from_document,
 )
-from rocketwright.perception.snapshot import build
-from rocketwright.platform.device_data import DEVICES_DIR_ENV
-from rocketwright.protocol import WORKING_EVERY_S
-from rocketwright.seams import Caller
-from rocketwright.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
-from rocketwright.testing.fakes import (
+from phonesimulator.perception.snapshot import build
+from phonesimulator.platform.device_data import DEVICES_DIR_ENV
+from phonesimulator.protocol import WORKING_EVERY_S
+from phonesimulator.seams import Caller
+from phonesimulator.testing.app_sdk import FakeAppSdk, app_hierarchy, app_node, write_listing
+from phonesimulator.testing.fakes import (
     JPEG,
     SCREEN,
     FakeConnector,
@@ -45,10 +45,10 @@ from rocketwright.testing.fakes import (
     StaticConfig,
     fixture_json,
 )
-from rocketwright.testing.pictures import PictureEngine, picture
-from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
-from rocketwright.testing.vision import FakeTextRecognizer, text_line
-from rocketwright.tools.device import device_line
+from phonesimulator.testing.pictures import PictureEngine, picture
+from phonesimulator.testing.rig import VIEW_ONLY, DeviceRig, scope
+from phonesimulator.testing.vision import FakeTextRecognizer, text_line
+from phonesimulator.tools.device import device_line
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code · checkout")
 SETTINGS = fixture_json("ax-settings-interactable.json")
@@ -793,7 +793,7 @@ def asking_to_paste(*buttons: str) -> dict[str, Any]:
     return document
 
 
-async def test_the_allow_paste_prompt_ios_26_shows_for_rocketwrights_own_paste_is_allowed(tmp_path: Path) -> None:
+async def test_the_allow_paste_prompt_ios_26_shows_for_phonesimulators_own_paste_is_allowed(tmp_path: Path) -> None:
     r = await rigged(
         tmp_path, FakeEngine(document=asking_to_paste("Ne pas autoriser le collage", "Autoriser le collage"))
     )
@@ -1118,7 +1118,7 @@ async def test_a_device_slow_to_say_what_is_in_front_plays_the_tap_as_the_snapsh
             await asyncio.sleep(3600)
             raise AssertionError("never answers")
 
-    monkeypatch.setattr("rocketwright.perception.in_front.BUDGET_S", 0.01)
+    monkeypatch.setattr("phonesimulator.perception.in_front.BUDGET_S", 0.01)
     r = await rigged(tmp_path, Slow(document=UNDER_TAB_BAR))
     said = await r.actions.act(r.instance, CALLER, [{"tap": "e2"}], snapshot="none")
     assert "is under the tab bar" in said
@@ -1629,7 +1629,7 @@ def test_malformed_mac_steps_are_refused_before_any_input(step):
 
 
 async def test_mac_steps_reach_only_the_app_sink_and_preserve_observe_refusals(tmp_path):
-    from rocketwright.testing.macos import FakeMacApp
+    from phonesimulator.testing.macos import FakeMacApp
 
     app = FakeMacApp()
     r = await rigged(tmp_path, app)
@@ -1670,7 +1670,7 @@ async def test_mac_steps_reach_only_the_app_sink_and_preserve_observe_refusals(t
     ]
     assert not app.hid_events
     app.gestures = False
-    from rocketwright.core.refusals import ObserveGuard
+    from phonesimulator.core.refusals import ObserveGuard
 
     guard = ObserveGuard.of(True, "", confirmed=False)
     before = len(app.mac_actions)
@@ -1681,7 +1681,7 @@ async def test_mac_steps_reach_only_the_app_sink_and_preserve_observe_refusals(t
 
 
 async def test_a_right_click_says_what_its_context_menu_offered_and_can_choose_an_item(tmp_path):
-    from rocketwright.testing.macos import FakeMacApp
+    from phonesimulator.testing.macos import FakeMacApp
 
     app = FakeMacApp()
     r = await rigged(tmp_path, app)
@@ -1713,7 +1713,7 @@ def test_a_context_menu_item_is_one_entry_name(item):
 
 
 async def mac_rigged(tmp_path: Path, **offers: bool) -> tuple[Rigged, Any]:
-    from rocketwright.testing.macos import FakeMacApp
+    from phonesimulator.testing.macos import FakeMacApp
 
     app = FakeMacApp(**offers)
     r = await rigged(tmp_path, app)
@@ -1795,7 +1795,7 @@ async def test_a_mac_app_whose_input_cannot_play_a_click_has_it_refused_not_play
 
 
 async def test_a_mac_chord_needs_a_pointer_session_and_observe_mode_holds_it_back(tmp_path):
-    from rocketwright.core.refusals import ObserveGuard
+    from phonesimulator.core.refusals import ObserveGuard
 
     r, app = await mac_rigged(tmp_path)
     guard = ObserveGuard.of(True, "", confirmed=False)
@@ -1861,7 +1861,7 @@ async def test_a_touch_screen_refuses_what_only_a_pointer_can_do(tmp_path, step,
 
 
 async def test_keys_and_double_taps_are_refused_where_the_device_cannot_play_them(tmp_path):
-    from rocketwright.core.refusals import ObserveGuard
+    from phonesimulator.core.refusals import ObserveGuard
 
     r = await rigged(tmp_path)
     r.instance.capabilities -= {Capability.INPUT_POINTER}

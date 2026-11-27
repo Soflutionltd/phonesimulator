@@ -15,9 +15,9 @@ from starlette.routing import Route, WebSocketRoute
 from starlette.types import Message, Receive, Send
 from starlette.websockets import WebSocket
 
-from rocketwright.protocol import CLOSE_FORBIDDEN
-from rocketwright.server.security import SecurityMiddleware, SiteRules, origin_of
-from rocketwright.testing.asgi import HOST, AsgiSocket
+from phonesimulator.protocol import CLOSE_FORBIDDEN
+from phonesimulator.server.security import SecurityMiddleware, SiteRules, origin_of
+from phonesimulator.testing.asgi import HOST, AsgiSocket
 
 RULES = SiteRules(
     port=7466,

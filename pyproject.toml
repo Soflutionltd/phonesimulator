@@ -1,5 +1,5 @@
 [project]
-name = "rocketwright"
+name = "phonesimulator"
 dynamic = ["version"]
 description = "Mirror and drive iOS Simulators, real iPhones, Android devices and macOS apps from Claude Code, CLI agents and the browser."
 readme = "README.md"
@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Typing :: Typed",
 ]
-# Ranges, not pins: Rocketwright is a library as well as a tool, and a host embedding it keeps its own pins inside these.
+# Ranges, not pins: PhoneSimulator is a library as well as a tool, and a host embedding it keeps its own pins inside these.
 dependencies = [
     "fastapi>=0.115,<1",
     # 0.35+ for the sans-I/O WebSocket implementation, which lets a frame and a keepalive ping wait on a full socket
@@ -32,7 +32,7 @@ dependencies = [
     # idb_companion's gRPC protocol, spoken by the idb connector.
     "grpclib>=0.4.9,<0.5",
     "protobuf>=7.36,<8",
-    # Round-trip TOML for `rocketwright config set`: the configuration file keeps a person's comments.
+    # Round-trip TOML for `phonesimulator config set`: the configuration file keeps a person's comments.
     "tomlkit>=0.13",
     "tomli>=2; python_version < '3.11'",
     # A screenshot's pixels, decoded: a settle wait compares a coarse grid of their brightness (perception.imagehash).
@@ -40,33 +40,33 @@ dependencies = [
 ]
 
 [project.scripts]
-rocketwright = "rocketwright.cli.main:main"
-# The name it had before 3.12, kept so a configuration that runs it goes on working (`rocketwright.legacy`).
-simtrail = "rocketwright.cli.main:main"
+phonesimulator = "phonesimulator.cli.main:main"
+# The name it had before 3.12, kept so a configuration that runs it goes on working (`phonesimulator.legacy`).
+simtrail = "phonesimulator.cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/Soflutionltd/rocketwright"
-Documentation = "https://github.com/Soflutionltd/rocketwright/tree/main/docs"
-Issues = "https://github.com/Soflutionltd/rocketwright/issues"
-Changelog = "https://github.com/Soflutionltd/rocketwright/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Soflutionltd/phonesimulator"
+Documentation = "https://github.com/Soflutionltd/phonesimulator/tree/main/docs"
+Issues = "https://github.com/Soflutionltd/phonesimulator/issues"
+Changelog = "https://github.com/Soflutionltd/phonesimulator/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "src/rocketwright/_version.py"
+path = "src/phonesimulator/_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/rocketwright"]
+packages = ["src/phonesimulator"]
 
-# The native helper's Swift package, and the helper a release built (ROCKETWRIGHT_HELPER_BINARY): see the hook.
+# The native helper's Swift package, and the helper a release built (PHONESIMULATOR_HELPER_BINARY): see the hook.
 [tool.hatch.build.targets.wheel.hooks.custom]
 path = "scripts/hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/rocketwright",
+    "src/phonesimulator",
     "protocol",
     "helper/Package.swift",
     "helper/Sources",
@@ -100,7 +100,7 @@ target-version = "py310"
 line-length = 120
 src = ["src", "tests", "scripts", "benchmarks"]
 # Generated code: the idb stubs, and the protocol module scripts/gen_protocol.py writes.
-extend-exclude = ["src/rocketwright/connectors/idb/proto", "src/rocketwright/protocol/_generated.py"]
+extend-exclude = ["src/phonesimulator/connectors/idb/proto", "src/phonesimulator/protocol/_generated.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
@@ -114,7 +114,7 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 python_version = "3.10"
 strict = true
 files = ["src", "scripts", "benchmarks", "examples"]
-exclude = ["src/rocketwright/connectors/idb/proto/"]
+exclude = ["src/phonesimulator/connectors/idb/proto/"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
@@ -124,7 +124,7 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # Generated protobuf stubs carry no types: read as Any rather than checked.
-module = ["rocketwright.connectors.idb.proto.*"]
+module = ["phonesimulator.connectors.idb.proto.*"]
 ignore_errors = true
 follow_imports = "skip"
 
@@ -142,21 +142,21 @@ markers = [
     # Opts a test out of the guard in tests/conftest.py that refuses to start Xcode's tools, idb_companion, an AI
     # agent or a macOS app opener. Only for tests whose subject is the process layer, running a stand-in binary.
     "allow_subprocess: this test may start a subprocess the guard would refuse",
-    # tests/live: a real simulator, driven only by `make live` with ROCKETWRIGHT_LIVE_UDID set; skipped everywhere else.
+    # tests/live: a real simulator, driven only by `make live` with PHONESIMULATOR_LIVE_UDID set; skipped everywhere else.
     "live: drives a real, booted simulator",
     # tests/live/test_device_live.py: a cabled phone, driven only by `make live-device` with
-    # ROCKETWRIGHT_LIVE_DEVICE_UDID set; skipped everywhere else.
+    # PHONESIMULATOR_LIVE_DEVICE_UDID set; skipped everywhere else.
     "live_device: drives a real, cabled phone",
     # tests/live/test_android_live.py: a running Android emulator, driven only by `make live-android` with
-    # ROCKETWRIGHT_LIVE_ANDROID_UDID set; skipped everywhere else.
+    # PHONESIMULATOR_LIVE_ANDROID_UDID set; skipped everywhere else.
     "live_android: drives a real, running Android emulator",
 ]
 
 [tool.coverage.run]
 branch = true
 # The benchmark and the examples are held to the same coverage as the package.
-source = ["rocketwright", "benchmarks", "examples"]
-omit = ["*/rocketwright/connectors/idb/proto/*"]
+source = ["phonesimulator", "benchmarks", "examples"]
+omit = ["*/phonesimulator/connectors/idb/proto/*"]
 
 [tool.coverage.report]
 precision = 2

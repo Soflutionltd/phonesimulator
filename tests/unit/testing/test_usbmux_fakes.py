@@ -6,9 +6,9 @@ from __future__ import annotations
 import plistlib
 import struct
 
-from rocketwright.platform.usbmux import HEADER, Usbmux, encode
-from rocketwright.testing.fakes import PHONE_UDID
-from rocketwright.testing.usbmux import FakeMuxd, FakeService
+from phonesimulator.platform.usbmux import HEADER, Usbmux, encode
+from phonesimulator.testing.fakes import PHONE_UDID
+from phonesimulator.testing.usbmux import FakeMuxd, FakeService
 
 
 def test_a_service_only_sends_and_usbmuxd_refuses_what_it_does_not_know() -> None:

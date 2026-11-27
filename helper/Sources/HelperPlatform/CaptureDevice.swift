@@ -5,12 +5,12 @@ import Foundation
 import HelperCore
 import ImageIO
 
-/// A cabled real device's screen: the `Device` `rocketwright-helper capture` serves.
+/// A cabled real device's screen: the `Device` `phonesimulator-helper capture` serves.
 ///
 /// It reads the screen only -- touches, typing and the element tree go through WebDriverAgent, not the cable. Nothing
 /// is opened until it warms up, in the background: macOS's Camera permission, which may be asked for the first time
 /// and waited on, then the device among the Mac's capture devices, then its first picture. What stops any of that is
-/// what its hello answers, so Rocketwright says why and reads the screen another way.
+/// what its hello answers, so PhoneSimulator says why and reads the screen another way.
 public final class CaptureDevice: Device, @unchecked Sendable {
     public let coreSimulator: String? = nil
     private let options: CaptureOptions

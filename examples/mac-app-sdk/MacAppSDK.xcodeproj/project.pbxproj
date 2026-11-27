@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
         5D1A00000000000000000060 = {isa = PBXBuildFile; fileRef = 5D1A00000000000000000061; };
-		5D1A00000000000000000028 /* RocketwrightKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5D1A00000000000000000029 /* RocketwrightKit */; };
+		5D1A00000000000000000028 /* PhoneSimulatorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5D1A00000000000000000029 /* PhoneSimulatorKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,7 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5D1A00000000000000000028 /* RocketwrightKit in Frameworks */,
+				5D1A00000000000000000028 /* PhoneSimulatorKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,7 +97,7 @@
 			);
 			name = MacAppSDK;
 			packageProductDependencies = (
-				5D1A00000000000000000029 /* RocketwrightKit */,
+				5D1A00000000000000000029 /* PhoneSimulatorKit */,
 			);
 			productName = MacAppSDK;
 			productReference = 5D1A0000000000000000000A;
@@ -265,7 +265,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = MacAppSDK;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.rocketwright.MacAppSDK;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.phonesimulator.MacAppSDK;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -280,7 +280,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = MacAppSDK;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.rocketwright.MacAppSDK;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.phonesimulator.MacAppSDK;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -293,7 +293,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.rocketwright.MacAppSDK.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.phonesimulator.MacAppSDK.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -306,7 +306,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.rocketwright.MacAppSDK.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.phonesimulator.MacAppSDK.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -351,9 +351,9 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		5D1A00000000000000000029 /* RocketwrightKit */ = {
+		5D1A00000000000000000029 /* PhoneSimulatorKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = RocketwrightKit;
+			productName = PhoneSimulatorKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

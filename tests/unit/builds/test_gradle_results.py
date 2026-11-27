@@ -5,13 +5,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rocketwright.build import gradle_log, junit
-from rocketwright.build.project_files import ending_paths
-from rocketwright.build.xcresult import Flaky, render_build, render_tests
-from rocketwright.testing.fakes import FIXTURES, fixture
+from phonesimulator.build import gradle_log, junit
+from phonesimulator.build.project_files import ending_paths
+from phonesimulator.build.xcresult import Flaky, render_build, render_tests
+from phonesimulator.testing.fakes import FIXTURES, fixture
 
 ROOT = Path("/Users/dev/Groceries")
-TEST = "dev.rocketwright.example.MainActivityTest"
+TEST = "dev.phonesimulator.example.MainActivityTest"
 
 
 def _results(tmp_path: Path, name: str, body: str) -> Path:
@@ -28,7 +28,7 @@ def test_a_kotlin_compile_error_is_placed_in_the_project() -> None:
     summary = gradle_log.read_log(fixture("gradle-kotlin-error.log"), ROOT, succeeded=False, seconds=4.2)
     assert render_build(summary, label="app (debug)", root=ROOT) == [
         "build FAILED · app (debug) · 4.2s · 1 error, 0 warnings",
-        "error app/src/main/kotlin/dev/rocketwright/example/MainActivity.kt:21:26 Initializer type mismatch: expected "
+        "error app/src/main/kotlin/dev/phonesimulator/example/MainActivity.kt:21:26 Initializer type mismatch: expected "
         "'Int', actual 'String'.",
     ]
 

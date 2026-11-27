@@ -1,6 +1,6 @@
 # macOS apps
 
-A macOS target is one app process and one selected window. Rocketwright captures that window through ScreenCaptureKit
+A macOS target is one app process and one selected window. PhoneSimulator captures that window through ScreenCaptureKit
 and delivers input through the app's Debug SDK or its accessibility actions. It never moves the person's pointer,
 activates the app, or posts global keyboard or mouse events. Whole-Mac control (#137) is postponed.
 
@@ -15,34 +15,34 @@ another. `sim_device health` checks the selected app's capture, hierarchy and in
 
 The native helper needs **Screen Recording** in System Settings → Privacy & Security. **Accessibility** is needed
 for apps without the SDK. Grant these to the installed helper,
-`~/Library/Application Support/Rocketwright/helper/rocketwright-helper` (`rocketwright helper status` and `rocketwright doctor`
-name it, with which permissions it holds), rather than to Python or to a copy inside a package cache. `rocketwright helper
+`~/Library/Application Support/PhoneSimulator/helper/phonesimulator-helper` (`phonesimulator helper status` and `phonesimulator doctor`
+name it, with which permissions it holds), rather than to Python or to a copy inside a package cache. `phonesimulator helper
 allow` opens the two lists in System Settings and shows the helper in the Finder, to drag it in: macOS lets only a
-person grant them. Every Rocketwright version copies its helper to that
+person grant them. Every PhoneSimulator version copies its helper to that
 one path, replacing the previous copy in a single rename.
 
-macOS keeps a grant for a program's path *and* its designated requirement. The helper Rocketwright ships is signed ad hoc,
+macOS keeps a grant for a program's path *and* its designated requirement. The helper PhoneSimulator ships is signed ad hoc,
 whose requirement is its hash, so each new version would need the grant again. Run this once on a Mac:
 
 ```sh
-rocketwright helper sign
+phonesimulator helper sign
 ```
 
-It makes a code-signing certificate for this Mac, in a keychain of Rocketwright's own under its state folder (the login
-keychain is not touched; Rocketwright's is on the keychain search list only while a helper is signed), and macOS asks for your password once to trust it for code signing. From then on the
+It makes a code-signing certificate for this Mac, in a keychain of PhoneSimulator's own under its state folder (the login
+keychain is not touched; PhoneSimulator's is on the keychain search list only while a helper is signed), and macOS asks for your password once to trust it for code signing. From then on the
 installed helper is signed with it, its requirement names that certificate, and a grant made once is kept across
 upgrades. Allow the helper after signing it; an entry made for an earlier, ad hoc copy should be removed and added
 again. With a signing identity of your own -- a Developer ID, say -- name it once and no certificate is made:
 
 ```sh
-rocketwright helper sign --identity "Developer ID Application: Your Name (TEAMID)"
+phonesimulator helper sign --identity "Developer ID Application: Your Name (TEAMID)"
 ```
 
-It is kept in Rocketwright's state folder, so every later install signs with it, whoever installs the helper -- a daemon
+It is kept in PhoneSimulator's state folder, so every later install signs with it, whoever installs the helper -- a daemon
 started by any MCP client, or a command in your terminal; `--identity ""` goes back to this Mac's own certificate.
-`ROCKETWRIGHT_HELPER_SIGN_IDENTITY` names one for a single run.
+`PHONESIMULATOR_HELPER_SIGN_IDENTITY` names one for a single run.
 
-`rocketwright doctor` reads the helper's last nonprompting permission report; it does not request a grant. A report
+`phonesimulator doctor` reads the helper's last nonprompting permission report; it does not request a grant. A report
 from an earlier helper run is evidence of that run, not a fresh permission check.
 
 For development, keep the helper's signing identity stable across rebuilds:
@@ -53,7 +53,7 @@ make helper-build HELPER_SIGN_IDENTITY="Apple Development: YOUR IDENTITY"
 ```
 
 The helper has a fixed signing identifier. Ad-hoc signing remains the default, including `make helper-release`;
-replacing an ad-hoc binary can invalidate its permissions, unless `rocketwright helper sign` signs the installed copy. Stop this checkout's helper sessions before rebuilding.
+replacing an ad-hoc binary can invalidate its permissions, unless `phonesimulator helper sign` signs the installed copy. Stop this checkout's helper sessions before rebuilding.
 Do not stop helpers owned by another daemon. macOS may periodically ask again for Screen Recording access. The
 cadence on macOS 26 has not been established by these checks; do not promise a fixed renewal interval.
 
@@ -61,17 +61,17 @@ cadence on macOS 26 has not been established by these checks; do not promise a f
 
 | Mode | Use it for | Input and hierarchy |
 |---|---|---|
-| A: RocketwrightKit | Your native AppKit or SwiftUI Debug app | Own views and public accessibility selectors, optional SwiftUI debug data; in-process control, text and menu actions |
+| A: PhoneSimulatorKit | Your native AppKit or SwiftUI Debug app | Own views and public accessibility selectors, optional SwiftUI debug data; in-process control, text and menu actions |
 | B: per-process Accessibility | Apps without the SDK, including Catalyst, Designed for iPad and Tauri | One `AXUIElementCreateApplication(pid)` root, with PID checks on every element; only actions the app exposes |
 | C: Debug web bridge | Webviews with missing AX actions, controlled-input or canvas gaps | A host hook registers its own webview and native window; a small in-page adapter reads DOM nodes and dispatches page events |
 
-Mode A is compiled out of Release, previews and extensions. Link the `RocketwrightKit` Swift package product and call
-`Rocketwright.start()` early in the app. See [the SDK guide](app-sdk.md#macos) and [the native sample](../examples/mac-app-sdk/README.md).
+Mode A is compiled out of Release, previews and extensions. Link the `PhoneSimulatorKit` Swift package product and call
+`PhoneSimulator.start()` early in the app. See [the SDK guide](app-sdk.md#macos) and [the native sample](../examples/mac-app-sdk/README.md).
 SwiftUI accessibility nodes need not declare `NSAccessibilityProtocol`; the walker reads their public selectors.
 Optional SwiftUI debug data is limited to macOS 26. Secure-field values are never included in a hierarchy.
 
 A sandboxed Debug app needs `com.apple.security.network.server` to listen on loopback. Its listing belongs under its
-container's `Library/Application Support/Rocketwright/apps`; an unsandboxed app uses the same path under its home.
+container's `Library/Application Support/PhoneSimulator/apps`; an unsandboxed app uses the same path under its home.
 The daemon checks only the selected bundle's normal and container paths. Listings must be owned by the current user,
 mode 0600, regular files without symlinks, and match the selected live PID. Each launch uses a new secret, sent in
 an Authorization header. No secret belongs in a URL, argv, source file or log.
@@ -104,19 +104,19 @@ It restores only attributes it changed from a readable previous value, and never
 Electron's convention is not a guarantee for CEF: a windowed CEF browser exposes no web subtree until its host turns
 renderer accessibility on. A CEF 149 desktop host inspected for this work exposed native UI only.
 
-An AppKit app built with RocketwrightKit is told when to turn such an engine's accessibility on: the SDK posts
-`Rocketwright.accessibilityWanted` as it starts answering Rocketwright (`userInfo["wanted"]` true) and as it stops
+An AppKit app built with PhoneSimulatorKit is told when to turn such an engine's accessibility on: the SDK posts
+`PhoneSimulator.accessibilityWanted` as it starts answering PhoneSimulator (`userInfo["wanted"]` true) and as it stops
 (false), and the app enables its engine's renderer accessibility there.
 
 For CEF hosts, the [Debug CEF host adapter](../sdk/cef/README.md) covers both gaps. Its accessibility hook (step 1,
 for every build) lets VoiceOver and Mode B read the page. Its Debug bridge serves Mode C with trusted in-process input:
 CEF mouse events, and DevTools input over `ExecuteDevToolsMethod`, with no remote-debugging port. Keys, chords, text,
 scrolls, hover, drags, long presses, context-menu items and menu paths then work while the window is in the
-background. The host integrates it explicitly; Rocketwright does not inject into an installed process or alter its binary.
+background. The host integrates it explicitly; PhoneSimulator does not inject into an installed process or alter its binary.
 
 ## Windows, capture and coordinates
 
-`sim_device windows` lists this process's windows. Unless one is selected, Rocketwright shows the largest real app
+`sim_device windows` lists this process's windows. Unless one is selected, PhoneSimulator shows the largest real app
 window: on screen, at the normal window level and at least 64 points each way -- never a menu-bar or status-item strip.
 An app that has not shown such a window yet (one waiting on a Keychain prompt, say) is refused with "no window of this
 process matches", and the next call tries again. When the window shown ends, or the app is replaced by a new process,

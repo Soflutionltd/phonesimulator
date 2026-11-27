@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "device": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/Soflutionltd/phonesimulator", "phonesimulator", "mcp"]
+    }
+  }
+}

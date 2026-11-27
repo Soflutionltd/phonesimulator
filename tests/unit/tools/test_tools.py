@@ -15,15 +15,15 @@ from typing import Any
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.config.model import SimConfig
-from rocketwright.config.schema import BY_KEY, Whole
-from rocketwright.connectors.base import Capability, ConnectorError, ConnectorUnavailable
-from rocketwright.core.actions import AgentActions
-from rocketwright.perception.ocr import OcrReaders
-from rocketwright.protocol import CLOSE_RESTARTING, CLOSE_STOPPED
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import (
+from phonesimulator._version import __version__
+from phonesimulator.config.model import SimConfig
+from phonesimulator.config.schema import BY_KEY, Whole
+from phonesimulator.connectors.base import Capability, ConnectorError, ConnectorUnavailable
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.perception.ocr import OcrReaders
+from phonesimulator.protocol import CLOSE_RESTARTING, CLOSE_STOPPED
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import (
     FULL_CONTROL,
     JPEG,
     PHONE_UDID,
@@ -34,14 +34,14 @@ from rocketwright.testing.fakes import (
     made,
     no_wait,
 )
-from rocketwright.testing.results import structured
-from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, closer_log, scope
-from rocketwright.testing.vision import FakeTextRecognizer
-from rocketwright.tools.context import READY_WAIT_S, STARTING_MARGIN_S, STARTING_WAIT_MAX_S, ToolContext, ready_device
-from rocketwright.tools.device import HEALTH_READ_S, NO_SESSION, NOT_RESTARTED, VERSION_LINE
-from rocketwright.tools.registry import ToolRegistry
-from rocketwright.tools.results import SHUT_DOWN, Result, text
-from rocketwright.tools.snapshot import MAX_ELEMENTS
+from phonesimulator.testing.results import structured
+from phonesimulator.testing.rig import VIEW_ONLY, DeviceRig, closer_log, scope
+from phonesimulator.testing.vision import FakeTextRecognizer
+from phonesimulator.tools.context import READY_WAIT_S, STARTING_MARGIN_S, STARTING_WAIT_MAX_S, ToolContext, ready_device
+from phonesimulator.tools.device import HEALTH_READ_S, NO_SESSION, NOT_RESTARTED, VERSION_LINE
+from phonesimulator.tools.registry import ToolRegistry
+from phonesimulator.tools.results import SHUT_DOWN, Result, text
+from phonesimulator.tools.snapshot import MAX_ELEMENTS
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 REGISTRY = ToolRegistry()
@@ -120,7 +120,7 @@ async def test_a_tool_the_connector_cannot_serve_is_refused_with_the_connector_a
     refused = await use(rig, "sim_snapshot", {"mode": "full"})
     assert refused == text(
         "sim_snapshot needs element_tree, which the simctl connector showing this device cannot do (the idb "
-        "connector is switched off in this test). Run `rocketwright doctor` to see why.",
+        "connector is switched off in this test). Run `phonesimulator doctor` to see why.",
         error=True,
     ), "the cause -- why a lesser connector shows it -- and where the fix is"
     assert "sim_act needs input_touch, which the simctl connector" in said(await use(rig, "sim_act", {"steps": []}))
@@ -139,11 +139,11 @@ async def test_device_info_does_not_start_one_boot_does_and_both_give_the_build_
     booted = await use(rig, "sim_device", {"action": "boot"})
     assert booted["isError"] is False
     assert said(booted) == (
-        f"Rocketwright · alpha · tp-1 · iOS 26.5 · ready · 402x874pt @3x\nudid {made(1)}\n"
+        f"PhoneSimulator · alpha · tp-1 · iOS 26.5 · ready · 402x874pt @3x\nudid {made(1)}\n"
         f"build for: -destination 'platform=iOS Simulator,id={made(1)}'"
     )
     assert said(await use(rig, "sim_device", {"action": "info"})) == f"{said(booted)}\n{VERSION_LINE}"
-    assert f"rocketwright {__version__}" == VERSION_LINE, "info ends with the version answering"
+    assert f"phonesimulator {__version__}" == VERSION_LINE, "info ends with the version answering"
     assert said(await use(rig, "sim_device", {"action": "appearance", "mode": "dark"})) == "appearance dark"
     assert ("simctl", "ui", made(1), "appearance", "dark") in rig.argv()
     assert await use(rig, "sim_device", {"action": "appearance"}) == text(
@@ -250,7 +250,7 @@ async def test_rotate_is_refused_where_nothing_can_turn_the_device(tmp_path: Pat
     refused = await use(old, "sim_device", {"action": "rotate", "to": "portrait"})
     assert said(refused) == (
         "the native connector showing this device cannot turn it; the native helper here was built before it "
-        "could, and `rocketwright helper build` builds it again"
+        "could, and `phonesimulator helper build` builds it again"
     )
     real = DeviceRig(
         tmp_path / "real", phones=FakePhoneBackend(), phone=FakeConnector("phone", kinds=frozenset({"physical"}))
@@ -264,14 +264,14 @@ async def test_restart_shuts_the_device_down_and_brings_it_back_unless_tests_are
     rig = DeviceRig(tmp_path)
     # Nothing running yet: a restart is a boot.
     fresh = await use(rig, "sim_device", {"action": "restart"})
-    assert said(fresh).startswith("restarted · Rocketwright · alpha · tp-1 · iOS 26.5 · ready")
+    assert said(fresh).startswith("restarted · PhoneSimulator · alpha · tp-1 · iOS 26.5 · ready")
     assert ("simctl", "shutdown", made(1)) not in rig.argv()
     first = rig.manager.instance(CALLER.scope)
     assert first is not None
     closed, close = closer_log()
     rig.manager.attach(first, close)
     restarted = await use(rig, "sim_device", {"action": "restart"})
-    assert restarted["isError"] is False and said(restarted).startswith("restarted · Rocketwright · alpha · tp-1")
+    assert restarted["isError"] is False and said(restarted).startswith("restarted · PhoneSimulator · alpha · tp-1")
     assert ("simctl", "shutdown", made(1)) in rig.argv()
     # A window watching is told the device will be back, so it reconnects rather than offering to start it.
     assert closed == [(CLOSE_RESTARTING, "the simulator is restarting")]
@@ -294,7 +294,7 @@ async def test_stop_ends_the_session_and_shuts_the_simulator_down_only_when_aske
     rig.manager.attach(first, close)
     stopped = await use(rig, "sim_device", {"action": "stop"})
     assert stopped == text(
-        "stopped Rocketwright · alpha · tp-1: the simulator keeps running, and shutdown: true shuts it down too. The "
+        "stopped PhoneSimulator · alpha · tp-1: the simulator keeps running, and shutdown: true shuts it down too. The "
         "next "
         "call that needs the device starts it again."
     )
@@ -310,7 +310,7 @@ async def test_stop_ends_the_session_and_shuts_the_simulator_down_only_when_aske
     )
     second.busy = None
     down = await use(rig, "sim_device", {"action": "stop", "shutdown": True})
-    assert said(down).startswith("stopped Rocketwright · alpha · tp-1: the simulator is shut down.")
+    assert said(down).startswith("stopped PhoneSimulator · alpha · tp-1: the simulator is shut down.")
     assert ("simctl", "shutdown", made(1)) in rig.argv() and second.state == "stopped"
 
 
@@ -320,7 +320,7 @@ async def test_stop_never_shuts_down_a_simulator_another_scope_uses_nor_a_real_d
     shared = await rig.up("tp-1")
     assert await rig.up("tp-2") is shared
     kept = await use(rig, "sim_device", {"action": "stop", "shutdown": True})
-    assert said(kept).startswith("stopped Rocketwright · alpha: another project still uses it, so it keeps running.")
+    assert said(kept).startswith("stopped PhoneSimulator · alpha: another project still uses it, so it keeps running.")
     assert (
         shared.state == "ready" and shared.scopes == {"tp-2"} and ("simctl", "shutdown", shared.udid) not in rig.argv()
     )
@@ -330,12 +330,12 @@ async def test_stop_never_shuts_down_a_simulator_another_scope_uses_nor_a_real_d
     await real.up()
     left = await use(real, "sim_device", {"action": "stop", "shutdown": True})
     assert said(left).startswith(
-        "stopped Test iPhone: a real device is never shut down by Rocketwright, so it stays on."
+        "stopped Test iPhone: a real device is never shut down by PhoneSimulator, so it stays on."
     )
     assert phones.released == [(PHONE_UDID, False)] and real.manager.instance(CALLER.scope) is None
 
 
-async def test_a_device_shut_down_outside_rocketwright_says_so_and_its_session_ends(tmp_path: Path) -> None:
+async def test_a_device_shut_down_outside_phonesimulator_says_so_and_its_session_ends(tmp_path: Path) -> None:
     rig = DeviceRig(tmp_path)
     instance = await rig.up()
     rig.set_state(instance.udid, "Shutdown")
@@ -410,7 +410,7 @@ async def test_a_device_still_booting_is_waited_for_and_one_that_cannot_start_sa
     failing.config.set(enabled=False)
     assert (
         said(await use(failing, "sim_snapshot", {}))
-        == "The iOS Simulator is off for this project (`rocketwright config`)."
+        == "The iOS Simulator is off for this project (`phonesimulator config`)."
     )
 
 
@@ -488,9 +488,9 @@ async def test_partial_action_results_distinguish_completed_work_from_an_uncerta
 
 
 def test_advertised_action_examples_pass_the_actual_parsers() -> None:
-    from rocketwright.core.actions import check_steps
-    from rocketwright.perception.wait import parse_wait
-    from rocketwright.tools.schemas import SCHEMAS
+    from phonesimulator.core.actions import check_steps
+    from phonesimulator.perception.wait import parse_wait
+    from phonesimulator.tools.schemas import SCHEMAS
 
     props = SCHEMAS["sim_act"][1]["properties"]
     for steps in props["steps"]["examples"]:
@@ -739,7 +739,7 @@ async def test_an_agent_lists_the_devices_it_could_use_and_switches_to_one_its_v
     await use(rig, "sim_device", {"action": "boot"})
     lines = said(await use(rig, "sim_device", {"action": "list"})).splitlines()
     here = next(line for line in lines if made(1) in line)
-    assert here.startswith("simulator · Rocketwright · alpha · tp-1 · iOS 26.5") and here.endswith("in use here")
+    assert here.startswith("simulator · PhoneSimulator · alpha · tp-1 · iOS 26.5") and here.endswith("in use here")
     assert f"real device · Test iPhone · iOS 26.3 · Connected · usb · udid {PHONE_UDID}" in lines
     running = rig.manager.instance(CALLER.scope)
     assert running is not None
@@ -761,7 +761,7 @@ async def test_an_agent_lists_the_devices_it_could_use_and_switches_to_one_its_v
     assert busy == text("the device is busy: a test run", error=True)
     phone.busy = None
     assert said(await use(rig, "sim_device", {"action": "choose", "udid": made(1)})).startswith(
-        "now using Rocketwright"
+        "now using PhoneSimulator"
     )
 
 
@@ -843,7 +843,7 @@ async def test_health_says_whether_the_device_can_be_seen_read_and_touched_now_e
     rig = DeviceRig(tmp_path)
     assert said(await use(rig, "sim_device", {"action": "health"})).splitlines() == [
         "verdict: ready to drive",
-        "device: Rocketwright · alpha · tp-1 · ready",
+        "device: PhoneSimulator · alpha · tp-1 · ready",
         "screen: yes, live",
         "reading: yes, its elements (idb), read now",
         "touch: yes",
@@ -984,7 +984,7 @@ async def test_health_shows_the_screen_note_and_the_last_error_even_when_touch_w
     phone = FakeConnector("phone", kinds=frozenset({"physical"}))
     rig = DeviceRig(tmp_path, phones=FakePhoneBackend(), phone=phone)
     await rig.manager.choose(CALLER.scope, PHONE_UDID)
-    camera = "macOS has not let rocketwright-helper use the Camera"
+    camera = "macOS has not let phonesimulator-helper use the Camera"
     phone.helper_error = camera
     phone.trouble[PHONE_UDID] = "WebDriverAgent ended on the device (exit 1) (at 18:26:04)"
     lines = said(await use(rig, "sim_device", {"action": "health"})).splitlines()
@@ -1083,9 +1083,9 @@ async def test_health_of_a_device_whose_tree_is_still_being_built_reads_its_pixe
 async def test_mac_selection_windows_restart_and_stop_are_app_scoped(tmp_path: Path) -> None:
     from unittest.mock import AsyncMock
 
-    from rocketwright.core.mac_backend import MacBackend
-    from rocketwright.platform.macos import MacApp
-    from rocketwright.testing.macos import FakeMacOS
+    from phonesimulator.core.mac_backend import MacBackend
+    from phonesimulator.platform.macos import MacApp
+    from phonesimulator.testing.macos import FakeMacOS
 
     app = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
     fake = FakeMacOS(app)
@@ -1122,9 +1122,9 @@ async def test_mac_selection_windows_restart_and_stop_are_app_scoped(tmp_path: P
 
 
 async def test_mac_app_lifecycle_replaces_the_process_bound_session(tmp_path: Path) -> None:
-    from rocketwright.core.mac_backend import MacBackend
-    from rocketwright.platform.macos import MacApp
-    from rocketwright.testing.macos import FakeMacOS
+    from phonesimulator.core.mac_backend import MacBackend
+    from phonesimulator.platform.macos import MacApp
+    from phonesimulator.testing.macos import FakeMacOS
 
     app = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
     fake = FakeMacOS(app)
@@ -1155,8 +1155,8 @@ async def test_mac_app_lifecycle_replaces_the_process_bound_session(tmp_path: Pa
 
 
 def test_mac_install_accepts_native_and_ipad_bundles_with_the_same_root_rules(tmp_path: Path) -> None:
-    from rocketwright.tools.app import installable
-    from rocketwright.tools.results import ToolRefused
+    from phonesimulator.tools.app import installable
+    from phonesimulator.tools.results import ToolRefused
 
     app = folder(tmp_path / "Native.app")
     folder(app / "Contents").joinpath("Info.plist").write_text("<plist/>")

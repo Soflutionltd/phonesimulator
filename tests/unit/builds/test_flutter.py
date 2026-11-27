@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from rocketwright.build.flutter import (
+from phonesimulator.build.flutter import (
     DEFINES_FILE,
     RESULTS_FILE,
     FlutterToolchain,
@@ -23,16 +23,16 @@ from rocketwright.build.flutter import (
     project_ids,
     project_name,
 )
-from rocketwright.build.flutter_run import FlutterSessions
-from rocketwright.build.runner import Build, BuildRefused, Runner
-from rocketwright.build.source import Source
-from rocketwright.build.stamp import APK_STAMP, SHA_KEY
-from rocketwright.platform.adb import AdbError
-from rocketwright.platform.flutter import FlutterSdk
-from rocketwright.platform.java import Jdk
-from rocketwright.platform.xcrun import XcrunResult
-from rocketwright.testing.fakes import MemoryStateStore, fixture
-from rocketwright.testing.flutter import (
+from phonesimulator.build.flutter_run import FlutterSessions
+from phonesimulator.build.runner import Build, BuildRefused, Runner
+from phonesimulator.build.source import Source
+from phonesimulator.build.stamp import APK_STAMP, SHA_KEY
+from phonesimulator.platform.adb import AdbError
+from phonesimulator.platform.flutter import FlutterSdk
+from phonesimulator.platform.java import Jdk
+from phonesimulator.platform.xcrun import XcrunResult
+from phonesimulator.testing.fakes import MemoryStateStore, fixture
+from phonesimulator.testing.flutter import (
     ANDROID_ID,
     COMPILE_ERROR,
     IOS_ID,
@@ -42,7 +42,7 @@ from rocketwright.testing.flutter import (
     Play,
     flutter_project,
 )
-from rocketwright.testing.rig import scope
+from phonesimulator.testing.rig import scope
 
 SCOPE = scope("topic-1", "ws")
 SIMULATOR = "8592C53F-15E4-41BC-BE49-D19F08BE74BE"
@@ -336,7 +336,7 @@ async def test_dart_defines_that_cannot_be_written_whole_are_not_left_in_part(
         file.write('{"TOKEN": ')
         raise OSError("no space left on device")
 
-    monkeypatch.setattr("rocketwright.build.flutter.json.dump", full)
+    monkeypatch.setattr("phonesimulator.build.flutter.json.dump", full)
     with pytest.raises(OSError, match="no space left on device"):
         await rig.begin(dart_defines={"TOKEN": "t"})
     assert rig.defines_left() == []
@@ -564,7 +564,7 @@ async def test_an_apk_is_stamped_beside_it_on_an_emulator_and_never_on_a_phone(r
     rig.flutter.then(Play(app=ANDROID_ID))
     build, _ = await rig.answer(udid=PHONE)
     assert (await rig.runner.stamped(build))[1] == (
-        "not stamped: Rocketwright writes nothing to an Android phone but the app it installs"
+        "not stamped: PhoneSimulator writes nothing to an Android phone but the app it installs"
     )
 
 

@@ -10,10 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.build.flutter_run import FlutterSession, FlutterSessions, SessionGone, StartingRun
-from rocketwright.build.xcresult import Issue
-from rocketwright.testing.flutter import APP_ID, COMPILE_ERROR, SDK, FakeFlutterRun, FakeRunProcess, Reload
-from rocketwright.testing.rig import scope
+from phonesimulator.build.flutter_run import FlutterSession, FlutterSessions, SessionGone, StartingRun
+from phonesimulator.build.xcresult import Issue
+from phonesimulator.testing.flutter import APP_ID, COMPILE_ERROR, SDK, FakeFlutterRun, FakeRunProcess, Reload
+from phonesimulator.testing.rig import scope
 
 SCOPE = scope("topic-1", "ws")
 UDID = "8592C53F-15E4-41BC-BE49-D19F08BE74BE"

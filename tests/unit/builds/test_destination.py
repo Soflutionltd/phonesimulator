@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import pytest
 
-from rocketwright.build.destination import LISTED_MAX, TEXT_MAX, USAGE, choose_destination
-from rocketwright.build.xcodebuild import BuildRefused
-from rocketwright.protocol import DeviceChoice
+from phonesimulator.build.destination import LISTED_MAX, TEXT_MAX, USAGE, choose_destination
+from phonesimulator.build.xcodebuild import BuildRefused
+from phonesimulator.protocol import DeviceChoice
 
 AIR = "3AEF58CA-1341-4C5D-A09A-EEB4CCDA8BD5"
 AIR_OLD = "9F8B988D-A7DE-4B6E-A9FF-11C77C00F59F"

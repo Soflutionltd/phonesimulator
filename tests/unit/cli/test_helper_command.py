@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``rocketwright helper``: which native helper is used and why not, and building one with Xcode -- without Xcode."""
+"""``phonesimulator helper``: which native helper is used and why not, and building one with Xcode -- without Xcode."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.cli.context import CliContext
-from rocketwright.cli.main import main
-from rocketwright.connectors.native.helper import PROGRAM, built_helper
-from rocketwright.platform.xcrun import XcrunResult
-from rocketwright.testing.fakes import FakeXcrun
+from phonesimulator._version import __version__
+from phonesimulator.cli.context import CliContext
+from phonesimulator.cli.main import main
+from phonesimulator.connectors.native.helper import PROGRAM, built_helper
+from phonesimulator.platform.xcrun import XcrunResult
+from phonesimulator.testing.fakes import FakeXcrun
 
 THIS = json.dumps({"version": __version__, "wire": 1, "core_simulator": "1171.7"})
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
@@ -39,7 +39,7 @@ class Here:
         self.installed = state / "helper" / PROGRAM
         (root / "config.toml").write_text(f'[device]\ndeveloper_dir = "{XCODE_27}"\n')
         self.ctx = CliContext(
-            env={"ROCKETWRIGHT_STATE_DIR": str(state), "ROCKETWRIGHT_CONFIG": str(root / "config.toml")},
+            env={"PHONESIMULATOR_STATE_DIR": str(state), "PHONESIMULATOR_CONFIG": str(root / "config.toml")},
             cwd=root,
             stdout=self.out,
             stderr=self.err,
@@ -79,7 +79,7 @@ def test_status_without_a_helper_says_how_to_build_one(tmp_path: Path) -> None:
     here = Here(tmp_path, sources=tmp_path / "helper")
     assert here("helper") == 1
     said = here.said()
-    assert "native helper: none" in said and "usable: no -- Rocketwright's native helper is not built" in said
+    assert "native helper: none" in said and "usable: no -- PhoneSimulator's native helper is not built" in said
     assert f"built for this version: {here.built} (not built)" in said
     assert f"installed at: {here.installed} (not installed)" in said
     assert f"Swift sources: {tmp_path / 'helper'}" in said
@@ -142,7 +142,7 @@ def test_build_builds_with_the_scopes_xcode_and_puts_the_helper_where_it_is_foun
     ("setup", "complaint"),
     [
         ("fails", "did not build: error: no such module"),
-        ("empty", "the build finished without a rocketwright-helper"),
+        ("empty", "the build finished without a phonesimulator-helper"),
         ("old", "says version 0.9.0 (wire 1)"),
         ("silent", "says nothing readable"),
     ],
@@ -170,7 +170,7 @@ class Signing:
         self.configured = identity
 
     def set_up(self) -> str:
-        from rocketwright.platform.local_signing import SigningError
+        from phonesimulator.platform.local_signing import SigningError
 
         if self.refuses:
             raise SigningError("could not trust the certificate for code signing")
@@ -187,7 +187,7 @@ class Signing:
 def test_sign_makes_this_macs_certificate_once_and_installs_the_helper_signed_with_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from rocketwright.cli import helper as command
+    from phonesimulator.cli import helper as command
 
     signing = Signing()
     monkeypatch.setattr(command, "LocalSigning", lambda *_, **__: signing)
@@ -208,13 +208,13 @@ def test_sign_makes_this_macs_certificate_once_and_installs_the_helper_signed_wi
 def test_status_says_how_to_keep_a_grant_when_the_helper_is_signed_as_shipped(tmp_path: Path) -> None:
     here = Here(tmp_path)
     here("helper", "status")
-    assert "signed by: as shipped -- run `rocketwright helper sign` once" in here.said()
+    assert "signed by: as shipped -- run `phonesimulator helper sign` once" in here.said()
 
 
 def test_sign_with_an_identity_of_yours_keeps_it_and_makes_no_certificate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from rocketwright.cli import helper as command
+    from phonesimulator.cli import helper as command
 
     signing = Signing()
     monkeypatch.setattr(command, "LocalSigning", lambda *_, **__: signing)
@@ -241,7 +241,7 @@ def test_status_says_which_permissions_the_helper_holds_and_where_to_allow_the_o
     assert here("helper", "status") == 0
     assert (
         "permissions: Accessibility allowed, Screen Recording not allowed -- allow the helper in System Settings > "
-        "Privacy & Security > Screen Recording (`rocketwright helper allow` opens them)"
+        "Privacy & Security > Screen Recording (`phonesimulator helper allow` opens them)"
     ) in here.said()
     here.out.truncate(0)
     here.out.seek(0)

@@ -6,11 +6,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from rocketwright.config.model import SimConfig
-from rocketwright.core.signing import MAC_TEAMS_S, SigningTeam, SigningTeams, folder_team
-from rocketwright.platform.keychain import Team
-from rocketwright.scope import Scope
-from rocketwright.testing.fakes import ManualClock
+from phonesimulator.config.model import SimConfig
+from phonesimulator.core.signing import MAC_TEAMS_S, SigningTeam, SigningTeams, folder_team
+from phonesimulator.platform.keychain import Team
+from phonesimulator.scope import Scope
+from phonesimulator.testing.fakes import ManualClock
 
 NOW = datetime(2026, 9, 29, tzinfo=timezone.utc)
 FAR = datetime(2126, 1, 1, tzinfo=timezone.utc)

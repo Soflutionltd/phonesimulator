@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>dev.rocketwright.helper</string>
+	<string>dev.phonesimulator.helper</string>
 	<key>CFBundleName</key>
-	<string>Rocketwright helper</string>
+	<string>PhoneSimulator helper</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Rocketwright shows a cabled iPhone's or iPad's screen, the way QuickTime does. It reads only the device's screen, never a camera.</string>
+	<string>PhoneSimulator shows a cabled iPhone's or iPad's screen, the way QuickTime does. It reads only the device's screen, never a camera.</string>
 </dict>
 </plist>

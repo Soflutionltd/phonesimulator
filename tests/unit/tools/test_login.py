@@ -19,25 +19,25 @@ from urllib.parse import quote
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.core.actions import AgentActions
-from rocketwright.core.activity import of_call
-from rocketwright.core.drivers import changes_device
-from rocketwright.core.given import GivenLogins
-from rocketwright.core.instance import DeviceInstance
-from rocketwright.platform import passwords
-from rocketwright.platform.passwords import Credentials, Ran
-from rocketwright.platform.xcrun import XcrunResult
-from rocketwright.protocol import Connection, DeviceKind, RecordingState
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import FakeConnector, FakeEngine, FakeKeyboard, no_wait
-from rocketwright.testing.results import structured
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.tools import login as login_tool
-from rocketwright.tools.context import ToolContext
-from rocketwright.tools.login import Logins, LoginToolProvider
-from rocketwright.tools.registry import DeviceToolProvider, ToolRegistry
-from rocketwright.tools.results import Result
+from phonesimulator.config.model import SimConfig
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.core.activity import of_call
+from phonesimulator.core.drivers import changes_device
+from phonesimulator.core.given import GivenLogins
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.platform import passwords
+from phonesimulator.platform.passwords import Credentials, Ran
+from phonesimulator.platform.xcrun import XcrunResult
+from phonesimulator.protocol import Connection, DeviceKind, RecordingState
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import FakeConnector, FakeEngine, FakeKeyboard, no_wait
+from phonesimulator.testing.results import structured
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.tools import login as login_tool
+from phonesimulator.tools.context import ToolContext
+from phonesimulator.tools.login import Logins, LoginToolProvider
+from phonesimulator.tools.registry import DeviceToolProvider, ToolRegistry
+from phonesimulator.tools.results import Result
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 USERNAME = "ann@example.com"
@@ -739,7 +739,7 @@ async def test_a_login_with_no_username_types_only_the_password_and_leaves_the_u
     assert r.pasted() == [PASSWORD.encode(), b""]
 
 
-# -- a login handed over by rocketwright login
+# -- a login handed over by phonesimulator login
 # ---------------------------------------------------------------------------
 
 
@@ -759,6 +759,6 @@ async def test_a_login_handed_over_is_typed_once_without_asking_any_password_man
     other = given.give("tp-9", "com.example.notes", "Example", Credentials(USERNAME, PASSWORD))
     assert (await r.login(source="given", item=other))["isError"] is True, "for another scope"
     bare = await r.login(source="given")
-    assert bare["isError"] is True and said(bare) == 'source "given" takes the item rocketwright login handed over'
+    assert bare["isError"] is True and said(bare) == 'source "given" takes the item phonesimulator login handed over'
     off = await r.login(account=USERNAME)
     assert off["isError"] is True and "sim_login is off" in said(off), "an agent alone still needs login.sources"

@@ -6,11 +6,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rocketwright.core.backends import DeviceBackend
-from rocketwright.core.instance import READY, STOPPED
-from rocketwright.protocol import DeviceKind
-from rocketwright.storage.claims import Claims
-from rocketwright.testing.fakes import (
+from phonesimulator.core.backends import DeviceBackend
+from phonesimulator.core.instance import READY, STOPPED
+from phonesimulator.protocol import DeviceKind
+from phonesimulator.storage.claims import Claims
+from phonesimulator.testing.fakes import (
     BOOTED_UDID,
     EMULATOR_UDID,
     PHONE_UDID,
@@ -19,7 +19,7 @@ from rocketwright.testing.fakes import (
     FakePhoneBackend,
     fixture_udid,
 )
-from rocketwright.testing.rig import DeviceRig, scope
+from phonesimulator.testing.rig import DeviceRig, scope
 
 SHUTDOWN_UDID = fixture_udid("iPhone 17 Pro Max")
 TP1, TP2 = scope("tp-1"), scope("tp-2")

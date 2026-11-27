@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""What WebDriverAgent does for a session: strokes as W3C actions, keys as text, and its tree as Rocketwright's."""
+"""What WebDriverAgent does for a session: strokes as W3C actions, keys as text, and its tree as PhoneSimulator's."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.base import ConnectorError, HidEvent, Screen
-from rocketwright.connectors.iphone.wda_client import SOURCE_MAX_CHILDREN, WdaClient, WdaError
-from rocketwright.connectors.iphone.wda_roles import (
+from phonesimulator.connectors.base import ConnectorError, HidEvent, Screen
+from phonesimulator.connectors.iphone.wda_client import SOURCE_MAX_CHILDREN, WdaClient, WdaError
+from phonesimulator.connectors.iphone.wda_roles import (
     ACTIVE_APP_PATH,
     COLD_SOURCE_TIMEOUT_S,
     EXCLUDED,
@@ -36,13 +36,13 @@ from rocketwright.connectors.iphone.wda_roles import (
     pointer_actions,
     simplified,
 )
-from rocketwright.core import gestures
-from rocketwright.perception.model import Modal
-from rocketwright.perception.readers import tree_from_document
-from rocketwright.perception.snapshot import build
-from rocketwright.testing.fakes import ManualClock
-from rocketwright.testing.native import short_run_dir
-from rocketwright.testing.wda import FakeWda
+from phonesimulator.core import gestures
+from phonesimulator.perception.model import Modal
+from phonesimulator.perception.readers import tree_from_document
+from phonesimulator.perception.snapshot import build
+from phonesimulator.testing.fakes import ManualClock
+from phonesimulator.testing.native import short_run_dir
+from phonesimulator.testing.wda import FakeWda
 
 SCREEN = Screen(1179, 2556, 393, 852, 3.0)
 

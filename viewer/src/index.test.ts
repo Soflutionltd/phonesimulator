@@ -7,9 +7,9 @@ describe('the package', () => {
     expect(typeof viewer.createViewer).toBe('function')
     expect(typeof viewer.createHttpTransport).toBe('function')
     expect(typeof viewer.TransportError).toBe('function')
-    expect(typeof viewer.defineRocketwrightElement).toBe('function')
-    expect(typeof viewer.RocketwrightElement).toBe('function')
-    expect(viewer.ELEMENT_NAME).toBe('rocket-wright')
+    expect(typeof viewer.definePhoneSimulatorElement).toBe('function')
+    expect(typeof viewer.PhoneSimulatorElement).toBe('function')
+    expect(viewer.ELEMENT_NAME).toBe('phone-simulator')
     expect(viewer.ICON_NAMES.length).toBeGreaterThan(0)
     expect(typeof viewer.lucideSvg).toBe('function')
     // Tests load CSS as empty text (vitest's css off); the builds inline styles.css itself.

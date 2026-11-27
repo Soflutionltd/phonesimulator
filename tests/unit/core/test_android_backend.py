@@ -11,18 +11,18 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.core.android_backend import AndroidBackend, choice_of
-from rocketwright.core.android_devices import AndroidDevice, AndroidDirectory, AndroidServices, runtime_label
-from rocketwright.core.devices import DeviceRef, NoDevice
-from rocketwright.core.instance import DeviceInstance
-from rocketwright.platform.adb import AdbError
-from rocketwright.platform.android_sdk import AndroidSdk
-from rocketwright.platform.emulator import EmulatorConsole, EmulatorError, Emulators
-from rocketwright.platform.identifiers import android_id
-from rocketwright.testing.adb import FakeAdbServer, FakeEmulatorConsole
-from rocketwright.testing.android_sdk import avd, image, sdk_at
-from rocketwright.testing.rig import scope
+from phonesimulator.config.model import SimConfig
+from phonesimulator.core.android_backend import AndroidBackend, choice_of
+from phonesimulator.core.android_devices import AndroidDevice, AndroidDirectory, AndroidServices, runtime_label
+from phonesimulator.core.devices import DeviceRef, NoDevice
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.platform.adb import AdbError
+from phonesimulator.platform.android_sdk import AndroidSdk
+from phonesimulator.platform.emulator import EmulatorConsole, EmulatorError, Emulators
+from phonesimulator.platform.identifiers import android_id
+from phonesimulator.testing.adb import FakeAdbServer, FakeEmulatorConsole
+from phonesimulator.testing.android_sdk import avd, image, sdk_at
+from phonesimulator.testing.rig import scope
 
 PIXEL = android_id("avd", "Pixel_9")
 PHONE = android_id("adb", "R58M12ABC")
@@ -100,7 +100,7 @@ class Rig:
         self.config = ON.with_values(android_sdk_path=str(self.sdk.root))
 
     def _avds(self, sdk: AndroidSdk | None) -> Any:
-        from rocketwright.platform.android_sdk import avds
+        from phonesimulator.platform.android_sdk import avds
 
         return avds(sdk, {"ANDROID_AVD_HOME": str(self.avds)})
 
@@ -298,7 +298,7 @@ async def test_letting_a_device_go_ends_its_route(rig: Rig) -> None:
     assert task.cancelled() and PIXEL not in rig.services.routes
 
 
-async def test_a_device_closed_or_unplugged_outside_rocketwright_is_gone(rig: Rig) -> None:
+async def test_a_device_closed_or_unplugged_outside_phonesimulator_is_gone(rig: Rig) -> None:
     rig.emulator_up()
     rig.phone()
     pixel, phone = rig.instance(), rig.instance(PHONE, "usb")

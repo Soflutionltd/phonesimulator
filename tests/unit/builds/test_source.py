@@ -6,8 +6,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from rocketwright.build.source import Source, described, read_source
-from rocketwright.platform.git import Checkout
+from phonesimulator.build.source import Source, described, read_source
+from phonesimulator.platform.git import Checkout
 
 FOLDER = Path("/Users/dev/NotesProbe-login")
 COMMIT = "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d"

@@ -1,13 +1,13 @@
 [project]
-name = "rocketwright-connector-recorded"
+name = "phonesimulator-connector-recorded"
 version = "0.1.0"
-description = "An example Rocketwright connector: a view-only device that plays a folder of JPEG screenshots."
+description = "An example PhoneSimulator connector: a view-only device that plays a folder of JPEG screenshots."
 license = "Apache-2.0"
 requires-python = ">=3.10"
-dependencies = ["rocketwright @ git+https://github.com/Soflutionltd/rocketwright"]
+dependencies = ["phonesimulator @ git+https://github.com/Soflutionltd/phonesimulator"]
 
-# How Rocketwright finds it: a factory taking a ConnectorContext, under the connector's name.
-[project.entry-points."rocketwright.connectors"]
+# How PhoneSimulator finds it: a factory taking a ConnectorContext, under the connector's name.
+[project.entry-points."phonesimulator.connectors"]
 recorded = "recorded_connector:create"
 
 [dependency-groups]

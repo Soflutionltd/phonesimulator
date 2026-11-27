@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import RocketwrightKit
+import PhoneSimulatorKit
 import SwiftUI
 
-/// The same views, named for Rocketwright with `.rocketwright(...)`: a Debug build on a simulator reads the names, and
+/// The same views, named for PhoneSimulator with `.phonesimulator(...)`: a Debug build on a simulator reads the names, and
 /// anything else ignores them.
 struct TaggedScreen: View {
     @State private var notifications = false
@@ -18,12 +18,12 @@ struct TaggedScreen: View {
                         } label: {
                             Image(systemName: "gearshape")
                         }
-                        .rocketwright("Settings")
+                        .phonesimulator("Settings")
                         Button {
                         } label: {
                             Image(systemName: "trash")
                         }
-                        .rocketwright(kind: .button, name: "Delete list", identifier: "delete-list")
+                        .phonesimulator(kind: .button, name: "Delete list", identifier: "delete-list")
                     }
                     .font(.title2)
                     VStack(spacing: 6) {
@@ -34,9 +34,9 @@ struct TaggedScreen: View {
                     .padding()
                     .background(Color.mint.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
                     .onTapGesture { taps += 1 }
-                    .rocketwright(kind: .button, name: "Play daily mix")
+                    .phonesimulator(kind: .button, name: "Play daily mix")
                     Toggle("", isOn: $notifications).labelsHidden()
-                        .rocketwright(kind: .switch, name: "Notifications")
+                        .phonesimulator(kind: .switch, name: "Notifications")
                 }
                 .padding()
             }

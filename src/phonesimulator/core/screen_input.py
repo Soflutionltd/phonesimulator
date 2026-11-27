@@ -1,0 +1,269 @@
+# SPDX-License-Identifier: Apache-2.0
+"""What a person does to the screen in a viewer, as input the device takes.
+
+The screen socket accepts the protocol's short list of messages and nothing else (`protocol/v1/client-input`): a finger
+going down, moving and lifting; a scroll; a hardware button; a key that is not text; text; the appearance; a quarter
+turn of the device, as Simulator.app's Rotate Left and Rotate Right. Coordinates
+arrive as shares of the frame -- 0 to 1 across and down -- so the page never needs the device's size, and become points
+here.
+
+A finger's down, moves and up are one input stream, as a real finger is one touch: `PersonInput` opens the stream on
+down, feeds it on every move, and ends it on up or cancel -- or, for a window that went away mid-drag, lifts the finger
+where it last was. Text is typed or pasted as the scope's ``device.typing`` says (`text_entry`), the way an agent's
+is. Nothing here installs, launches or opens anything: that is the agent tools' business, under their own checks.
+
+On a device whose connector cannot take input (the simctl mirror), only the appearance -- which simctl sets -- is
+acted on; everything else is ignored, as a viewer showing a mirror sends none.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from dataclasses import dataclass
+from typing import Any
+
+from phonesimulator.connectors.base import (
+    IOS_BUTTONS,
+    Capability,
+    ConnectorError,
+    DeviceSession,
+    HidEvent,
+    InputSink,
+    PointerSink,
+    Screen,
+    TextSink,
+    button_refusal,
+)
+from phonesimulator.core import gestures
+from phonesimulator.core.device_changes import Changes
+from phonesimulator.core.text_entry import text_entry
+from phonesimulator.platform.keyboard import MAC_KEYBOARD, KeyboardRead
+from phonesimulator.protocol import (
+    APPEARANCES,
+    KEY_NAMES,
+    PANEL_BUTTONS,
+    ROTATE_DIRECTIONS,
+    SCROLL_MAX_PT,
+    TEXT_MAX_CHARS,
+    TOUCH_PHASES,
+)
+
+SCROLL_S = 0.12
+
+
+@dataclass(frozen=True)
+class Command:
+    kind: str
+    phase: str = ""
+    x: float = 0.0
+    y: float = 0.0
+    dy: float = 0.0
+    name: str = ""
+    text: str = ""
+    dx: float = 0.0
+
+
+def _fraction(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value) if 0.0 <= value <= 1.0 else None
+
+
+def _point(message: dict[str, Any], screen: Screen) -> tuple[float, float] | None:
+    across, down = _fraction(message.get("nx")), _fraction(message.get("ny"))
+    if across is None or down is None:
+        return None
+    return across * screen.width_pt, down * screen.height_pt
+
+
+def translate(message: Any, screen: Screen) -> Command | None:
+    """The command one viewer message becomes; None for anything not on the list."""
+    if not isinstance(message, dict):
+        return None
+    kind = message.get("type")
+    if kind in ("touch", "scroll", "wheel", "pointer"):
+        point = _point(message, screen)
+        if point is None:
+            return None
+        if kind == "pointer":
+            action = message.get("action")
+            if action in ("secondary", "hover"):
+                return Command("right_click" if action == "secondary" else "hover", x=point[0], y=point[1])
+            return None
+        if kind == "touch":
+            phase = message.get("phase")
+            return Command("touch", phase=phase, x=point[0], y=point[1]) if phase in TOUCH_PHASES else None
+        dy = message.get("dy")
+        if isinstance(dy, bool) or not isinstance(dy, (int, float)):
+            return None
+        dx = message.get("dx", 0)
+        if isinstance(dx, bool) or not isinstance(dx, (int, float)) or dx != dx or dy != dy:
+            return None
+        return Command(
+            "scroll",
+            x=point[0],
+            y=point[1],
+            dy=max(-SCROLL_MAX_PT, min(SCROLL_MAX_PT, float(dy))),
+            dx=max(-SCROLL_MAX_PT, min(SCROLL_MAX_PT, float(dx))),
+        )
+    if kind == "chord":
+        chord = message.get("chord")
+        return (
+            Command("keys", text=chord)
+            if isinstance(chord, str) and 0 < len(chord) <= 80 and "\0" not in chord
+            else None
+        )
+    name = message.get("name")
+    if kind == "button":
+        return Command("button", name=name) if name in PANEL_BUTTONS else None
+    if kind == "key":
+        return Command("key", name=name) if name in KEY_NAMES else None
+    if kind == "appearance":
+        mode = message.get("mode")
+        return Command("appearance", name=mode) if mode in APPEARANCES else None
+    if kind == "rotate":
+        direction = message.get("direction")
+        return Command("rotate", name=direction) if direction in ROTATE_DIRECTIONS else None
+    if kind == "text":
+        text = message.get("text")
+        if isinstance(text, str) and 0 < len(text) <= TEXT_MAX_CHARS and "\x00" not in text:
+            return Command("text", text=text)
+    return None
+
+
+def pointer_sink(session: DeviceSession) -> PointerSink | None:
+    """What takes a person's window pointer input through `session`: its input, when the session says it has
+    ``INPUT_POINTER`` -- a macOS app's. None for a simulator, an emulator or a real device, whatever their input looks
+    like: the native helper's client can ask for a window action too, and a device's helper refuses it."""
+    sink = session.input
+    return sink if session.can(Capability.INPUT_POINTER) and isinstance(sink, PointerSink) else None
+
+
+async def _finger(events: asyncio.Queue[HidEvent | None]) -> AsyncIterator[HidEvent]:
+    while (event := await events.get()) is not None:
+        yield event
+
+
+class PersonInput:
+    """One screen socket's person, acting on one device."""
+
+    def __init__(
+        self,
+        sink: InputSink | None,
+        changes: Changes,
+        *,
+        on_touch: Callable[[], None] = lambda: None,
+        typing: str = "auto",
+        keyboard: KeyboardRead = MAC_KEYBOARD,
+        text: TextSink | None = None,
+        buttons: Sequence[str] = IOS_BUTTONS,
+        rotate: Callable[[str], Awaitable[None]] | None = None,
+        pointer: PointerSink | None = None,
+    ) -> None:
+        self._sink = sink
+        #: What takes window pointer input -- a secondary click, a hover, a key chord, a wheel -- where the session
+        #: has ``INPUT_POINTER``: a macOS app's. None on a device, whose scroll is a finger's swipe. Never read off
+        #: the sink's shape: a simulator's helper client has the method too, and its helper refuses the request.
+        self._pointer = pointer
+        #: The buttons this device has: a person's press of another is refused before it reaches the connector.
+        self._buttons = buttons
+        #: What types text whole on this device, when it can: then no key is pressed and nothing pasted.
+        self._text = text
+        #: The device's appearance is changed through its ledger, to be put back as its settings say.
+        self._changes = changes
+        self._control = changes.control
+        self._udid = changes.udid
+        self._on_touch = on_touch
+        #: Turns the device a quarter, ``left`` or ``right``, as an agent's ``sim_device rotate`` turns it.
+        self._rotate = rotate
+        self._typing = typing
+        self._keyboard = keyboard
+        self._events: asyncio.Queue[HidEvent | None] | None = None
+        self._stream: asyncio.Task[None] | None = None
+        self._last = (0.0, 0.0)
+
+    async def run(self, command: Command) -> None:
+        if command.kind == "appearance":
+            self._on_touch()
+            await self._changes.appearance(command.name)
+            return
+        if command.kind == "rotate":
+            if self._rotate is None:
+                raise ConnectorError("this device cannot be turned from here")
+            self._on_touch()
+            await self._rotate(command.name)
+            return
+        sink = self._sink
+        if sink is None:
+            return
+        self._on_touch()
+        pointer = self._pointer
+        if command.kind in ("right_click", "hover", "keys") or (command.kind == "scroll" and pointer is not None):
+            if pointer is None:
+                raise ConnectorError("this device does not take window pointer input")
+            action: dict[str, Any] = {"kind": command.kind, "x": command.x, "y": command.y}
+            if command.kind == "scroll":
+                action.update(dx=command.dx, dy=command.dy)
+            if command.kind == "keys":
+                action["text"] = command.text
+            await pointer.mac_action(action)
+            return
+        if command.kind == "touch":
+            await self._touch(sink, command)
+            return
+        if command.kind == "scroll":
+            # Content scrolls down when the finger moves up.
+            events = gestures.swipe((command.x, command.y), (command.x, command.y - command.dy), SCROLL_S)
+        elif command.kind == "button":
+            refused = button_refusal(command.name, self._buttons)
+            if refused is not None:
+                raise ConnectorError(refused)
+            events = gestures.button(command.name)
+        elif command.kind == "key":
+            events = gestures.key(command.name)
+        elif self._text is not None:
+            await self._text.type(command.text)
+            return
+        else:
+            entry = await text_entry(command.text, self._typing, self._keyboard)
+            if entry.pasted:
+                await self._control.pbcopy(self._udid, entry.pasted)
+            events = entry.events
+        await sink.hid(gestures.play(events))
+
+    async def _touch(self, sink: InputSink, command: Command) -> None:
+        if command.phase == "down":
+            try:
+                await self._lift()
+            finally:
+                # A finger the device refused before is said, and this one still goes down.
+                self._events = asyncio.Queue()
+                self._stream = asyncio.get_running_loop().create_task(sink.hid(_finger(self._events)))
+                self._last = (command.x, command.y)
+                self._events.put_nowait(HidEvent.touch("down", command.x, command.y))
+            return
+        if self._events is None:
+            return
+        self._last = (command.x, command.y)
+        if command.phase == "move":
+            self._events.put_nowait(HidEvent.touch("down", command.x, command.y))
+        else:
+            await self._lift()
+
+    async def _lift(self) -> None:
+        """End the finger's stream, lifting it where it last was. Raises what the device said when it refused the
+        finger, so a touch that did nothing is not silent."""
+        events, stream = self._events, self._stream
+        self._events = self._stream = None
+        if events is None or stream is None:
+            return
+        events.put_nowait(HidEvent.touch("up", *self._last))
+        events.put_nowait(None)
+        await stream
+
+    async def close(self) -> None:
+        """Lift a finger still down: the viewer went away, and nobody is left to hear whether the device took it."""
+        with contextlib.suppress(ConnectorError):
+            await self._lift()

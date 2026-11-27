@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import Capability, ConnectorUnavailable
-from rocketwright.connectors.registry import ConnectorContext
-from rocketwright.connectors.simctl.capture import SimctlScreen
-from rocketwright.connectors.simctl.connector import CAPABILITIES, FPS_LIMIT, SimctlConnector, create
-from rocketwright.host_copy import HostCopy
-from rocketwright.platform.simctl import Simctl
-from rocketwright.testing.fakes import BOOTED_UDID, FakeXcrun, MemoryStateStore
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import Capability, ConnectorUnavailable
+from phonesimulator.connectors.registry import ConnectorContext
+from phonesimulator.connectors.simctl.capture import SimctlScreen
+from phonesimulator.connectors.simctl.connector import CAPABILITIES, FPS_LIMIT, SimctlConnector, create
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.testing.fakes import BOOTED_UDID, FakeXcrun, MemoryStateStore
 
 CONFIG = SimConfig.defaults()
 

@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.platform.developer_dir import choose_xcode
-from rocketwright.testing import guards
-from rocketwright.testing.guards import RefusedSubprocess, forbidden
+from phonesimulator.platform.developer_dir import choose_xcode
+from phonesimulator.testing import guards
+from phonesimulator.testing.guards import RefusedSubprocess, forbidden
 
 
 @pytest.mark.parametrize(
@@ -31,7 +31,7 @@ from rocketwright.testing.guards import RefusedSubprocess, forbidden
         ([["open", "-a", "Simulator"]], "open"),
         # A Swift helper is compiled, and then run from wherever it was kept.
         (["swiftc", "-O", "main.swift"], "swiftc"),
-        (["/state/helpers/0123456789abcdef/rocketwright-vision"], "rocketwright-vision"),
+        (["/state/helpers/0123456789abcdef/phonesimulator-vision"], "phonesimulator-vision"),
         # Android's tools: adb by name; the emulator and Java by where they are, since the names are common.
         (["/Users/me/Library/Android/sdk/platform-tools/adb", "devices"], "adb"),
         (["./gradlew", "assembleDebug"], "gradlew"),
@@ -105,16 +105,16 @@ def test_state_folders_and_configuration_are_moved_under_a_root(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     moved = guards.isolate_state(monkeypatch, tmp_path)
-    assert moved["ROCKETWRIGHT_RUN_DIR"] == tmp_path / "run"
-    assert moved["ROCKETWRIGHT_CONFIG"] == tmp_path / "config.toml"
+    assert moved["PHONESIMULATOR_RUN_DIR"] == tmp_path / "run"
+    assert moved["PHONESIMULATOR_CONFIG"] == tmp_path / "config.toml"
     assert {os.environ[name] for name in guards.STATE_FOLDERS} == {
         str(tmp_path / folder) for folder in guards.STATE_FOLDERS.values()
     }
 
 
 def test_the_suite_itself_runs_with_its_state_moved(tmp_path: Path) -> None:
-    assert os.environ["ROCKETWRIGHT_CLAIMS_DIR"] == str(tmp_path / "rocketwright" / "claims")
-    assert os.environ["ROCKETWRIGHT_USBMUXD"] == str(tmp_path / "rocketwright" / "usbmuxd"), (
+    assert os.environ["PHONESIMULATOR_CLAIMS_DIR"] == str(tmp_path / "phonesimulator" / "claims")
+    assert os.environ["PHONESIMULATOR_USBMUXD"] == str(tmp_path / "phonesimulator" / "usbmuxd"), (
         "no test reaches a real iPhone"
     )
 

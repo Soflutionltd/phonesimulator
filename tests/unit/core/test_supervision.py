@@ -12,20 +12,20 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.base import ConnectorUnavailable
-from rocketwright.core.instance import FAILED, READY, STOPPED, DeviceInstance
-from rocketwright.core.manager import SESSION_ENDED_NOTE
-from rocketwright.daemon.lease import LEASE_S, Leases
-from rocketwright.mcp.launcher import LeaseKeeper
-from rocketwright.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend, ManualClock
-from rocketwright.testing.rig import DeviceRig, scope, settle
+from phonesimulator.connectors.base import ConnectorUnavailable
+from phonesimulator.core.instance import FAILED, READY, STOPPED, DeviceInstance
+from phonesimulator.core.manager import SESSION_ENDED_NOTE
+from phonesimulator.daemon.lease import LEASE_S, Leases
+from phonesimulator.mcp.launcher import LeaseKeeper
+from phonesimulator.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend, ManualClock
+from phonesimulator.testing.rig import DeviceRig, scope, settle
 
 TP1 = scope("tp-1")
 AGENT_IDLE_S = 30 * 60
 
 
 class IdleRelay:
-    """A ``rocketwright mcp`` whose client made a call and then sat there: its own lease keeper, renewing into the
+    """A ``phonesimulator mcp`` whose client made a call and then sat there: its own lease keeper, renewing into the
     daemon's leases as `DaemonClient.lease` would."""
 
     def __init__(self, leases: Leases, scope_id: str, clock: ManualClock) -> None:
@@ -64,7 +64,7 @@ async def test_webdriveragent_killed_under_idle_agents_stays_down_until_the_next
     """The field report's acceptance for B1: five idle relays, WebDriverAgent killed on the phone; it stays down for ten
     minutes of reaper rounds, and the next call brings it back. Then, with no more calls, the relays stop renewing and
     the phone is let go as idle as usual."""
-    caplog.set_level(logging.INFO, logger="rocketwright.core.manager")
+    caplog.set_level(logging.INFO, logger="phonesimulator.core.manager")
     rig, phone = phone_rig(tmp_path)
     leases = Leases(clock=rig.clock)
     rig.manager.usage = leases
@@ -111,7 +111,7 @@ async def test_webdriveragent_killed_under_idle_agents_stays_down_until_the_next
 async def test_a_simulator_s_stopped_connector_is_still_attached_again_by_the_reaper_saying_why(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    caplog.set_level(logging.INFO, logger="rocketwright.core.manager")
+    caplog.set_level(logging.INFO, logger="phonesimulator.core.manager")
     rig = DeviceRig(tmp_path)
     instance = await rig.up()
     rig.idb.dead.add(instance.udid)

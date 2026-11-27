@@ -3,10 +3,10 @@
  * The settings panel: every setting a scope has, one tab per section of config.toml, changed and saved a tab at a time.
  *
  * Everything shown comes from the server's `SettingsView` -- the sections, each setting's rule, where its value comes
- * from, when a change takes effect -- so a setting added to Rocketwright appears here without the viewer changing. A save
+ * from, when a change takes effect -- so a setting added to PhoneSimulator appears here without the viewer changing. A save
  * sends the tab's changed values as one `SettingsChange`, for this project or every project; the server checks all of
  * it and answers either the settings as they now are, or why not, which is shown on each setting it names. A change to a
- * sensitive setting comes back asking for the code `rocketwright settings confirm` shows at the terminal, and is sent
+ * sensitive setting comes back asking for the code `phonesimulator settings confirm` shows at the terminal, and is sent
  * again with it.
  *
  * What the server says -- a section's and a setting's description, a notice, why a change was refused -- is shown as it
@@ -22,9 +22,9 @@ import type { IconRenderer } from './icons'
 import { createPopover, type Layers } from './popover'
 import type { SettingsChange, SettingsRefusal, SettingsTarget, SettingsView } from './protocol.generated'
 import { renderField, type Field } from './settings-fields'
-import type { RocketwrightTransport } from './transport'
+import type { PhoneSimulatorTransport } from './transport'
 
-export type SettingsTransport = Required<Pick<RocketwrightTransport, 'settings' | 'changeSettings'>>
+export type SettingsTransport = Required<Pick<PhoneSimulatorTransport, 'settings' | 'changeSettings'>>
 
 export interface SettingsPanelOptions {
   root: HTMLElement

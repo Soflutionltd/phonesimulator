@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from rocketwright.core.activity import QUOTED_MAX, of_call, of_gesture, of_wait, quoted
+from phonesimulator.core.activity import QUOTED_MAX, of_call, of_gesture, of_wait, quoted
 
 
 def test_a_quote_is_one_line_cut_to_fit() -> None:

@@ -2,13 +2,13 @@
 """The android connector and Gradle on a real, running Android emulator: never run by CI or `make test`, only by
 `make live-android`.
 
-    ROCKETWRIGHT_LIVE_ANDROID_UDID=avd-<name>-<hex> make live-android
+    PHONESIMULATOR_LIVE_ANDROID_UDID=avd-<name>-<hex> make live-android
 
 It runs the connector contract against the device through adb alone -- which taps the middle of its screen -- then,
-with `ROCKETWRIGHT_LIVE_SCRCPY` naming scrcpy's server 5.0.1, through scrcpy, streaming and reading the screen as a
-viewer and an agent do. With `ROCKETWRIGHT_LIVE_GRADLE=1` it builds `examples/android-app` and runs its instrumented
-tests on the device. `ROCKETWRIGHT_LIVE_ANDROID_SDK` names the SDK (default: Android Studio's). Nothing here starts or
-stops the emulator: start it first, from Android Studio or `rocketwright devices choose`.
+with `PHONESIMULATOR_LIVE_SCRCPY` naming scrcpy's server 5.0.1, through scrcpy, streaming and reading the screen as a
+viewer and an agent do. With `PHONESIMULATOR_LIVE_GRADLE=1` it builds `examples/android-app` and runs its instrumented
+tests on the device. `PHONESIMULATOR_LIVE_ANDROID_SDK` names the SDK (default: Android Studio's). Nothing here starts or
+stops the emulator: start it first, from Android Studio or `phonesimulator devices choose`.
 """
 
 from __future__ import annotations
@@ -18,31 +18,31 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.build.gradle import GradleToolchain
-from rocketwright.build.runner import Runner
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.android.connector import AndroidConnector
-from rocketwright.connectors.base import Capability
-from rocketwright.core.android_devices import AndroidServices
-from rocketwright.platform.adb import DEFAULT_PORT, Adb
-from rocketwright.testing.contract import check_connector
-from rocketwright.testing.fakes import MemoryStateStore
-from rocketwright.testing.rig import scope
+from phonesimulator.build.gradle import GradleToolchain
+from phonesimulator.build.runner import Runner
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.android.connector import AndroidConnector
+from phonesimulator.connectors.base import Capability
+from phonesimulator.core.android_devices import AndroidServices
+from phonesimulator.platform.adb import DEFAULT_PORT, Adb
+from phonesimulator.testing.contract import check_connector
+from phonesimulator.testing.fakes import MemoryStateStore
+from phonesimulator.testing.rig import scope
 
-UDID = os.environ.get("ROCKETWRIGHT_LIVE_ANDROID_UDID", "")
-SDK = os.environ.get("ROCKETWRIGHT_LIVE_ANDROID_SDK", str(Path.home() / "Library/Android/sdk"))
-SCRCPY = os.environ.get("ROCKETWRIGHT_LIVE_SCRCPY", "")
+UDID = os.environ.get("PHONESIMULATOR_LIVE_ANDROID_UDID", "")
+SDK = os.environ.get("PHONESIMULATOR_LIVE_ANDROID_SDK", str(Path.home() / "Library/Android/sdk"))
+SCRCPY = os.environ.get("PHONESIMULATOR_LIVE_SCRCPY", "")
 EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "android-app"
 
 pytestmark = [
     pytest.mark.live_android,
     pytest.mark.allow_subprocess,
-    pytest.mark.skipif(not UDID, reason="ROCKETWRIGHT_LIVE_ANDROID_UDID names no running Android emulator"),
+    pytest.mark.skipif(not UDID, reason="PHONESIMULATOR_LIVE_ANDROID_UDID names no running Android emulator"),
 ]
 
 
 def services(root: Path) -> AndroidServices:
-    """The services a daemon builds, on the Mac's own adb server -- the test guard points Rocketwright at none."""
+    """The services a daemon builds, on the Mac's own adb server -- the test guard points PhoneSimulator at none."""
     made = AndroidServices.build(MemoryStateStore(root), adb=Adb(f"127.0.0.1:{DEFAULT_PORT}"))
     made.sdk_path = SDK
     return made
@@ -58,7 +58,7 @@ async def test_the_android_connector_keeps_the_contract_through_adb(tmp_path: Pa
     assert await check_connector(AndroidConnector(services(tmp_path)), config(scrcpy=False), UDID) == []
 
 
-@pytest.mark.skipif(not SCRCPY, reason="ROCKETWRIGHT_LIVE_SCRCPY names no scrcpy server")
+@pytest.mark.skipif(not SCRCPY, reason="PHONESIMULATOR_LIVE_SCRCPY names no scrcpy server")
 async def test_through_scrcpy_the_screen_is_live_and_touched(tmp_path: Path) -> None:
     connector = AndroidConnector(services(tmp_path))
     settings = config(scrcpy=True)
@@ -78,7 +78,7 @@ async def test_through_scrcpy_the_screen_is_live_and_touched(tmp_path: Path) -> 
         await session.close()
 
 
-@pytest.mark.skipif(os.environ.get("ROCKETWRIGHT_LIVE_GRADLE") != "1", reason="ROCKETWRIGHT_LIVE_GRADLE is not 1")
+@pytest.mark.skipif(os.environ.get("PHONESIMULATOR_LIVE_GRADLE") != "1", reason="PHONESIMULATOR_LIVE_GRADLE is not 1")
 async def test_gradle_builds_and_tests_the_example_on_the_device(tmp_path: Path) -> None:
     android = services(tmp_path)
     runner = Runner(MemoryStateStore(tmp_path), {"android": GradleToolchain(android.directory.serial)})

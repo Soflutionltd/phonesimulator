@@ -11,14 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.build.xcodebuild import DERIVED_DATA
-from rocketwright.daemon.lease import LEASE_S, Leases
-from rocketwright.daemon.passes import CODE_TTL_S, SETTINGS_TTL_S, VIEWER_TTL_S, OneShotCodes, Pass, ViewerSessions
-from rocketwright.daemon.pauses import PAUSE_MAX_S, Pauses
-from rocketwright.daemon.policy import ConfigPolicy
-from rocketwright.daemon.tokens import TokenStore
-from rocketwright.scope import Scope
-from rocketwright.testing.fakes import ManualClock, MemoryStateStore, StaticConfig
+from phonesimulator.build.xcodebuild import DERIVED_DATA
+from phonesimulator.daemon.lease import LEASE_S, Leases
+from phonesimulator.daemon.passes import CODE_TTL_S, SETTINGS_TTL_S, VIEWER_TTL_S, OneShotCodes, Pass, ViewerSessions
+from phonesimulator.daemon.pauses import PAUSE_MAX_S, Pauses
+from phonesimulator.daemon.policy import ConfigPolicy
+from phonesimulator.daemon.tokens import TokenStore
+from phonesimulator.scope import Scope
+from phonesimulator.testing.fakes import ManualClock, MemoryStateStore, StaticConfig
 
 
 def test_a_code_opens_its_scope_once_and_only_within_its_minute() -> None:
@@ -140,7 +140,7 @@ def test_a_lease_holds_a_scopes_device_until_it_runs_out_or_every_holder_lets_go
 def test_a_lease_is_logged_as_it_starts_lapses_and_is_let_go_and_never_for_each_renewal(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    caplog.set_level(logging.INFO, logger="rocketwright.daemon.lease")
+    caplog.set_level(logging.INFO, logger="phonesimulator.daemon.lease")
     clock = ManualClock()
     leases = Leases(clock=clock)
     for _ in range(3):

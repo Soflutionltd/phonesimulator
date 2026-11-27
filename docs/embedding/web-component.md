@@ -1,6 +1,6 @@
 # The web component and the viewer library
 
-The npm package `@soflution/rocketwright` is the viewer: a `<rocket-wright>` custom element for pages that would rather
+The npm package `@soflution/phonesimulator` is the viewer: a `<phone-simulator>` custom element for pages that would rather
 write markup, and a `createViewer` function for applications that manage their own DOM. Both draw a scope's live
 screen, take a person's input, and show the agent's cursor.
 
@@ -8,10 +8,10 @@ screen, take a person's input, and show the agent's cursor.
 
 ## Install
 
-It is [on npm](https://www.npmjs.com/package/@soflution/rocketwright):
+It is [on npm](https://www.npmjs.com/package/@soflution/phonesimulator):
 
 ```sh
-npm install @soflution/rocketwright@3.12.1
+npm install @soflution/phonesimulator@3.12.1
 ```
 
 It is an ES module with TypeScript types and no runtime dependencies; its styles are built in.
@@ -19,17 +19,17 @@ It is an ES module with TypeScript types and no runtime dependencies; its styles
 ## The element
 
 ```html
-<rocket-wright server="http://127.0.0.1:7466" scope="demo" token="…" placement="page"></rocket-wright>
+<phone-simulator server="http://127.0.0.1:7466" scope="demo" token="…" placement="page"></phone-simulator>
 
 <script type="module">
-  import { defineRocketwrightElement } from '@soflution/rocketwright'
-  defineRocketwrightElement()   // or defineRocketwrightElement('my-simulator')
+  import { definePhoneSimulatorElement } from '@soflution/phonesimulator'
+  definePhoneSimulatorElement()   // or definePhoneSimulatorElement('my-simulator')
 </script>
 ```
 
 | Attribute | Meaning |
 |---|---|
-| `server` | The Rocketwright server, such as `http://127.0.0.1:7466`; the page's own origin when absent |
+| `server` | The PhoneSimulator server, such as `http://127.0.0.1:7466`; the page's own origin when absent |
 | `scope` | The scope whose simulator it shows; nothing is shown without one |
 | `token` | A viewer token for the scope, sent as `Authorization: Bearer`; absent where the page's own origin or cookie lets it in |
 | `placement` | `page` (the default), `dock` or `window` -- where the host shows it, which decides the buttons offered |
@@ -42,10 +42,10 @@ Removing the element closes its socket. It draws in an open shadow root.
 
 | Event | `detail` |
 |---|---|
-| `rocketwright:state` | `{device, connector, capabilities, viewOnly, connected}` whenever one of them changes |
-| `rocketwright:place` | `{placement}`: a person asked to move the viewer to a dock or a window (not offered on a page) |
-| `rocketwright:device` | `{udid}`: a person picked what it shows -- a device's UDID, or `null` to follow the scope's own again. The `device` attribute is set or removed to match, without starting afresh |
-| `rocketwright:close` | `null`: a person closed the viewer |
+| `phonesimulator:state` | `{device, connector, capabilities, viewOnly, connected}` whenever one of them changes |
+| `phonesimulator:place` | `{placement}`: a person asked to move the viewer to a dock or a window (not offered on a page) |
+| `phonesimulator:device` | `{udid}`: a person picked what it shows -- a device's UDID, or `null` to follow the scope's own again. The `device` attribute is set or removed to match, without starting afresh |
+| `phonesimulator:close` | `null`: a person closed the viewer |
 
 Events bubble and cross the shadow boundary.
 
@@ -58,8 +58,8 @@ then shows that device, comes back to it after a restart, and never moves the sc
 elements side by side show two devices:
 
 ```html
-<rocket-wright scope="demo" token="…" device="00000000-0000-0000-0000-000000000001"></rocket-wright>
-<rocket-wright scope="demo" token="…" device="00000000-0000-0000-0000-000000000002"></rocket-wright>
+<phone-simulator scope="demo" token="…" device="00000000-0000-0000-0000-000000000001"></phone-simulator>
+<phone-simulator scope="demo" token="…" device="00000000-0000-0000-0000-000000000002"></phone-simulator>
 ```
 
 Its device picker says which agents work on each device. Picking a row shows that device in this view alone (Show in
@@ -144,29 +144,29 @@ Custom properties pass into the shadow root. Each has a default, for the viewer'
 
 | Property | Styles |
 |---|---|
-| `--rocketwright-accent`, `--rocketwright-on-accent` | Active controls, and text on them |
-| `--rocketwright-cursor`, `--rocketwright-cursor-text` | The agent's pointer, its label, its rings and the pill that names it, and text on them; the accent when unset. A scope's `agent.cursor_color` wins over both, with white or near-black text chosen to read on it |
-| `--rocketwright-surface`, `--rocketwright-surface-sunken`, `--rocketwright-border` | The bar, the stage behind the screen, and edges |
-| `--rocketwright-raised` | The toolbar and the menus over the stage |
-| `--rocketwright-device`, `--rocketwright-device-edge` | The device's body, and its band and buttons |
-| `--rocketwright-text`, `--rocketwright-text-muted` | Text |
-| `--rocketwright-success`, `--rocketwright-warning`, `--rocketwright-danger` | The device's state |
-| `--rocketwright-screen-text` | The boxes around text read from the screen's pixels, while `perception.ocr_overlay` is on |
-| `--rocketwright-radius`, `--rocketwright-radius-full` | Corners |
-| `--rocketwright-space-1` to `--rocketwright-space-7` | Spacing, 2px to 24px |
-| `--rocketwright-font`, `--rocketwright-font-size` | Type |
+| `--phonesimulator-accent`, `--phonesimulator-on-accent` | Active controls, and text on them |
+| `--phonesimulator-cursor`, `--phonesimulator-cursor-text` | The agent's pointer, its label, its rings and the pill that names it, and text on them; the accent when unset. A scope's `agent.cursor_color` wins over both, with white or near-black text chosen to read on it |
+| `--phonesimulator-surface`, `--phonesimulator-surface-sunken`, `--phonesimulator-border` | The bar, the stage behind the screen, and edges |
+| `--phonesimulator-raised` | The toolbar and the menus over the stage |
+| `--phonesimulator-device`, `--phonesimulator-device-edge` | The device's body, and its band and buttons |
+| `--phonesimulator-text`, `--phonesimulator-text-muted` | Text |
+| `--phonesimulator-success`, `--phonesimulator-warning`, `--phonesimulator-danger` | The device's state |
+| `--phonesimulator-screen-text` | The boxes around text read from the screen's pixels, while `perception.ocr_overlay` is on |
+| `--phonesimulator-radius`, `--phonesimulator-radius-full` | Corners |
+| `--phonesimulator-space-1` to `--phonesimulator-space-7` | Spacing, 2px to 24px |
+| `--phonesimulator-font`, `--phonesimulator-font-size` | Type |
 
 Filled controls -- a primary button, the selected settings tab, a switch that is on, a menu row under the pointer --
-draw `--rocketwright-accent` a shade deeper, so white text on it reads at WCAG AA in both themes; outlines, the scale and
+draw `--phonesimulator-accent` a shade deeper, so white text on it reads at WCAG AA in both themes; outlines, the scale and
 pressed icons use it as it is.
 
-For anything more, style its parts: `rocketwright::part(bar)`, `::part(stage)` and `::part(screen)`, and -- since the
+For anything more, style its parts: `phonesimulator::part(bar)`, `::part(stage)` and `::part(screen)`, and -- since the
 device's frame -- `::part(device)` and `::part(toolbar)`.
 
 ## The function
 
 ```ts
-import { createHttpTransport, createViewer } from '@soflution/rocketwright'
+import { createHttpTransport, createViewer } from '@soflution/phonesimulator'
 
 const view = createViewer(document.querySelector('#simulator')!, {
   transport: createHttpTransport({ baseUrl: 'http://127.0.0.1:7466', scope: 'demo', token: () => viewerToken }),
@@ -213,7 +213,7 @@ screen is never more than two frames behind.
 
 ## Transports
 
-`createHttpTransport(options)` talks to a Rocketwright daemon, or to any host that mounts Rocketwright's routers:
+`createHttpTransport(options)` talks to a PhoneSimulator daemon, or to any host that mounts PhoneSimulator's routers:
 
 | Option | Meaning |
 |---|---|
@@ -229,7 +229,7 @@ A refusal rejects with a `TransportError` carrying the server's message and stat
 A host with its own API client passes an object of this shape instead:
 
 ```ts
-interface RocketwrightTransport {
+interface PhoneSimulatorTransport {
   status(): Promise<ScopeStatus>
   start(): Promise<Started>                 // brings the device up and mints a screen socket ticket
   stop(shutdown: boolean): Promise<boolean>

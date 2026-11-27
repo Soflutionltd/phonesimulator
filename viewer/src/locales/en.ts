@@ -105,7 +105,7 @@ export const en = {
   'agent.usingSuffix': ' is using this device',
   'agent.thinking': 'Thinking…',
   'agent.idle': 'Idle',
-  'app.shares': "{name} ({bundle}) shares its view hierarchy through Rocketwright's SDK {version}",
+  'app.shares': "{name} ({bundle}) shares its view hierarchy through PhoneSimulator's SDK {version}",
 
   'start.real': 'Show the device',
   'start.simulator': 'Start the simulator',
@@ -203,7 +203,7 @@ export const en = {
   'recording.saveCopy': 'Save {format} for a pull request',
   'recording.noCopy': 'No copy for a pull request was kept: this server does not make one.',
   'recording.recorded': 'Recorded {duration} of {device}.',
-  'recording.lost': "The recording of {device} could not be kept; Rocketwright's log says why.",
+  'recording.lost': "The recording of {device} could not be kept; PhoneSimulator's log says why.",
   'recording.failed': 'The recording could not be made.',
   'recording.saveFailed': '{name} could not be saved.',
 
@@ -276,9 +276,9 @@ export const en = {
   'field.reset': 'Reset',
   'field.resetTitle': 'Put {path} back to what applies without it',
 
-  'page.notViewer': 'This is not a Rocketwright viewer address.',
+  'page.notViewer': 'This is not a PhoneSimulator viewer address.',
   'page.oneTime': 'This page lets you in with a one-time link. {again}',
-  'page.again.viewer': 'Open the viewer again with `rocketwright open`.',
+  'page.again.viewer': 'Open the viewer again with `phonesimulator open`.',
   'page.again.embed': 'Reload the page that shows this frame.',
 } as const
 

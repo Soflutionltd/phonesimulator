@@ -1,7 +1,7 @@
 # iframe
 
 A page on another origin showing the viewer in a frame. The daemon only lets pages it was told of frame it, so first
-add this page's origin to Rocketwright's config (`rocketwright config path` shows the file):
+add this page's origin to PhoneSimulator's config (`phonesimulator config path` shows the file):
 
 ```toml
 [security]
@@ -11,8 +11,8 @@ frame_ancestors = ["http://127.0.0.1:7483"]
 Then, with the daemon started after that change:
 
 ```sh
-rocketwright token create --kind viewer --scope demo --label "iframe example"
-ROCKETWRIGHT_TOKEN=<the token it printed> python3 examples/embed-host/host.py --page examples/iframe
+phonesimulator token create --kind viewer --scope demo --label "iframe example"
+PHONESIMULATOR_TOKEN=<the token it printed> python3 examples/embed-host/host.py --page examples/iframe
 ```
 
 and open <http://127.0.0.1:7483/>.

@@ -13,17 +13,17 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.base import ConnectorError
-from rocketwright.core.actions import MAX_STEPS, AgentActions
-from rocketwright.core.flows import FlowStore
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import no_wait
-from rocketwright.testing.results import structured
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.tools.context import ToolContext
-from rocketwright.tools.flow import FIND_S
-from rocketwright.tools.registry import ToolRegistry
-from rocketwright.tools.results import SHUT_DOWN, Result, text
+from phonesimulator.connectors.base import ConnectorError
+from phonesimulator.core.actions import MAX_STEPS, AgentActions
+from phonesimulator.core.flows import FlowStore
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import no_wait
+from phonesimulator.testing.results import structured
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.tools.context import ToolContext
+from phonesimulator.tools.flow import FIND_S
+from phonesimulator.tools.registry import ToolRegistry
+from phonesimulator.tools.results import SHUT_DOWN, Result, text
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 OTHER = Caller(scope("tp-1"), key="agent-2", title="Codex")
@@ -108,7 +108,7 @@ async def test_a_flow_is_kept_as_a_readable_file_with_what_each_ref_named(tmp_pa
     written = path.read_text(encoding="utf-8")
     assert written.endswith("}\n") and '\n  "name": "sign-in",\n' in written, "two spaces of indent, a last line"
     document = json.loads(written)
-    assert document["rocketwright_flow"] == 1 and document["variables"] == ["email", "password"]
+    assert document["phonesimulator_flow"] == 1 and document["variables"] == ["email", "password"]
     assert document["batches"] == [{"steps": SIGN_IN, "wait": {"for": "Sign in"}}]
     password = {"kind": "secure", "label": "Password", "identifier": "", "x": 201.0, "y": 182.0}
     assert document["targets"]["e2"] == password

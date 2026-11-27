@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""What this major version of Rocketwright promises, written down once, and whether the code still keeps it.
+"""What this major version of PhoneSimulator promises, written down once, and whether the code still keeps it.
 
 `docs/stability.md` says what is stable, and since when; this makes it checkable. It describes the surface -- the names
-on `rocketwright.api` with their parameters and attributes, the protocol's schemas, constants and close codes, the agent
+on `phonesimulator.api` with their parameters and attributes, the protocol's schemas, constants and close codes, the agent
 tools' arguments, the settings, the command line, and the viewer package's exports, element, events, parts, custom
 properties and option types -- and compares a description of the code now with the one committed for the major version,
 `compat/surface-v3.json`.
@@ -40,7 +40,7 @@ PROMISE = REPO_ROOT / "compat" / "surface-v3.json"
 
 #: Made by a factory (`Runtime.build`, `SimConfig.defaults`), never from their fields.
 NOT_CONSTRUCTED = frozenset({"Runtime", "SimConfig"})
-#: What Rocketwright's own tests reach, and a host does not: left out of the promise.
+#: What PhoneSimulator's own tests reach, and a host does not: left out of the promise.
 UNPROMISED = {
     "Runtime": frozenset(
         {"tool_context", "relay", "stop_builds_not_allowed"}
@@ -64,7 +64,7 @@ PROSE = frozenset({"description", "$comment", "title", "examples", "example"})
 INTERFACES = {
     "ViewerOptions": "given",
     "HttpTransportOptions": "given",
-    "RocketwrightTransport": "implemented",
+    "PhoneSimulatorTransport": "implemented",
     "ViewerState": "read",
     "ViewHandle": "read",
 }
@@ -204,7 +204,7 @@ def api_breaks(promised: Description, now: Description) -> list[str]:
         new = now.get(name)
         where = f"api {name}"
         if new is None:
-            found.append(f"{where}: is no longer on rocketwright.api")
+            found.append(f"{where}: is no longer on phonesimulator.api")
             continue
         if new["kind"] != old["kind"]:
             found.append(f"{where}: was a {old['kind']}, now a {new['kind']}")
@@ -216,7 +216,7 @@ def api_breaks(promised: Description, now: Description) -> list[str]:
                 found.append(f"{where}: a host implementing it must now write {method} too")
             for method, params in old["methods"].items():
                 if method in new["methods"] and new["methods"][method] != params:
-                    found.append(f"{where}.{method}: what Rocketwright calls it with changed, and a host's has not")
+                    found.append(f"{where}.{method}: what PhoneSimulator calls it with changed, and a host's has not")
         else:
             found += _class_breaks(where, old, new)
     return found
@@ -478,7 +478,7 @@ def setting_breaks(promised: Description, now: Description) -> list[str]:
     return found
 
 
-def describe_cli(parser: argparse.ArgumentParser, prefix: str = "rocketwright") -> Description:
+def describe_cli(parser: argparse.ArgumentParser, prefix: str = "phonesimulator") -> Description:
     found: Description = {}
     options: dict[str, bool] = {}
     positionals: list[list[Any]] = []
@@ -549,7 +549,7 @@ def describe_viewer(src: Path) -> Description:
     for name in INTERFACES:
         found = (_interface(source, name) for source in sources.values())
         interfaces[name] = next((members for members in found if members is not None), {})
-    properties = re.findall(r"(--rocketwright-[a-z0-9]+(?:-[a-z0-9]+)*)", (src / "styles.css").read_text())
+    properties = re.findall(r"(--phonesimulator-[a-z0-9]+(?:-[a-z0-9]+)*)", (src / "styles.css").read_text())
     return {
         "exports": sorted(exports),
         "element": _first(r"ELEMENT_NAME = '([^']+)'", element),
@@ -600,11 +600,11 @@ AREAS: dict[str, Callable[[Description, Description], list[str]]] = {
 
 def describe(root: Path = REPO_ROOT) -> Description:
     """The surface as the code has it now."""
-    from rocketwright import api
-    from rocketwright.cli.main import parser
-    from rocketwright.config.schema import SETTINGS
-    from rocketwright.core.actions import STEP_OPTIONS
-    from rocketwright.tools.schemas import SCHEMAS
+    from phonesimulator import api
+    from phonesimulator.cli.main import parser
+    from phonesimulator.config.schema import SETTINGS
+    from phonesimulator.core.actions import STEP_OPTIONS
+    from phonesimulator.tools.schemas import SCHEMAS
 
     return {
         "api": describe_api(api),

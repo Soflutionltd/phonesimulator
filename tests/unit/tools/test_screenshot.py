@@ -13,19 +13,19 @@ from typing import Any
 
 from PIL import Image
 
-from rocketwright.build.folders import Folders
-from rocketwright.connectors.base import Capability, Shot
-from rocketwright.core.actions import AgentActions
-from rocketwright.seams import Caller
-from rocketwright.testing.checkouts import linked_worktree, main_checkout
-from rocketwright.testing.fakes import JPEG, FakeConnector, FakePhoneBackend, no_wait
-from rocketwright.testing.pictures import picture
-from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
-from rocketwright.tools.context import ToolContext
-from rocketwright.tools.registry import ToolRegistry
-from rocketwright.tools.results import Result, text
-from rocketwright.tools.schemas import SAVE_TO_MAX
-from rocketwright.tools.screenshot import screen_note
+from phonesimulator.build.folders import Folders
+from phonesimulator.connectors.base import Capability, Shot
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.seams import Caller
+from phonesimulator.testing.checkouts import linked_worktree, main_checkout
+from phonesimulator.testing.fakes import JPEG, FakeConnector, FakePhoneBackend, no_wait
+from phonesimulator.testing.pictures import picture
+from phonesimulator.testing.rig import VIEW_ONLY, DeviceRig, scope
+from phonesimulator.tools.context import ToolContext
+from phonesimulator.tools.registry import ToolRegistry
+from phonesimulator.tools.results import Result, text
+from phonesimulator.tools.schemas import SAVE_TO_MAX
+from phonesimulator.tools.screenshot import screen_note
 
 REGISTRY = ToolRegistry()
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
@@ -220,7 +220,7 @@ async def test_a_file_that_cannot_be_written_says_why(tmp_path: Path) -> None:
 
 async def test_a_screen_that_is_not_live_says_why_in_the_caption(tmp_path: Path) -> None:
     cable = (
-        "Its cable could not show the screen (macOS has not let rocketwright-helper use the Camera), so it shows "
+        "Its cable could not show the screen (macOS has not let phonesimulator-helper use the Camera), so it shows "
         "screenshots instead."
     )
     phone = FakeConnector("phone", kinds=frozenset({"physical"}), session_capabilities=VIEW_ONLY, note=cable)

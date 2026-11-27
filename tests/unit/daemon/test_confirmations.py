@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import pytest
 
-from rocketwright.daemon import confirmations
-from rocketwright.daemon.confirmations import (
+from phonesimulator.daemon import confirmations
+from phonesimulator.daemon.confirmations import (
     ALPHABET,
     ATTEMPTS,
     CONFIRM_TTL_S,
@@ -15,8 +15,8 @@ from rocketwright.daemon.confirmations import (
     PendingChanges,
     normalized,
 )
-from rocketwright.scope import Scope
-from rocketwright.testing.fakes import ManualClock
+from phonesimulator.scope import Scope
+from phonesimulator.testing.fakes import ManualClock
 
 DEMO = Scope.named("demo")
 
@@ -29,7 +29,7 @@ def test_a_change_waits_with_one_code_and_asking_again_for_it_answers_the_same()
     pending = PendingChanges(clock=ManualClock())
     first = pending.request(DEMO, "digest-a", "demo: build.tools = true")
     assert pending.request(DEMO, "digest-a", "demo: build.tools = true") == first
-    assert first["command"] == "rocketwright settings confirm" and first["expires_in_s"] == CONFIRM_TTL_S
+    assert first["command"] == "phonesimulator settings confirm" and first["expires_in_s"] == CONFIRM_TTL_S
     (shown,) = pending.waiting()
     assert shown["scope"] == "demo" and shown["summary"] == "demo: build.tools = true" and shown["id"] == first["id"]
     code = str(shown["code"])

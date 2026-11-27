@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-def package(binary: Path, app: Path, name: str = "MacAppSDK", bundle_id: str = "dev.rocketwright.MacAppSDK") -> None:
+def package(binary: Path, app: Path, name: str = "MacAppSDK", bundle_id: str = "dev.phonesimulator.MacAppSDK") -> None:
     contents = app / "Contents"
     (contents / "MacOS").mkdir(parents=True, exist_ok=True)
     shutil.copy2(binary, contents / "MacOS" / name)

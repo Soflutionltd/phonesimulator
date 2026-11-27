@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from rocketwright.validation import Invalid, is_number, whole
+from phonesimulator.validation import Invalid, is_number, whole
 
 
 def test_a_whole_number_in_bounds_is_kept_and_none_is_the_default() -> None:

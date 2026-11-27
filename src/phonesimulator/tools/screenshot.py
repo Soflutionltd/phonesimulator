@@ -1,0 +1,158 @@
+# SPDX-License-Identifier: Apache-2.0
+"""`sim_screenshot`: a JPEG of the screen or a region of it, or several to see an animation -- shown to the agent,
+saved to a file for evidence, or both.
+
+A file is saved only inside a folder the agent may write to: the folder it named for its builds (`build.folders`), the
+folder its client works in (its MCP roots), the scope's own folder, the recording folder (`recording.folder`), or
+another checkout of the repository the scope's folder is in -- its main checkout or a linked worktree, known from git's
+files as a build knows one (`build.checkouts`), never the git folder itself. A file name or a relative path is taken in
+the folder it named for its builds, else the scope's folder, else the first of the others; a
+path that leads out of them -- by ``..`` or by a link, followed first -- is refused. Each file is written whole, for its
+owner alone (0600), and folders missing under an allowed one are made.
+
+The screen arrives as a JPEG, so ``.jpg`` and ``.jpeg`` are saved as they came; ``.png`` is the same picture written
+again as a PNG by Pillow, which PhoneSimulator already decodes screenshots with -- lossless from then on, but no sharper
+than the JPEG it was made from.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import io
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+from PIL import Image
+
+from phonesimulator.build.checkouts import GIT, Checkout, checkout_of, home_checkout
+from phonesimulator.build.provider import kept_folder
+from phonesimulator.connectors.base import Capability, Shot
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.core.recordings import default_folder
+from phonesimulator.storage.private import write_atomic
+from phonesimulator.tools.context import ToolContext, make_tool, ready_device
+from phonesimulator.tools.results import Result, ToolRefused, images
+from phonesimulator.tools.schemas import SAVE_TO_MAX
+
+#: What each file ending is saved as; a name with none gets the first.
+FORMATS = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG"}
+DEFAULT_SUFFIX = ".jpg"
+
+
+async def run(args: dict[str, Any], ctx: ToolContext) -> Result:
+    return_image = args.get("return_image", True)
+    if not isinstance(return_image, bool):
+        raise ToolRefused("return_image is true or false")
+    home = home_checkout(ctx.folder) if ctx.folder is not None else None
+    save_to = destination(args.get("save_to"), places(ctx), home=home)
+    if save_to is None and not return_image:
+        raise ToolRefused("return_image: false answers only where the picture was saved: give save_to too")
+    instance = await ready_device(ctx)
+    shots = await ctx.actions.screenshots(
+        instance,
+        ctx.caller,
+        width=args.get("width", ctx.config.screenshot_width),
+        region=args.get("region"),
+        frames=args.get("frames", 1),
+        interval_ms=args.get("interval_ms"),
+        max_elements=ctx.config.snapshot_max_elements,
+    )
+    lines = [f"{len(shots)} frame{'s' if len(shots) != 1 else ''} · {shots[0].width}x{shots[0].height}px"]
+    if save_to is not None:
+        try:
+            lines += await asyncio.to_thread(save, shots, save_to)
+        except OSError as exc:
+            raise ToolRefused(f"could not save to {save_to}: {exc.strerror or exc}") from exc
+    note = screen_note(instance)
+    if note:
+        lines.append(f"note: {note}")
+    return images("\n".join(lines), [shot.jpeg for shot in shots] if return_image else [])
+
+
+def screen_note(instance: DeviceInstance) -> str | None:
+    """Why the device's screen is not live -- its cable's picture down, the Camera not allowed, screenshots taken
+    instead -- as its connector says it; None while the screen streams, or when nothing is said."""
+    if Capability.STREAM_H264 in instance.capabilities:
+        return None
+    return instance.live_note or (instance.session.note if instance.session is not None else None)
+
+
+def places(ctx: ToolContext) -> tuple[Path, ...]:
+    """Where a screenshot may be saved, the folder a relative path is taken in first: the folder the agent named for
+    its builds, the scope's folder, the folders the agent's client works in, then the recording folder."""
+    kept = kept_folder(ctx, ctx.folder) if ctx.folder is not None else None
+    own = [ctx.folder] if ctx.folder is not None else []
+    found = [*([kept] if kept is not None else []), *own, *ctx.caller.roots, default_folder(ctx.config)]
+    return tuple(dict.fromkeys(found))
+
+
+def destination(value: object, allowed: Sequence[Path], *, home: Checkout | None = None) -> Path | None:
+    """The file `save_to` names, with every link followed, inside one of the `allowed` folders or a checkout of the
+    repository of `home` -- the checkout the scope's folder is in; None for none."""
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip() or len(value) > SAVE_TO_MAX or "\x00" in value:
+        raise ToolRefused(f"save_to is a file name or a path of at most {SAVE_TO_MAX} characters")
+    asked = Path(value).expanduser()
+    real = _inside((asked if asked.is_absolute() else allowed[0] / asked).resolve(), allowed, value, home)
+    if not real.suffix:
+        if real.is_dir():
+            raise ToolRefused(f"save_to names a folder, {real}: name a file in it")
+        real = _inside(real.with_name(real.name + DEFAULT_SUFFIX).resolve(), allowed, value, home)
+    if real.suffix.lower() not in FORMATS:
+        raise ToolRefused(f"save_to ends in {', '.join(FORMATS)} -- a screenshot is saved as a JPEG or a PNG")
+    if real.is_dir():
+        raise ToolRefused(f"save_to names a folder, {real}: name a file in it")
+    return real
+
+
+def _inside(real: Path, allowed: Sequence[Path], value: str, home: Checkout | None) -> Path:
+    """`real` -- a path with every link followed -- when it is inside one of the `allowed` folders or another checkout
+    of `home`'s repository."""
+    if any(real.is_relative_to(place.resolve()) for place in allowed) or _in_checkout(real, home):
+        return real
+    places = ", ".join(str(place) for place in allowed)
+    also = " or another checkout of its repository" if home is not None else ""
+    raise ToolRefused(f"save_to must be inside {places}{also}: {value} is not")
+
+
+def _in_checkout(real: Path, home: Checkout | None) -> bool:
+    """Whether `real` is in a checkout of `home`'s repository -- outside its git folder, which is git's alone."""
+    if home is None:
+        return False
+    there = checkout_of(real.parent, known=home)
+    if there is None or there.repository != home.repository:
+        return False
+    return GIT not in real.relative_to(there.top).parts and not real.is_relative_to(there.repository)
+
+
+def numbered(path: Path, count: int) -> list[Path]:
+    """Where each of `count` pictures goes: the file itself for one, else ``name-1.jpg``, ``name-2.jpg`` ..."""
+    if count == 1:
+        return [path]
+    return [path.with_name(f"{path.stem}-{index}{path.suffix}") for index in range(1, count + 1)]
+
+
+def encoded(shot: Shot, path: Path) -> bytes:
+    """The picture as its file's ending asks: the JPEG as it came, or written again as a PNG."""
+    if FORMATS[path.suffix.lower()] == "JPEG":
+        return shot.jpeg
+    out = io.BytesIO()
+    with Image.open(io.BytesIO(shot.jpeg)) as picture:
+        picture.save(out, format="PNG")
+    return out.getvalue()
+
+
+def save(shots: Sequence[Shot], path: Path) -> list[str]:
+    """Write each picture to its file, for its owner alone, making the folders it needs; a line saying each."""
+    said = []
+    for shot, file in zip(shots, numbered(path, len(shots)), strict=True):
+        data = encoded(shot, file)
+        file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        write_atomic(file, data, mode=0o600)
+        said.append(f"saved {file} · {len(data)} bytes · {shot.width}x{shot.height}px")
+    return said
+
+
+TOOL = make_tool("sim_screenshot", (Capability.SCREENSHOT,), run)

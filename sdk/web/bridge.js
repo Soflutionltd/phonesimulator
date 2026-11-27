@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Inject only from a Debug host into an explicitly registered webview. No socket, secret or OS input lives here.
 (() => {
-  if (Object.prototype.hasOwnProperty.call(globalThis, "__RocketwrightWeb")) return;
+  if (Object.prototype.hasOwnProperty.call(globalThis, "__PhoneSimulatorWeb")) return;
   const origin = location.origin;
   let field = null;
   const refuse = (message) => { throw new Error(message); };
@@ -132,5 +132,5 @@
     } else { refuse('operation requires a native host hook'); }
     return {};
   }
-  Object.defineProperty(globalThis, '__RocketwrightWeb', { value: Object.freeze({ capture, input }), configurable: true });
+  Object.defineProperty(globalThis, '__PhoneSimulatorWeb', { value: Object.freeze({ capture, input }), configurable: true });
 })();

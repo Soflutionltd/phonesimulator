@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import ConnectorReport
-from rocketwright.connectors.registry import Selection
-from rocketwright.core.availability import Verdict
-from rocketwright.core.reaper import Reaper
-from rocketwright.core.status import scope_status
-from rocketwright.testing.fakes import FakeConnector
-from rocketwright.testing.rig import DeviceRig
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import ConnectorReport
+from phonesimulator.connectors.registry import Selection
+from phonesimulator.core.availability import Verdict
+from phonesimulator.core.reaper import Reaper
+from phonesimulator.core.status import scope_status
+from phonesimulator.testing.fakes import FakeConnector
+from phonesimulator.testing.rig import DeviceRig
 
 
 async def test_the_loop_reaps_on_its_schedule_survives_a_failure_and_stops(

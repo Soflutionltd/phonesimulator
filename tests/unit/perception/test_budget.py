@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import base64
 
-from rocketwright.perception.budget import estimate
-from rocketwright.perception.model import ElementNode, ScreenTree
-from rocketwright.testing.fakes import tiny_jpeg
+from phonesimulator.perception.budget import estimate
+from phonesimulator.perception.model import ElementNode, ScreenTree
+from phonesimulator.testing.fakes import tiny_jpeg
 
 
 def test_text_costs_about_a_token_per_four_characters() -> None:

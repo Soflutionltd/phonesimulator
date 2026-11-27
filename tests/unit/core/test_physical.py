@@ -10,14 +10,14 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.core.backends import PhysicalBackend
-from rocketwright.core.control import DisplayState, InstalledApp, NoDeviceLogs, PhysicalControl, bundle_executable
-from rocketwright.core.devices import DeviceRef, NoDevice
-from rocketwright.core.instance import DeviceInstance
-from rocketwright.platform.devicectl import Devicectl, DevicectlError, PhysicalDevice
-from rocketwright.testing.fakes import PHONE_UDID, FakeXcrun, fixture_json
-from rocketwright.testing.rig import scope
+from phonesimulator.config.model import SimConfig
+from phonesimulator.core.backends import PhysicalBackend
+from phonesimulator.core.control import DisplayState, InstalledApp, NoDeviceLogs, PhysicalControl, bundle_executable
+from phonesimulator.core.devices import DeviceRef, NoDevice
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.platform.devicectl import Devicectl, DevicectlError, PhysicalDevice
+from phonesimulator.testing.fakes import PHONE_UDID, FakeXcrun, fixture_json
+from phonesimulator.testing.rig import scope
 
 SECOND = "00008150-0099887766554433"
 ON = SimConfig.defaults().with_values(real_devices=True, developer_dir="/X.app/Contents/Developer")

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The build tools on a Flutter app: flutter builds it and Rocketwright installs and launches it, its tests run, and
+"""The build tools on a Flutter app: flutter builds it and PhoneSimulator installs and launches it, its tests run, and
 `sim_flutter` keeps it running for hot reloads -- stopped when the agent's connection ends, when its scope may no
-longer build, and when Rocketwright stops."""
+longer build, and when PhoneSimulator stops."""
 
 from __future__ import annotations
 
@@ -12,16 +12,16 @@ from typing import Any
 
 import pytest
 
-from rocketwright.build.flutter import FlutterToolchain
-from rocketwright.build.flutter_run import FlutterSessions
-from rocketwright.build.source import Source
-from rocketwright.build.xcodebuild import BuildRunner
-from rocketwright.core.actions import AgentActions
-from rocketwright.core.runtime import Runtime
-from rocketwright.platform.flutter import FlutterSdk
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import fixture, made, no_wait
-from rocketwright.testing.flutter import (
+from phonesimulator.build.flutter import FlutterToolchain
+from phonesimulator.build.flutter_run import FlutterSessions
+from phonesimulator.build.source import Source
+from phonesimulator.build.xcodebuild import BuildRunner
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.core.runtime import Runtime
+from phonesimulator.platform.flutter import FlutterSdk
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import fixture, made, no_wait
+from phonesimulator.testing.flutter import (
     COMPILE_ERROR,
     IOS_ID,
     SDK,
@@ -31,12 +31,12 @@ from rocketwright.testing.flutter import (
     Reload,
     flutter_project,
 )
-from rocketwright.testing.results import structured
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.testing.vision import FakeTextRecognizer
-from rocketwright.tools.context import ToolContext
-from rocketwright.tools.registry import ToolRegistry
-from rocketwright.tools.results import Result
+from phonesimulator.testing.results import structured
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.testing.vision import FakeTextRecognizer
+from phonesimulator.tools.context import ToolContext
+from phonesimulator.tools.registry import ToolRegistry
+from phonesimulator.tools.results import Result
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · groceries")
 REGISTRY = ToolRegistry()
@@ -254,7 +254,7 @@ async def test_the_runtime_stops_an_agents_flutter_apps_when_it_goes_or_may_no_l
 
 
 async def test_the_flutter_tool_is_listed_with_the_build_tools() -> None:
-    from rocketwright.config.model import SimConfig
+    from phonesimulator.config.model import SimConfig
 
     names = [
         tool["name"] for tool in REGISTRY.manifest(dataclasses.replace(SimConfig.defaults(), build_tools=True))["tools"]

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import Foundation
 
-/// What Rocketwright asks the helper, read from a request frame's JSON: ``{"op": "screenshot", "max_width": 900, ...}``.
+/// What PhoneSimulator asks the helper, read from a request frame's JSON: ``{"op": "screenshot", "max_width": 900, ...}``.
 public enum Request: Equatable, Sendable {
     /// Who the helper is and what it reached: its versions, the device's screen, and how input reaches it.
     case hello
@@ -122,7 +122,7 @@ public struct Hello: Equatable, Sendable, Encodable {
     /// Why a part of the device cannot be reached; empty when all of it can.
     public let reasons: [String]
     public let screen: ScreenGeometry
-    /// The capture device a real device's screen is read from, so Rocketwright asks for it by its id next time; nil for
+    /// The capture device a real device's screen is read from, so PhoneSimulator asks for it by its id next time; nil for
     /// a simulator.
     public let source: String?
 

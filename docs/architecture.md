@@ -32,22 +32,22 @@ flowchart LR
 | `tools`, `build` | The agent tools, and building and testing |
 | `server` | Router factories, security middleware, log redaction, the viewer's pages |
 | `daemon` | The standalone app: tokens -- a host token per application sharing it -- codes, leases, policy, lifecycle |
-| `mcp` | The standard-library relay and `rocketwright mcp` |
+| `mcp` | The standard-library relay and `phonesimulator mcp` |
 | `doctor`, `cli` | The checks, and the command line |
 | `api` | The only surface a host imports; `hosting` is how a host shares the daemon instead of embedding |
 | `testing` | The fakes, the device rig and the guards, shipped for hosts' tests |
 
 The native helper (`helper/`) is a Swift package: `HelperCore`, the wire protocol and every decision that needs no
 simulator, unit-tested to the same bar; `HelperPlatform`, which reaches the simulator's framebuffer, input and
-accessibility through CoreSimulator and SimulatorKit; and the `rocketwright-helper` program that serves one device on a
+accessibility through CoreSimulator and SimulatorKit; and the `phonesimulator-helper` program that serves one device on a
 unix socket.
 
-The app SDK (`Package.swift` at the top, `sdk/swift/`) is the Swift package **RocketwrightKit** an app under
+The app SDK (`Package.swift` at the top, `sdk/swift/`) is the Swift package **PhoneSimulatorKit** an app under
 development links: in a Debug build on the simulator it serves the app's own view hierarchy on 127.0.0.1 to
-Rocketwright, which merges it into snapshots. Its wire format is `protocol/app-sdk/v1`, apart from the screen
+PhoneSimulator, which merges it into snapshots. Its wire format is `protocol/app-sdk/v1`, apart from the screen
 protocol; see [The app SDK](app-sdk.md).
 
-The viewer (`viewer/`) is TypeScript: a `createViewer` function, a transport interface, and the `<rocketwright>` element
+The viewer (`viewer/`) is TypeScript: a `createViewer` function, a transport interface, and the `<phonesimulator>` element
 built on them; its standalone page is built into the Python package.
 
 ## Seams
@@ -55,7 +55,7 @@ built on them; its standalone page is built into the Python package.
 `core/runtime.py` is the one composition root. Everything a host decides comes in through a protocol in `seams.py` --
 `ConfigSource`, `StateStore`, `Policy`, `Authenticator`, `UsageProbe`, `DeviceMemory` -- and every message's wording
 through `HostCopy`. The standalone daemon is just one set of implementations: TOML settings, Application Support
-folders, a policy from settings, tokens, and leases renewed by `rocketwright mcp`.
+folders, a policy from settings, tokens, and leases renewed by `phonesimulator mcp`.
 
 ## Flows
 
@@ -94,7 +94,7 @@ is now off and moves devices whose connector changed -- before the command retur
 
 ## Rules the checks keep
 
-- **Containment**: `xcrun`, `simctl`, `xcodebuild`, `xcresulttool`, `idb_companion`, `rocketwright-helper`, `swiftc`,
+- **Containment**: `xcrun`, `simctl`, `xcodebuild`, `xcresulttool`, `idb_companion`, `phonesimulator-helper`, `swiftc`,
   `swift` and `git` are named only
   by the modules that run them (`scripts/check_containment.py`).
 - **Host-neutral**: no host application's vocabulary anywhere (`scripts/check_host_neutral.py`).

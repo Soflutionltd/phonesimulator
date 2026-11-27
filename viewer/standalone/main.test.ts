@@ -92,9 +92,9 @@ describe('boot', () => {
   it('says what to do on an address that is no viewer, or one without its code', async () => {
     const root = document.createElement('div')
     expect(await boot(root, env('/elsewhere', '', vi.fn()).page)).toBeNull()
-    expect(root.textContent).toBe('This is not a Rocketwright viewer address.')
+    expect(root.textContent).toBe('This is not a PhoneSimulator viewer address.')
     expect(await boot(root, env('/viewer/demo', '', vi.fn()).page)).toBeNull()
-    expect(root.textContent).toContain('rocketwright open')
+    expect(root.textContent).toContain('phonesimulator open')
     expect(await boot(root, env('/embed/demo', '', vi.fn()).page)).toBeNull()
     expect(root.textContent).toContain('Reload the page that shows this frame.')
   })
@@ -104,7 +104,7 @@ describe('boot', () => {
     const { page, replaceState } = env('/viewer/demo', '#code=spent', server('c0de'))
     expect(await boot(root, page)).toBeNull()
     expect(replaceState).toHaveBeenCalledWith(null, '', '/viewer/demo')
-    expect(root.textContent).toBe('invalid or expired code. Open the viewer again with `rocketwright open`.')
+    expect(root.textContent).toBe('invalid or expired code. Open the viewer again with `phonesimulator open`.')
   })
 
   it('opens the scope’s viewer with the token its ticket was spent for', async () => {
@@ -115,7 +115,7 @@ describe('boot', () => {
     const view = await boot(root, page)
     await flush()
     expect(view).not.toBeNull()
-    expect(titles).toEqual(['demo · Rocketwright'])
+    expect(titles).toEqual(['demo · PhoneSimulator'])
     expect(root.querySelector('.smv')).not.toBeNull()
     const [, init] = fetcher.mock.calls[1] as [string, RequestInit]
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer viewer-token')
@@ -172,7 +172,7 @@ describe('a tab of its own device', () => {
     await flush()
     expect(replaceState).toHaveBeenCalledWith(null, '', '/viewer/demo?device=U2')
     expect(asked).toContain('POST /api/v1/scopes/demo?udid=U2')
-    expect(titles).toEqual(['demo · Rocketwright', 'demo · iPhone Air'])
+    expect(titles).toEqual(['demo · PhoneSimulator', 'demo · iPhone Air'])
     FakeSocket.last().open()
 
     const picker = async () => {
@@ -213,16 +213,16 @@ describe('start', () => {
     window.history.replaceState(null, '', '/viewer/demo#code=c0de')
     const view = await start()
     expect(view).not.toBeNull()
-    expect(document.title).toBe('demo · Rocketwright')
+    expect(document.title).toBe('demo · PhoneSimulator')
     view!.destroy()
     // A scope the server knows the name of is called by it: the project's name, not its id.
     const meta = document.createElement('meta')
-    meta.name = 'rocketwright-project'
+    meta.name = 'phonesimulator-project'
     meta.content = 'Sociomator'
     document.head.appendChild(meta)
     window.history.replaceState(null, '', '/viewer/demo#code=c0de')
     const named = await start()
-    expect(document.title).toBe('Sociomator · Rocketwright')
+    expect(document.title).toBe('Sociomator · PhoneSimulator')
     named!.destroy()
     meta.remove()
   })
@@ -241,16 +241,16 @@ describe('the page\u2019s language', () => {
     const lang = vi.fn()
     const nowhere = env('/elsewhere', '', vi.fn())
     expect(await boot(root, { ...nowhere.page, lang })).toBeNull()
-    expect(root.textContent).toBe('This is not a Rocketwright viewer address.')
+    expect(root.textContent).toBe('This is not a PhoneSimulator viewer address.')
     expect(lang.mock.calls).toEqual([['en']])
     await boot(root, env('/viewer/demo', '', vi.fn()).page)
-    expect(root.textContent).toBe('This page lets you in with a one-time link. Open the viewer again with `rocketwright open`.')
+    expect(root.textContent).toBe('This page lets you in with a one-time link. Open the viewer again with `phonesimulator open`.')
     await boot(root, env('/embed/demo', '', vi.fn()).page)
     expect(root.textContent).toBe('This page lets you in with a one-time link. Reload the page that shows this frame.')
   })
 
   it('keeps the document\u2019s own lang in step with the viewer\u2019s', async () => {
-    localStorage.setItem('rocketwright.viewer', JSON.stringify({ lang: 'fr' }))
+    localStorage.setItem('phonesimulator.viewer', JSON.stringify({ lang: 'fr' }))
     const root = document.createElement('main')
     root.id = APP_ID
     document.body.appendChild(root)

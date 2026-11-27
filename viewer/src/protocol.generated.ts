@@ -104,7 +104,7 @@ export type SettingEffect = (typeof SETTING_EFFECTS)[number]
 export const SETTING_REACHES = ['scope', 'global'] as const
 export type SettingReach = (typeof SETTING_REACHES)[number]
 
-// Where a value comes from, lowest first: the default, config.toml, the scope's table in it, a ROCKETWRIGHT_*
+// Where a value comes from, lowest first: the default, config.toml, the scope's table in it, a PHONESIMULATOR_*
 // variable, or the command line.
 export const SETTING_LAYERS = ['default', 'file', 'scope', 'environment', 'command_line'] as const
 export type SettingLayer = (typeof SETTING_LAYERS)[number]
@@ -307,13 +307,13 @@ export interface Device {
   projects: string[]
   // What the device is kept for while agents' gestures would get in its way, such as a test run; null otherwise.
   busy: string | null
-  // Whether Rocketwright created this device.
+  // Whether PhoneSimulator created this device.
   created: boolean
-  // Whether Rocketwright booted this device, and so may shut it down.
+  // Whether PhoneSimulator booted this device, and so may shut it down.
   booted_by_us: boolean
   screen: Screen | null
-  // The app in front sharing its view hierarchy through Rocketwright's debug SDK, as an agent's last snapshot read
-  // it; null when none does. An older server does not send it.
+  // The app in front sharing its view hierarchy through PhoneSimulator's debug SDK, as an agent's last snapshot
+  // read it; null when none does. An older server does not send it.
   app_hierarchy: AppHierarchy | null
   // Whether it is a simulator, a real iPhone or iPad, or an Android device. An older server does not send it: read
   // it as simulator.
@@ -325,10 +325,10 @@ export interface Device {
   buttons: PanelButton[]
   // The recording of the device's screen under way; null when none is. An older server does not send it.
   recording: RecordingState | null
-  // Whether the device is light or dark, as Rocketwright last read or set it; null until it knows. An older server
-  // does not send it.
+  // Whether the device is light or dark, as PhoneSimulator last read or set it; null until it knows. An older
+  // server does not send it.
   appearance: Appearance | null
-  // Which way the device is turned, as Rocketwright last turned it -- by a person's Rotate in a viewer or an
+  // Which way the device is turned, as PhoneSimulator last turned it -- by a person's Rotate in a viewer or an
   // agent's sim_device rotate; portrait until it turns it. A viewer draws the device turned so, and turns a
   // person's touches back onto the portrait screen. An older server does not send it: read it as portrait.
   orientation: Orientation
@@ -345,7 +345,7 @@ export interface RecordingState {
   max_ms: number
 }
 
-// An app sharing its view hierarchy through Rocketwright's debug SDK, so snapshots read what accessibility leaves
+// An app sharing its view hierarchy through PhoneSimulator's debug SDK, so snapshots read what accessibility leaves
 // out.
 export interface AppHierarchy {
   // The app's name as the home screen shows it.
@@ -366,7 +366,7 @@ export interface Agent {
 export interface ServerHello {
   type: 'hello'
   v: 1
-  // The server's name and version, such as rocketwright/0.1.0.
+  // The server's name and version, such as phonesimulator/0.1.0.
   server: string
   encodings: Encoding[]
   // The connector driving the device, such as idb or simctl.
@@ -747,7 +747,7 @@ export interface SettingEntry {
   origin: SettingOrigin
   effect: SettingEffect
   reach: SettingReach
-  // It decides what Rocketwright runs or who may reach it: a page changes it only once a person confirms at the
+  // It decides what PhoneSimulator runs or who may reach it: a page changes it only once a person confirms at the
   // terminal.
   sensitive: boolean
   // Why it cannot be changed here -- such as a variable setting it -- or null when it can.
@@ -779,7 +779,7 @@ export interface SettingsChange {
   target: SettingsTarget
   set: SettingValueChange[]
   unset: string[]
-  // The code `rocketwright settings confirm` printed, for a change that includes a sensitive setting.
+  // The code `phonesimulator settings confirm` printed, for a change that includes a sensitive setting.
   confirmation: string | null
 }
 

@@ -111,7 +111,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rocketwright-web"
+name = "phonesimulator-web"
 version = "0.1.0"
 dependencies = [
  "serde_json",

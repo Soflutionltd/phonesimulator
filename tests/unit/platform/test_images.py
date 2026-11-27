@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from rocketwright.platform import images
+from phonesimulator.platform import images
 
 
 async def test_sips_is_asked_for_the_width_and_quality_and_its_output_is_answered() -> None:

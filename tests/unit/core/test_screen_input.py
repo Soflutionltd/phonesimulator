@@ -10,14 +10,14 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.base import Capability, ConnectorError, DeviceSession, HidEvent, PointerSink
-from rocketwright.core import gestures
-from rocketwright.core.control import SimulatorControl
-from rocketwright.core.device_changes import DeviceChanges
-from rocketwright.core.screen_input import Command, PersonInput, pointer_sink, translate
-from rocketwright.platform.simctl import Simctl
-from rocketwright.protocol import SCROLL_MAX_PT, TEXT_MAX_CHARS
-from rocketwright.testing.fakes import BOOTED_UDID, SCREEN, FakeEngine, FakeKeyboard, FakeXcrun
+from phonesimulator.connectors.base import Capability, ConnectorError, DeviceSession, HidEvent, PointerSink
+from phonesimulator.core import gestures
+from phonesimulator.core.control import SimulatorControl
+from phonesimulator.core.device_changes import DeviceChanges
+from phonesimulator.core.screen_input import Command, PersonInput, pointer_sink, translate
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.protocol import SCROLL_MAX_PT, TEXT_MAX_CHARS
+from phonesimulator.testing.fakes import BOOTED_UDID, SCREEN, FakeEngine, FakeKeyboard, FakeXcrun
 
 
 @pytest.mark.parametrize(
@@ -227,7 +227,7 @@ def test_window_input_translation_is_additive_and_bounded(message, command):
 
 
 async def test_window_input_uses_only_the_app_sink_and_never_simulator_gestures():
-    from rocketwright.testing.macos import FakeMacApp
+    from phonesimulator.testing.macos import FakeMacApp
 
     app = FakeMacApp()
     person, _, xcrun, touched = make(app, pointer=True)
@@ -250,7 +250,7 @@ async def test_window_input_uses_only_the_app_sink_and_never_simulator_gestures(
 async def test_a_wheel_over_a_simulator_is_a_swipe_even_when_its_input_could_ask_for_a_window_action() -> None:
     """The native helper's client drives simulators and macOS apps alike, so it has `mac_action` -- and a simulator's
     helper answers it "this device is not a macOS app". A person's scroll there is a finger, never that request."""
-    from rocketwright.testing.macos import FakeMacApp
+    from phonesimulator.testing.macos import FakeMacApp
 
     helper = FakeMacApp()
     simulator = DeviceSession(
@@ -276,7 +276,7 @@ async def test_a_wheel_over_a_simulator_is_a_swipe_even_when_its_input_could_ask
 
 
 def test_only_a_session_that_says_it_takes_a_pointer_is_given_window_input() -> None:
-    from rocketwright.testing.macos import FakeMacApp
+    from phonesimulator.testing.macos import FakeMacApp
 
     app, device = FakeMacApp(), FakeEngine()
     pointing = frozenset({Capability.INPUT_POINTER, Capability.INPUT_TOUCH})

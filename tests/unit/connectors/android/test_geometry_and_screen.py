@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 import pytest
 from PIL import Image
 
-from rocketwright.connectors.android.geometry import (
+from phonesimulator.connectors.android.geometry import (
     ROTATIONS,
     Rotation,
     on_display,
@@ -18,9 +18,9 @@ from rocketwright.connectors.android.geometry import (
     quarters_of,
     screen_of,
 )
-from rocketwright.connectors.android.screen import NO_STREAM, AdbScreen
-from rocketwright.connectors.base import ConnectorError, Crop, Screen
-from rocketwright.testing.adb import FakeAdbServer, small_jpeg
+from phonesimulator.connectors.android.screen import NO_STREAM, AdbScreen
+from phonesimulator.connectors.base import ConnectorError, Crop, Screen
+from phonesimulator.testing.adb import FakeAdbServer, small_jpeg
 
 PIXEL = Screen(1080, 2424, 411, 923, 2.625)
 

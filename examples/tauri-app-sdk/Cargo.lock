@@ -1859,7 +1859,7 @@ name = "mac-web-sample"
 version = "0.1.0"
 dependencies = [
  "objc2-app-kit",
- "rocketwright-web",
+ "phonesimulator-web",
  "serde_json",
  "tauri",
  "tauri-build",
@@ -2697,7 +2697,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rocketwright-web"
+name = "phonesimulator-web"
 version = "0.1.0"
 dependencies = [
  "serde_json",

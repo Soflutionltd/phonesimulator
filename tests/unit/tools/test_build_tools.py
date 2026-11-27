@@ -13,22 +13,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from rocketwright.build.derived import MARKER, checkout_folder
-from rocketwright.build.folders import Folders
-from rocketwright.build.source import Source, read_source
-from rocketwright.build.stamp import DIRTY_KEY, SHA_KEY, STAMPED
-from rocketwright.build.xcodebuild import BuildRunner
-from rocketwright.core.actions import AgentActions
-from rocketwright.core.control import InstalledApp
-from rocketwright.core.events import Event
-from rocketwright.core.selections import Selections
-from rocketwright.core.signing import SigningTeams
-from rocketwright.platform.keychain import Team
-from rocketwright.platform.xcrun import XcrunResult
-from rocketwright.seams import Caller
-from rocketwright.storage.claims import Claims
-from rocketwright.testing.checkouts import linked_worktree, main_checkout
-from rocketwright.testing.fakes import (
+from phonesimulator.build.derived import MARKER, checkout_folder
+from phonesimulator.build.folders import Folders
+from phonesimulator.build.source import Source, read_source
+from phonesimulator.build.stamp import DIRTY_KEY, SHA_KEY, STAMPED
+from phonesimulator.build.xcodebuild import BuildRunner
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.core.control import InstalledApp
+from phonesimulator.core.events import Event
+from phonesimulator.core.selections import Selections
+from phonesimulator.core.signing import SigningTeams
+from phonesimulator.platform.keychain import Team
+from phonesimulator.platform.xcrun import XcrunResult
+from phonesimulator.seams import Caller
+from phonesimulator.storage.claims import Claims
+from phonesimulator.testing.checkouts import linked_worktree, main_checkout
+from phonesimulator.testing.fakes import (
     PHONE_UDID,
     FakeConnector,
     FakePhoneBackend,
@@ -37,11 +37,11 @@ from rocketwright.testing.fakes import (
     made,
     no_wait,
 )
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.tools.context import ToolContext
-from rocketwright.tools.registry import ToolRegistry
-from rocketwright.tools.results import Result
-from rocketwright.tools.schemas import BUILD_WAIT_BOUNDS
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.tools.context import ToolContext
+from phonesimulator.tools.registry import ToolRegistry
+from phonesimulator.tools.results import Result
+from phonesimulator.tools.schemas import BUILD_WAIT_BOUNDS
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 APP = "/Users/dev/probe-out/dd/Build/Products/Debug-iphonesimulator/NotesProbe.app"
@@ -189,12 +189,12 @@ async def test_builds_are_refused_while_the_scope_does_not_allow_them_and_nothin
     rig = BuildRig(tmp_path)
     off = dataclasses.replace(rig.context().config, build_tools=False)
     refusals: tuple[tuple[dict[str, Any], str], ...] = (
-        ({"config": off}, "The iOS Simulator's build tools are off for this project (`rocketwright config`)."),
+        ({"config": off}, "The iOS Simulator's build tools are off for this project (`phonesimulator config`)."),
         ({"shells_allowed": False}, "A build runs commands, and this project does not allow them"),
         ({"builds": None}, "The build runner is not running."),
         (
             {"folder": None},
-            "There is no folder to build in for this project: start `rocketwright mcp` in the project's "
+            "There is no folder to build in for this project: start `phonesimulator mcp` in the project's "
             "folder, or give it `--root /path/to/the/project`.",
         ),
     )
@@ -226,7 +226,7 @@ def ran_with(rig: BuildRig, key: str) -> str:
     return rig.started[-1][rig.started[-1].index(key) + 1]
 
 
-async def test_a_build_runs_in_the_worktree_the_agents_client_works_in_not_where_rocketwright_started(
+async def test_a_build_runs_in_the_worktree_the_agents_client_works_in_not_where_phonesimulator_started(
     tmp_path: Path,
 ) -> None:
     rig = BuildRig(tmp_path)
@@ -237,7 +237,7 @@ async def test_a_build_runs_in_the_worktree_the_agents_client_works_in_not_where
         assert said(answer).startswith(f"{tool.removeprefix('sim_').removesuffix('_run')} ")
         assert rig.ran_in[-1] == worktree
         assert ran_with(rig, "-project") == str(worktree / "NotesProbe.xcodeproj")
-    # A client working in the folder Rocketwright started in, or saying nothing, builds that folder as before.
+    # A client working in the folder PhoneSimulator started in, or saying nothing, builds that folder as before.
     for caller in (Caller(CALLER.scope, CALLER.key, CALLER.title, roots=(rig.folder,)), CALLER):
         lines = said(await rig.call("sim_build_run", {}, caller=caller)).splitlines()
         assert lines[0].startswith("build ok") and rig.ran_in[-1] == rig.folder
@@ -277,7 +277,7 @@ async def test_a_client_working_where_the_scope_may_not_build_is_told_what_was_b
     lines = said(await rig.call("sim_build_run", {}, caller=elsewhere)).splitlines()
     assert lines[0] == (
         f"note: built {rig.folder}, not {tmp_path / 'other-project'} where your client works, which builds here may "
-        "not reach: name the folder with folder, or start `rocketwright mcp` in the project's folder, or give it "
+        "not reach: name the folder with folder, or start `phonesimulator mcp` in the project's folder, or give it "
         "`--root /path/to/the/project`"
     )
     assert lines[1].startswith("build ok") and rig.ran_in[-1] == rig.folder
@@ -579,7 +579,7 @@ async def test_a_stamped_build_installs_a_signed_copy_holding_its_commit_and_kee
     lines = said(await REGISTRY.call("sim_build_run", {}, ctx)).splitlines()
     assert lines[1:4] == [
         "installed NotesProbe.app",
-        "stamped 1a2b3c4 with changes not committed into its Info.plist (ROCKETWRIGHT_SOURCE_SHA)",
+        "stamped 1a2b3c4 with changes not committed into its Info.plist (PHONESIMULATOR_SOURCE_SHA)",
         f"launched {BUNDLE} (pid 81234)",
     ]
     copy = app.parent.parent / STAMPED / "NotesProbe.app"
@@ -614,7 +614,7 @@ async def test_a_real_devices_build_is_never_stamped(tmp_path: Path) -> None:
     rig.status = f"# branch.oid {COMMIT}\n# branch.head main\n"
     config = dataclasses.replace(rig.context().config, build_stamp_source=True)
     lines = said(await rig.call("sim_build_run", {}, config=config)).splitlines()
-    assert "not stamped: a real device's app is signed for it, and Rocketwright does not sign it again" in lines
+    assert "not stamped: a real device's app is signed for it, and PhoneSimulator does not sign it again" in lines
     assert not any(args[0] == "codesign" for args in rig.sim.argv())
 
 
@@ -637,7 +637,7 @@ async def test_app_info_says_which_commit_the_installed_app_was_built_from_and_w
     lines = said(await rig.call("sim_app", {"action": "info", "bundle_id": BUNDLE})).splitlines()
     assert lines == [
         f"{BUNDLE} · NotesProbe 1.2 (7) · {bundle}",
-        "stamped 1a2b3c4 (ROCKETWRIGHT_SOURCE_SHA)",
+        "stamped 1a2b3c4 (PHONESIMULATOR_SOURCE_SHA)",
         f"the code in {rig.folder}: 1a2b3c4, with nothing uncommitted then or now",
     ]
     assert ("simctl", "get_app_container", made(1), BUNDLE, "app") in rig.sim.argv()
@@ -651,7 +651,7 @@ async def test_app_info_says_which_commit_the_installed_app_was_built_from_and_w
     # Where nothing builds, the stamp is all there is to say.
     for nothing_builds in ({"builds": None}, {"shells_allowed": False}):
         lines = said(await rig.call("sim_app", {"action": "info", "bundle_id": BUNDLE}, **nothing_builds)).splitlines()
-        assert lines[1:] == ["stamped 1a2b3c4 (ROCKETWRIGHT_SOURCE_SHA)"]
+        assert lines[1:] == ["stamped 1a2b3c4 (PHONESIMULATOR_SOURCE_SHA)"]
 
 
 async def test_app_info_says_when_there_is_no_stamp_or_no_app(tmp_path: Path) -> None:

@@ -1,7 +1,7 @@
 # Signing in
 
 `sim_login` signs an app in with a login saved in your password manager -- 1Password first, Bitwarden, or a program
-of your own -- and the agent never sees the password: Rocketwright asks the password manager for it, types it straight
+of your own -- and the agent never sees the password: PhoneSimulator asks the password manager for it, types it straight
 into the device, and tells the agent only which login it used and which fields it filled.
 
 ## Turn it on
@@ -9,7 +9,7 @@ into the device, and tells the agent only which login it used and which fields i
 It is off until you name where logins come from, in the order they are tried:
 
 ```sh
-rocketwright config set login.sources '["1password"]'
+phonesimulator config set login.sources '["1password"]'
 ```
 
 or in `config.toml`:
@@ -19,8 +19,8 @@ or in `config.toml`:
 sources = ["1password", "bitwarden", "command:/Users/you/bin/test-logins"]
 ```
 
-`login.sources` decides what Rocketwright runs, so a page cannot change it alone: the settings panel asks for a code from
-`rocketwright settings confirm` ([The settings panel](settings.md)).
+`login.sources` decides what PhoneSimulator runs, so a page cannot change it alone: the settings panel asks for a code from
+`phonesimulator settings confirm` ([The settings panel](settings.md)).
 
 ### 1Password
 
@@ -51,7 +51,7 @@ security add-generic-password -s com.example.notes -a ann@example.com -l "Notes 
 ```
 
 `keychain` finds it by the app's id alone, and reads its password only to type it. Only a process that may run
-`security` reaches the Keychain: `rocketwright login --source keychain` from your terminal does; a daemon started by an MCP
+`security` reaches the Keychain: `phonesimulator login --source keychain` from your terminal does; a daemon started by an MCP
 client that runs its servers in a sandbox forbidding the Keychain does not.
 
 ### A program of your own
@@ -104,21 +104,21 @@ With two-factor sign-in, call it again once the app asks for the code: `{"app": 
 "ann@example.com", "code": true, "submit": true}`. A code the password manager does not hold -- an SMS, an e-mail --
 is refused with "ask the person".
 
-## From a sandboxed client: `rocketwright login`
+## From a sandboxed client: `phonesimulator login`
 
 The password manager is asked from the daemon, and a daemon started by an MCP client that runs its servers in a macOS
 sandbox inherits that sandbox -- which may forbid what the password manager's CLI needs, such as the Keychain
 (`1Password's item list failed: ... Operation not permitted`). Ask it from your own terminal instead:
 
 ```sh
-rocketwright login com.example.notes --account ann@example.com --submit
+phonesimulator login com.example.notes --account ann@example.com --submit
 ```
 
 It reads `login.sources`, or `--source 1password` (or `bitwarden`, `keychain`, `command:/path`; repeatable), finds the login as `sim_login` does, hands it to the
 daemon for one use -- in memory, for this project and app, dropped once taken or after two minutes -- and has
 `sim_login` type it (`source: "given"`), with the same fields found and the same masking. `--field` and `--code` are
 `sim_login`'s. It prints which login was used and what was filled, never a value; no value is ever on its command
-line. An agent cannot reach a login handed over: it is taken only with the item `rocketwright login` passed itself.
+line. An agent cannot reach a login handed over: it is taken only with the item `phonesimulator login` passed itself.
 
 ## Which login, and which field
 
@@ -139,7 +139,7 @@ line. An agent cannot reach a login handed over: it is taken only with the item 
 
 ## Security
 
-What Rocketwright guarantees about the value -- the password and the one-time code:
+What PhoneSimulator guarantees about the value -- the password and the one-time code:
 
 - **Never in an answer.** `sim_login` answers with the login's title, where it is kept and its id, and what was filled.
   Every later answer of every tool -- a snapshot of a field whose eye was tapped, an app's log, an error -- has the
@@ -147,7 +147,7 @@ What Rocketwright guarantees about the value -- the password and the one-time co
   keyed digest of each value, never the value, with a key made afresh for each run of the daemon.
 - **Never shown to a viewer.** The agent's events say "Typing the password" and show `••••`; the macOS overlay, drawn
   from the same events, likewise.
-- **Not hidden in a picture, a short value or a file.** The mask hides text in what Rocketwright answers, and is set
+- **Not hidden in a picture, a short value or a file.** The mask hides text in what PhoneSimulator answers, and is set
   before the first key is struck, so a login cancelled midway is masked too. It does not reach a screenshot, a
   recording or the live viewer: an app that shows the password in clear -- its eye tapped -- shows it there, and to
   the agent that asks for a screenshot. A value shorter than four characters is not masked, nor is what an app writes
@@ -161,13 +161,13 @@ What Rocketwright guarantees about the value -- the password and the one-time co
   returns. Python cannot wipe a string's memory in place, so the value lives on in freed memory until it is reused.
 - **The pasteboard.** A login is typed with the keys of the Mac's own layout -- AZERTY, QWERTZ, US -- and reaches a
   simulator through its pasteboard only when one of its characters has no key there, or `device.typing` says to
-  paste: Rocketwright empties it again once the login is typed, and says so when it could not. With Simulator.app's
+  paste: PhoneSimulator empties it again once the login is typed, and says so when it could not. With Simulator.app's
   *Automatically Sync Pasteboard* on, the Mac's own pasteboard briefly held it too: turn that off. iOS 16 to 26 ask to Allow Paste: the prompt
-  names the simulator's pasteboard bridge, `CoreSimulatorBridge`, so Rocketwright knows it for its own paste and allows
+  names the simulator's pasteboard bridge, `CoreSimulatorBridge`, so PhoneSimulator knows it for its own paste and allows
   it, and the answer says so -- or says the text did not arrive when it could not tell the allow button. iOS 27 refuses
   a paste it did not ask for, and the answer says so.
 - **Android without scrcpy is refused**: adb's `input text` would put the password in a command line other programs
-  can read. Set scrcpy up (`rocketwright android setup`).
+  can read. Set scrcpy up (`phonesimulator android setup`).
 
 Refused before the password manager is asked:
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * What a device is, as the viewer says it: a simulator, an Android emulator, or a real device -- an iPhone or iPad, or
- * an Android phone. A real device is never started or shut down by Rocketwright, only shown and let go; a simulator and an
+ * an Android phone. A real device is never started or shut down by PhoneSimulator, only shown and let go; a simulator and an
  * emulator run on this Mac, and are.
  */
 import { english, isMessageKey, type PlainKey, type Translate } from './i18n'

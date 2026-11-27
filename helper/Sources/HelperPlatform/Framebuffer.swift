@@ -40,7 +40,7 @@ import IOSurface
 final class Framebuffer: PixelSource, @unchecked Sendable {
     static let displayPort = "com.apple.framebuffer.display"
 
-    private let signal = FrameSignal(label: "rocketwright.framebuffer")
+    private let signal = FrameSignal(label: "phonesimulator.framebuffer")
     private var queue: DispatchQueue { signal.queue }
     private let lock = NSLock()
     private let screen: ScreenGeometry
@@ -71,7 +71,7 @@ final class Framebuffer: PixelSource, @unchecked Sendable {
             }
         }
         guard !registrations.isEmpty else {
-            throw HelperFailure("this CoreSimulator's displays offer no frame callbacks Rocketwright knows", status: 409)
+            throw HelperFailure("this CoreSimulator's displays offer no frame callbacks PhoneSimulator knows", status: 409)
         }
     }
 

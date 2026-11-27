@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.build import xctestplan
-from rocketwright.build.schemes import plan_references, scheme_files
-from rocketwright.build.xctestplan import chosen_plan, enabled_targets, plan_path, planned_targets
-from rocketwright.testing.fakes import fixture
+from phonesimulator.build import xctestplan
+from phonesimulator.build.schemes import plan_references, scheme_files
+from phonesimulator.build.xctestplan import chosen_plan, enabled_targets, plan_path, planned_targets
+from phonesimulator.testing.fakes import fixture
 
 SCHEME = fixture("xcscheme-test-plans.xcscheme")
 UNITS_ONLY = fixture("xctestplan-units-only.xctestplan")

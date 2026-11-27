@@ -1,6 +1,6 @@
-# What Rocketwright promises not to break
+# What PhoneSimulator promises not to break
 
-Rocketwright is used in ways that outlive a single version: an agent calls its **tools**, a page speaks its **protocol**
+PhoneSimulator is used in ways that outlive a single version: an agent calls its **tools**, a page speaks its **protocol**
 and embeds its **viewer**, a host application embeds its **Python API** or shares its daemon, and a script runs its
 **command line**. Each of those is a promise to somebody who is not in this repository, so each is written down here —
 what is covered, what is not, and what happens when one has to change.
@@ -10,11 +10,11 @@ version added.
 
 ## Versions
 
-Rocketwright has two version numbers, and they mean different things.
+PhoneSimulator has two version numbers, and they mean different things.
 
 | Number | Where | What it counts |
 |---|---|---|
-| Package version | `rocketwright` on PyPI, `@soflution/rocketwright` on npm, the git tag | The code: [semantic versioning](https://semver.org/spec/v2.0.0.html) |
+| Package version | `phonesimulator` on PyPI, `@soflution/phonesimulator` on npm, the git tag | The code: [semantic versioning](https://semver.org/spec/v2.0.0.html) |
 | Protocol version | `PROTOCOL_VERSION`, the `v` in every hello | The wire between a viewer and a server |
 
 They move independently on purpose: a package release that changes nothing a viewer can see leaves the protocol
@@ -62,14 +62,14 @@ Since 3.9 a device belongs to the agent connection that chose it, not to every a
 on its own device. An agent alone in its scope sees what it saw before, and `device.selection = "scope"` gives every
 agent of a scope its shared device again, exactly as it was. `device.exclusive` is re-tuned to `all` in the same
 release, as a default may be; `real_devices` is the old one. The MCP server's name in the Claude
-Code plugin, `device`, is part of the promise: its tools are `mcp__plugin_rocketwright_device__sim_*`.
+Code plugin, `device`, is part of the promise: its tools are `mcp__plugin_phonesimulator_device__sim_*`.
 
 ### The protocol
 
 Everything in [`protocol/v1/`](../protocol/README.md): the screen socket's messages, the binary frame tags, the close
 codes and the constants, and what the HTTP routes answer -- a scope's status, devices and settings, embed tickets, the
 health check, a host's tokens, and the agent routes' manifest and results. The types and constants
-`rocketwright.protocol` and the viewer package generate from it are covered with it. Within `v1`:
+`phonesimulator.protocol` and the viewer package generate from it are covered with it. Within `v1`:
 
 - a field is **never removed** and never changes meaning or type, and a field that is always sent stays always sent;
 - a new field is **safe to ignore** -- every receiver already ignores what it does not know -- and a server never needs
@@ -87,7 +87,7 @@ admin routes (`/api/v1/admin/…`) are the command line's, and the command line 
 
 ### The Python embedding API
 
-Every name exported by [`rocketwright.api`](../src/rocketwright/api.py) -- the `Runtime`, the seams a host implements,
+Every name exported by [`phonesimulator.api`](../src/phonesimulator/api.py) -- the `Runtime`, the seams a host implements,
 the router factories, `relay_command`, the settings router and its seams, `DaemonHost` for a host sharing the daemon,
 and the helpers beside them. `tests/unit/test_api.py` writes that list down, and the surface check holds each name to
 what it was:
@@ -96,7 +96,7 @@ what it was:
   name. A new parameter has a default; a parameter that had one keeps it.
 - **What a host implements** -- `ConfigSource`, `StateStore`, `DeviceMemory`, `UsageProbe`, `InputPause`, `Policy`,
   `Authenticator`, `SettingsStore`, `SettingsAuthenticator`, `Confirmations` -- never gains a method or changes how
-  Rocketwright calls one. Something new a host may answer is a new seam beside it, optional to pass, as `InputPause` is.
+  PhoneSimulator calls one. Something new a host may answer is a new seam beside it, optional to pass, as `InputPause` is.
 - **What a host reads** -- `Person`, `Caller`, `Scope`, `SettingsEditor`, `AgentAccess`, a refusal's `status` and
   `message`, every attribute of `SimConfig` -- keeps each field.
 
@@ -106,31 +106,31 @@ with `config`, `state`, `policy`, `memory`, `copy`, `usage`, `may_share` and `pa
 `manifest` a `tools` list of `name`, `description` and `inputSchema` with an `instructions` string, `call` a result's
 `content` (text and image parts), `isError` and, for some tools, `structuredContent` -- so a host can serve them from an MCP server of its own
 (`tests/unit/core/test_runtime.py` holds them to it). `build`'s other parameters (`registry`, `claims`, `tools`, `builds`, `xcrun`,
-`keyboard`, `hierarchy`, `clock`, `sleep`, `platform`) and `Runtime`'s fields are how Rocketwright's own tests put
+`keyboard`, `hierarchy`, `clock`, `sleep`, `platform`) and `Runtime`'s fields are how PhoneSimulator's own tests put
 one together, and are not. `SimConfig` is made by `SimConfig.defaults`, `from_flat`, `overlay` and `with_values`.
 
-**Nothing else in the package is public.** `rocketwright.core`, `rocketwright.connectors`, `rocketwright.daemon` and the
+**Nothing else in the package is public.** `phonesimulator.core`, `phonesimulator.connectors`, `phonesimulator.daemon` and the
 rest are the implementation and change freely. If you need something that is not on `api`, that is a hole in the
-surface and worth [an issue](https://github.com/Soflutionltd/rocketwright/issues) -- reaching in instead is how an
+surface and worth [an issue](https://github.com/Soflutionltd/phonesimulator/issues) -- reaching in instead is how an
 upgrade nobody called breaking breaks your application.
 
-`rocketwright.testing` is offered to hosts for their own tests and follows the same rule as the API, one release
+`phonesimulator.testing` is offered to hosts for their own tests and follows the same rule as the API, one release
 behind: it may change in a minor release when the thing it fakes does.
 
 ### The viewer package
 
-What `@soflution/rocketwright` exports -- `createViewer`, `createHttpTransport`, `TransportError`, the
-`<rocketwright>` element and `defineRocketwrightElement`, the icons, `VIEWER_CSS` and the protocol's types -- the element's
-attributes (`server`, `scope`, `token`, `placement`), its `rocketwright:state`, `rocketwright:place` and
-`rocketwright:close` events, the `bar`, `stage` and `screen` parts, and the `--rocketwright-*` custom properties.
+What `@soflution/phonesimulator` exports -- `createViewer`, `createHttpTransport`, `TransportError`, the
+`<phonesimulator>` element and `definePhoneSimulatorElement`, the icons, `VIEWER_CSS` and the protocol's types -- the element's
+attributes (`server`, `scope`, `token`, `placement`), its `phonesimulator:state`, `phonesimulator:place` and
+`phonesimulator:close` events, the `bar`, `stage` and `screen` parts, and the `--phonesimulator-*` custom properties.
 
-`ViewerOptions` and `HttpTransportOptions` never gain a member a page has to give; `RocketwrightTransport`, which a host
+`ViewerOptions` and `HttpTransportOptions` never gain a member a page has to give; `PhoneSimulatorTransport`, which a host
 with its own API client implements, never gains one it has to write; and `ViewHandle` and `ViewerState` keep each
 member a page reads.
 
 ### Settings and the command line
 
-**Settings** keep their paths (`stream.fps`), their environment variables (`ROCKETWRIGHT_STREAM_FPS`), whether they can
+**Settings** keep their paths (`stream.fps`), their environment variables (`PHONESIMULATOR_STREAM_FPS`), whether they can
 be set for one scope, and every value they accepted: a choice keeps its options, a number its range, a text its length.
 A setting may take more; a **default** may be re-tuned (see below).
 
@@ -145,13 +145,13 @@ optional.
   sits idle. Set what you depend on.
 - **The viewer's DOM and CSS class names.** Style it through the custom properties and `::part()`; the markup inside,
   the settings panel's included, is not stable.
-- **Connectors.** The `rocketwright.connectors` entry point and the `Connector` protocol are not stable in 1.x: a native
+- **Connectors.** The `phonesimulator.connectors` entry point and the `Connector` protocol are not stable in 1.x: a native
   helper, real devices and Android reshaped them, and more devices will. A connector outside this repository pins a minor version.
 - **What an agent sees of a screen.** Which elements a snapshot holds, how they are named, and what reading Xcode's UI
   hierarchy adds, improve as the readers do.
-- **The app SDK.** RocketwrightKit's Swift API and its wire format, `protocol/app-sdk/v1`, are a preview with a
+- **The app SDK.** PhoneSimulatorKit's Swift API and its wire format, `protocol/app-sdk/v1`, are a preview with a
   version of their own, outside `compat/surface-v3.json`: a change that would break an app speaking version 1 gets
-  version 2, which Rocketwright reads beside it, and an app's SDK says which it speaks.
+  version 2, which PhoneSimulator reads beside it, and an app's SDK says which it speaks.
 - **What a real device can do.** A real device's capabilities come from Xcode's `devicectl`, the device itself and
   WebDriverAgent, and change when they do: an iOS or Xcode update may take one away, and that is not a break. The
   pinned WebDriverAgent release may change in any release.

@@ -63,7 +63,7 @@ public struct EncoderPlan: Equatable, Sendable {
     }
 }
 
-/// H.264 as Rocketwright streams it: Annex-B access units, a key frame carrying its parameter sets, each unit closed by an
+/// H.264 as PhoneSimulator streams it: Annex-B access units, a key frame carrying its parameter sets, each unit closed by an
 /// access unit delimiter.
 ///
 /// VideoToolbox answers AVCC: each NAL unit after its length. A viewer reads Annex-B: each after a start code, and a

@@ -12,10 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.connectors.helper_process import helper_id
-from rocketwright.connectors.native import helper as helper_module
-from rocketwright.connectors.native.helper import (
+from phonesimulator._version import __version__
+from phonesimulator.connectors.helper_process import helper_id
+from phonesimulator.connectors.native import helper as helper_module
+from phonesimulator.connectors.native.helper import (
     PROGRAM,
     AskVersion,
     CachedVersions,
@@ -35,9 +35,9 @@ from rocketwright.connectors.native.helper import (
     helper_version,
     self_check,
 )
-from rocketwright.host_copy import HostCopy
-from rocketwright.testing.fakes import BOOTED_UDID, SCREEN
-from rocketwright.testing.native import FakeHelperSpawn, short_run_dir
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.testing.fakes import BOOTED_UDID, SCREEN
+from phonesimulator.testing.native import FakeHelperSpawn, short_run_dir
 
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
 
@@ -50,7 +50,7 @@ def _executable(path: Path) -> Path:
 
 
 def test_the_helper_ships_beside_the_package_and_is_built_per_version(tmp_path: Path) -> None:
-    assert helper_module.PACKAGED.parts[-3:] == ("rocketwright", "_bin", PROGRAM)
+    assert helper_module.PACKAGED.parts[-3:] == ("phonesimulator", "_bin", PROGRAM)
     assert built_helper(tmp_path) == tmp_path / f"native-{__version__}" / PROGRAM
     assert built_helper(tmp_path, "9.9.9").parent.name == "native-9.9.9"
 
@@ -139,7 +139,7 @@ async def test_a_helper_starts_in_its_own_folder_answers_and_ends(tmp_path: Path
         launcher = HelperLauncher(
             run_dir=run,
             log_dir=tmp_path / "logs",
-            owner_tag="RocketwrightTest",
+            owner_tag="PhoneSimulatorTest",
             spawn=spawn,
             signal_group=spawn.signal_group,
             pid_alive=lambda pid: False,
@@ -155,7 +155,7 @@ async def test_a_helper_starts_in_its_own_folder_answers_and_ends(tmp_path: Path
             )
             assert log == tmp_path / "logs" / f"native-{name}.log"
             assert spawn.envs[0] is not None and spawn.envs[0]["DEVELOPER_DIR"] == XCODE_27
-            assert running.pid_file.read_text() == f"7000 777 RocketwrightTest\n{XCODE_27}"
+            assert running.pid_file.read_text() == f"7000 777 PhoneSimulatorTest\n{XCODE_27}"
             assert await running.engine.describe() == SCREEN
         finally:
             await launcher.stop(running)
@@ -166,8 +166,8 @@ async def test_a_helper_starts_in_its_own_folder_answers_and_ends(tmp_path: Path
 async def test_a_helper_that_cannot_be_started_is_refused_as_the_helper(tmp_path: Path) -> None:
     spawn = FakeHelperSpawn(fail=OSError("Bad CPU type in executable"))
     with short_run_dir() as run:
-        launcher = HelperLauncher(run_dir=run, log_dir=tmp_path, owner_tag="RocketwrightTest", spawn=spawn, owner=777)
-        with pytest.raises(HelperUnavailable, match="rocketwright-helper could not be started: Bad CPU type"):
+        launcher = HelperLauncher(run_dir=run, log_dir=tmp_path, owner_tag="PhoneSimulatorTest", spawn=spawn, owner=777)
+        with pytest.raises(HelperUnavailable, match="phonesimulator-helper could not be started: Bad CPU type"):
             await launcher.start("/bin/helper", BOOTED_UDID)
 
 
@@ -220,7 +220,7 @@ def test_the_swift_sources_are_the_first_folder_with_a_package(tmp_path: Path) -
     (package / "Package.swift").write_text("// swift-tools-version:6.0\n")
     assert helper_sources((empty, package)) == package
     assert helper_sources((empty,)) is None
-    assert helper_module.SOURCE_CANDIDATES[0].parts[-2:] == ("rocketwright", "_helper_src")
+    assert helper_module.SOURCE_CANDIDATES[0].parts[-2:] == ("phonesimulator", "_helper_src")
     assert helper_sources() == helper_module.SOURCE_CANDIDATES[1]
 
 
@@ -245,7 +245,7 @@ async def test_a_capture_helper_starts_like_any_with_no_xcode_of_its_own(tmp_pat
         launcher = HelperLauncher(
             run_dir=run,
             log_dir=tmp_path,
-            owner_tag="RocketwrightTest",
+            owner_tag="PhoneSimulatorTest",
             spawn=spawn,
             pid_alive=lambda pid: False,
             owner=7,
@@ -256,7 +256,7 @@ async def test_a_capture_helper_starts_like_any_with_no_xcode_of_its_own(tmp_pat
                 "/bin/helper", PHONE, running.socket, parent=7, wait_s=3, idle_key_frames=True
             )
             assert "DEVELOPER_DIR" not in (spawn.envs[0] or {})
-            assert running.pid_file.read_text() == "7000 7 RocketwrightTest"
+            assert running.pid_file.read_text() == "7000 7 PhoneSimulatorTest"
             reference = launcher.file_for(PHONE.udid, ".reference.png")
             assert reference == running.socket.with_name(f"{helper_id(PHONE.udid)}.reference.png")
         finally:
@@ -307,10 +307,10 @@ def _program(path: Path, body: str) -> Path:
 
 def test_the_helper_is_installed_at_one_path_and_replaced_there_whole_when_it_changes(tmp_path: Path) -> None:
     """A grant to the installed helper must survive an upgrade: same path, the new version renamed over the old."""
-    from rocketwright.connectors.native.helper import INSTALLED_RECORD, install_helper
+    from phonesimulator.connectors.native.helper import INSTALLED_RECORD, install_helper
 
-    target = tmp_path / "state" / "helper" / "rocketwright-helper"
-    missing, shipped = tmp_path / "missing", _program(tmp_path / "v1" / "rocketwright-helper", "#!/bin/sh\necho 1\n")
+    target = tmp_path / "state" / "helper" / "phonesimulator-helper"
+    missing, shipped = tmp_path / "missing", _program(tmp_path / "v1" / "phonesimulator-helper", "#!/bin/sh\necho 1\n")
     assert install_helper((missing,), target) is None and not target.exists()
     assert install_helper((missing, shipped), target) == target
     assert target.read_text() == shipped.read_text() and os.access(target, os.X_OK)
@@ -319,10 +319,10 @@ def test_the_helper_is_installed_at_one_path_and_replaced_there_whole_when_it_ch
     assert install_helper((shipped,), target) == target and target.stat().st_ino == first, "the same copy is kept"
     helper_module._hashed.clear()
     assert install_helper((shipped,), target) == target and target.stat().st_ino == first, "compared, not copied"
-    upgrade = _program(tmp_path / "v2" / "rocketwright-helper", "#!/bin/sh\necho 2\n")
+    upgrade = _program(tmp_path / "v2" / "phonesimulator-helper", "#!/bin/sh\necho 2\n")
     assert install_helper((upgrade,), target) == target
     assert target.read_text().endswith("echo 2\n") and target.stat().st_ino != first, "replaced by a rename"
-    assert sorted(path.name for path in target.parent.iterdir()) == [INSTALLED_RECORD, "rocketwright-helper"]
+    assert sorted(path.name for path in target.parent.iterdir()) == [INSTALLED_RECORD, "phonesimulator-helper"]
     (target.parent / INSTALLED_RECORD).write_text("{not json")
     second = target.stat().st_ino
     assert install_helper((upgrade,), target) == target and target.stat().st_ino != second, "an unreadable record"
@@ -338,7 +338,7 @@ class FakeSigning:
         return self.who
 
     def sign(self, binary: Path) -> None:
-        from rocketwright.platform.local_signing import SigningError
+        from phonesimulator.platform.local_signing import SigningError
 
         if self.fails:
             raise SigningError("no identity")
@@ -349,14 +349,14 @@ class FakeSigning:
 def test_an_installed_helper_is_signed_with_this_macs_certificate_and_again_when_the_signer_changes(
     tmp_path: Path,
 ) -> None:
-    from rocketwright.connectors.native.helper import INSTALLED_RECORD, install_helper
+    from phonesimulator.connectors.native.helper import INSTALLED_RECORD, install_helper
 
-    target = tmp_path / "helper" / "rocketwright-helper"
-    shipped = _program(tmp_path / "v1" / "rocketwright-helper", "#!/bin/sh\n")
+    target = tmp_path / "helper" / "phonesimulator-helper"
+    shipped = _program(tmp_path / "v1" / "phonesimulator-helper", "#!/bin/sh\n")
     local = FakeSigning("local:ABC")
     assert install_helper((shipped,), target, local) == target  # type: ignore[arg-type]
     assert target.read_text().endswith("# signed\n") and local.signed == [
-        ".rocketwright-helper." + str(os.getpid()) + ".part"
+        ".phonesimulator-helper." + str(os.getpid()) + ".part"
     ]
     assert install_helper((shipped,), target, local) == target and len(local.signed) == 1  # type: ignore[arg-type]
     named = FakeSigning("named:Developer ID Application: Someone")
@@ -368,10 +368,10 @@ def test_an_installed_helper_is_signed_with_this_macs_certificate_and_again_when
 
 
 def test_a_helper_that_cannot_be_installed_leaves_nothing_half_written(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    from rocketwright.connectors.native.helper import install_helper
+    from phonesimulator.connectors.native.helper import install_helper
 
-    shipped = _program(tmp_path / "v1" / "rocketwright-helper", "#!/bin/sh\n")
-    target = tmp_path / "helper" / "rocketwright-helper"
+    shipped = _program(tmp_path / "v1" / "phonesimulator-helper", "#!/bin/sh\n")
+    target = tmp_path / "helper" / "phonesimulator-helper"
 
     def refuse(*_: object) -> None:
         raise OSError("read-only")
@@ -390,7 +390,7 @@ async def test_a_window_helper_is_told_its_process_window_and_whether_to_draw_ov
         launcher = HelperLauncher(
             run_dir=run,
             log_dir=tmp_path,
-            owner_tag="RocketwrightTest",
+            owner_tag="PhoneSimulatorTest",
             spawn=spawn,
             pid_alive=lambda pid: False,
             owner=7,

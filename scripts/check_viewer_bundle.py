@@ -2,7 +2,7 @@
 """Fail when the viewer's committed page bundle is not what its source builds, or a bundle is over its size budget.
 
 Run after ``npm run build`` in viewer/ (``make viewer-bundle`` does both). The standalone page in
-``src/rocketwright/server/static/viewer`` is committed, so that an install from a git tag needs no Node -- which only
+``src/phonesimulator/server/static/viewer`` is committed, so that an install from a git tag needs no Node -- which only
 works while it is exactly what the source builds. And every script a page loads stays within `BUDGET` bytes gzipped.
 Standard library only.
 """
@@ -17,7 +17,7 @@ from pathlib import Path
 
 from _repo import REPO_ROOT
 
-BUNDLE_DIR = "src/rocketwright/server/static/viewer"
+BUNDLE_DIR = "src/phonesimulator/server/static/viewer"
 #: The most a script a page loads may weigh, gzipped.
 BUDGET = 45_000
 BUDGETED = ("viewer/dist/index.js", f"{BUNDLE_DIR}/start.js")

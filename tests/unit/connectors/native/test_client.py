@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.connectors.base import ConnectorError, Crop, HidEvent, Screen, Shot
-from rocketwright.connectors.native import client as client_module
-from rocketwright.connectors.native import wire
-from rocketwright.connectors.native.client import Hello, HelperClient
-from rocketwright.testing.fakes import JPEG, SCREEN, FakeEngine
-from rocketwright.testing.native import FakeHelper, short_run_dir
+from phonesimulator.connectors.base import ConnectorError, Crop, HidEvent, Screen, Shot
+from phonesimulator.connectors.native import client as client_module
+from phonesimulator.connectors.native import wire
+from phonesimulator.connectors.native.client import Hello, HelperClient
+from phonesimulator.testing.fakes import JPEG, SCREEN, FakeEngine
+from phonesimulator.testing.native import FakeHelper, short_run_dir
 
 
 @pytest.fixture

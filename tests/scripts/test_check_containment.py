@@ -18,7 +18,7 @@ def test_the_repository_is_clean(capsys: pytest.CaptureFixture[str]) -> None:
     assert "containment ok" in capsys.readouterr().out
 
 
-def _scan(tmp_path: Path, source: str, rel: str = "src/rocketwright/core/sample.py") -> list[tuple[str, int, str]]:
+def _scan(tmp_path: Path, source: str, rel: str = "src/phonesimulator/core/sample.py") -> list[tuple[str, int, str]]:
     path = tmp_path / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(source)
@@ -32,7 +32,7 @@ def test_it_catches_a_command_started_with_any_of_them(tmp_path: Path) -> None:
         'ARGV = ("xcodebuild", "-scheme", s)\n'
         'CMD = "xcresulttool get build-results"\n'
         'await runner("simctl", "list")\n'
-        'spawn(("/opt/rocketwright/_bin/rocketwright-helper", "serve"), log)\n'
+        'spawn(("/opt/phonesimulator/_bin/phonesimulator-helper", "serve"), log)\n'
     )
     found = _scan(tmp_path, source)
     assert [(line, program) for _f, line, program in found] == [
@@ -41,7 +41,7 @@ def test_it_catches_a_command_started_with_any_of_them(tmp_path: Path) -> None:
         (3, "xcodebuild"),
         (4, "xcresulttool"),
         (5, "simctl"),
-        (6, "rocketwright-helper"),
+        (6, "phonesimulator-helper"),
     ]
 
 
@@ -59,19 +59,19 @@ def test_a_name_that_starts_no_command_is_not_its_business(tmp_path: Path) -> No
 
 
 def test_the_owners_and_prose_may_name_them(tmp_path: Path) -> None:
-    assert _scan(tmp_path, 'run(["xcrun"])\n', "src/rocketwright/platform/xcrun.py") == []
-    assert _scan(tmp_path, 'run(["simctl"])\n', "src/rocketwright/connectors/simctl/capture.py") == []
-    assert _scan(tmp_path, 'run(["idb_companion"])\n', "src/rocketwright/connectors/idb/companion.py") == []
-    assert _scan(tmp_path, 'run(["rocketwright-helper"])\n', "src/rocketwright/connectors/native/helper.py") == []
-    assert _scan(tmp_path, 'fake.on("simctl", "list")\n', "src/rocketwright/testing/fakes.py") == []
+    assert _scan(tmp_path, 'run(["xcrun"])\n', "src/phonesimulator/platform/xcrun.py") == []
+    assert _scan(tmp_path, 'run(["simctl"])\n', "src/phonesimulator/connectors/simctl/capture.py") == []
+    assert _scan(tmp_path, 'run(["idb_companion"])\n', "src/phonesimulator/connectors/idb/companion.py") == []
+    assert _scan(tmp_path, 'run(["phonesimulator-helper"])\n', "src/phonesimulator/connectors/native/helper.py") == []
+    assert _scan(tmp_path, 'fake.on("simctl", "list")\n', "src/phonesimulator/testing/fakes.py") == []
     source = '"""Boots with xcrun simctl, in prose."""\ndef f():\n    """idb_companion too."""\n    run(["ls"])\n'
     assert _scan(tmp_path, source) == []
 
 
 def test_unreadable_files_folders_that_do_not_exist_and_caches_are_skipped(tmp_path: Path) -> None:
     assert _scan(tmp_path, "def broken(:\n") == []
-    assert _scan(tmp_path, 'run(["xcrun"])\n', "src/rocketwright/__pycache__/x.py") == []
-    (tmp_path / "src" / "rocketwright" / "latin1.py").write_bytes(b'X = "caf\xe9"\n')
+    assert _scan(tmp_path, 'run(["xcrun"])\n', "src/phonesimulator/__pycache__/x.py") == []
+    (tmp_path / "src" / "phonesimulator" / "latin1.py").write_bytes(b'X = "caf\xe9"\n')
     assert _containment.offenders(tmp_path, ("src", "missing"), guard.ALLOWED, guard.PROGRAMS) == []
 
 
@@ -88,4 +88,4 @@ def test_it_says_where_to_go_when_it_fails(
     monkeypatch.setattr(guard, "REPO_ROOT", tmp_path)
     assert guard.main() == 1
     err = capsys.readouterr().err
-    assert "src/rocketwright/core/sample.py:1: simctl" in err and "rocketwright/platform/" in err
+    assert "src/phonesimulator/core/sample.py:1: simctl" in err and "phonesimulator/platform/" in err

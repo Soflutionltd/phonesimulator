@@ -1,10 +1,10 @@
-# Rocketwright's tools for OpenAI Codex: add this to ~/.codex/config.toml.
-[mcp_servers.rocketwright]
+# PhoneSimulator's tools for OpenAI Codex: add this to ~/.codex/config.toml.
+[mcp_servers.phonesimulator]
 command = "uvx"
-args = ["--from", "git+https://github.com/Soflutionltd/rocketwright", "rocketwright", "mcp"]
+args = ["--from", "git+https://github.com/Soflutionltd/phonesimulator", "phonesimulator", "mcp"]
 # To pin a project rather than use the folder Codex starts in, append its scope and root:
-# args = ["--from", "git+https://github.com/Soflutionltd/rocketwright", "rocketwright", "mcp",
+# args = ["--from", "git+https://github.com/Soflutionltd/phonesimulator", "phonesimulator", "mcp",
 #         "--scope", "my-app", "--root", "/Users/me/Projects/my-app"]
 
-# A build or a test run can take minutes; Rocketwright bounds each tool itself.
+# A build or a test run can take minutes; PhoneSimulator bounds each tool itself.
 tool_timeout_sec = 900

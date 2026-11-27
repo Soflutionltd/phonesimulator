@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from rocketwright.build.xcresult import (
+from phonesimulator.build.xcresult import (
     LISTED_MAX,
     MESSAGE_MAX,
     Failure,
@@ -22,7 +22,7 @@ from rocketwright.build.xcresult import (
     runnable_id,
     suite_summary,
 )
-from rocketwright.testing.fakes import fixture_json
+from phonesimulator.testing.fakes import fixture_json
 
 ROOT = Path("/Users/dev/NotesProbe")
 

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """The native connector on a real, booted simulator: never run by CI or `make test`, only by `make live`.
 
-    ROCKETWRIGHT_LIVE_UDID=<booted UDID> make live
+    PHONESIMULATOR_LIVE_UDID=<booted UDID> make live
 
 It runs the connector contract against the device -- which taps the middle of its screen -- then streams and reads it
-the way a viewer and an agent do. `ROCKETWRIGHT_LIVE_HELPER` names the helper (default: the one `make helper-build` or
-`swift build` left in helper/.build), and `ROCKETWRIGHT_LIVE_DEVELOPER_DIR` the Xcode (default: the one xcode-select
+the way a viewer and an agent do. `PHONESIMULATOR_LIVE_HELPER` names the helper (default: the one `make helper-build` or
+`swift build` left in helper/.build), and `PHONESIMULATOR_LIVE_DEVELOPER_DIR` the Xcode (default: the one xcode-select
 names).
 """
 
@@ -17,29 +17,29 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import Capability
-from rocketwright.connectors.native.connector import NativeConnector
-from rocketwright.connectors.native.helper import HelperLauncher
-from rocketwright.testing.contract import check_connector
-from rocketwright.testing.native import short_run_dir
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import Capability
+from phonesimulator.connectors.native.connector import NativeConnector
+from phonesimulator.connectors.native.helper import HelperLauncher
+from phonesimulator.testing.contract import check_connector
+from phonesimulator.testing.native import short_run_dir
 
-UDID = os.environ.get("ROCKETWRIGHT_LIVE_UDID", "")
+UDID = os.environ.get("PHONESIMULATOR_LIVE_UDID", "")
 HELPER_BUILDS = Path(__file__).resolve().parents[2] / "helper" / ".build"
 BUILT = (HELPER_BUILDS / "universal", HELPER_BUILDS / "release", HELPER_BUILDS / "debug")
 
 pytestmark = [
     pytest.mark.live,
     pytest.mark.allow_subprocess,
-    pytest.mark.skipif(not UDID, reason="ROCKETWRIGHT_LIVE_UDID names no booted simulator"),
+    pytest.mark.skipif(not UDID, reason="PHONESIMULATOR_LIVE_UDID names no booted simulator"),
 ]
 
 
 def helper() -> str:
-    named = os.environ.get("ROCKETWRIGHT_LIVE_HELPER", "")
-    found = [folder / "rocketwright-helper" for folder in BUILT if (folder / "rocketwright-helper").is_file()]
+    named = os.environ.get("PHONESIMULATOR_LIVE_HELPER", "")
+    found = [folder / "phonesimulator-helper" for folder in BUILT if (folder / "phonesimulator-helper").is_file()]
     if not named and not found:
-        pytest.skip("no native helper: run make helper-build, or name one in ROCKETWRIGHT_LIVE_HELPER")
+        pytest.skip("no native helper: run make helper-build, or name one in PHONESIMULATOR_LIVE_HELPER")
     return named or str(found[0])
 
 
@@ -48,7 +48,7 @@ def config() -> SimConfig:
     return SimConfig.defaults().with_values(
         connector="native",
         native_helper_path=helper(),
-        developer_dir=os.environ.get("ROCKETWRIGHT_LIVE_DEVELOPER_DIR", ""),
+        developer_dir=os.environ.get("PHONESIMULATOR_LIVE_DEVELOPER_DIR", ""),
     )
 
 

@@ -8,14 +8,14 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.base import ConnectorError, Crop, Shot
-from rocketwright.perception.orientation import Orientation
-from rocketwright.perception.readers import tree_from_document
-from rocketwright.perception.settle import ScreenshotSettle
-from rocketwright.perception.snapshot import REGEX_TEXT_MAX, Snapshot, build
-from rocketwright.perception.wait import Wait, Waited, Waiter, parse_wait
-from rocketwright.testing.fakes import SCREEN, FakeEngine, ManualClock, fixture_json
-from rocketwright.validation import Invalid
+from phonesimulator.connectors.base import ConnectorError, Crop, Shot
+from phonesimulator.perception.orientation import Orientation
+from phonesimulator.perception.readers import tree_from_document
+from phonesimulator.perception.settle import ScreenshotSettle
+from phonesimulator.perception.snapshot import REGEX_TEXT_MAX, Snapshot, build
+from phonesimulator.perception.wait import Wait, Waited, Waiter, parse_wait
+from phonesimulator.testing.fakes import SCREEN, FakeEngine, ManualClock, fixture_json
+from phonesimulator.validation import Invalid
 
 SETTINGS = fixture_json("ax-settings-interactable.json")
 

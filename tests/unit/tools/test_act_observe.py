@@ -5,13 +5,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rocketwright.core.actions import AgentActions
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import no_wait
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.tools.context import ToolContext
-from rocketwright.tools.registry import ToolRegistry
-from rocketwright.tools.results import Result, text
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import no_wait
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.tools.context import ToolContext
+from phonesimulator.tools.registry import ToolRegistry
+from phonesimulator.tools.results import Result, text
 
 DONE = {"completed_steps": 1, "failed_step": None, "failed_step_may_have_run": False, "wait_met": None}
 

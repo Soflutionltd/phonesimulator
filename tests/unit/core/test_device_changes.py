@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""What Rocketwright changes about a device is put back as it was, newest first -- and only when it is to be."""
+"""What PhoneSimulator changes about a device is put back as it was, newest first -- and only when it is to be."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.connectors.base import Capability
-from rocketwright.core.control import DisplayState, SimulatorControl
-from rocketwright.core.device_changes import (
+from phonesimulator.connectors.base import Capability
+from phonesimulator.core.control import DisplayState, SimulatorControl
+from phonesimulator.core.device_changes import (
     FRONT_READ_S,
     FRONT_READS,
     SPRINGBOARD,
@@ -21,10 +21,17 @@ from rocketwright.core.device_changes import (
     Left,
     undo,
 )
-from rocketwright.platform.errors import DeviceControlError
-from rocketwright.platform.simctl import Simctl, SimctlError
-from rocketwright.testing.fakes import BOOTED_UDID, PHONE_UDID, FakeConnector, FakeControl, FakePhoneBackend, FakeXcrun
-from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
+from phonesimulator.platform.errors import DeviceControlError
+from phonesimulator.platform.simctl import Simctl, SimctlError
+from phonesimulator.testing.fakes import (
+    BOOTED_UDID,
+    PHONE_UDID,
+    FakeConnector,
+    FakeControl,
+    FakePhoneBackend,
+    FakeXcrun,
+)
+from phonesimulator.testing.rig import VIEW_ONLY, DeviceRig, scope
 
 UDID = "U"
 

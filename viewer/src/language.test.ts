@@ -7,9 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeSocket } from '../test-support/fake-socket'
 import { settingsView } from '../test-support/settings'
 import { DEVICE, HELLO, VIEW_ONLY, flush, live, said, setup, socket } from '../test-support/viewer-harness'
-import { defineRocketwrightElement, ELEMENT_NAME, RocketwrightElement } from './element'
+import { definePhoneSimulatorElement, ELEMENT_NAME, PhoneSimulatorElement } from './element'
 import type { Recording, RecordingState, TouchSetup } from './protocol.generated'
-import type { RocketwrightTransport } from './transport'
+import type { PhoneSimulatorTransport } from './transport'
 
 // The viewer ships English alone; French is added here so changing the language where it stands stays tested.
 vi.mock('./locales', async (real) => (await import('../test-support/locale-fr')).withFrench(real))
@@ -24,7 +24,7 @@ const OFFER: TouchSetup = {
   state: 'offer', message: '', team: 'TESTTEAM01', team_from: 'mac', log: null,
 } as unknown as TouchSetup
 
-const kept = () => JSON.parse(localStorage.getItem('rocketwright.viewer') ?? '{}') as Record<string, unknown>
+const kept = () => JSON.parse(localStorage.getItem('phonesimulator.viewer') ?? '{}') as Record<string, unknown>
 
 function choose(el: HTMLElement, menu: string, item: string): void {
   el.querySelector<HTMLButtonElement>(`[data-smv-menu="${menu}"]`)!.click()
@@ -67,13 +67,13 @@ describe('the language the viewer speaks', () => {
   })
 
   it('is the one a host asks for, before a person\'s last pick, before the browser\'s', () => {
-    localStorage.setItem('rocketwright.viewer', JSON.stringify({ lang: 'fr' }))
+    localStorage.setItem('phonesimulator.viewer', JSON.stringify({ lang: 'fr' }))
     expect(titles(setup().view.el)[0]).toBe('Édition')
     expect(titles(setup({ lang: 'en' }).view.el)[0]).toBe('Edit')
     expect(titles(setup({ lang: 'auto' }).view.el)[0]).toBe('Edit')
     // A language the viewer does not speak is as good as none asked for.
     expect(titles(setup({ lang: 'de' }).view.el)[0]).toBe('Édition')
-    localStorage.setItem('rocketwright.viewer', JSON.stringify({ lang: 'klingon' }))
+    localStorage.setItem('phonesimulator.viewer', JSON.stringify({ lang: 'klingon' }))
     expect(titles(setup().view.el)[0]).toBe('Edit')
     expect(titles(setup({ lang: 'fr-CA' }).view.el)[0]).toBe('Édition')
   })
@@ -148,7 +148,7 @@ describe('the language the viewer speaks', () => {
     expect(said(view)).toBe('The simulator is let go; its device keeps running for next time.Start the simulator')
     expect([$('[data-smv-state]').textContent, $<HTMLElement>('[data-smv="stop"]').title]).toEqual(['Stopped', 'Let the simulator go'])
     // Asked for nothing, it goes back to a person's pick, else the browser's.
-    localStorage.setItem('rocketwright.viewer', JSON.stringify({ lang: 'fr' }))
+    localStorage.setItem('phonesimulator.viewer', JSON.stringify({ lang: 'fr' }))
     view.setLang(null)
     expect(view.el.lang).toBe('fr')
     view.setLang('tlh')
@@ -196,7 +196,7 @@ describe('the language the viewer speaks', () => {
     expect([mode.textContent, mode.title]).toEqual(['Affichage seul', 'Le connecteur simctl affiche l’écran mais ne peut pas le toucher.'])
     socket().message({ type: 'status', ...DEVICE, busy: 'installing', app_hierarchy: { name: 'Notes', bundle_id: 'dev.notes', sdk_version: '1.2' } })
     expect($('[data-smv-badge]').textContent).toBe('Occupé\u00a0: installing')
-    expect($<HTMLElement>('[data-smv-app]').title).toBe('Notes (dev.notes) partage sa hiérarchie de vues via le SDK 1.2 de Rocketwright')
+    expect($<HTMLElement>('[data-smv-app]').title).toBe('Notes (dev.notes) partage sa hiérarchie de vues via le SDK 1.2 de PhoneSimulator')
     socket().message({
       type: 'agent', id: 'a1', phase: 'working', agent: { key: 'k', title: 'Claude Code' }, activity: '', color: '', park_after_ms: 30000,
     })
@@ -254,7 +254,7 @@ describe('the language the viewer speaks', () => {
       startRecording: vi.fn(async () => UNDER_WAY), stopRecording: vi.fn(async () => KEPT), recordingFile: vi.fn(),
       changeDevice: vi.fn(async () => 'contrast: on'), touch: vi.fn(async () => OFFER), setUpTouch: vi.fn(async () => OFFER),
     }
-    const { view, $ } = await live({ transport: calls as Partial<RocketwrightTransport> })
+    const { view, $ } = await live({ transport: calls as Partial<PhoneSimulatorTransport> })
     const note = $<HTMLElement>('[data-smv-note]')
     const record = $<HTMLButtonElement>('[data-smv="record"]')
     const size = $<HTMLButtonElement>('[data-smv="record-size"]')
@@ -314,7 +314,7 @@ describe('the language the viewer speaks', () => {
   it('sets touch up in French', async () => {
     const calls = { touch: vi.fn(async () => OFFER), setUpTouch: vi.fn(async () => { throw new Error('') }) }
     const phone = { ...DEVICE, kind: 'physical' as const, connection: 'usb' as const }
-    const { view, $ } = setup({ lang: 'fr', transport: calls as Partial<RocketwrightTransport> })
+    const { view, $ } = setup({ lang: 'fr', transport: calls as Partial<PhoneSimulatorTransport> })
     view.setActive(true)
     await flush()
     socket().open()
@@ -375,7 +375,7 @@ describe('the language the viewer speaks', () => {
       .map((chip) => chip.textContent)).toEqual(['depuis ce projet', 'Réinitialiser'])
     expect([...panel.querySelectorAll('[data-smv-setting="server.port"] .smv-chip')].map((chip) => chip.textContent))
       .toEqual(['valeur par défaut', 's’applique après un redémarrage', 'tout le daemon', 'à confirmer dans le terminal'])
-    expect(panel.querySelector('[data-smv-setting="stream.quality"] .smv-chip')!.textContent).toBe('depuis ROCKETWRIGHT_STREAM_QUALITY')
+    expect(panel.querySelector('[data-smv-setting="stream.quality"] .smv-chip')!.textContent).toBe('depuis PHONESIMULATOR_STREAM_QUALITY')
     expect(panel.querySelector<HTMLElement>('.smv-settings-head .smv-icon')!.title).toBe('Fermer les réglages')
   })
 
@@ -424,16 +424,16 @@ describe('the language the viewer speaks', () => {
   })
 })
 
-describe('<rocket-wright lang>', () => {
+describe('<phone-simulator lang>', () => {
   const transport = () => ({
     status: vi.fn(), start: vi.fn(async () => ({ device: null, ticket: 'tk' })), stop: vi.fn(async () => true),
     devices: vi.fn(async () => []), choose: vi.fn(), socketUrl: vi.fn(() => 'ws://host/screen'),
-  }) as unknown as RocketwrightTransport
+  }) as unknown as PhoneSimulatorTransport
 
   it('speaks the language its attribute names, and changes it without starting afresh', async () => {
-    defineRocketwrightElement()
-    expect(RocketwrightElement.observedAttributes).toContain('lang')
-    const el = document.createElement(ELEMENT_NAME) as RocketwrightElement
+    definePhoneSimulatorElement()
+    expect(PhoneSimulatorElement.observedAttributes).toContain('lang')
+    const el = document.createElement(ELEMENT_NAME) as PhoneSimulatorElement
     el.setAttribute('lang', 'fr')
     el.transport = transport()
     document.body.appendChild(el)
@@ -443,7 +443,7 @@ describe('<rocket-wright lang>', () => {
     el.setAttribute('lang', 'en')
     expect([el.view, view.el.lang, titles(view.el)[0]]).toEqual([view, 'en', 'Edit'])
     // Without it, the viewer speaks what a person last picked.
-    localStorage.setItem('rocketwright.viewer', JSON.stringify({ lang: 'fr' }))
+    localStorage.setItem('phonesimulator.viewer', JSON.stringify({ lang: 'fr' }))
     el.removeAttribute('lang')
     expect([el.view, view.el.lang]).toEqual([view, 'fr'])
     el.remove()

@@ -6,15 +6,15 @@
 #include "include/views/cef_window.h"
 #include "include/wrapper/cef_helpers.h"
 
-#if ROCKETWRIGHT_CEF_BRIDGE
-#include "rocketwright_cef/cef.h"
+#if PHONESIMULATOR_CEF_BRIDGE
+#include "phonesimulator_cef/cef.h"
 #endif
 
 bool SampleApp::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
                                          CefProcessId source, CefRefPtr<CefProcessMessage> message) {
-#if ROCKETWRIGHT_CEF_BRIDGE
-  // Renderer side of the Debug bridge: reads the page with Rocketwright's fixed script.
-  if (rocketwright_cef::HandleRendererMessage(browser, frame, source, message)) return true;
+#if PHONESIMULATOR_CEF_BRIDGE
+  // Renderer side of the Debug bridge: reads the page with PhoneSimulator's fixed script.
+  if (phonesimulator_cef::HandleRendererMessage(browser, frame, source, message)) return true;
 #endif
   return false;
 }

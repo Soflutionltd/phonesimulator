@@ -1,19 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.Soflutionltd/rocketwright",
-  "title": "Rocketwright",
+  "name": "io.github.Soflutionltd/phonesimulator",
+  "title": "PhoneSimulator",
   "description": "Drive iOS Simulators, iPhones, Android devices and macOS apps: UI snapshots, live viewer, recording.",
   "version": "3.12.1",
-  "websiteUrl": "https://github.com/Soflutionltd/rocketwright#readme",
+  "websiteUrl": "https://github.com/Soflutionltd/phonesimulator#readme",
   "repository": {
-    "url": "https://github.com/Soflutionltd/rocketwright",
+    "url": "https://github.com/Soflutionltd/phonesimulator",
     "source": "github"
   },
   "packages": [
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
-      "identifier": "rocketwright",
+      "identifier": "phonesimulator",
       "version": "3.12.1",
       "runtimeHint": "uvx",
       "transport": {

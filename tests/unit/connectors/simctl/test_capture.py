@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import pytest
 
-from rocketwright.connectors.base import ConnectorError, Crop, Screen, Shot
-from rocketwright.connectors.simctl.capture import SimctlScreen, estimated_scale, jpeg_size
-from rocketwright.platform.simctl import Simctl
-from rocketwright.testing.fakes import BOOTED_UDID, FakeXcrun, tiny_jpeg
+from phonesimulator.connectors.base import ConnectorError, Crop, Screen, Shot
+from phonesimulator.connectors.simctl.capture import SimctlScreen, estimated_scale, jpeg_size
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.testing.fakes import BOOTED_UDID, FakeXcrun, tiny_jpeg
 
 PHONE = tiny_jpeg(1206, 2622)
 

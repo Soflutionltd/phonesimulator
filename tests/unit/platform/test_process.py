@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from rocketwright.platform import process
+from phonesimulator.platform import process
 
 
 async def test_a_program_starts_in_its_own_session_logging_to_its_file(

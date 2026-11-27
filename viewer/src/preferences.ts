@@ -27,7 +27,7 @@ function zoomOf(value: unknown): KeptZoom | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0.1 && value <= 4 ? value : null
 }
 
-const KEY = 'rocketwright.viewer'
+const KEY = 'phonesimulator.viewer'
 
 /** The storage to keep them in; null where the page may not read it. */
 function store(): Storage | null {

@@ -11,12 +11,12 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.base import Capability, ConnectorError
-from rocketwright.core.actions import TURN_WAIT_S, ActionError, AgentActions, Turned
-from rocketwright.core.instance import DeviceInstance
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import FULL_CONTROL, FakeConnector, FakeEngine, fixture_json
-from rocketwright.testing.rig import DeviceRig, scope
+from phonesimulator.connectors.base import Capability, ConnectorError
+from phonesimulator.core.actions import TURN_WAIT_S, ActionError, AgentActions, Turned
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import FULL_CONTROL, FakeConnector, FakeEngine, fixture_json
+from phonesimulator.testing.rig import DeviceRig, scope
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code")
 OTHER = Caller(scope("tp-1"), key="agent-2", title="Codex")

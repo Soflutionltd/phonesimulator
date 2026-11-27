@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``rocketwright android``: what is set up, the AVDs, fetching scrcpy's server and having a daemon start it, and
-removing what Rocketwright left on devices -- against a fake adb server, without the network or a daemon."""
+"""``phonesimulator android``: what is set up, the AVDs, fetching scrcpy's server and having a daemon start it, and
+removing what PhoneSimulator left on devices -- against a fake adb server, without the network or a daemon."""
 
 from __future__ import annotations
 
@@ -10,18 +10,18 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
-from rocketwright.cli.context import CliContext
-from rocketwright.cli.main import main
-from rocketwright.connectors.android.scrcpy import remote_jar
-from rocketwright.core.android_control import STAMPS
-from rocketwright.platform.adb import Adb
-from rocketwright.platform.java import STUDIO_JDK
-from rocketwright.scope import Scope
-from rocketwright.storage.app_support import AppSupportStateStore
-from rocketwright.testing.adb import FakeAdbServer
-from rocketwright.testing.android_sdk import avd, image, sdk_at
-from rocketwright.testing.daemon import Daemon
-from rocketwright.testing.scrcpy import TEST_JAR, TEST_RELEASE
+from phonesimulator.cli.context import CliContext
+from phonesimulator.cli.main import main
+from phonesimulator.connectors.android.scrcpy import remote_jar
+from phonesimulator.core.android_control import STAMPS
+from phonesimulator.platform.adb import Adb
+from phonesimulator.platform.java import STUDIO_JDK
+from phonesimulator.scope import Scope
+from phonesimulator.storage.app_support import AppSupportStateStore
+from phonesimulator.testing.adb import FakeAdbServer
+from phonesimulator.testing.android_sdk import avd, image, sdk_at
+from phonesimulator.testing.daemon import Daemon
+from phonesimulator.testing.scrcpy import TEST_JAR, TEST_RELEASE
 
 
 class Here:
@@ -43,7 +43,7 @@ class Here:
         self.out, self.err = io.StringIO(), io.StringIO()
         self.server = server
         self.ctx = CliContext(
-            env={"ROCKETWRIGHT_STATE_DIR": str(root / "state"), "ROCKETWRIGHT_CONFIG": str(root / "config.toml")},
+            env={"PHONESIMULATOR_STATE_DIR": str(root / "state"), "PHONESIMULATOR_CONFIG": str(root / "config.toml")},
             cwd=root,
             stdout=self.out,
             stderr=self.err,
@@ -72,7 +72,7 @@ class Here:
         return f"/api/v1/scopes/{Scope.for_folder(self.root).id}/device/touch"
 
     async def __call__(self, *argv: str) -> int:
-        # Each command runs its own event loop, as `rocketwright` does, beside the test's fake adb server.
+        # Each command runs its own event loop, as `phonesimulator` does, beside the test's fake adb server.
         return await asyncio.to_thread(main, list(argv), ctx=self.ctx)
 
     def said(self) -> list[str]:
@@ -90,7 +90,7 @@ async def test_status_says_what_is_set_up_as_the_doctor_does(tmp_path: Path) -> 
             "AVDs: Pixel 9"
         )
         assert said[1].endswith("android devices: emulator-5554 (emulator, device)")
-        assert said[2].endswith("scrcpy: scrcpy's server is not set up: set it up once (Set up touch, or rocketwright "
+        assert said[2].endswith("scrcpy: scrcpy's server is not set up: set it up once (Set up touch, or phonesimulator "
                                 "android setup); until then adb shows the screen a few times a second")  # fmt: skip
         assert said[-1].endswith(
             f"android builds: JDK 21.0.9 at {tmp_path / 'Applications' / STUDIO_JDK} (Android Studio)"
@@ -129,7 +129,7 @@ async def test_setup_fetches_the_pinned_server_and_has_a_running_daemon_start_it
     assert kept.read_bytes() == TEST_JAR
     assert here.said()[1:] == [
         f"scrcpy's server 9.9.9 is set up at {kept}, checked by its SHA-256",
-        "choose an Android device in the viewer, or with `rocketwright devices choose`, to use it",
+        "choose an Android device in the viewer, or with `phonesimulator devices choose`, to use it",
     ]
     here.daemon.up = True
     here.daemon.answers[("POST", here.touch())] = {"state": "starting"}
@@ -137,7 +137,9 @@ async def test_setup_fetches_the_pinned_server_and_has_a_running_daemon_start_it
     assert here.said()[-1] == "the daemon is starting it on the device" and here.daemon.made("POST", here.touch())
     here.daemon.answers[("POST", here.touch())] = {"state": "off"}
     assert await here("android", "setup") == 0
-    assert here.said()[-1] == "choose an Android device in the viewer, or with `rocketwright devices choose`, to use it"
+    assert (
+        here.said()[-1] == "choose an Android device in the viewer, or with `phonesimulator devices choose`, to use it"
+    )
     here.daemon.refuse.add(here.touch())
     assert await here("android", "setup") == 0
     assert here.said()[-1].startswith("the daemon did not start it (")
@@ -148,7 +150,7 @@ async def test_setup_says_when_scrcpy_is_off_or_another_server_is_named(tmp_path
     assert await here("android", "setup") == 0
     assert here.said()[-2:] == [
         "this scope uses /opt/scrcpy-server instead (android.scrcpy.path)",
-        "it is off here: turn it on with `rocketwright config set android.scrcpy.enabled true`",
+        "it is off here: turn it on with `phonesimulator config set android.scrcpy.enabled true`",
     ]
 
 
@@ -180,4 +182,4 @@ async def test_clean_removes_this_hosts_server_and_the_stamps_from_each_device(t
 async def test_clean_without_adbs_server_has_nothing_to_remove(tmp_path: Path) -> None:
     here = Here(tmp_path)
     assert await here("android", "clean") == 0
-    assert here.said() == ["adb's server is not running, so no device has anything of Rocketwright's to remove"]
+    assert here.said() == ["adb's server is not running, so no device has anything of PhoneSimulator's to remove"]

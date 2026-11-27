@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The token-budget benchmark, driven through Rocketwright's real relay over a fake server and fake pipes."""
+"""The token-budget benchmark, driven through PhoneSimulator's real relay over a fake server and fake pipes."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from typing import Any
 import pytest
 
 import tool_budget
-from rocketwright.mcp.relay import Relay, Upstream
-from rocketwright.testing.fakes import tiny_jpeg
+from phonesimulator.mcp.relay import Relay, Upstream
+from phonesimulator.testing.fakes import tiny_jpeg
 from tool_budget import (
     PROBES,
     BenchmarkError,
@@ -93,7 +93,7 @@ class FakeProcess:
     def wait(self, timeout: float | None = None) -> int:
         self.waits.append(timeout)
         if self.hangs and not self.killed:
-            raise subprocess.TimeoutExpired("rocketwright mcp", timeout or 0)
+            raise subprocess.TimeoutExpired("phonesimulator mcp", timeout or 0)
         return 0
 
     def kill(self) -> None:
@@ -194,7 +194,7 @@ def test_report_keeps_initial_and_warmup_out_of_measured_samples(warmup: int) ->
     out = io.StringIO()
     assert main(["--report", "--warmup", str(warmup), "--runs", "2"], spawn=lambda _: process, out=out) == 0
     report = json.loads(out.getvalue())
-    assert report["rocketwright_version"] == tool_budget.__version__
+    assert report["phonesimulator_version"] == tool_budget.__version__
     assert report["runs"] == 2 and report["warmup_rounds"] == warmup
     assert report["initial"][0]["tokens"] == 1
     assert len(report["warmup"]) == (1 if warmup else 0)
@@ -233,7 +233,7 @@ def test_errors_are_counted_and_times_come_from_the_clock() -> None:
     assert summarize(Samples(PROBES[0], [0.001], [10], [3])).p95_ms == 1.0
 
 
-def test_the_real_spawn_runs_rocketwright_mcp_with_this_interpreter(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_real_spawn_runs_phonesimulator_mcp_with_this_interpreter(monkeypatch: pytest.MonkeyPatch) -> None:
     started: list[list[str]] = []
 
     def popen(argv: list[str], **kwargs: Any) -> str:
@@ -243,5 +243,5 @@ def test_the_real_spawn_runs_rocketwright_mcp_with_this_interpreter(monkeypatch:
     monkeypatch.setattr(tool_budget.subprocess, "Popen", popen)
     assert tool_budget.spawn_mcp("demo") == "process"
     tool_budget.spawn_mcp(None)
-    assert started[0][1:] == ["-m", "rocketwright", "mcp", "--scope", "demo"]
-    assert started[1][1:] == ["-m", "rocketwright", "mcp"]
+    assert started[0][1:] == ["-m", "phonesimulator", "mcp", "--scope", "demo"]
+    assert started[1][1:] == ["-m", "phonesimulator", "mcp"]

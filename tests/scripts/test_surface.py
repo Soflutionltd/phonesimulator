@@ -26,15 +26,17 @@ def test_the_code_keeps_every_promise_of_1x() -> None:
 
 def test_the_promise_is_written_once_and_a_break_is_named_with_where_to_read_why(tmp_path: Path) -> None:
     promise = tmp_path / "surface-v1.json"
-    before = {"cli": {"rocketwright go": {"options": {"--x": False}, "positionals": []}}}
+    before = {"cli": {"phonesimulator go": {"options": {"--x": False}, "positionals": []}}}
     out = io.StringIO()
     assert surface.main(["--write", str(promise)], current=lambda: before, out=out) == 0
     assert out.getvalue() == f"wrote {promise}\n" and json.loads(promise.read_text()) == before
 
-    after = {"cli": {"rocketwright go": {"options": {}, "positionals": []}}}
+    after = {"cli": {"phonesimulator go": {"options": {}, "positionals": []}}}
     out = io.StringIO()
     assert surface.main([], promise=promise, current=lambda: after, out=out) == 1
-    assert out.getvalue() == "cli rocketwright go --x: is gone\n1 break(s) of surface-v1.json: see docs/stability.md\n"
+    assert (
+        out.getvalue() == "cli phonesimulator go --x: is gone\n1 break(s) of surface-v1.json: see docs/stability.md\n"
+    )
 
 
 def test_an_area_the_code_no_longer_describes_is_a_break_and_one_never_promised_is_not_checked() -> None:
@@ -150,8 +152,8 @@ def test_names_are_described_by_what_a_host_does_with_them() -> None:
     assert described["Plain"]["init"] == [P("args", "*args")]
 
 
-def test_what_a_runtime_and_settings_are_made_by_and_what_is_left_to_rocketwrights_own_tests() -> None:
-    from rocketwright import api
+def test_what_a_runtime_and_settings_are_made_by_and_what_is_left_to_phonesimulators_own_tests() -> None:
+    from phonesimulator import api
 
     described = surface.describe_api(api)
     runtime = described["Runtime"]
@@ -175,7 +177,7 @@ CLASS = {
     ("now", "said"),
     [
         ({"Thing": CLASS | {"methods": CLASS["methods"] | {"more": []}, "attributes": ["url", "extra"]}}, []),
-        ({}, ["api Thing: is no longer on rocketwright.api"]),
+        ({}, ["api Thing: is no longer on phonesimulator.api"]),
         ({"Thing": {"kind": "function", "params": []}}, ["api Thing: was a class, now a function"]),
         ({"Thing": {k: v for k, v in CLASS.items() if k != "init"}}, ["api Thing: can no longer be made directly"]),
         ({"Thing": CLASS | {"init": [P("url"), P("token")]}}, ["api Thing: the new parameter token must be given"]),
@@ -207,7 +209,7 @@ def test_a_seam_a_host_implements_never_gains_a_method_or_changes_a_call_and_a_f
     changed = {"kind": "seam", "methods": {"get": [P("scope"), P("fresh", "keyword", True)], "put": []}}
     assert surface.api_breaks({"S": seam}, {"S": changed}) == [
         "api S: a host implementing it must now write put too",
-        "api S.get: what Rocketwright calls it with changed, and a host's has not",
+        "api S.get: what PhoneSimulator calls it with changed, and a host's has not",
     ]
     function = {"kind": "function", "params": [P("a")]}
     assert surface.api_breaks({"f": function}, {"f": {"kind": "function", "params": []}}) == [
@@ -443,7 +445,7 @@ def test_a_tool_keeps_its_arguments_and_sim_act_its_steps() -> None:
 
 
 def _setting(path: str, spec: dict[str, Any], reach: str = "scope") -> SimpleNamespace:
-    env = "ROCKETWRIGHT_" + path.upper().replace(".", "_")
+    env = "PHONESIMULATOR_" + path.upper().replace(".", "_")
     return SimpleNamespace(path=path, env=env, reach=reach, rule=SimpleNamespace(spec=lambda: spec))
 
 
@@ -474,7 +476,7 @@ SETTINGS = [
         (SETTINGS[1:], ["setting stream.fps: is gone"]),
         (
             [SimpleNamespace(**{**vars(SETTINGS[0]), "env": "SIM_FPS"}), *SETTINGS[1:]],
-            ["setting stream.fps: is set by SIM_FPS, no longer ROCKETWRIGHT_STREAM_FPS"],
+            ["setting stream.fps: is set by SIM_FPS, no longer PHONESIMULATOR_STREAM_FPS"],
         ),
         (
             [_setting("stream.fps", {"kind": "whole", "low": 5, "high": 60}, reach="global"), *SETTINGS[1:]],
@@ -516,7 +518,7 @@ def test_a_setting_keeps_its_name_its_variable_and_every_value_it_took(
 def _cli(
     *, extra: bool = False, required: bool = False, swapped: bool = False, drop: bool = False
 ) -> argparse.ArgumentParser:
-    made = argparse.ArgumentParser(prog="rocketwright")
+    made = argparse.ArgumentParser(prog="phonesimulator")
     commands = made.add_subparsers()
     if not drop:
         token = commands.add_parser("token").add_subparsers().add_parser("create")
@@ -536,23 +538,23 @@ def _cli(
 
 def test_a_command_keeps_its_flags_and_arguments() -> None:
     promised = surface.describe_cli(_cli())
-    assert promised["rocketwright token create"] == {"options": {"--kind": True, "--label": False}, "positionals": []}
-    assert promised["rocketwright serve"] == {"options": {}, "positionals": [["host", False], ["port", False]]}
+    assert promised["phonesimulator token create"] == {"options": {"--kind": True, "--label": False}, "positionals": []}
+    assert promised["phonesimulator serve"] == {"options": {}, "positionals": [["host", False], ["port", False]]}
     assert surface.cli_breaks(promised, surface.describe_cli(_cli(extra=True))) == []
     assert surface.cli_breaks(promised, surface.describe_cli(_cli(required=True))) == [
-        "cli rocketwright serve: the new argument mode must be given",
-        "cli rocketwright token create --owner: must now be given",
+        "cli phonesimulator serve: the new argument mode must be given",
+        "cli phonesimulator token create --owner: must now be given",
     ]
     assert surface.cli_breaks(promised, surface.describe_cli(_cli(swapped=True))) == [
-        "cli rocketwright serve: its arguments were host port; now port host"
+        "cli phonesimulator serve: its arguments were host port; now port host"
     ]
     assert surface.cli_breaks(promised, surface.describe_cli(_cli(drop=True))) == [
-        "cli rocketwright token: is gone",
-        "cli rocketwright token create: is gone",
+        "cli phonesimulator token: is gone",
+        "cli phonesimulator token create: is gone",
     ]
     fewer = json.loads(json.dumps(promised))
-    del fewer["rocketwright token create"]["options"]["--label"]
-    assert surface.cli_breaks(promised, fewer) == ["cli rocketwright token create --label: is gone"]
+    del fewer["phonesimulator token create"]["options"]["--label"]
+    assert surface.cli_breaks(promised, fewer) == ["cli phonesimulator token create --label: is gone"]
 
 
 # -- the viewer -------------------------------------------------------------------------------------------------------
@@ -564,7 +566,7 @@ VIEWER = {
         "export * from './protocol.generated'\n"
     ),
     "element.ts": (
-        "export const ELEMENT_NAME = 'rocketwright'\n"
+        "export const ELEMENT_NAME = 'phonesimulator'\n"
         "  static readonly observedAttributes = ['server', 'scope']\n"
         "    this.#tell('close')\n"
     ),
@@ -574,9 +576,9 @@ VIEWER = {
         'const STAGE = `<div part="stage"><canvas part="screen"></canvas></div>`\n'
     ),
     "viewer.test.ts": 'part="ignored"',
-    # A property named by a template, `var(--rocketwright-${name})`, leaves an empty name behind: not one of them.
+    # A property named by a template, `var(--phonesimulator-${name})`, leaves an empty name behind: not one of them.
     "styles.css": (
-        ":host { --rocketwright-accent: blue; color: var(--rocketwright-text); }\n.x { w: var(--rocketwright-); }"
+        ":host { --phonesimulator-accent: blue; color: var(--phonesimulator-text); }\n.x { w: var(--phonesimulator-); }"
     ),
 }
 
@@ -592,15 +594,15 @@ def _viewer(tmp_path: Path, **changes: str) -> Any:
 def test_the_viewer_is_read_from_its_source(tmp_path: Path) -> None:
     assert _viewer(tmp_path) == {
         "exports": ["Handle", "ViewerOptions", "createViewer"],
-        "element": "rocketwright",
+        "element": "phonesimulator",
         "attributes": ["server", "scope"],
         "events": ["close"],
         "parts": ["screen", "stage"],
-        "custom_properties": ["--rocketwright-accent", "--rocketwright-text"],
+        "custom_properties": ["--phonesimulator-accent", "--phonesimulator-text"],
         "interfaces": {
             "ViewerOptions": {"transport": False, "placement": True, "onClose": True},
             "HttpTransportOptions": {},
-            "RocketwrightTransport": {},
+            "PhoneSimulatorTransport": {},
             "ViewerState": {},
             "ViewHandle": {"el": False, "connected": False, "encoding": True},
         },
@@ -626,7 +628,7 @@ def test_the_viewer_keeps_its_element_exports_and_what_a_page_gives_and_reads(tm
         **{
             "index.ts": "export { createViewer } from './viewer'\n",
             "element.ts": VIEWER["element.ts"]
-            .replace("'rocketwright'", "'sim-view'")
+            .replace("'phonesimulator'", "'sim-view'")
             .replace(", 'scope'", "")
             .replace("close", "shut"),
             "viewer.ts": (
@@ -634,17 +636,17 @@ def test_the_viewer_keeps_its_element_exports_and_what_a_page_gives_and_reads(tm
                 "export interface ViewHandle {\n  connected?(): boolean\n  encoding?: string\n}\n"
                 '`<div part="stage"></div>`'
             ),
-            "styles.css": ":host { --rocketwright-accent: blue; }",
+            "styles.css": ":host { --phonesimulator-accent: blue; }",
         },
     )
     assert surface.viewer_breaks(promised, broken) == [
-        "viewer element: was <rocketwright>, now <sim-view>",
+        "viewer element: was <phonesimulator>, now <sim-view>",
         "viewer exports Handle: is gone",
         "viewer exports ViewerOptions: is gone",
         "viewer attributes scope: is gone",
         "viewer events close: is gone",
         "viewer parts screen: is gone",
-        "viewer custom_properties --rocketwright-text: is gone",
+        "viewer custom_properties --phonesimulator-text: is gone",
         "viewer ViewerOptions.placement: must now be given",
         "viewer ViewerOptions.onClose: is gone",
         "viewer ViewerOptions.scope: is new, and must be given",

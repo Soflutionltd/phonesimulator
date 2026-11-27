@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.android.connector import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.android.connector import (
     ADB,
     EMULATOR_ONLY,
     SCRCPY,
@@ -20,21 +20,21 @@ from rocketwright.connectors.android.connector import (
     TransportWatch,
     create,
 )
-from rocketwright.connectors.android.geometry import Rotation
-from rocketwright.connectors.android.scrcpy import SizeChanged
-from rocketwright.connectors.android.scrcpy_roles import ScrcpyInput, ScrcpyScreen, ScrcpyText
-from rocketwright.connectors.base import Capability, ConnectorUnavailable
-from rocketwright.connectors.registry import ConnectorContext
-from rocketwright.core.android_control import AndroidControl
-from rocketwright.core.android_devices import AndroidDirectory, AndroidServices
-from rocketwright.host_copy import HostCopy
-from rocketwright.platform.emulator import Emulators
-from rocketwright.platform.identifiers import android_id
-from rocketwright.testing.adb import FakeAdbServer
-from rocketwright.testing.android_sdk import sdk_at
-from rocketwright.testing.contract import check_connector
-from rocketwright.testing.fakes import MemoryStateStore
-from rocketwright.testing.scrcpy import FakeScrcpy, fetched_jars
+from phonesimulator.connectors.android.geometry import Rotation
+from phonesimulator.connectors.android.scrcpy import SizeChanged
+from phonesimulator.connectors.android.scrcpy_roles import ScrcpyInput, ScrcpyScreen, ScrcpyText
+from phonesimulator.connectors.base import Capability, ConnectorUnavailable
+from phonesimulator.connectors.registry import ConnectorContext
+from phonesimulator.core.android_control import AndroidControl
+from phonesimulator.core.android_devices import AndroidDirectory, AndroidServices
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.platform.emulator import Emulators
+from phonesimulator.platform.identifiers import android_id
+from phonesimulator.testing.adb import FakeAdbServer
+from phonesimulator.testing.android_sdk import sdk_at
+from phonesimulator.testing.contract import check_connector
+from phonesimulator.testing.fakes import MemoryStateStore
+from phonesimulator.testing.scrcpy import FakeScrcpy, fetched_jars
 
 PIXEL = android_id("avd", "Pixel_9")
 PHONE = android_id("adb", "R58M12ABC")
@@ -130,7 +130,7 @@ async def test_a_watch_whose_adb_server_goes_away_says_the_device_is_gone(tmp_pa
 
 
 async def test_a_watch_whose_device_list_ends_says_the_device_is_gone() -> None:
-    from rocketwright.platform.adb import AdbDevice
+    from phonesimulator.platform.adb import AdbDevice
 
     class Ending:
         async def track(self) -> AsyncIterator[list[AdbDevice]]:
@@ -160,7 +160,7 @@ async def test_turning_the_device_turns_its_display_and_asks_again_which_way_it_
     assert len(asked) == 2
     # This host's scrcpy servers a crashed run left on each device adb lists are ended.
     assert await rig.connector.reap_orphans() == 1
-    assert rig.server.commands()[-1] == "pkill -f /data/local/tmp/rocketwright-scrcpy-host-a.jar"
+    assert rig.server.commands()[-1] == "pkill -f /data/local/tmp/phonesimulator-scrcpy-host-a.jar"
 
 
 def test_the_factory_shares_the_hosts_android_services_or_makes_its_own(tmp_path: Path) -> None:

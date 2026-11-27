@@ -24,13 +24,13 @@ import pytest
 from fastapi import FastAPI
 from starlette.datastructures import Headers
 
-from rocketwright.api import DaemonHost, DaemonRefused, DaemonUnavailable
-from rocketwright.config.settings_store import TomlSettingsStore
-from rocketwright.config.toml_source import TomlConfigSource
-from rocketwright.core.actions import PAUSED
-from rocketwright.daemon import health
-from rocketwright.daemon.app import BAD_CODE, SERVER_SCOPE, Daemon, build_daemon, create_app
-from rocketwright.daemon.auth import (
+from phonesimulator.api import DaemonHost, DaemonRefused, DaemonUnavailable
+from phonesimulator.config.settings_store import TomlSettingsStore
+from phonesimulator.config.toml_source import TomlConfigSource
+from phonesimulator.core.actions import PAUSED
+from phonesimulator.daemon import health
+from phonesimulator.daemon.app import BAD_CODE, SERVER_SCOPE, Daemon, build_daemon, create_app
+from phonesimulator.daemon.auth import (
     ADMIN_ONLY,
     AUTHENTICATION_REQUIRED,
     HOST_ONLY,
@@ -46,20 +46,20 @@ from rocketwright.daemon.auth import (
     agent_title,
     client_roots,
 )
-from rocketwright.daemon.passes import ViewerSessions
-from rocketwright.daemon.pauses import PAUSE_MAX_S
-from rocketwright.daemon.scope_names import SCOPE_NAMES_FILE, ScopeNames
-from rocketwright.daemon.tokens import TokenStore
-from rocketwright.mcp.launcher import SCOPE_ENV, TOKEN_ENV, URL_ENV
-from rocketwright.platform.device_data import devices_dir
-from rocketwright.protocol import CLOSE_FORBIDDEN, PROTOCOL_VERSION, SERVER
-from rocketwright.scope import STANDALONE_GROUP, Scope
-from rocketwright.seams import Caller, Refused
-from rocketwright.server.log_redaction import CredentialFilter
-from rocketwright.testing.asgi import HOST, AsgiSocket
-from rocketwright.testing.fakes import BOOTED_UDID, fixture_udid, no_wait
-from rocketwright.testing.rig import DeviceRig
-from rocketwright.tools.device import VERSION_LINE
+from phonesimulator.daemon.passes import ViewerSessions
+from phonesimulator.daemon.pauses import PAUSE_MAX_S
+from phonesimulator.daemon.scope_names import SCOPE_NAMES_FILE, ScopeNames
+from phonesimulator.daemon.tokens import TokenStore
+from phonesimulator.mcp.launcher import SCOPE_ENV, TOKEN_ENV, URL_ENV
+from phonesimulator.platform.device_data import devices_dir
+from phonesimulator.protocol import CLOSE_FORBIDDEN, PROTOCOL_VERSION, SERVER
+from phonesimulator.scope import STANDALONE_GROUP, Scope
+from phonesimulator.seams import Caller, Refused
+from phonesimulator.server.log_redaction import CredentialFilter
+from phonesimulator.testing.asgi import HOST, AsgiSocket
+from phonesimulator.testing.fakes import BOOTED_UDID, fixture_udid, no_wait
+from phonesimulator.testing.rig import DeviceRig
+from phonesimulator.tools.device import VERSION_LINE
 
 OWN = "http://127.0.0.1:7466"
 TP1 = Scope.named("tp-1")
@@ -151,7 +151,7 @@ async def test_the_daemon_is_up_on_its_port_and_answers_only_for_its_own_names(t
         ("https://host.example",),
         ("https://frame.example",),
     )
-    assert SERVER_SCOPE.id == "rocketwright"
+    assert SERVER_SCOPE.id == "phonesimulator"
 
 
 async def test_a_person_needs_a_token_for_the_scope_they_ask_about(tmp_path: Path) -> None:
@@ -162,7 +162,7 @@ async def test_a_person_needs_a_token_for_the_scope_they_ask_about(tmp_path: Pat
         assert detail(await http.get("/api/v1/scopes/tp-1")) == (401, AUTHENTICATION_REQUIRED)
         assert detail(await http.get("/api/v1/scopes/tp-1", headers=bearer("forged"))) == (401, AUTHENTICATION_REQUIRED)
         assert (await http.get("/api/v1/scopes/tp-1", headers=here.admin)).json()["ok"] is True
-        assert (await http.get("/api/v1/scopes/tp-1", headers={"x-rocketwright-token": viewer})).status_code == 200
+        assert (await http.get("/api/v1/scopes/tp-1", headers={"x-phonesimulator-token": viewer})).status_code == 200
         assert detail(await http.get("/api/v1/scopes/tp-2", headers=bearer(viewer))) == (403, NOT_FOR_SCOPE)
         assert detail(await http.get("/api/v1/scopes/tp-1", headers=bearer(agent))) == (403, NOT_FOR_SCOPE)
         assert detail(await http.get("/api/v1/scopes/bad%20id", headers=here.admin)) == (404, NO_SUCH_SCOPE)
@@ -275,9 +275,9 @@ async def test_an_agent_calls_tools_for_its_scope_and_holds_its_device_with_a_le
         assert leased["data"]["agent_idle_s"] == 600, "the scope's own setting, as it is now"
         assert detail(await http.get("/api/v1/agent/manifest", headers=bearer(viewer))) == (403, NOT_AN_AGENT)
         assert detail(await http.get("/api/v1/agent/manifest", headers=bearer(several))) == (400, NAME_THE_SCOPE)
-        named = {**bearer(several), "x-rocketwright-scope": "tp-2"}
+        named = {**bearer(several), "x-phonesimulator-scope": "tp-2"}
         assert (await http.get("/api/v1/agent/manifest", headers=named)).status_code == 200
-        elsewhere = {**bearer(several), "x-rocketwright-scope": "tp-9"}
+        elsewhere = {**bearer(several), "x-phonesimulator-scope": "tp-9"}
         assert detail(await http.get("/api/v1/agent/manifest", headers=elsewhere)) == (403, NOT_FOR_SCOPE)
         assert detail(await http.post("/api/v1/agent/lease")) == (401, AUTHENTICATION_REQUIRED)
         assert detail(await http.get("/api/v1/agent/manifest", headers=bearer("forged"))) == (
@@ -322,15 +322,15 @@ async def test_an_agents_title_is_its_client_and_its_session_s_label_or_its_toke
     named = Headers(
         {
             "authorization": f"Bearer {everywhere}",
-            "x-rocketwright-scope": "demo",
-            "x-rocketwright-client": " Codex\n CLI ",
+            "x-phonesimulator-scope": "demo",
+            "x-phonesimulator-client": " Codex\n CLI ",
         }
     )
     caller = await auth.agent(Asking(named))  # type: ignore[arg-type]
     assert (caller.scope.id, caller.title) == ("demo", f"Codex CLI #{record.id[1:5]}")
-    labelled = Headers({**named, "x-rocketwright-label": " ticket-123\n demo "})
+    labelled = Headers({**named, "x-phonesimulator-label": " ticket-123\n demo "})
     assert (await auth.agent(Asking(labelled))).title == "Codex CLI · ticket-123 demo"  # type: ignore[arg-type]
-    untitled = Headers({"authorization": f"Bearer {everywhere}", "x-rocketwright-scope": "demo"})
+    untitled = Headers({"authorization": f"Bearer {everywhere}", "x-phonesimulator-scope": "demo"})
     assert (await auth.agent(Asking(untitled))).title == f"agent #{record.id[1:5]}"  # type: ignore[arg-type]
     long = agent_title("C" * 100, "L" * 100, "t0123abcd")
     assert len(long) == TITLE_MAX and long.endswith(" · " + "L" * LABEL_MAX)
@@ -347,7 +347,7 @@ async def test_an_agent_says_the_folders_its_client_works_in_and_only_absolute_o
     agent = tokens.create("agent", ["demo"])[1]
     auth = TokenAuthenticator(tokens, ViewerSessions())
     sent = ",".join(["/Users/dev/My%20App-feature", "relative", "", "/a%00b", "/" + "x" * 1025, "/Users/dev/Shared"])
-    headers = Headers({"authorization": f"Bearer {agent}", "x-rocketwright-roots": sent})
+    headers = Headers({"authorization": f"Bearer {agent}", "x-phonesimulator-roots": sent})
     caller = await auth.agent(Asking(headers))  # type: ignore[arg-type]
     assert caller.roots == (Path("/Users/dev/My App-feature"), Path("/Users/dev/Shared"))
     assert client_roots(",".join(f"/r{n}" for n in range(20))) == tuple(Path(f"/r{n}") for n in range(8))
@@ -379,7 +379,7 @@ async def test_revoking_a_token_lets_go_of_its_leases_at_once_and_a_host_s_of_th
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     here = site(tmp_path)
-    caplog.set_level(logging.INFO, logger="rocketwright.daemon.lease")
+    caplog.set_level(logging.INFO, logger="phonesimulator.daemon.lease")
     async with here.http() as http:
         agent = await here.token(http, "agent", "tp-1")
         other = await here.token(http, "agent", "tp-1")
@@ -435,7 +435,7 @@ async def test_the_admin_lets_a_device_go_for_every_scope_and_is_told_who_held_i
         await here.started(http)
         instance = here.daemon.runtime.manager.instance(TP1)
         assert instance is not None
-        agent = await here.token(http, "agent", "tp-1", label="rocketwright mcp (pid 4242)")
+        agent = await here.token(http, "agent", "tp-1", label="phonesimulator mcp (pid 4242)")
         await http.post("/api/v1/agent/lease", headers=bearer(agent))
         here.daemon.leases.renew("tp-1", "unknown-token")
         working = Caller(Scope.named("tp-2"), key="agent-elsewhere", title="Codex")
@@ -446,7 +446,7 @@ async def test_the_admin_lets_a_device_go_for_every_scope_and_is_told_who_held_i
     assert let_go.json()["data"] == {
         "udid": instance.udid,
         "stopped": True,
-        "scopes": [{"id": "tp-1", "agents": ["rocketwright mcp (pid 4242)", "unknown-token"]}],
+        "scopes": [{"id": "tp-1", "agents": ["phonesimulator mcp (pid 4242)", "unknown-token"]}],
     }
     assert here.daemon.runtime.manager.instance(TP1) is None and instance.state == "stopped"
     assert ("simctl", "shutdown", instance.udid) not in here.rig.argv(), "the device keeps running"
@@ -454,7 +454,7 @@ async def test_the_admin_lets_a_device_go_for_every_scope_and_is_told_who_held_i
 
 
 class ForgetsNothing:
-    """A host's own `DeviceMemory`, which remembers nothing and cannot list what Rocketwright made."""
+    """A host's own `DeviceMemory`, which remembers nothing and cannot list what PhoneSimulator made."""
 
     def assigned(self, scope: Scope, shared: bool) -> str | None:
         return None
@@ -472,7 +472,7 @@ class ForgetsNothing:
         return None
 
 
-async def test_the_admin_prunes_the_simulators_rocketwright_made_that_nobody_runs(tmp_path: Path) -> None:
+async def test_the_admin_prunes_the_simulators_phonesimulator_made_that_nobody_runs(tmp_path: Path) -> None:
     here = site(tmp_path)
     left = fixture_udid("iPhone 17 Pro Max")
     here.rig.memory.remember_created(Scope.named("tp-2"), False, left)
@@ -486,7 +486,7 @@ async def test_the_admin_prunes_the_simulators_rocketwright_made_that_nobody_run
         dry = (await http.post(prune, headers=here.admin, json={"dry_run": True})).json()["data"]
         assert dry["dry_run"] is True
         assert sorted((found["udid"], found["deleted"], found["kept"]) for found in dry["devices"]) == sorted(
-            [(running.udid, False, "Rocketwright is running it"), (left, False, None)]
+            [(running.udid, False, "PhoneSimulator is running it"), (left, False, None)]
         )
         done = (await http.post(prune, headers=here.admin, json={})).json()["data"]
         assert [found["udid"] for found in done["devices"] if found["deleted"]] == [left]
@@ -495,7 +495,7 @@ async def test_the_admin_prunes_the_simulators_rocketwright_made_that_nobody_run
         assert detail(await http.post(prune, headers=here.admin, json={}))[0] == 502
         here.daemon.runtime.manager.directory.memory = ForgetsNothing()
         refused = await http.post(prune, headers=here.admin, json={})
-    assert detail(refused) == (409, "this host's device memory cannot list the simulators Rocketwright made")
+    assert detail(refused) == (409, "this host's device memory cannot list the simulators PhoneSimulator made")
 
 
 async def test_the_admin_gives_a_scope_with_no_device_yet_another_scopes(tmp_path: Path) -> None:
@@ -668,7 +668,7 @@ async def test_a_sensitive_change_from_a_page_waits_for_the_code_the_terminal_sh
         settings = await session(here, http, settings=True)
         page = {**bearer(settings), "origin": OWN}
         held = await http.patch(url, headers=page, json=tools)
-        assert held.status_code == 428 and held.json()["confirmation"]["command"] == "rocketwright settings confirm"
+        assert held.status_code == 428 and held.json()["confirmation"]["command"] == "phonesimulator settings confirm"
         assert not (tmp_path / "config.toml").exists()
         confirming = await http.post("/api/v1/admin/settings-confirmations", headers=bearer(settings))
         assert detail(confirming) == (403, ADMIN_ONLY)
@@ -1034,7 +1034,7 @@ async def test_a_scope_is_called_by_the_name_its_folder_gave_it_in_settings_and_
     async with here.http() as http:
         unnamed = await http.get("/api/v1/scopes/tp-1/settings", headers=here.admin)
         assert unnamed.json()["data"]["label"] == "tp-1", "never named: called by its id"
-        # `rocketwright open` names the scope it opens.
+        # `phonesimulator open` names the scope it opens.
         await session(here, http, label="Notes app")
         named = await http.get("/api/v1/scopes/tp-1/settings", headers=here.admin)
         assert named.json()["data"]["label"] == "Notes app" and here.daemon.names.name("tp-1") == "Notes app"

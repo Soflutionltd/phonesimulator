@@ -11,17 +11,17 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import Capability, ConnectorError, ConnectorUnavailable
-from rocketwright.connectors.native.connector import CAPABILITIES, NativeConnector, create, default_candidates
-from rocketwright.connectors.native.helper import PACKAGED, HelperLauncher, HelperVersion, built_helper
-from rocketwright.connectors.registry import ConnectorContext
-from rocketwright.host_copy import HostCopy
-from rocketwright.platform.simctl import Simctl
-from rocketwright.storage.app_support import STATE_DIR_ENV
-from rocketwright.testing.fakes import BOOTED_UDID, SELECTED_XCODE, FakeEngine, FakeXcodeSelect, MemoryStateStore
-from rocketwright.testing.native import FakeHelper, FakeHelperSpawn, short_run_dir
+from phonesimulator._version import __version__
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import Capability, ConnectorError, ConnectorUnavailable
+from phonesimulator.connectors.native.connector import CAPABILITIES, NativeConnector, create, default_candidates
+from phonesimulator.connectors.native.helper import PACKAGED, HelperLauncher, HelperVersion, built_helper
+from phonesimulator.connectors.registry import ConnectorContext
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.storage.app_support import STATE_DIR_ENV
+from phonesimulator.testing.fakes import BOOTED_UDID, SELECTED_XCODE, FakeEngine, FakeXcodeSelect, MemoryStateStore
+from phonesimulator.testing.native import FakeHelper, FakeHelperSpawn, short_run_dir
 
 CONFIG = SimConfig.defaults()
 THIS_VERSION = HelperVersion(__version__, 1, "1171.7", ("render", "capture", "rotate", "at"))
@@ -58,12 +58,12 @@ async def native(
 ) -> AsyncIterator[tuple[NativeConnector, FakeHelperSpawn, Versions]]:
     spawn = FakeHelperSpawn(helper)
     versions = versions or Versions()
-    found = [_executable(tmp_path / "bin" / "rocketwright-helper")] if candidates is None else list(candidates)
+    found = [_executable(tmp_path / "bin" / "phonesimulator-helper")] if candidates is None else list(candidates)
     with short_run_dir() as run:
         launcher = HelperLauncher(
             run_dir=run,
             log_dir=tmp_path / "logs",
-            owner_tag="RocketwrightTest",
+            owner_tag="PhoneSimulatorTest",
             spawn=spawn,
             signal_group=spawn.signal_group,
             pid_alive=lambda pid: False,
@@ -84,8 +84,8 @@ async def test_with_a_helper_of_this_version_it_has_every_capability_but_buildin
         assert report.available and report.name == "native" and report.capabilities == CAPABILITIES
         assert Capability.BUILD_PREVIEW not in CAPABILITIES and Capability.INPUT_TOUCH in CAPABILITIES
         assert Capability.ROTATE in CAPABILITIES
-        binary = str(tmp_path / "bin" / "rocketwright-helper")
-        assert report.versions == {"rocketwright-helper": binary, "version": __version__, "CoreSimulator": "1171.7"}
+        binary = str(tmp_path / "bin" / "phonesimulator-helper")
+        assert report.versions == {"phonesimulator-helper": binary, "version": __version__, "CoreSimulator": "1171.7"}
         await connector.probe(CONFIG)
         assert versions.asked == [binary]
 
@@ -119,10 +119,10 @@ async def test_a_helper_that_does_not_say_its_core_simulator_is_still_reported(t
 async def test_without_a_helper_it_cannot_be_used_and_says_how_to_build_one(tmp_path: Path) -> None:
     async with native(tmp_path, candidates=[tmp_path / "missing"]) as (connector, spawn, _versions):
         report = await connector.probe(CONFIG)
-        assert not report.available and "rocketwright helper build" in report.reasons[0]
+        assert not report.available and "phonesimulator helper build" in report.reasons[0]
         with pytest.raises(ConnectorUnavailable) as refused:
-            await connector.attach(BOOTED_UDID, CONFIG.with_values(native_helper_path="/x/rocketwright-helper"))
-        assert refused.value.status == 409 and "/x/rocketwright-helper cannot be run" in str(refused.value)
+            await connector.attach(BOOTED_UDID, CONFIG.with_values(native_helper_path="/x/phonesimulator-helper"))
+        assert refused.value.status == 409 and "/x/phonesimulator-helper cannot be run" in str(refused.value)
         assert spawn.started == []
 
 
@@ -220,7 +220,7 @@ def test_a_helper_is_looked_for_in_the_wheel_and_then_where_it_is_built(
     built.parent.mkdir(parents=True)
     built.write_text("#!/bin/sh\n")
     built.chmod(0o755)
-    installed = tmp_path / "helper" / "rocketwright-helper"
+    installed = tmp_path / "helper" / "phonesimulator-helper"
     assert tuple(default_candidates()) == (installed, PACKAGED, built) and installed.read_text() == "#!/bin/sh\n"
 
 

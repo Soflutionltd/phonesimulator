@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-"""What each Rocketwright tool's answer costs an agent, measured through the MCP relay a client uses.
+"""What each PhoneSimulator tool's answer costs an agent, measured through the MCP relay a client uses.
 
     uv run python benchmarks/tool_budget.py --scope demo --runs 5
 
-It starts ``rocketwright mcp`` for a scope -- which starts the daemon when it is not running -- speaks MCP to it over
+It starts ``phonesimulator mcp`` for a scope -- which starts the daemon when it is not running -- speaks MCP to it over
 stdio as a client does, and calls each read-only tool `--runs` times on whatever the device shows. For each call it
-prints the answer's size, its estimated tokens (`rocketwright.perception.budget`: estimates, and said to be) and the
+prints the answer's size, its estimated tokens (`phonesimulator.perception.budget`: estimates, and said to be) and the
 p50/p95 latency. Nothing is tapped or typed.
 """
 
@@ -21,10 +21,10 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import IO, Any, Protocol
 
-from rocketwright._version import __version__
-from rocketwright.perception.budget import estimate
+from phonesimulator._version import __version__
+from phonesimulator.perception.budget import estimate
 
-CLIENT_NAME = "rocketwright benchmark"
+CLIENT_NAME = "phonesimulator benchmark"
 MCP_PROTOCOL = "2025-06-18"
 EXIT_WAIT_S = 10.0
 
@@ -175,8 +175,8 @@ class McpProcess(Protocol):
 
 
 def spawn_mcp(scope: str | None) -> McpProcess:
-    """``rocketwright mcp`` for the scope, with this interpreter, talking over pipes."""
-    argv = [sys.executable, "-m", "rocketwright", "mcp", *(["--scope", scope] if scope else [])]
+    """``phonesimulator mcp`` for the scope, with this interpreter, talking over pipes."""
+    argv = [sys.executable, "-m", "phonesimulator", "mcp", *(["--scope", scope] if scope else [])]
     return subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
 
 
@@ -192,7 +192,7 @@ def stop(process: McpProcess) -> None:
 
 
 def parser() -> argparse.ArgumentParser:
-    made = argparse.ArgumentParser(description="Measure what each Rocketwright tool's answer costs an agent.")
+    made = argparse.ArgumentParser(description="Measure what each PhoneSimulator tool's answer costs an agent.")
     made.add_argument("--scope", help="the scope to measure, instead of this folder's project")
     made.add_argument("--runs", type=int, default=5, help="calls of each tool (default 5)")
     made.add_argument("--json", action="store_true", help="print the rows as JSON instead of a Markdown table")
@@ -242,7 +242,7 @@ def main(
         stop(process)
     if args.report:
         report = {
-            "rocketwright_version": __version__,
+            "phonesimulator_version": __version__,
             "runs": args.runs,
             "warmup_rounds": args.warmup,
             "initial": [asdict(summarize(sample)) for sample in initial],

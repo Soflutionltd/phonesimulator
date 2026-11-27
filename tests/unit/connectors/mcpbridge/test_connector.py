@@ -7,17 +7,17 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import Capability, ConnectorUnavailable
-from rocketwright.connectors.mcpbridge.client import BridgeClient
-from rocketwright.connectors.mcpbridge.connector import CAPABILITIES, NAME, McpBridgeConnector, create
-from rocketwright.connectors.mcpbridge.reader import BridgeReader
-from rocketwright.connectors.registry import ConnectorContext
-from rocketwright.connectors.simctl import connector as simctl
-from rocketwright.connectors.simctl.capture import SimctlScreen
-from rocketwright.host_copy import HostCopy
-from rocketwright.platform.simctl import Simctl
-from rocketwright.testing.fakes import BOOTED_UDID, FakeBridge, FakeXcrun, MemoryStateStore
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import Capability, ConnectorUnavailable
+from phonesimulator.connectors.mcpbridge.client import BridgeClient
+from phonesimulator.connectors.mcpbridge.connector import CAPABILITIES, NAME, McpBridgeConnector, create
+from phonesimulator.connectors.mcpbridge.reader import BridgeReader
+from phonesimulator.connectors.registry import ConnectorContext
+from phonesimulator.connectors.simctl import connector as simctl
+from phonesimulator.connectors.simctl.capture import SimctlScreen
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.testing.fakes import BOOTED_UDID, FakeBridge, FakeXcrun, MemoryStateStore
 
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
 CONFIG = SimConfig.defaults().with_values(connector=NAME, developer_dir=XCODE_27)
@@ -54,7 +54,7 @@ async def test_without_xcode_27_it_cannot_be_used_and_says_so_with_where_to_chan
     report = await connector.probe(CONFIG)
     assert not report.available and report.reasons == (
         f"Reading the screen through Xcode needs Xcode 27 or later; the Xcode in use at {XCODE_27} is older, or has no "
-        "mcpbridge (`rocketwright config`).",
+        "mcpbridge (`phonesimulator config`).",
     )
     with pytest.raises(ConnectorUnavailable) as refused:
         await connector.attach(BOOTED_UDID, CONFIG)

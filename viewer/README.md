@@ -1,19 +1,19 @@
-# @soflution/rocketwright
+# @soflution/phonesimulator
 
-The [Rocketwright](https://github.com/Soflutionltd/rocketwright) viewer: a live iOS Simulator screen, a person's touches
+The [PhoneSimulator](https://github.com/Soflutionltd/phonesimulator) viewer: a live iOS Simulator screen, a person's touches
 and keys, and an AI agent's cursor, as a web component or a function.
 
 ```html
-<rocket-wright server="http://127.0.0.1:7466" scope="demo" token="…"></rocket-wright>
+<phone-simulator server="http://127.0.0.1:7466" scope="demo" token="…"></phone-simulator>
 
 <script type="module">
-  import { defineRocketwrightElement } from '@soflution/rocketwright'
-  defineRocketwrightElement()
+  import { definePhoneSimulatorElement } from '@soflution/phonesimulator'
+  definePhoneSimulatorElement()
 </script>
 ```
 
 ```ts
-import { createHttpTransport, createViewer } from '@soflution/rocketwright'
+import { createHttpTransport, createViewer } from '@soflution/phonesimulator'
 
 const view = createViewer(document.querySelector('#simulator')!, {
   transport: createHttpTransport({ baseUrl: 'http://127.0.0.1:7466', scope: 'demo', token: () => viewerToken }),
@@ -28,10 +28,10 @@ view.setActive(true)
 - The agent's gestures drawn by the viewer's own cursor just before they land.
 - The text read from the screen's pixels outlined over it, and what a box reads when pointed at.
 - In English, from one catalogue of messages that another language can be added to.
-- Themed with `--rocketwright-*` custom properties and `::part()`; an ES module with types and no runtime dependencies.
+- Themed with `--phonesimulator-*` custom properties and `::part()`; an ES module with types and no runtime dependencies.
 
-It needs a Rocketwright server: the `rocketwright` daemon (`rocketwright serve`), or a host application that mounts
-Rocketwright's routers.
+It needs a PhoneSimulator server: the `phonesimulator` daemon (`phonesimulator serve`), or a host application that mounts
+PhoneSimulator's routers.
 
 ## Languages
 
@@ -53,8 +53,8 @@ What the server says is not translated: a setting's and a section's description,
 name, what an agent says it is doing.
 
 Documentation:
-[the web component and the viewer library](https://github.com/Soflutionltd/rocketwright/blob/main/docs/embedding/web-component.md),
-[getting started](https://github.com/Soflutionltd/rocketwright/blob/main/docs/getting-started.md),
-[security](https://github.com/Soflutionltd/rocketwright/blob/main/docs/security.md).
+[the web component and the viewer library](https://github.com/Soflutionltd/phonesimulator/blob/main/docs/embedding/web-component.md),
+[getting started](https://github.com/Soflutionltd/phonesimulator/blob/main/docs/getting-started.md),
+[security](https://github.com/Soflutionltd/phonesimulator/blob/main/docs/security.md).
 
 Apache-2.0. Icons are from [Lucide](https://lucide.dev) (ISC).

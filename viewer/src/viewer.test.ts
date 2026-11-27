@@ -853,7 +853,7 @@ describe('createViewer', () => {
     expect(chip.hidden).toBe(false)
     expect(chip.textContent).toBe('Notes <b>Pro</b> · SDK')
     expect(chip.querySelector('b')).toBeNull()
-    const said = "Notes <b>Pro</b> (com.example.notes) shares its view hierarchy through Rocketwright's SDK 1.0.0"
+    const said = "Notes <b>Pro</b> (com.example.notes) shares its view hierarchy through PhoneSimulator's SDK 1.0.0"
     expect(chip.title).toBe(said)
     expect(chip.getAttribute('aria-label')).toBe(said)
     socket().message({ type: 'status', ...DEVICE })
@@ -937,7 +937,7 @@ describe('createViewer', () => {
     const drawn = setup({ icon: (name) => `<i data-host-icon="${name}"></i>` })
     setup()
     expect(drawn.$('[data-smv="home"] [data-host-icon="home"]')).not.toBeNull()
-    // The agent's pointer is Rocketwright's own drawing, whatever icons the host draws the bar with.
+    // The agent's pointer is PhoneSimulator's own drawing, whatever icons the host draws the bar with.
     expect(drawn.$('[data-ac-pointer] [data-host-icon]')).toBeNull()
     expect(drawn.$('[data-ac-pointer] svg[data-ac-shape]')).not.toBeNull()
     expect(document.head.querySelectorAll(`style#${STYLE_ID}`)).toHaveLength(1)

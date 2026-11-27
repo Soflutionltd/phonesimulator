@@ -9,12 +9,12 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.app.discovery import AppListing
-from rocketwright.connectors.base import Capability, ConnectorError, ConnectorUnavailable, HidEvent
-from rocketwright.connectors.mac import connector as module
-from rocketwright.connectors.mac.connector import (
+from phonesimulator._version import __version__
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.app.discovery import AppListing
+from phonesimulator.connectors.base import Capability, ConnectorError, ConnectorUnavailable, HidEvent
+from phonesimulator.connectors.mac import connector as module
+from phonesimulator.connectors.mac.connector import (
     CAPABILITIES,
     INPUT,
     OVERLAY_QUEUE,
@@ -24,14 +24,14 @@ from rocketwright.connectors.mac.connector import (
     MacWindows,
     create,
 )
-from rocketwright.connectors.native.helper import FoundHelper, HelperVersion
-from rocketwright.connectors.registry import ConnectorContext
-from rocketwright.core.gestures import KEYS
-from rocketwright.host_copy import HostCopy
-from rocketwright.platform.macos import MacApp
-from rocketwright.testing.app_sdk import app_hierarchy, app_node
-from rocketwright.testing.fakes import MemoryStateStore
-from rocketwright.testing.macos import FakeMacOS
+from phonesimulator.connectors.native.helper import FoundHelper, HelperVersion
+from phonesimulator.connectors.registry import ConnectorContext
+from phonesimulator.core.gestures import KEYS
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.platform.macos import MacApp
+from phonesimulator.testing.app_sdk import app_hierarchy, app_node
+from phonesimulator.testing.fakes import MemoryStateStore
+from phonesimulator.testing.macos import FakeMacOS
 
 APP = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
 CONFIG = SimConfig.defaults()
@@ -240,7 +240,7 @@ async def test_a_menu_the_bridge_has_no_hook_for_goes_to_the_menu_bar_through_ac
 
 def test_the_session_says_what_drives_the_app():
     assert module._note(None).startswith("App-scoped accessibility")
-    assert module._note(LISTING) == "App-scoped RocketwrightKit input."
+    assert module._note(LISTING) == "App-scoped PhoneSimulatorKit input."
     assert "debug bridge" in module._note(BRIDGE)
 
 

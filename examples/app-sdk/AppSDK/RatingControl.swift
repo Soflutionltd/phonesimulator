@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import RocketwrightKit
+import PhoneSimulatorKit
 import UIKit
 
 /// A hand-drawn control: stars a person taps to rate something. It says nothing to accessibility, as custom controls
@@ -38,7 +38,7 @@ final class RatingControl: UIControl {
     }
 }
 
-/// Tells Rocketwright what a `RatingControl` is: registered once, it describes every rating control in the app.
+/// Tells PhoneSimulator what a `RatingControl` is: registered once, it describes every rating control in the app.
 struct RatingControlDescriber: ViewDescribing {
     func describe(_ view: UIView) -> ViewDescription? {
         guard let control = view as? RatingControl else { return nil }

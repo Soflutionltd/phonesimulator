@@ -13,19 +13,19 @@ from typing import Any, cast
 
 from PIL import Image
 
-from rocketwright.connectors.base import Shot
-from rocketwright.core.actions import AgentActions
-from rocketwright.core.drivers import Drivers
-from rocketwright.core.flows import FlowStore
-from rocketwright.core.selections import Selections
-from rocketwright.protocol import DeviceChoice
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import FakeConnector
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.tools.context import ToolContext
-from rocketwright.tools.matrix import SHEET, resolve
-from rocketwright.tools.registry import ToolRegistry
-from rocketwright.tools.results import Result, text
+from phonesimulator.connectors.base import Shot
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.core.drivers import Drivers
+from phonesimulator.core.flows import FlowStore
+from phonesimulator.core.selections import Selections
+from phonesimulator.protocol import DeviceChoice
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import FakeConnector
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.tools.context import ToolContext
+from phonesimulator.tools.matrix import SHEET, resolve
+from phonesimulator.tools.registry import ToolRegistry
+from phonesimulator.tools.results import Result, text
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 OTHER = Caller(scope("tp-1"), key="agent-2", title="Codex")

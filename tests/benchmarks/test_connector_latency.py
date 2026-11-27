@@ -14,15 +14,15 @@ import pytest
 
 import connector_latency
 from connector_latency import Bench, Result, Timing, main, table
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import ConnectorError, ConnectorUnavailable, Crop, HidEvent, Shot
-from rocketwright.connectors.registry import ConnectorRegistry
-from rocketwright.core.android_devices import AndroidServices
-from rocketwright.platform.identifiers import android_id
-from rocketwright.platform.simctl import Simctl
-from rocketwright.testing.adb import FakeAdbServer
-from rocketwright.testing.android_sdk import sdk_at
-from rocketwright.testing.fakes import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import ConnectorError, ConnectorUnavailable, Crop, HidEvent, Shot
+from phonesimulator.connectors.registry import ConnectorRegistry
+from phonesimulator.core.android_devices import AndroidServices
+from phonesimulator.platform.identifiers import android_id
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.testing.adb import FakeAdbServer
+from phonesimulator.testing.android_sdk import sdk_at
+from phonesimulator.testing.fakes import (
     BOOTED_UDID,
     FakeConnector,
     FakeEngine,
@@ -31,7 +31,7 @@ from rocketwright.testing.fakes import (
     MemoryStateStore,
     fixture,
 )
-from rocketwright.testing.rig import VIEW_ONLY
+from phonesimulator.testing.rig import VIEW_ONLY
 
 
 class Ticking(ManualClock):

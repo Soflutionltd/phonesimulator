@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config import schema, toml_source
-from rocketwright.config.discovery import config_path
-from rocketwright.config.provenance import LAYERS, SettingOrigin
-from rocketwright.config.toml_source import TomlConfigSource
-from rocketwright.scope import Scope
+from phonesimulator.config import schema, toml_source
+from phonesimulator.config.discovery import config_path
+from phonesimulator.config.provenance import LAYERS, SettingOrigin
+from phonesimulator.config.toml_source import TomlConfigSource
+from phonesimulator.scope import Scope
 
 DEMO = Scope.named("demo")
 
@@ -47,7 +47,7 @@ stream.quality = 90
     )
     source = TomlConfigSource(
         path,
-        env={"ROCKETWRIGHT_STREAM_FPS": "48", "ROCKETWRIGHT_STREAM_QUALITY": "999"},
+        env={"PHONESIMULATOR_STREAM_FPS": "48", "PHONESIMULATOR_STREAM_QUALITY": "999"},
         overrides={"stream_fps": 999, "server_port": 7481},
     )
     demo = source.get(DEMO)
@@ -55,7 +55,7 @@ stream.quality = 90
     other = source.get(Scope.named("other"))
     assert (other.stream_quality, other.max_booted) == (50, 3)
     assert source.problems() == [
-        "ROCKETWRIGHT_STREAM_QUALITY must be a whole number between 30 and 100",
+        "PHONESIMULATOR_STREAM_QUALITY must be a whole number between 30 and 100",
         "stream.fps must be a whole number between 5 and 60",
     ]
 
@@ -67,11 +67,11 @@ def test_each_value_says_which_layer_set_it_and_a_refused_one_names_the_layer_be
     )
     source = TomlConfigSource(
         path,
-        env={"ROCKETWRIGHT_STREAM_FPS": "48", "ROCKETWRIGHT_AGENT_CURSOR_LEAD_MS": "5000"},
+        env={"PHONESIMULATOR_STREAM_FPS": "48", "PHONESIMULATOR_AGENT_CURSOR_LEAD_MS": "5000"},
         overrides={"server_port": 7481, "agent_cursor": "not a flag"},
     )
     origins = source.explain(DEMO)
-    assert origins["stream_fps"] == SettingOrigin("environment", "ROCKETWRIGHT_STREAM_FPS")
+    assert origins["stream_fps"] == SettingOrigin("environment", "PHONESIMULATOR_STREAM_FPS")
     assert origins["stream_quality"] == SettingOrigin("scope", f'[scopes."demo"] in {path}')
     assert origins["server_port"] == SettingOrigin("command_line")
     assert origins["enabled"] == SettingOrigin("default")
@@ -86,11 +86,11 @@ def test_each_value_says_which_layer_set_it_and_a_refused_one_names_the_layer_be
 def test_only_a_value_config_toml_holds_can_be_changed_by_writing_it() -> None:
     assert SettingOrigin("default").writable and SettingOrigin("file", "/c.toml").writable
     assert SettingOrigin("scope", '[scopes."demo"]').writable
-    assert not SettingOrigin("environment", "ROCKETWRIGHT_STREAM_FPS").writable
+    assert not SettingOrigin("environment", "PHONESIMULATOR_STREAM_FPS").writable
     assert not SettingOrigin("command_line").writable
     labels = [SettingOrigin(layer).label() for layer in LAYERS]
     assert labels == ["default", "file", "scope", "environment", "command line"]
-    assert SettingOrigin("environment", "ROCKETWRIGHT_STREAM_FPS").label() == "ROCKETWRIGHT_STREAM_FPS"
+    assert SettingOrigin("environment", "PHONESIMULATOR_STREAM_FPS").label() == "PHONESIMULATOR_STREAM_FPS"
 
 
 def test_the_file_is_read_again_only_when_it_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -157,9 +157,10 @@ def test_an_unreadable_file_is_reported(tmp_path: Path) -> None:
 
 
 def test_the_file_is_found_through_the_environment_or_in_application_support(tmp_path: Path) -> None:
-    assert config_path({"ROCKETWRIGHT_CONFIG": "~/x.toml"}, home=tmp_path).name == "x.toml"
+    assert config_path({"PHONESIMULATOR_CONFIG": "~/x.toml"}, home=tmp_path).name == "x.toml"
     assert (
-        config_path({}, home=tmp_path) == tmp_path / "Library" / "Application Support" / "Rocketwright" / "config.toml"
+        config_path({}, home=tmp_path)
+        == tmp_path / "Library" / "Application Support" / "PhoneSimulator" / "config.toml"
     )
-    assert config_path({"ROCKETWRIGHT_STATE_DIR": str(tmp_path / "s")}) == tmp_path / "s" / "config.toml"
+    assert config_path({"PHONESIMULATOR_STATE_DIR": str(tmp_path / "s")}) == tmp_path / "s" / "config.toml"
     assert config_path().name == "config.toml"

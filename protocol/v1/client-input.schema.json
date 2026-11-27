@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Soflutionltd/rocketwright/main/protocol/v1/client-input.schema.json",
+  "$id": "https://raw.githubusercontent.com/Soflutionltd/phonesimulator/main/protocol/v1/client-input.schema.json",
   "title": "ClientInput",
   "description": "What a person does to the screen, sent by the viewer after the hello. The server acts on these and nothing else, and ignores any other message.",
   "oneOf": [

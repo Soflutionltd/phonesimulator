@@ -10,16 +10,16 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.app import wire
-from rocketwright.connectors.app.client import fetch_hierarchy
-from rocketwright.connectors.app.discovery import AppListing
-from rocketwright.connectors.app.document import SharedApp
-from rocketwright.connectors.app.errors import AppInactive, AppRefused, AppSdkError, AppTimedOut, AppUnreachable
-from rocketwright.connectors.app.reader import AppMemory, AppReader, ask_apps, probe
-from rocketwright.host_copy import HostCopy
-from rocketwright.perception.model import Modal
-from rocketwright.testing.app_sdk import SECRET, FakeAppSdk, app_hierarchy, app_node, write_listing
-from rocketwright.testing.fakes import ManualClock
+from phonesimulator.connectors.app import wire
+from phonesimulator.connectors.app.client import fetch_hierarchy
+from phonesimulator.connectors.app.discovery import AppListing
+from phonesimulator.connectors.app.document import SharedApp
+from phonesimulator.connectors.app.errors import AppInactive, AppRefused, AppSdkError, AppTimedOut, AppUnreachable
+from phonesimulator.connectors.app.reader import AppMemory, AppReader, ask_apps, probe
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.perception.model import Modal
+from phonesimulator.testing.app_sdk import SECRET, FakeAppSdk, app_hierarchy, app_node, write_listing
+from phonesimulator.testing.fakes import ManualClock
 
 UDID = "7A4C5B2E-9E2B-4C43-9F3A-2D0C3F0B6E11"
 COPY = HostCopy()

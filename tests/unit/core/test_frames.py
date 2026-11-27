@@ -10,10 +10,10 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import ConnectorError, Crop, Screen, Shot
-from rocketwright.core import frames as frames_module
-from rocketwright.core.frames import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import ConnectorError, Crop, Screen, Shot
+from phonesimulator.core import frames as frames_module
+from phonesimulator.core.frames import (
     IDLE_AFTER_S,
     IDLE_FPS,
     KEY_FRAME_S,

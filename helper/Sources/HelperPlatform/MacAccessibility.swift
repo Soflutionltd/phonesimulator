@@ -122,7 +122,7 @@ final class MacAccessibility {
         var listed: CFArray?
         AXUIElementCopyActionNames(element, &listed)
         guard (listed as? [String] ?? []).contains(action) else {
-            throw HelperFailure("this element does not expose \(action); link RocketwrightKit or the debug web bridge", status: 409)
+            throw HelperFailure("this element does not expose \(action); link PhoneSimulatorKit or the debug web bridge", status: 409)
         }
         guard AXUIElementPerformAction(element, action as CFString) == .success else {
             throw HelperFailure("the app refused \(action)", status: 409)
@@ -152,7 +152,7 @@ final class MacAccessibility {
                 }
                 target = element(here,"AXParent")
             }
-            throw HelperFailure("this view exposes no \(verb); link RocketwrightKit or the debug web bridge", status: 409)
+            throw HelperFailure("this view exposes no \(verb); link PhoneSimulatorKit or the debug web bridge", status: 409)
         case .type:
             guard let target = textTarget ?? element(app,"AXFocusedUIElement"), owns(target),
                   let rect = frame(target), rect.intersects(bounds) else {
@@ -174,7 +174,7 @@ final class MacAccessibility {
             var settable: DarwinBoolean = false
             guard AXUIElementIsAttributeSettable(target,attribute as CFString,&settable) == .success, settable.boolValue,
                   AXUIElementSetAttributeValue(target,attribute as CFString,replacement as CFString) == .success else {
-                throw HelperFailure("this field does not accept AXValue; link RocketwrightKit or the debug web bridge", status: 409)
+                throw HelperFailure("this field does not accept AXValue; link PhoneSimulatorKit or the debug web bridge", status: 409)
             }
             if attribute == "AXValue", !node(target,origin:bounds.origin).isSecure {
                 for _ in 0..<20 {
@@ -215,7 +215,7 @@ final class MacAccessibility {
                 }
                 target = element(here,"AXParent")
             }
-            throw HelperFailure("this view exposes no accessibility scroll action; link RocketwrightKit or the debug web bridge", status: 409)
+            throw HelperFailure("this view exposes no accessibility scroll action; link PhoneSimulatorKit or the debug web bridge", status: 409)
         case .menu:
             guard let path = action.path, !["Apple", "Services"].contains(path[0]), let bar = element(app,"AXMenuBar") else {
                 throw HelperFailure("only this app's own menu items can be used", status: 403)

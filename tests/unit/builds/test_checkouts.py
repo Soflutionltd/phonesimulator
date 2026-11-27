@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rocketwright.build import checkouts
-from rocketwright.build.checkouts import POINTER_MAX, Checkout, build_folder_for, checkout_of, twin_in_main
-from rocketwright.testing.checkouts import linked_worktree, main_checkout, separate_main_checkout
+from phonesimulator.build import checkouts
+from phonesimulator.build.checkouts import POINTER_MAX, Checkout, build_folder_for, checkout_of, twin_in_main
+from phonesimulator.testing.checkouts import linked_worktree, main_checkout, separate_main_checkout
 
 
 def layout(tmp_path: Path) -> tuple[Path, Path]:

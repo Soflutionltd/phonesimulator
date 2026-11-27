@@ -9,7 +9,7 @@ public enum Command: Equatable, Sendable {
     case macApps
     case window(MacWindowOptions)
     case permissions
-    /// Serve one device on a unix socket until Rocketwright lets go of it.
+    /// Serve one device on a unix socket until PhoneSimulator lets go of it.
     case serve(ServeOptions)
     /// Reach a device the way serving would -- its screen, a picture, input and the element tree -- say what worked as
     /// JSON, and exit 0 only if all of it did.
@@ -17,20 +17,20 @@ public enum Command: Equatable, Sendable {
     /// Render a recording as the job at a path asks -- an MP4, a GIF, its touches drawn in -- say what it wrote as JSON,
     /// and exit.
     case render(job: String)
-    /// Serve a cabled real device's screen, read through AVFoundation, on a unix socket until Rocketwright lets go of it.
+    /// Serve a cabled real device's screen, read through AVFoundation, on a unix socket until PhoneSimulator lets go of it.
     case capture(CaptureOptions)
 
     public static let usage = """
-        usage: rocketwright-helper version
-               rocketwright-helper permissions
-               rocketwright-helper mac-apps
-               rocketwright-helper window --pid PID --socket PATH [--window-id ID] [--parent-pid PID] [--accessibility on|off]
+        usage: phonesimulator-helper version
+               phonesimulator-helper permissions
+               phonesimulator-helper mac-apps
+               phonesimulator-helper window --pid PID --socket PATH [--window-id ID] [--parent-pid PID] [--accessibility on|off]
                                         [--overlay on|off]
-               rocketwright-helper serve --udid UDID --socket PATH [--parent-pid PID] [--hid auto|dtuhid|indigo]
+               phonesimulator-helper serve --udid UDID --socket PATH [--parent-pid PID] [--hid auto|dtuhid|indigo]
                                        [--idle-key-frames on|off] [--log-level debug|info|warning|error]
-               rocketwright-helper self-check --udid UDID [--hid auto|dtuhid|indigo]
-               rocketwright-helper render --job PATH
-               rocketwright-helper capture --udid UDID --name NAME --socket PATH --width-px N --height-px N --scale N
+               phonesimulator-helper self-check --udid UDID [--hid auto|dtuhid|indigo]
+               phonesimulator-helper render --job PATH
+               phonesimulator-helper capture --udid UDID --name NAME --socket PATH --width-px N --height-px N --scale N
                                          [--capture-id ID] [--reference PATH] [--parent-pid PID] [--wait SECONDS] [--linger SECONDS]
                                          [--idle-key-frames on|off] [--log-level debug|info|warning|error]
         """
@@ -157,9 +157,9 @@ public struct ServeOptions: Equatable, Sendable {
     }
 }
 
-/// What `rocketwright-helper version` prints.
+/// What `phonesimulator-helper version` prints.
 public struct VersionReport: Equatable, Sendable, Encodable {
-    /// What this helper can do besides serving a simulator, so Rocketwright asks only a helper that can.
+    /// What this helper can do besides serving a simulator, so PhoneSimulator asks only a helper that can.
     public static let features = ["render", "capture", "rotate", "at", "mac-capture", "mac-overlay"]
 
     public let version: String
@@ -187,7 +187,7 @@ public struct VersionReport: Equatable, Sendable, Encodable {
     }
 }
 
-/// What `rocketwright-helper self-check` prints: each part of a device and whether it was reached.
+/// What `phonesimulator-helper self-check` prints: each part of a device and whether it was reached.
 public struct SelfCheckReport: Equatable, Sendable, Encodable {
     public struct Part: Equatable, Sendable, Encodable {
         public let name: String

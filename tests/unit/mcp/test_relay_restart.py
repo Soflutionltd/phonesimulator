@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""A relay after its server went and came back: on the port it had, on another one, or not yet -- under ``rocketwright
+"""A relay after its server went and came back: on the port it had, on another one, or not yet -- under ``phonesimulator
 mcp``, which proves what answers before its token goes there, and run by a host itself, which reads the daemon's run
 folder."""
 
@@ -18,21 +18,26 @@ from typing import Any
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.daemon import health, lifecycle
-from rocketwright.daemon.lifecycle import START_LOCK_FILE, DaemonInfo, write_info
-from rocketwright.mcp import launcher, relay
-from rocketwright.mcp.launcher import DaemonClient, ensure_daemon, follower, reviver, run
-from rocketwright.scope import Scope
-from rocketwright.storage.private import ensure_private_dir, file_lock
+from phonesimulator._version import __version__
+from phonesimulator.daemon import health, lifecycle
+from phonesimulator.daemon.lifecycle import START_LOCK_FILE, DaemonInfo, write_info
+from phonesimulator.mcp import launcher, relay
+from phonesimulator.mcp.launcher import DaemonClient, ensure_daemon, follower, reviver, run
+from phonesimulator.scope import Scope
+from phonesimulator.storage.private import ensure_private_dir, file_lock
 
 ADMIN = "admin-token"
 AGENT = "agent-token"
-FLAGS = ["--header", "X-Rocketwright-Token=ROCKETWRIGHT_TOKEN", "--header", "X-Rocketwright-Scope=ROCKETWRIGHT_SCOPE"]
+FLAGS = [
+    "--header",
+    "X-PhoneSimulator-Token=PHONESIMULATOR_TOKEN",
+    "--header",
+    "X-PhoneSimulator-Scope=PHONESIMULATOR_SCOPE",
+]
 ENV = {
-    "ROCKETWRIGHT_URL": "http://127.0.0.1:7466/api/v1/agent",
-    "ROCKETWRIGHT_TOKEN": AGENT,
-    "ROCKETWRIGHT_SCOPE": "tp-1",
+    "PHONESIMULATOR_URL": "http://127.0.0.1:7466/api/v1/agent",
+    "PHONESIMULATOR_TOKEN": AGENT,
+    "PHONESIMULATOR_SCOPE": "tp-1",
 }
 MANIFEST = {"tools": [{"name": "sim_device"}], "instructions": "look first"}
 
@@ -63,7 +68,7 @@ class Mac:
     def __call__(self, request: urllib.request.Request, timeout: float) -> Response:
         parts = urllib.parse.urlsplit(request.full_url)
         assert parts.hostname == "127.0.0.1" and parts.port is not None
-        credential = request.get_header("Authorization") or request.get_header("X-rocketwright-token")
+        credential = request.get_header("Authorization") or request.get_header("X-phonesimulator-token")
         with self.lock:
             self.requests.append((parts.port, request.get_method(), parts.path, credential))
             kind = self.ports.get(parts.port)
@@ -72,7 +77,7 @@ class Mac:
         if parts.path == "/healthz":
             nonce = urllib.parse.parse_qs(parts.query)["nonce"][0]
             proof = health.proof(ADMIN, nonce) if kind == launcher.OURS else "forged"
-            return Response({"ok": True, "data": {"proof": proof, "server": f"rocketwright/{__version__}"}})
+            return Response({"ok": True, "data": {"proof": proof, "server": f"phonesimulator/{__version__}"}})
         answers: dict[tuple[str, str], Any] = {
             ("POST", "/api/v1/admin/tokens"): {"ok": True, "data": {"id": "t1", "token": AGENT}},
             ("DELETE", "/api/v1/admin/tokens/t1"): {"ok": True, "data": {"revoked": True}},
@@ -127,7 +132,7 @@ def test_a_relay_given_the_run_folder_follows_the_daemon_to_the_port_it_listens_
     assert texts(stdout) == [
         "ok from 7467",
         "Nothing listens at 127.0.0.1:7467 any more, so this call was not made. Start the server again -- "
-        "`rocketwright serve --detach` for Rocketwright's daemon -- and call again, or reconnect this MCP server.",
+        "`phonesimulator serve --detach` for PhoneSimulator's daemon -- and call again, or reconnect this MCP server.",
     ]
     assert [(port, path.rsplit("/", 1)[-1]) for port, _, path, _ in mac.requests] == [
         (7466, "manifest"),
@@ -143,7 +148,7 @@ def test_a_relay_that_cannot_bring_its_server_back_says_in_one_line_how_to() -> 
     stdout = io.StringIO()
     assert relay.main(FLAGS, env=ENV, stdin=lines(call(1)), stdout=stdout, opener=Mac()) == 0
     (said,) = texts(stdout)
-    assert said.startswith("Nothing listens at 127.0.0.1:7466 any more") and "rocketwright serve --detach" in said
+    assert said.startswith("Nothing listens at 127.0.0.1:7466 any more") and "phonesimulator serve --detach" in said
     assert "\n" not in said and AGENT not in said
 
 
@@ -163,8 +168,8 @@ def test_where_the_server_listens_now_is_followed_only_to_another_loopback_addre
 
     moved = iter(["http://127.0.0.1:7467/api/v1/agent", "http://127.0.0.1:7468/api/v1/agent"])
     nobody = Mac()
-    upstream = relay.Upstream(ENV["ROCKETWRIGHT_URL"], {}, nobody, locate=lambda: next(moved, None))
-    assert relay.Relay(upstream).manifest()["instructions"].startswith("The Rocketwright server could not be reached")
+    upstream = relay.Upstream(ENV["PHONESIMULATOR_URL"], {}, nobody, locate=lambda: next(moved, None))
+    assert relay.Relay(upstream).manifest()["instructions"].startswith("The PhoneSimulator server could not be reached")
     assert upstream.base == "http://127.0.0.1:7467/api/v1/agent" and len(nobody.requests) == 2, "followed once"
 
 
@@ -264,7 +269,7 @@ def test_a_host_gives_its_agents_relay_the_run_folder_on_its_command_line(
     assert relay.daemon_port("~/run") == 7478, "as a client's configuration writes it, unexpanded"
 
 
-# -- rocketwright mcp
+# -- phonesimulator mcp
 # ----------------------------------------------------------------------------------------------------
 
 

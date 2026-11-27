@@ -1,24 +1,24 @@
 {
-  "name": "rocketwright",
+  "name": "phonesimulator",
   "owner": {
     "name": "Soflution Ltd",
     "url": "https://github.com/Soflutionltd"
   },
   "metadata": {
-    "description": "Rocketwright: mirror and drive iOS Simulators, real iPhones, Android emulators and phones, and macOS apps from Claude Code, with a live viewer, token-efficient UI snapshots and screen recording."
+    "description": "PhoneSimulator: mirror and drive iOS Simulators, real iPhones, Android emulators and phones, and macOS apps from Claude Code, with a live viewer, token-efficient UI snapshots and screen recording."
   },
   "plugins": [
     {
-      "name": "rocketwright",
-      "source": "./plugins/rocketwright",
+      "name": "phonesimulator",
+      "source": "./plugins/phonesimulator",
       "description": "iOS Simulators, real iPhones, Android devices and macOS apps as MCP tools: snapshot-first UI automation, an agent cursor in a live browser viewer, screen recording, and a doctor.",
       "version": "3.12.1",
       "author": {
         "name": "Soflution Ltd",
         "url": "https://github.com/Soflutionltd"
       },
-      "homepage": "https://github.com/Soflutionltd/rocketwright#readme",
-      "repository": "https://github.com/Soflutionltd/rocketwright",
+      "homepage": "https://github.com/Soflutionltd/phonesimulator#readme",
+      "repository": "https://github.com/Soflutionltd/phonesimulator",
       "license": "Apache-2.0",
       "keywords": ["ios-simulator", "mcp", "ui-automation", "agent-cursor", "screen-mirroring"]
     }

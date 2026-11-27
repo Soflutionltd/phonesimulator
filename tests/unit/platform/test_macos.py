@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.platform import macos
-from rocketwright.platform.errors import DeviceControlError
-from rocketwright.platform.macos import MacApp, applications, bundle
-from rocketwright.testing.macos import FakeMacOS
+from phonesimulator.platform import macos
+from phonesimulator.platform.errors import DeviceControlError
+from phonesimulator.platform.macos import MacApp, applications, bundle
+from phonesimulator.testing.macos import FakeMacOS
 
 APP = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
 

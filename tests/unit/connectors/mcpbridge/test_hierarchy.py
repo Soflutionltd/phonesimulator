@@ -7,12 +7,12 @@ from typing import Any
 
 import pytest
 
-from rocketwright.connectors.base import Screen
-from rocketwright.connectors.mcpbridge import hierarchy
-from rocketwright.connectors.mcpbridge.hierarchy import document_from_hierarchy
-from rocketwright.perception.readers import tree_from_document
-from rocketwright.perception.snapshot import build
-from rocketwright.testing.fakes import fixture
+from phonesimulator.connectors.base import Screen
+from phonesimulator.connectors.mcpbridge import hierarchy
+from phonesimulator.connectors.mcpbridge.hierarchy import document_from_hierarchy
+from phonesimulator.perception.readers import tree_from_document
+from phonesimulator.perception.snapshot import build
+from phonesimulator.testing.fakes import fixture
 
 SCREEN = Screen(1206, 2622, 402, 874, 3.0)
 

@@ -1,12 +1,12 @@
 # Guide for AI coding agents
 
-This file is for AI agents (Claude Code, Codex, Cursor and others) working **on** Rocketwright's source. Human
+This file is for AI agents (Claude Code, Codex, Cursor and others) working **on** PhoneSimulator's source. Human
 contributors should read [CONTRIBUTING.md](CONTRIBUTING.md); its rules apply to agents too.
 
 ## What this repository is
 
-Rocketwright mirrors and drives the iOS Simulator: a Python daemon and library (`src/rocketwright/`), a TypeScript viewer
-published to npm (`viewer/`), a stdlib-only MCP relay, a Claude Code plugin (`plugins/rocketwright/`), examples and docs.
+PhoneSimulator mirrors and drives the iOS Simulator: a Python daemon and library (`src/phonesimulator/`), a TypeScript viewer
+published to npm (`viewer/`), a stdlib-only MCP relay, a Claude Code plugin (`plugins/phonesimulator/`), examples and docs.
 
 ## Commands
 
@@ -29,17 +29,17 @@ Use `uv run …` for Python. Never create a virtualenv by hand or use pip.
 
 ## Rules
 
-1. **Never start a real Simulator, `xcrun`, `xcodebuild`, `idb_companion`, `rocketwright-helper`, adb, an Android
-   emulator, Gradle, Java or a browser from a test.** Use `rocketwright.testing` fakes -- `FakeAdbServer`, `FakeScrcpy`,
+1. **Never start a real Simulator, `xcrun`, `xcodebuild`, `idb_companion`, `phonesimulator-helper`, adb, an Android
+   emulator, Gradle, Java or a browser from a test.** Use `phonesimulator.testing` fakes -- `FakeAdbServer`, `FakeScrcpy`,
    `FakeGradle` for Android. The conftest guard fails the test otherwise, and points adb's server, the Android SDK
    and the AVDs at empty places.
 2. **Keep each external program in its one module**: `platform/` for xcrun, simctl and swiftc (`platform/swift.py`),
    `platform/swiftpm.py` for `swift build`, `platform/git.py` for git, `connectors/idb/companion.py` for
    idb_companion, `connectors/native/helper.py` for the native helper, `build/xcodebuild.py` for xcodebuild,
-   `perception/vision/helper.py` for Rocketwright's compiled text reader, `platform/adb.py`, `platform/emulator.py` and
+   `perception/vision/helper.py` for PhoneSimulator's compiled text reader, `platform/adb.py`, `platform/emulator.py` and
    `platform/java.py` for adb, the Android emulator and Java, and `build/gradle.py` for a project's Gradle wrapper.
-3. **Hosts embed through `rocketwright.api` only.** Don't make hosts import internals; add to `api.py` deliberately.
-4. **Stay host-neutral.** Rocketwright knows scopes, not any host application's concepts. `scripts/check_host_neutral.py`
+3. **Hosts embed through `phonesimulator.api` only.** Don't make hosts import internals; add to `api.py` deliberately.
+4. **Stay host-neutral.** PhoneSimulator knows scopes, not any host application's concepts. `scripts/check_host_neutral.py`
    enforces the vocabulary.
 5. **The protocol has one source**, `protocol/v1/*.schema.json` and `close-codes.json`. Edit those and run
    `make generate`; never hand-edit `_generated.py` or `protocol.generated.ts`.

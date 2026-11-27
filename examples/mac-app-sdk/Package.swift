@@ -5,10 +5,10 @@ import PackageDescription
 let package = Package(
     name: "MacAppSDK",
     platforms: [.macOS(.v14)],
-    dependencies: [.package(name: "Rocketwright", path: "../..")],
+    dependencies: [.package(name: "PhoneSimulator", path: "../..")],
     targets: [
         .executableTarget(
-            name: "MacAppSDK", dependencies: [.product(name: "RocketwrightKit", package: "Rocketwright")],
+            name: "MacAppSDK", dependencies: [.product(name: "PhoneSimulatorKit", package: "PhoneSimulator")],
             path: "Sources")
     ]
 )

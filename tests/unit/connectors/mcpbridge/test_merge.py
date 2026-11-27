@@ -6,13 +6,13 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.mcpbridge.client import BridgeClient
-from rocketwright.connectors.mcpbridge.merge import HierarchyMerge
-from rocketwright.connectors.mcpbridge.reader import BridgeReader
-from rocketwright.host_copy import HostCopy
-from rocketwright.perception.readers import DocumentReader
-from rocketwright.testing.fakes import BOOTED_UDID, FakeBridge
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.mcpbridge.client import BridgeClient
+from phonesimulator.connectors.mcpbridge.merge import HierarchyMerge
+from phonesimulator.connectors.mcpbridge.reader import BridgeReader
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.perception.readers import DocumentReader
+from phonesimulator.testing.fakes import BOOTED_UDID, FakeBridge
 
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
 OTHER_27 = "/Applications/Xcode27-beta.app/Contents/Developer"

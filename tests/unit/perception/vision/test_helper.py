@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Rocketwright's text reader: compiled and started once per Xcode, asked in JSON lines, answers checked, and a helper
+"""PhoneSimulator's text reader: compiled and started once per Xcode, asked in JSON lines, answers checked, and a helper
 that cannot be built or keeps stopping refused with why rather than tried on every snapshot."""
 
 from __future__ import annotations
@@ -14,16 +14,16 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.perception.ocr import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.perception.ocr import (
     OcrReaders,
     RecognitionOptions,
     RecognizedLine,
     TextBox,
     TextRecognitionError,
 )
-from rocketwright.perception.vision import helper as helper_module
-from rocketwright.perception.vision.helper import (
+from phonesimulator.perception.vision import helper as helper_module
+from phonesimulator.perception.vision.helper import (
     BUILD_RETRY_S,
     HELPER,
     STOPS_MAX,
@@ -33,11 +33,11 @@ from rocketwright.perception.vision.helper import (
     helper_source,
     parse_lines,
 )
-from rocketwright.platform.json_lines import Silence
-from rocketwright.platform.swift import build_key
-from rocketwright.testing.fakes import SWIFT_VERSION, FakeXcrun, ManualClock
-from rocketwright.testing.pictures import picture
-from rocketwright.testing.vision import LANGUAGES, FakeVisionHelper
+from phonesimulator.platform.json_lines import Silence
+from phonesimulator.platform.swift import build_key
+from phonesimulator.testing.fakes import SWIFT_VERSION, FakeXcrun, ManualClock
+from phonesimulator.testing.pictures import picture
+from phonesimulator.testing.vision import LANGUAGES, FakeVisionHelper
 
 XCODE = "/Applications/Xcode.app/Contents/Developer"
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"
@@ -136,7 +136,7 @@ async def test_a_reading_the_helper_refuses_or_does_not_answer_in_time_is_said(t
 async def test_a_helper_of_another_version_is_not_used(tmp_path: Path) -> None:
     rig = Rig(tmp_path)
     rig.helper.version = 2
-    with pytest.raises(TextRecognitionError, match="said hello as version 2, not 1: it is not this Rocketwright's"):
+    with pytest.raises(TextRecognitionError, match="said hello as version 2, not 1: it is not this PhoneSimulator's"):
         await rig.vision.recognize(b"picture", OPTIONS)
     assert rig.helper.processes[0].returncode is not None
     rig.helper.version = 1
@@ -149,21 +149,21 @@ async def test_a_helper_that_keeps_stopping_is_refused_until_a_while_has_passed(
     for _ in range(2):
         await rig.vision.recognize(b"picture", OPTIONS)
         rig.helper.stop_saying = "Fatal error: out of memory"
-        with pytest.raises(TextRecognitionError, match="rocketwright-vision stopped: Fatal error: out of memory"):
+        with pytest.raises(TextRecognitionError, match="phonesimulator-vision stopped: Fatal error: out of memory"):
             await rig.vision.recognize(b"picture", OPTIONS)
         assert rig.vision.state(XCODE) == (
-            "stopped (rocketwright-vision stopped: Fatal error: out of memory); it starts again on the next reading"
+            "stopped (phonesimulator-vision stopped: Fatal error: out of memory); it starts again on the next reading"
         )
     await rig.vision.recognize(b"picture", OPTIONS)
     rig.helper.stop_saying = "Fatal error: out of memory"
     with pytest.raises(TextRecognitionError):
         await rig.vision.recognize(b"picture", OPTIONS)
     for _ in range(2):
-        with pytest.raises(TextRecognitionError, match=r"keeps stopping \(rocketwright-vision stopped: Fatal error"):
+        with pytest.raises(TextRecognitionError, match=r"keeps stopping \(phonesimulator-vision stopped: Fatal error"):
             await rig.vision.recognize(b"picture", OPTIONS)
     assert len(rig.helper.processes) == 3
     assert rig.vision.state(XCODE).startswith(
-        "keeps stopping (rocketwright-vision stopped: Fatal error: out of memory)"
+        "keeps stopping (phonesimulator-vision stopped: Fatal error: out of memory)"
     )
     rig.clock.advance(STOPS_WINDOW_S + 1)
     assert await rig.vision.recognize(b"picture", OPTIONS)
@@ -211,7 +211,7 @@ async def test_a_reading_that_does_not_answer_is_logged_once_with_what_tells_why
     with pytest.raises(TextRecognitionError, match=r"did not answer a reading of the screen within 0\.05 seconds"):
         await rig.vision.recognize(jpeg, RecognitionOptions(XCODE, "accurate", (), True, 0.05))
     # The reading queued behind it fails as the helper is ended, and is not logged again.
-    with pytest.raises(TextRecognitionError, match=r"rocketwright-vision (was closed|stopped)"):
+    with pytest.raises(TextRecognitionError, match=r"phonesimulator-vision (was closed|stopped)"):
         await queued
     (logged,) = caplog.messages
     why = (
@@ -267,10 +267,12 @@ async def test_a_helper_that_cannot_be_compiled_is_not_compiled_again_for_a_whil
     rig = Rig(tmp_path)
     rig.xcrun.with_swift(compiles=False)
     for _ in range(2):
-        with pytest.raises(TextRecognitionError, match="the text reader could not be compiled: compiling rocketwright"):
+        with pytest.raises(
+            TextRecognitionError, match="the text reader could not be compiled: compiling phonesimulator"
+        ):
             await rig.vision.recognize(b"picture", OPTIONS)
     assert rig.compiles() == 1 and rig.helper.processes == []
-    assert rig.vision.state(XCODE).startswith("the text reader could not be compiled: compiling rocketwright")
+    assert rig.vision.state(XCODE).startswith("the text reader could not be compiled: compiling phonesimulator")
     await rig.vision.close()
     rig.xcrun.with_swift()
     rig.clock.advance(BUILD_RETRY_S)
@@ -280,7 +282,7 @@ async def test_a_helper_that_cannot_be_compiled_is_not_compiled_again_for_a_whil
 
 
 async def test_an_install_without_the_readers_source_reads_no_text_rather_than_failing_the_call(tmp_path: Path) -> None:
-    """A host that packages Rocketwright without its Swift sources: the snapshot goes on without text, not an HTTP
+    """A host that packages PhoneSimulator without its Swift sources: the snapshot goes on without text, not an HTTP
     500."""
     rig = Rig(tmp_path)
 

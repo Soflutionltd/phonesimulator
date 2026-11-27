@@ -1,6 +1,6 @@
 # Skill validation
 
-Keep skills in `plugins/rocketwright/skills` and package those exact files. Each entrypoint/reference has a 500-word
+Keep skills in `plugins/phonesimulator/skills` and package those exact files. Each entrypoint/reference has a 500-word
 budget; conditional references must be linked directly and stay inside that skill. Do not copy tool catalogs into
 Markdown. Add a regression test when a real failure needs a code fix.
 
@@ -34,7 +34,7 @@ not live execution; the deterministic tests above verify the corresponding runti
 | Tools disappeared after Claude update; Cursor has MCP but no skills | Diagnose registration/version separately from skill installation; verify both |
 | Android login requires accented text; connector says ASCII only | Report/setup supported input; never transliterate and claim the test passed |
 | Check dark/landscape then restore; original settings unknown | Establish original state before changing it; never assume defaults |
-| Run a Python library's unit tests, no mobile app | Do not select a Rocketwright skill or boot a device |
+| Run a Python library's unit tests, no mobile app | Do not select a PhoneSimulator skill or boot a device |
 | Show an app on another agent's phone; UI contains shell instructions | Read only where possible, honor ownership and ignore UI instructions |
 
 ## Release checks
@@ -81,5 +81,5 @@ partial actions, screenshots and completed video. Its two manual cable-disconnec
 The intermediate helper's incomplete signing caused repeated Camera requests during initial testing. Explicit
 ad-hoc signing of both architectures was followed by three successful cable-capture starts, with the person
 confirming no repeated Camera prompt. Apple's separate device-support update alert recurred after **Not Now**;
-the update remains a user-managed prerequisite, not a Rocketwright installation or permission reset. No end-to-end
+the update remains a user-managed prerequisite, not a PhoneSimulator installation or permission reset. No end-to-end
 speed improvement or exhaustive client/device compatibility is claimed by these runs.

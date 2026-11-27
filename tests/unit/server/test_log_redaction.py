@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import logging
 
-from rocketwright.cli.context import daemon_log_config
-from rocketwright.server.log_redaction import LEASE_PATH, LOGGERS, CredentialFilter, LeaseLineFilter, install, redact
+from phonesimulator.cli.context import daemon_log_config
+from phonesimulator.server.log_redaction import LEASE_PATH, LOGGERS, CredentialFilter, LeaseLineFilter, install, redact
 
 
 def test_every_credential_in_a_url_is_replaced_and_everything_else_is_kept() -> None:
@@ -58,4 +58,4 @@ def test_a_lease_renewed_is_left_out_of_the_access_log_and_every_other_line_is_k
 def test_every_line_the_daemon_writes_says_when() -> None:
     config = daemon_log_config()
     assert all(formatter["fmt"].startswith("%(asctime)s ") for formatter in config["formatters"].values())
-    assert config["loggers"]["rocketwright"] == {"handlers": ["default"], "level": "INFO"}
+    assert config["loggers"]["phonesimulator"] == {"handlers": ["default"], "level": "INFO"}

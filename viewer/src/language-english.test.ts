@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FakeSocket } from '../test-support/fake-socket'
 import { flush, live, setup } from '../test-support/viewer-harness'
-import { defineRocketwrightElement, ELEMENT_NAME, RocketwrightElement } from './element'
-import type { RocketwrightTransport } from './transport'
+import { definePhoneSimulatorElement, ELEMENT_NAME, PhoneSimulatorElement } from './element'
+import type { PhoneSimulatorTransport } from './transport'
 
 const titles = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>('[data-smv-menu]')].map((menu) => menu.textContent)
 
@@ -38,7 +38,7 @@ describe('the language the viewer speaks', () => {
   })
 
   it('is English whatever a host or a past pick asks for', () => {
-    localStorage.setItem('rocketwright.viewer', JSON.stringify({ lang: 'fr' }))
+    localStorage.setItem('phonesimulator.viewer', JSON.stringify({ lang: 'fr' }))
     expect(titles(setup().view.el)[0]).toBe('Edit')
     expect(titles(setup({ lang: 'fr-CA' }).view.el)[0]).toBe('Edit')
     expect(titles(setup({ lang: 'auto' }).view.el)[0]).toBe('Edit')
@@ -55,16 +55,16 @@ describe('the language the viewer speaks', () => {
   })
 })
 
-describe('<rocket-wright lang>', () => {
+describe('<phone-simulator lang>', () => {
   const transport = () => ({
     status: vi.fn(), start: vi.fn(async () => ({ device: null, ticket: 'tk' })), stop: vi.fn(async () => true),
     devices: vi.fn(async () => []), choose: vi.fn(), socketUrl: vi.fn(() => 'ws://host/screen'),
-  }) as unknown as RocketwrightTransport
+  }) as unknown as PhoneSimulatorTransport
 
   it('is still observed, and a language the viewer does not speak leaves it in English', async () => {
-    defineRocketwrightElement()
-    expect(RocketwrightElement.observedAttributes).toContain('lang')
-    const el = document.createElement(ELEMENT_NAME) as RocketwrightElement
+    definePhoneSimulatorElement()
+    expect(PhoneSimulatorElement.observedAttributes).toContain('lang')
+    const el = document.createElement(ELEMENT_NAME) as PhoneSimulatorElement
     el.setAttribute('lang', 'fr')
     el.transport = transport()
     document.body.appendChild(el)

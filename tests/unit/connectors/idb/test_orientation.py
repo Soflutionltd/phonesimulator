@@ -7,11 +7,11 @@ import asyncio
 from collections.abc import Sequence
 from typing import Any
 
-from rocketwright.connectors.base import Screen
-from rocketwright.connectors.idb.orientation import Hit, candidates, find, frame_of, leaves
-from rocketwright.perception.model import Frame
-from rocketwright.perception.orientation import Interface, Orientation
-from rocketwright.testing.fakes import SCREEN
+from phonesimulator.connectors.base import Screen
+from phonesimulator.connectors.idb.orientation import Hit, candidates, find, frame_of, leaves
+from phonesimulator.perception.model import Frame
+from phonesimulator.perception.orientation import Interface, Orientation
+from phonesimulator.testing.fakes import SCREEN
 
 LANDSCAPE = Frame(0, 0, 874, 402)
 UPRIGHT = Frame(0, 0, 402, 874)

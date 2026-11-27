@@ -8,15 +8,15 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
-from rocketwright.build.gradle import GradleToolchain
-from rocketwright.build.source import Source
-from rocketwright.build.stamp import APK_STAMP, STAMPED
-from rocketwright.build.xcodebuild import BuildRunner
-from rocketwright.core.actions import AgentActions
-from rocketwright.core.control import InstalledApp
-from rocketwright.platform.java import Jdk
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import (
+from phonesimulator.build.gradle import GradleToolchain
+from phonesimulator.build.source import Source
+from phonesimulator.build.stamp import APK_STAMP, STAMPED
+from phonesimulator.build.xcodebuild import BuildRunner
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.core.control import InstalledApp
+from phonesimulator.platform.java import Jdk
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import (
     ANDROID_PHONE_UDID,
     EMULATOR_UDID,
     FULL_CONTROL,
@@ -24,11 +24,11 @@ from rocketwright.testing.fakes import (
     FakeConnector,
     no_wait,
 )
-from rocketwright.testing.gradle import EXAMPLE_PACKAGE, FakeGradle, Play, android_project, junit_results
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.tools.context import ToolContext
-from rocketwright.tools.registry import ToolRegistry
-from rocketwright.tools.results import Result
+from phonesimulator.testing.gradle import EXAMPLE_PACKAGE, FakeGradle, Play, android_project, junit_results
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.tools.context import ToolContext
+from phonesimulator.tools.registry import ToolRegistry
+from phonesimulator.tools.results import Result
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 REGISTRY = ToolRegistry()

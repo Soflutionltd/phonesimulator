@@ -15,15 +15,15 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from rocketwright.connectors.base import Crop, HidEvent, Screen, Shot
-from rocketwright.core.actions import AgentActions
-from rocketwright.core.instance import DeviceInstance
-from rocketwright.perception.ocr import OcrReaders
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import SCREEN, FakeConnector, FakeEngine, fixture_json
-from rocketwright.testing.pictures import picture
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.tools.device import device_line
+from phonesimulator.connectors.base import Crop, HidEvent, Screen, Shot
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.perception.ocr import OcrReaders
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import SCREEN, FakeConnector, FakeEngine, fixture_json
+from phonesimulator.testing.pictures import picture
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.tools.device import device_line
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude Code")
 

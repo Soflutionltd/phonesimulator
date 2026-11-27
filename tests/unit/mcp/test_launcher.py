@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``rocketwright mcp``: the daemon started when it is down, an agent token minted for the project and revoked after,
+"""``phonesimulator mcp``: the daemon started when it is down, an agent token minted for the project and revoked after,
 the relay in-process, and a lease held while the client runs."""
 
 from __future__ import annotations
@@ -19,11 +19,11 @@ from typing import Any
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.daemon import health
-from rocketwright.daemon.lifecycle import START_LOCK_FILE, clear_stopped, mark_stopped
-from rocketwright.mcp import launcher
-from rocketwright.mcp.launcher import (
+from phonesimulator._version import __version__
+from phonesimulator.daemon import health
+from phonesimulator.daemon.lifecycle import START_LOCK_FILE, clear_stopped, mark_stopped
+from phonesimulator.mcp import launcher
+from phonesimulator.mcp.launcher import (
     STOPPED_ON_PURPOSE,
     DaemonClient,
     DaemonUnavailable,
@@ -36,9 +36,9 @@ from rocketwright.mcp.launcher import (
     run,
     warm_up,
 )
-from rocketwright.scope import Scope
-from rocketwright.testing.daemon import Daemon
-from rocketwright.testing.fakes import ManualClock
+from phonesimulator.scope import Scope
+from phonesimulator.testing.daemon import Daemon
+from phonesimulator.testing.fakes import ManualClock
 
 URL = "http://127.0.0.1:7466"
 ADMIN = "admin-token"
@@ -65,8 +65,8 @@ class FakeDaemon:
     def __init__(self, *, up: bool = True, impostor: bool = False, server: str | None = None) -> None:
         self.up = up
         self.impostor = impostor
-        #: What the daemon calls itself, as ``rocketwright/<version>``; this version's when not set.
-        self.server = server or f"rocketwright/{__version__}"
+        #: What the daemon calls itself, as ``phonesimulator/<version>``; this version's when not set.
+        self.server = server or f"phonesimulator/{__version__}"
         self.requests: list[tuple[str, str, str | None, Any]] = []
         self.refuse_tokens: bytes | None = None
         #: The status the lease route refuses with, when it does.
@@ -131,7 +131,7 @@ def test_a_listener_that_is_not_the_daemon_is_sent_no_credential_and_is_not_star
     squatter = FakeDaemon(impostor=True)
     client = DaemonClient(URL, ADMIN, opener=squatter)
     assert client.probe() == launcher.OTHER and not client.healthy()
-    with pytest.raises(DaemonUnavailable, match="not your Rocketwright daemon, so nothing was sent to it"):
+    with pytest.raises(DaemonUnavailable, match="not your PhoneSimulator daemon, so nothing was sent to it"):
         client.post("/api/v1/admin/tokens", {})
     assert client.renew_lease("agent-token", "tp-1") is False
     client.revoke("t1")
@@ -146,7 +146,7 @@ def test_a_listener_that_is_not_the_daemon_is_sent_no_credential_and_is_not_star
     def squat() -> None:
         late.up, late.impostor = True, True
 
-    with pytest.raises(DaemonUnavailable, match="not your Rocketwright daemon"):
+    with pytest.raises(DaemonUnavailable, match="not your PhoneSimulator daemon"):
         ensure_daemon(DaemonClient(URL, ADMIN, opener=late), squat, clock=ManualClock(), sleep=lambda s: None)
     assert {auth for _, _, auth, _ in late.requests} == {None}
 
@@ -181,12 +181,12 @@ def test_a_daemon_that_is_down_is_started_and_waited_for_and_one_that_never_come
     ensure_daemon(client, lambda: started.append("again"), clock=clock, sleep=sleep)
     assert started == ["serve --detach"]
     daemon.up = False
-    with pytest.raises(DaemonUnavailable, match=r"did not start within 10s; run `rocketwright serve` to see why"):
+    with pytest.raises(DaemonUnavailable, match=r"did not start within 10s; run `phonesimulator serve` to see why"):
         ensure_daemon(client, lambda: None, clock=clock, sleep=clock.advance)
 
 
-def test_a_daemon_of_an_older_rocketwright_is_stopped_and_this_version_started_in_its_place() -> None:
-    daemon = FakeDaemon(server="rocketwright/1.2.0")
+def test_a_daemon_of_an_older_phonesimulator_is_stopped_and_this_version_started_in_its_place() -> None:
+    daemon = FakeDaemon(server="phonesimulator/1.2.0")
     client = DaemonClient(URL, ADMIN, opener=daemon)
     clock = ManualClock()
     retired: list[str] = []
@@ -198,25 +198,29 @@ def test_a_daemon_of_an_older_rocketwright_is_stopped_and_this_version_started_i
 
     def start() -> None:
         started.append("serve")
-        daemon.up, daemon.server = True, f"rocketwright/{__version__}"
+        daemon.up, daemon.server = True, f"phonesimulator/{__version__}"
 
     ensure_daemon(client, start, retire=retire, clock=clock, sleep=clock.advance)
-    assert retired == ["rocketwright/1.2.0"] and started == ["serve"] and client.server == f"rocketwright/{__version__}"
+    assert (
+        retired == ["phonesimulator/1.2.0"]
+        and started == ["serve"]
+        and client.server == f"phonesimulator/{__version__}"
+    )
     ensure_daemon(client, start, retire=retire, clock=clock, sleep=clock.advance)
     assert started == ["serve"], "this version's daemon is used as it is"
 
 
 def test_a_newer_or_unnamed_daemon_is_used_as_it_is_and_one_that_will_not_stop_is_said() -> None:
-    for server in ("rocketwright/99.0.0", "something-else", "rocketwright/x.y"):
+    for server in ("phonesimulator/99.0.0", "something-else", "phonesimulator/x.y"):
         daemon = FakeDaemon(server=server)
         ensure_daemon(DaemonClient(URL, ADMIN, opener=daemon), lambda: pytest.fail("started"), retire=pytest.fail)
-    stubborn = DaemonClient(URL, ADMIN, opener=FakeDaemon(server="rocketwright/0.2.0"))
+    stubborn = DaemonClient(URL, ADMIN, opener=FakeDaemon(server="phonesimulator/0.2.0"))
     clock = ManualClock()
-    with pytest.raises(DaemonUnavailable, match=r"older Rocketwright daemon \(rocketwright/0\.2\.0\) did not stop"):
+    with pytest.raises(DaemonUnavailable, match=r"older PhoneSimulator daemon \(phonesimulator/0\.2\.0\) did not stop"):
         ensure_daemon(stubborn, lambda: None, retire=lambda: None, clock=clock, sleep=clock.advance)
-    ensure_daemon(stubborn, lambda: pytest.fail("started"))  # without retire, as `rocketwright open` does
-    assert older("rocketwright/1.2.0", "2.0.0") and not older("rocketwright/2.0.0", "2.0.0")
-    assert not older(None) and older("rocketwright/2.0.0+local", "2.0.1")
+    ensure_daemon(stubborn, lambda: pytest.fail("started"))  # without retire, as `phonesimulator open` does
+    assert older("phonesimulator/1.2.0", "2.0.0") and not older("phonesimulator/2.0.0", "2.0.0")
+    assert not older(None) and older("phonesimulator/2.0.0+local", "2.0.1")
 
 
 class LeaseClient:
@@ -344,16 +348,16 @@ def test_mcp_serves_a_project_through_the_daemon_holding_its_lease_and_revoking_
     assert (
         minted["scopes"] == ["tp-1"]
         and minted["roots"] == [str(tmp_path)]
-        and minted["label"].startswith("rocketwright mcp")
+        and minted["label"].startswith("phonesimulator mcp")
     )
     assert [auth for auth, _ in daemon.made("GET", "/api/v1/agent/manifest")] == [None]
     assert daemon.made("POST", "/api/v1/agent/lease")[0][0] == "Bearer agent-token"
     asked = [path for _, path, _, _ in daemon.requests]
     assert asked.index("/api/v1/agent/call") < asked.index("/api/v1/agent/lease"), "leased from the first call"
     assert daemon.made("DELETE", "/api/v1/admin/tokens/t1") == [("Bearer admin-token", None)]
-    assert launcher.relay_argv()[:2] == ["--url-env", "ROCKETWRIGHT_URL"]
-    assert launcher.relay_argv()[-4:] == ["--roots-header", "X-Rocketwright-Roots", "--server-version", __version__]
-    assert replies[0]["result"]["serverInfo"] == {"name": "rocketwright", "version": __version__}, "says which it is"
+    assert launcher.relay_argv()[:2] == ["--url-env", "PHONESIMULATOR_URL"]
+    assert launcher.relay_argv()[-4:] == ["--roots-header", "X-PhoneSimulator-Roots", "--server-version", __version__]
+    assert replies[0]["result"]["serverInfo"] == {"name": "phonesimulator", "version": __version__}, "says which it is"
 
 
 def test_a_daemon_found_gone_is_started_again_unless_a_person_stopped_it_which_is_said_once_for_each_stop(
@@ -384,9 +388,9 @@ def test_a_daemon_found_gone_is_started_again_unless_a_person_stopped_it_which_i
     squatter = reviver(DaemonClient(URL, ADMIN, opener=FakeDaemon(impostor=True)), pytest.fail)
     said = squatter()
     assert said is not None and said.startswith(
-        "The Rocketwright daemon is not running, and could not be started again:"
+        "The PhoneSimulator daemon is not running, and could not be started again:"
     )
-    assert "not your Rocketwright daemon" in said
+    assert "not your PhoneSimulator daemon" in said
 
 
 def test_mcp_brings_the_daemon_back_for_a_call_that_finds_it_gone_and_sends_the_call_again(tmp_path: Path) -> None:
@@ -437,7 +441,7 @@ def test_a_sessions_label_reaches_the_daemon_in_a_header_from_the_relays_environ
 
         def opener(request: urllib.request.Request, timeout: float) -> Response:
             if request.full_url.endswith("/agent/call"):
-                sent.append(request.get_header("X-rocketwright-label"))
+                sent.append(request.get_header("X-phonesimulator-label"))
             return daemon(request, timeout)
 
         answered = run(
@@ -458,7 +462,7 @@ def test_a_sessions_label_reaches_the_daemon_in_a_header_from_the_relays_environ
     assert served(None, {launcher.LABEL_ENV: "ticket-456"}) == ["ticket-456"]
     assert served(" ", {}) == [None], "no label: no header, and the daemon names it by its token"
     labelled = launcher.relay_argv(labelled=True)
-    assert labelled[:2] == ["--header", "X-Rocketwright-Label=ROCKETWRIGHT_AGENT_LABEL"]
+    assert labelled[:2] == ["--header", "X-PhoneSimulator-Label=PHONESIMULATOR_AGENT_LABEL"]
     assert not any("ticket" in part for part in labelled), "the label itself is never in argv"
     assert launcher.session_label("x" * 500, {}) == "x" * launcher.LABEL_MAX
 
@@ -512,7 +516,7 @@ def test_a_tool_is_called_as_the_agent_its_token_is_for_and_its_result_answered_
     with pytest.raises(DaemonUnavailable, match="could not be reached"):
         client.call_tool("agent-token", "sim_login", {})
     squatter = DaemonClient(URL, ADMIN, opener=FakeDaemon(impostor=True))
-    with pytest.raises(DaemonUnavailable, match="not your Rocketwright daemon"):
+    with pytest.raises(DaemonUnavailable, match="not your PhoneSimulator daemon"):
         squatter.call_tool("agent-token", "sim_login", {})
     daemon.up = True
     daemon.refuse.clear()
@@ -534,10 +538,10 @@ def test_sigterm_is_left_as_it_was_when_no_token_could_be_made() -> None:
 def test_a_shared_relay_makes_one_token_per_project_it_is_called_from_and_revokes_them_all(tmp_path: Path) -> None:
     daemon = FakeDaemon()
     client = DaemonClient(URL, ADMIN, opener=daemon)
-    projects = ProjectTokens(client, "rocketwright mcp (pid 1)", every_s=0.01)
+    projects = ProjectTokens(client, "phonesimulator mcp (pid 1)", every_s=0.01)
     notes, mail = tmp_path / "Notes", tmp_path / "Mail"
     first = projects.headers(str(notes), "call")
-    assert first == {"X-Rocketwright-Token": "agent-token", "X-Rocketwright-Scope": Scope.for_folder(notes).id}
+    assert first == {"X-PhoneSimulator-Token": "agent-token", "X-PhoneSimulator-Scope": Scope.for_folder(notes).id}
     assert projects.headers(str(notes), "manifest") == first, "made once for its project"
     projects.headers(str(mail), "call")
     minted = [body for _auth, body in daemon.made("POST", "/api/v1/admin/tokens")]
@@ -629,7 +633,7 @@ def test_whatever_a_warm_up_fails_with_is_only_logged(caplog: pytest.LogCaptureF
         def warm(self, token: str) -> str | None:
             raise RuntimeError("boom")
 
-    with caplog.at_level(logging.DEBUG, logger="rocketwright.mcp.launcher"):
+    with caplog.at_level(logging.DEBUG, logger="phonesimulator.mcp.launcher"):
         thread = warm_up(Broken(), "agent-token")  # type: ignore[arg-type]
         thread.join(5)
     assert not thread.is_alive() and thread.daemon and "the warm-up failed" in caplog.text
@@ -643,7 +647,7 @@ def test_a_shared_relay_warms_up_each_project_s_simulator_as_its_token_is_made(t
         projects.headers(str(folder), "call")
     for folder in (notes, mail):
         for thread in threading.enumerate():
-            if thread.name == f"rocketwright-warm-{Scope.for_folder(folder).id}":
+            if thread.name == f"phonesimulator-warm-{Scope.for_folder(folder).id}":
                 thread.join(5)
     projects.close()
     assert daemon.made("POST", "/api/v1/agent/warm") == [("Bearer agent-token", {})] * 2, "once for each project"

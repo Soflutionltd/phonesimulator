@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The custom-connector example's own tests, run with Rocketwright's suite so the example keeps the contract."""
+"""The custom-connector example's own tests, run with PhoneSimulator's suite so the example keeps the contract."""
 
 from __future__ import annotations
 

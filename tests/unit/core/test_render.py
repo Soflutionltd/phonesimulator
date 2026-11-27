@@ -11,14 +11,14 @@ from typing import Any
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.native import helper as helper_module
-from rocketwright.connectors.native import wire
-from rocketwright.connectors.native.helper import HelperVersion, helper_version, render_recording
-from rocketwright.core.recordings import CaptureRate, RecordingRefused, RenderJob, Touch
-from rocketwright.core.render import HelperRenderer
-from rocketwright.host_copy import HostCopy
+from phonesimulator._version import __version__
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.native import helper as helper_module
+from phonesimulator.connectors.native import wire
+from phonesimulator.connectors.native.helper import HelperVersion, helper_version, render_recording
+from phonesimulator.core.recordings import CaptureRate, RecordingRefused, RenderJob, Touch
+from phonesimulator.core.render import HelperRenderer
+from phonesimulator.host_copy import HostCopy
 
 CONFIG = SimConfig.defaults()
 
@@ -39,7 +39,7 @@ def job(tmp_path: Path) -> RenderJob:
 
 
 def renderer(tmp_path: Path, answer: dict[str, Any], *, features: tuple[str, ...] = ("render",)) -> HelperRenderer:
-    binary = tmp_path / "rocketwright-helper"
+    binary = tmp_path / "phonesimulator-helper"
     binary.write_text("#!/bin/sh\n")
     binary.chmod(0o755)
     seen: dict[str, Any] = {}
@@ -96,7 +96,7 @@ async def test_what_the_helper_refuses_or_garbles_is_refused(tmp_path: Path, ans
 async def test_no_helper_or_one_that_cannot_render_is_why_not(tmp_path: Path) -> None:
     old = renderer(tmp_path, {}, features=())
     why = await old.why_not(CONFIG)
-    assert why is not None and "cannot render recordings; build it again with `rocketwright helper build`" in why
+    assert why is not None and "cannot render recordings; build it again with `phonesimulator helper build`" in why
     with pytest.raises(RecordingRefused, match="cannot render recordings"):
         await old.render(job(tmp_path), CONFIG)
     missing = HelperRenderer(candidates=lambda: (tmp_path / "nowhere",))

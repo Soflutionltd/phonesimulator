@@ -47,7 +47,7 @@ public final class UnixSocketListener: @unchecked Sendable {
                 serve(SocketChannel(descriptor: client))
             }
         }
-        thread.name = "rocketwright.accept"
+        thread.name = "phonesimulator.accept"
         thread.start()
     }
 
@@ -62,8 +62,8 @@ final class SocketChannel: ByteChannel, @unchecked Sendable {
     static let readSize = 1 << 16
 
     private let descriptor: Int32
-    private let reads = DispatchQueue(label: "rocketwright.socket.read")
-    private let writes = DispatchQueue(label: "rocketwright.socket.write")
+    private let reads = DispatchQueue(label: "phonesimulator.socket.read")
+    private let writes = DispatchQueue(label: "phonesimulator.socket.write")
     private let lock = NSLock()
     private var closed = false
 

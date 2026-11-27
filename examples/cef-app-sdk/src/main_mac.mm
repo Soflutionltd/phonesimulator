@@ -5,8 +5,8 @@
 #include "include/wrapper/cef_library_loader.h"
 #include "sample_app.h"
 
-#if ROCKETWRIGHT_CEF_BRIDGE
-#include "rocketwright_cef/mac.h"
+#if PHONESIMULATOR_CEF_BRIDGE
+#include "phonesimulator_cef/mac.h"
 #endif
 
 // The sample's own menu actions run its own page code.
@@ -24,7 +24,7 @@
 @end
 
 // The principal class. CEF needs CefAppProtocol; the accessibility override is the host hook that turns on Chromium's
-// renderer accessibility when an assistive client (VoiceOver, Rocketwright's helper) asks, as Chrome itself does.
+// renderer accessibility when an assistive client (VoiceOver, PhoneSimulator's helper) asks, as Chrome itself does.
 @interface SampleApplication : NSApplication <CefAppProtocol> {
   BOOL handlingSendEvent_;
   BOOL manualAccessibility_;
@@ -66,8 +66,8 @@
 
 namespace sample {
 namespace {
-#if ROCKETWRIGHT_CEF_BRIDGE
-rocketwright_cef::Host* bridge = nullptr;
+#if PHONESIMULATOR_CEF_BRIDGE
+phonesimulator_cef::Host* bridge = nullptr;
 #endif
 SampleMenuTarget* menu_target = nil;
 
@@ -90,17 +90,17 @@ void InstallMenu() {
 }  // namespace
 
 void StartBridge() {
-#if ROCKETWRIGHT_CEF_BRIDGE
+#if PHONESIMULATOR_CEF_BRIDGE
   if (bridge) return;
-  bridge = new rocketwright_cef::Host();
+  bridge = new phonesimulator_cef::Host();
   std::string error;
-  if (!bridge->Start(rocketwright_cef::MacHostOptions("dev.rocketwright.CEFSample", "CEF Sample", &Browser), &error))
-    NSLog(@"Rocketwright bridge did not start: %s", error.c_str());
+  if (!bridge->Start(phonesimulator_cef::MacHostOptions("dev.phonesimulator.CEFSample", "CEF Sample", &Browser), &error))
+    NSLog(@"PhoneSimulator bridge did not start: %s", error.c_str());
 #endif
 }
 
 void StopBridge() {
-#if ROCKETWRIGHT_CEF_BRIDGE
+#if PHONESIMULATOR_CEF_BRIDGE
   delete bridge;
   bridge = nullptr;
 #endif
@@ -108,7 +108,7 @@ void StopBridge() {
 
 bool BridgeMessage(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefProcessId source,
                    CefRefPtr<CefProcessMessage> message) {
-#if ROCKETWRIGHT_CEF_BRIDGE
+#if PHONESIMULATOR_CEF_BRIDGE
   return bridge && bridge->OnProcessMessageReceived(browser, frame, source, message);
 #else
   return false;
@@ -118,7 +118,7 @@ bool BridgeMessage(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, Cef
 bool BridgeContextMenu(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
                        CefRefPtr<CefContextMenuParams> params, CefRefPtr<CefMenuModel> model,
                        CefRefPtr<CefRunContextMenuCallback> callback) {
-#if ROCKETWRIGHT_CEF_BRIDGE
+#if PHONESIMULATOR_CEF_BRIDGE
   return bridge && bridge->RunContextMenu(browser, frame, params, model, callback);
 #else
   return false;

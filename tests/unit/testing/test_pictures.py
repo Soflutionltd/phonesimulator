@@ -7,7 +7,7 @@ from io import BytesIO
 
 from PIL import Image
 
-from rocketwright.testing.pictures import HEIGHT, WIDTH, PictureEngine, picture
+from phonesimulator.testing.pictures import HEIGHT, WIDTH, PictureEngine, picture
 
 
 def test_a_picture_is_a_jpeg_of_its_size_with_its_boxes_painted() -> None:

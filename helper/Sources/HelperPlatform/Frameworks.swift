@@ -3,7 +3,7 @@ import Foundation
 import HelperCore
 import ObjCGuard
 
-/// Apple's private simulator frameworks, loaded at run time from the Xcode Rocketwright names.
+/// Apple's private simulator frameworks, loaded at run time from the Xcode PhoneSimulator names.
 ///
 /// Nothing links against them: they are opened with `dlopen` and reached through the Objective-C runtime, so one
 /// binary works whichever Xcode is chosen. CoreSimulator is installed system-wide by the newest Xcode; SimulatorKit lives

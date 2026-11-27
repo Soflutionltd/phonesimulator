@@ -4,9 +4,9 @@ origin they were minted for, for a short while."""
 
 from __future__ import annotations
 
-from rocketwright.core.events import EventBus
-from rocketwright.core.tickets import TicketBook
-from rocketwright.protocol import TICKET_TTL_S
+from phonesimulator.core.events import EventBus
+from phonesimulator.core.tickets import TicketBook
+from phonesimulator.protocol import TICKET_TTL_S
 
 
 def test_every_subscriber_gets_every_event_until_it_leaves() -> None:

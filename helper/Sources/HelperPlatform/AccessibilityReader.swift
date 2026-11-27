@@ -12,7 +12,7 @@ import HelperCore
 /// for through its delegate, which forwards the request to the device over CoreSimulator and waits for the answer. The
 /// translator is one per process and not safe to use from two threads, so every read runs on one queue.
 final class AccessibilityReader: NSObject, @unchecked Sendable {
-    static let queue = DispatchQueue(label: "rocketwright.accessibility", qos: .userInitiated)
+    static let queue = DispatchQueue(label: "phonesimulator.accessibility", qos: .userInitiated)
     /// How long one attribute may take before it is read as nothing.
     static let requestTimeout = 5.0
     /// The deepest and the most elements a read walks: a screen deeper or larger than this is not one a person uses.
@@ -20,7 +20,7 @@ final class AccessibilityReader: NSObject, @unchecked Sendable {
     static let maxElements = 2_000
 
     private let device: SimDeviceHandle
-    private let replies = DispatchQueue(label: "rocketwright.accessibility.replies")
+    private let replies = DispatchQueue(label: "phonesimulator.accessibility.replies")
     private let translator: NSObject
 
     init(device: SimDeviceHandle) throws {

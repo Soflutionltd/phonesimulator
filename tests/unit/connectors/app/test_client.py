@@ -11,12 +11,12 @@ from typing import Any
 
 import pytest
 
-from rocketwright._version import __version__
-from rocketwright.connectors.app import client, wire
-from rocketwright.connectors.app.client import fetch_hierarchy
-from rocketwright.connectors.app.discovery import AppListing
-from rocketwright.connectors.app.errors import AppInactive, AppRefused, AppSdkError, AppTimedOut, AppUnreachable
-from rocketwright.testing.app_sdk import ANSWERS, SECRET, FakeAppSdk, app_hierarchy, app_node
+from phonesimulator._version import __version__
+from phonesimulator.connectors.app import client, wire
+from phonesimulator.connectors.app.client import fetch_hierarchy
+from phonesimulator.connectors.app.discovery import AppListing
+from phonesimulator.connectors.app.errors import AppInactive, AppRefused, AppSdkError, AppTimedOut, AppUnreachable
+from phonesimulator.testing.app_sdk import ANSWERS, SECRET, FakeAppSdk, app_hierarchy, app_node
 
 
 def listing_for(app: FakeAppSdk, **more: Any) -> AppListing:
@@ -40,7 +40,7 @@ async def test_an_app_in_front_answers_its_hierarchy_to_a_request_carrying_its_s
         "host": f"127.0.0.1:{app.port}",
         "authorization": f"Bearer {SECRET}",
         "accept": "application/json",
-        "user-agent": f"rocketwright/{__version__}",
+        "user-agent": f"phonesimulator/{__version__}",
         "connection": "close",
     }
     assert SECRET not in request.line
@@ -159,7 +159,7 @@ def test_a_header_line_without_a_name_is_passed_over() -> None:
 async def test_mac_input_keeps_the_secret_in_headers_and_pins_the_selected_window() -> None:
     import json
 
-    from rocketwright.connectors.app.client import send_input
+    from phonesimulator.connectors.app.client import send_input
 
     written = bytearray()
 
@@ -203,7 +203,7 @@ async def test_mac_input_keeps_the_secret_in_headers_and_pins_the_selected_windo
 
 
 def test_input_refusals_keep_an_actionable_reason_without_echoing_the_secret():
-    from rocketwright.connectors.app.client import _refusal
+    from phonesimulator.connectors.app.client import _refusal
 
     listing = AppListing(Path("/x.json"), 1, 1, "1.0.0", "dev.example.Sample", "Sample", 42, 5000, False, SECRET)
     error = _refusal(

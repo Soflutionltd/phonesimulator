@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from rocketwright.platform import flutter
-from rocketwright.platform.flutter import (
+from phonesimulator.platform import flutter
+from phonesimulator.platform.flutter import (
     FlutterSdk,
     find_flutter,
     flutter_env,

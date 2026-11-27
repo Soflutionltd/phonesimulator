@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.storage import private
+from phonesimulator.storage import private
 
 
 def mode(path: Path) -> int:

@@ -14,10 +14,10 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.config.schema import SETTINGS, Whole
-from rocketwright.connectors.base import Capability
-from rocketwright.core.recordings import (
+from phonesimulator.config.model import SimConfig
+from phonesimulator.config.schema import SETTINGS, Whole
+from phonesimulator.connectors.base import Capability
+from phonesimulator.core.recordings import (
     FILE_NAME,
     MAX_SECONDS,
     RecordingOptions,
@@ -27,9 +27,9 @@ from rocketwright.core.recordings import (
     RenderJob,
     recording_stem,
 )
-from rocketwright.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend
-from rocketwright.testing.recording import FakeRenderer, SimctlRecorder
-from rocketwright.testing.rig import VIEW_ONLY, DeviceRig, scope
+from phonesimulator.testing.fakes import PHONE_UDID, FakeConnector, FakePhoneBackend
+from phonesimulator.testing.recording import FakeRenderer, SimctlRecorder
+from phonesimulator.testing.rig import VIEW_ONLY, DeviceRig, scope
 
 TP1 = scope("tp-1")
 WHEN = datetime(2026, 9, 29, 1, 15, 30, tzinfo=timezone.utc)
@@ -347,7 +347,7 @@ async def test_a_label_names_the_files_of_the_recording(tmp_path: Path) -> None:
     labelled = options(config, label="Unlock flow")
     await recordings.start(instance, config, rig.manager.control(instance), by="Ann", options=labelled)
     [kept] = (await recordings.stop(instance))["recording"]["files"]
-    assert kept["name"].endswith("-rocketwright-alpha-tp-1-unlock-flow.mp4") and FILE_NAME.match(kept["name"])
+    assert kept["name"].endswith("-phonesimulator-alpha-tp-1-unlock-flow.mp4") and FILE_NAME.match(kept["name"])
 
 
 def test_the_nth_recording_of_a_name_says_which_and_it_still_is_a_recordings_name() -> None:

@@ -15,20 +15,20 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
 
-from rocketwright import protocol
-from rocketwright.config import provenance
-from rocketwright.config import schema as settings_schema
-from rocketwright.config.settings_store import TomlSettingsStore
-from rocketwright.config.toml_source import TomlConfigSource
-from rocketwright.core.status import device_choice
-from rocketwright.daemon import passes, tokens
-from rocketwright.daemon.app import build_daemon, create_app
-from rocketwright.platform.simctl import Device
-from rocketwright.protocol import _generated
-from rocketwright.testing.asgi import HOST
-from rocketwright.testing.fakes import no_wait
-from rocketwright.testing.rig import DeviceRig
-from rocketwright.tools.results import images
+from phonesimulator import protocol
+from phonesimulator.config import provenance
+from phonesimulator.config import schema as settings_schema
+from phonesimulator.config.settings_store import TomlSettingsStore
+from phonesimulator.config.toml_source import TomlConfigSource
+from phonesimulator.core.status import device_choice
+from phonesimulator.daemon import passes, tokens
+from phonesimulator.daemon.app import build_daemon, create_app
+from phonesimulator.platform.simctl import Device
+from phonesimulator.protocol import _generated
+from phonesimulator.testing.asgi import HOST
+from phonesimulator.testing.fakes import no_wait
+from phonesimulator.testing.rig import DeviceRig
+from phonesimulator.tools.results import images
 
 PROTOCOL = Path(__file__).resolve().parents[2] / "protocol" / "v1"
 SCHEMAS = {path.name: json.loads(path.read_text()) for path in sorted(PROTOCOL.glob("*.schema.json"))}

@@ -14,8 +14,8 @@ from typing import Any
 
 import pytest
 
-from rocketwright.platform import passwords
-from rocketwright.platform.passwords import (
+from phonesimulator.platform import passwords
+from phonesimulator.platform.passwords import (
     Bitwarden,
     Command,
     Credentials,

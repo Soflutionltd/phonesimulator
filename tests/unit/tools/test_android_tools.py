@@ -10,10 +10,10 @@ from typing import Any
 
 import pytest
 
-from rocketwright.core.actions import AgentActions
-from rocketwright.core.instance import DeviceInstance
-from rocketwright.seams import Caller
-from rocketwright.testing.fakes import (
+from phonesimulator.core.actions import AgentActions
+from phonesimulator.core.instance import DeviceInstance
+from phonesimulator.seams import Caller
+from phonesimulator.testing.fakes import (
     ANDROID_PHONE_UDID,
     EMULATOR_UDID,
     FULL_CONTROL,
@@ -21,12 +21,12 @@ from rocketwright.testing.fakes import (
     FakeConnector,
     no_wait,
 )
-from rocketwright.testing.rig import DeviceRig, scope
-from rocketwright.tools.app import installable
-from rocketwright.tools.context import ToolContext
-from rocketwright.tools.device import VERSION_LINE
-from rocketwright.tools.registry import ToolRegistry
-from rocketwright.tools.results import Result, ToolRefused
+from phonesimulator.testing.rig import DeviceRig, scope
+from phonesimulator.tools.app import installable
+from phonesimulator.tools.context import ToolContext
+from phonesimulator.tools.device import VERSION_LINE
+from phonesimulator.tools.registry import ToolRegistry
+from phonesimulator.tools.results import Result, ToolRefused
 
 CALLER = Caller(scope("tp-1"), key="agent-1", title="Claude · notes")
 REGISTRY = ToolRegistry()
@@ -95,7 +95,7 @@ async def test_an_emulator_is_stopped_and_shut_down_as_a_simulator_is_and_a_phon
     assert "the emulator is shut down" in shut and rig.androids.released[-1] == (EMULATOR_UDID, True)
     await use(rig, "sim_device", {"action": "choose", "udid": ANDROID_PHONE_UDID})
     phone = said(await use(rig, "sim_device", {"action": "stop", "shutdown": True}))
-    assert "a real device is never shut down by Rocketwright" in phone
+    assert "a real device is never shut down by PhoneSimulator" in phone
     assert rig.androids.released[-1] == (ANDROID_PHONE_UDID, False)
 
 

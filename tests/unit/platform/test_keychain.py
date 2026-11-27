@@ -7,8 +7,8 @@ from collections.abc import Sequence
 from datetime import datetime, timezone
 from typing import Any
 
-from rocketwright.platform.keychain import Team, decode_pem, development_teams, teams_in
-from rocketwright.testing.fakes import fixture
+from phonesimulator.platform.keychain import Team, decode_pem, development_teams, teams_in
+from phonesimulator.testing.fakes import fixture
 
 PEM = fixture("development-certificate.pem")
 

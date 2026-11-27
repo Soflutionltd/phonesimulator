@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Fail if Rocketwright's files use a host application's vocabulary instead of its own.
+"""Fail if PhoneSimulator's files use a host application's vocabulary instead of its own.
 
-Rocketwright is embedded by host applications, and it knows none of them: a host's projects, workspaces or sessions
+PhoneSimulator is embedded by host applications, and it knows none of them: a host's projects, workspaces or sessions
 reach it as an opaque `Scope`, and its wording is the host's to supply (`HostCopy`). A host's own words creeping into
 the code, the docs or a message are how that boundary erodes, so they are refused everywhere except here and in this
 check's test.
@@ -30,7 +30,7 @@ FORBIDDEN = (
 
 #: Files that must name the words: this check, and its test.
 EXEMPT = frozenset({"scripts/check_host_neutral.py", "tests/scripts/test_check_host_neutral.py"})
-#: Lock files list other projects' packages, which Rocketwright does not write.
+#: Lock files list other projects' packages, which PhoneSimulator does not write.
 SKIPPED = frozenset({"uv.lock", "viewer/package-lock.json"})
 
 
@@ -60,7 +60,7 @@ def main(root: Path = REPO_ROOT) -> int:
     for rel, lineno, word in found:
         print(f"  {rel}:{lineno}: {word}", file=sys.stderr)
     print(
-        "\nRocketwright knows scopes, clients and agents, not a host's concepts. Use Scope for what a host groups "
+        "\nPhoneSimulator knows scopes, clients and agents, not a host's concepts. Use Scope for what a host groups "
         "devices "
         "by, and HostCopy for wording a host supplies.",
         file=sys.stderr,

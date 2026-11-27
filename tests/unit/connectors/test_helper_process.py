@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.connectors.base import ConnectorError, ConnectorUnavailable, Screen
-from rocketwright.connectors.helper_process import (
+from phonesimulator.connectors.base import ConnectorError, ConnectorUnavailable, Screen
+from phonesimulator.connectors.helper_process import (
     HelperProcesses,
     HelperSpec,
     RunningHelper,
@@ -20,7 +20,7 @@ from rocketwright.connectors.helper_process import (
 )
 
 UDID = "D946616B-6E4F-4F5C-8C76-54FAD9B7D702"
-TAG = "Rocketwright"
+TAG = "PhoneSimulator"
 
 
 class Refused(ConnectorUnavailable):
@@ -56,7 +56,7 @@ def launcher(tmp_path: Path, spawned: list[tuple[tuple[str, ...], Path]]) -> Hel
         now[0] += seconds
 
     return HelperProcesses(
-        HelperSpec(program="rocketwright-helper", log_prefix="native", unavailable=Refused, ready_timeout_s=3),
+        HelperSpec(program="phonesimulator-helper", log_prefix="native", unavailable=Refused, ready_timeout_s=3),
         folder=folder,
         log_dir=tmp_path / "logs",
         owner_tag=TAG,
@@ -75,7 +75,7 @@ async def test_a_helper_kind_keeps_its_own_folder_log_name_timeout_and_refusal(t
     helpers = launcher(tmp_path, spawned)
     socket = helpers.socket_for(UDID)
     assert socket == tmp_path / "run" / "native" / f"{helper_id(UDID)}.sock"
-    with pytest.raises(Refused, match="rocketwright-helper did not answer within 3 seconds: still loading") as caught:
+    with pytest.raises(Refused, match="phonesimulator-helper did not answer within 3 seconds: still loading") as caught:
         await helpers.launch(lambda path: ("helper", "--socket", str(path)), UDID)
     assert caught.value.status == 504
     assert spawned == [(("helper", "--socket", str(socket)), tmp_path / "logs" / f"native-{helper_id(UDID)}.log")]
@@ -111,7 +111,7 @@ async def test_what_a_helper_says_went_wrong_after_it_was_ready_is_its_last_erro
         return Process()
 
     helpers = HelperProcesses(
-        HelperSpec(program="rocketwright-helper", log_prefix="native"),
+        HelperSpec(program="phonesimulator-helper", log_prefix="native"),
         folder=folder,
         log_dir=tmp_path / "logs",
         owner_tag=TAG,
@@ -128,8 +128,8 @@ async def test_what_a_helper_says_went_wrong_after_it_was_ready_is_its_last_erro
         file.write("[info] still trying\n")
     assert running.last_error() == "Test iPhone has sent no picture of its screen in 15 seconds: is it unlocked?"
     with log.open("a") as file:
-        file.write("[error] macOS has not let rocketwright-helper use the Camera\n[error]\n")
-    assert running.last_error() == "macOS has not let rocketwright-helper use the Camera", "the last one that says"
+        file.write("[error] macOS has not let phonesimulator-helper use the Camera\n[error]\n")
+    assert running.last_error() == "macOS has not let phonesimulator-helper use the Camera", "the last one that says"
     log.write_text("[error] a log started over is read from its top\n")
     assert running.last_error() == "a log started over is read from its top"
     log.unlink()
@@ -155,7 +155,7 @@ async def test_a_helper_that_exits_as_it_starts_is_refused_with_what_it_said(tmp
         return Exited()
 
     helpers = HelperProcesses(
-        HelperSpec(program="rocketwright-helper", log_prefix="native", unavailable=Refused),
+        HelperSpec(program="phonesimulator-helper", log_prefix="native", unavailable=Refused),
         folder=folder,
         log_dir=tmp_path / "logs",
         owner_tag=TAG,

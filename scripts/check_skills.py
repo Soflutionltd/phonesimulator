@@ -13,10 +13,10 @@ from pathlib import Path
 from _repo import REPO_ROOT
 from check_distribution import frontmatter
 from check_links import EXTERNAL, links_in
-from rocketwright.tools.schemas import SCHEMAS
+from phonesimulator.tools.schemas import SCHEMAS
 
-SKILLS = "plugins/rocketwright/skills"
-NAMES = frozenset({"simulator", "rocketwright-setup", "rocketwright-build-test", "rocketwright-capture"})
+SKILLS = "plugins/phonesimulator/skills"
+NAMES = frozenset({"simulator", "phonesimulator-setup", "phonesimulator-build-test", "phonesimulator-capture"})
 WORD_LIMIT = 500
 TOOL = re.compile(r"\bsim_[a-z][a-z_]+\b")
 

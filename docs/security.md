@@ -1,12 +1,12 @@
 # Security
 
-Rocketwright runs a daemon on your Mac that can boot simulators, touch their screens, install and launch apps, drive an
+PhoneSimulator runs a daemon on your Mac that can boot simulators, touch their screens, install and launch apps, drive an
 iPhone or iPad you connect and pick, record screens, and -- when build tools are on -- run `xcodebuild`. This page is
 what it defends against, and how.
 
 ## What is trusted
 
-- **You**, the macOS user who installed Rocketwright, and anything running as you: it can read the admin token, as the
+- **You**, the macOS user who installed PhoneSimulator, and anything running as you: it can read the admin token, as the
   CLI does.
 - **The agents you give tools to**, within their scope: an agent token reaches one scope's device and the folders it
   was given.
@@ -35,7 +35,7 @@ A request with no `Origin` is not from a page -- it is a CLI or a backend -- and
 on every request, so a changed setting applies at once.
 
 **The CLI checks it is talking to your daemon.** A port on `127.0.0.1` is anyone's to listen on -- another account on
-the Mac, or a program started first. So before `rocketwright` sends the admin token or an agent token anywhere, it asks
+the Mac, or a program started first. So before `phonesimulator` sends the admin token or an agent token anywhere, it asks
 `/healthz` with a fresh nonce and no credential, and goes on only when the answer proves the listener holds the admin
 token (an HMAC-SHA256 of the nonce keyed by it). Something else on the port is refused and sent nothing.
 
@@ -46,13 +46,13 @@ token (an HMAC-SHA256 of the nonce keyed by it). Something else on the port is r
 | **Admin token** | Made on the daemon's first start; may do everything | A file readable only by you, in Application Support |
 | **Scoped tokens** (`agent`, `viewer`, `admin`, `host`) | For a kind of client and a list of scopes, namespaces (`notes:*`) or `*`; an agent or host token may name folders; a token a host made names that host | Only their SHA-256, in `tokens.json` (0600); shown once when made; compared in constant time |
 | **Login codes and embed tickets** | One-shot, 60 seconds, for one scope | In a URL **fragment**, which browsers never send to a server; spent at `/api/v1/auth/exchange` for a viewer token |
-| **Viewer sessions** | A viewer token from a code, 12 hours; one from `rocketwright open --settings` may change settings, for 1 hour | In the page's memory; the daemon keeps only its SHA-256 and expiry, in `viewer-sessions.json` (0600) in the state folder, so an open page outlives a daemon restart. `rocketwright token sign-out` ends every one |
-| **Settings confirmation codes** | One-shot, 5 minutes, bound to one waiting settings change, dropped after 5 wrong tries | In the daemon's memory; shown only to the admin token, by `rocketwright settings confirm` |
+| **Viewer sessions** | A viewer token from a code, 12 hours; one from `phonesimulator open --settings` may change settings, for 1 hour | In the page's memory; the daemon keeps only its SHA-256 and expiry, in `viewer-sessions.json` (0600) in the state folder, so an open page outlives a daemon restart. `phonesimulator token sign-out` ends every one |
+| **Settings confirmation codes** | One-shot, 5 minutes, bound to one waiting settings change, dropped after 5 wrong tries | In the daemon's memory; shown only to the admin token, by `phonesimulator settings confirm` |
 | **Screen socket tickets** | One-shot, 60 seconds, for one scope and -- when minted for a page -- that page's origin | Minted only by an authenticated start |
 
 - An agent's routes take only an agent token, for the scope it names; a person's routes take the admin token or a
   viewer credential for the scope.
-- `rocketwright mcp` passes its agent token to the relay in the environment, never argv, and revokes it when the client
+- `phonesimulator mcp` passes its agent token to the relay in the environment, never argv, and revokes it when the client
   goes.
 - Tokens and tickets in a query string are redacted from the server's logs.
 - A viewer credential for a scope may choose any simulator on the Mac from the device picker, including one another
@@ -62,13 +62,13 @@ token (an HMAC-SHA256 of the nonce keyed by it). Something else on the port is r
 
 ## Settings from a page
 
-The viewer's settings panel changes `config.toml`, which decides what Rocketwright runs and who may reach it -- so a
+The viewer's settings panel changes `config.toml`, which decides what PhoneSimulator runs and who may reach it -- so a
 page, which is untrusted, gets as little as does the job:
 
 | Caller | Reads settings | Changes settings | Changes a sensitive setting |
 |---|---|---|---|
-| A session from `rocketwright open --settings` | yes | yes | only with a code from the terminal |
-| A session from `rocketwright open`, or a viewer token | yes | no | no |
+| A session from `phonesimulator open --settings` | yes | yes | only with a code from the terminal |
+| A session from `phonesimulator open`, or a viewer token | yes | no | no |
 | A framed viewer from an embed ticket, or an agent | no | no | no |
 | The admin token from outside a page (the CLI) | yes | yes | yes |
 
@@ -80,7 +80,7 @@ page, which is untrusted, gets as little as does the job:
   `wda.path`, `build.tools`, `recording.folder`, `login.sources`, `login.onepassword_path`, `login.bitwarden_path`,
   `login.real_devices`, `server.*` and `security.*` decide what runs, what reaches a real device, where recordings
   go, which password manager is read, or who may reach the daemon. A page's change to one is held until
-  `rocketwright settings confirm` -- with the admin token, which no page holds -- shows it as it would be written and
+  `phonesimulator settings confirm` -- with the admin token, which no page holds -- shows it as it would be written and
   gives a code; the code confirms that exact change, once. A page cannot learn a code, so a script that got into a
   settings session still cannot turn on commands or widen the origins.
 - **A value a variable or the command line sets is not written**: the change would not take effect, so it is refused
@@ -117,7 +117,7 @@ SHA-256 of its token, which only the daemon -- keeping that digest -- and the ho
 - **Its scope's device only**, through the tool whitelist; the screen socket accepts only the protocol's input
   messages. The one exception is where tests run: `sim_test`'s `destination` may send them to another available iOS
   simulator on this Mac for the scope's Xcode -- never one another scope is running, one another scope's tests are
-  running on, or one another process on the Mac has claimed -- and Rocketwright neither shows nor drives it.
+  running on, or one another process on the Mac has claimed -- and PhoneSimulator neither shows nor drives it.
 - **URLs**: `sim_app open_url` refuses `file:`, `data:`, `javascript:` and `about:` URLs and the device's settings
   URLs.
 - **Installs**: a built `.app` inside a folder its token names, the scope's DerivedData or Xcode's -- with every link
@@ -132,7 +132,7 @@ SHA-256 of its token, which only the daemon -- keeping that digest -- and the ho
   ad hoc -- no certificate, as Xcode signs every simulator app -- before it is installed and removed. A real device's
   app is never re-signed.
 - **A real device only while the settings let agents pick one**: `sim_device choose` switches to a connected iPhone
-  or iPad while `real_devices.agents_choose` is on (on by default, off for a host that embeds Rocketwright, and sensitive),
+  or iPad while `real_devices.agents_choose` is on (on by default, off for a host that embeds PhoneSimulator, and sensitive),
   never to one another scope is using; a real device that is gone is never replaced by a simulator. An agent cannot
   set WebDriverAgent up: a person does, once.
 - **A saved login, never its password**: while `login.sources` names a password manager, `sim_login` types a login
@@ -147,10 +147,10 @@ SHA-256 of its token, which only the daemon -- keeping that digest -- and the ho
   that fails or is cancelled with the text half typed has masked it all the same. Characters struck into a secure
   field one key at a time -- a `keys` step's, or a `press` of a character -- read `••••` in the same places, and what
   one `keys` step typed is masked afterwards as typed text is.
-- **What that mask does not cover.** It hides text, in what Rocketwright says; so:
+- **What that mask does not cover.** It hides text, in what PhoneSimulator says; so:
   - *A screenshot is not masked.* While an app shows a password in clear -- its eye tapped, or a field that is not
     secure -- `sim_screenshot`, `sim_matrix`, a recording and the live viewer show it, and the agent's model
-    provider receives the image. Rocketwright does not read pictures to hide text in them.
+    provider receives the image. PhoneSimulator does not read pictures to hide text in them.
   - *A value shorter than four characters is not masked*: a three-letter run would match too much of every answer.
     A PIN of three digits typed into a secure field is still said as `••••` in the step's own line and events, but
     an app or a log that says it back later is answered as it is.
@@ -161,7 +161,7 @@ SHA-256 of its token, which only the daemon -- keeping that digest -- and the ho
     `keys` step, is said as `••••`; but only the text of one step is remembered, so a password struck one `press`
     at a time, or split between several `keys` steps, is not masked when the app shows it back. Type it whole, with
     `type`, or use `sim_login`.
-  - *Text typed where Rocketwright does not see a secure field is ordinary text*: a custom-drawn password field that
+  - *Text typed where PhoneSimulator does not see a secure field is ordinary text*: a custom-drawn password field that
     does not say it is secure, or one that took the focus without the agent touching it or reading the screen since,
     is shown as typed.
 - **Nothing outside the device**: every gesture is drawn by the viewer's own cursor, never the Mac's pointer.
@@ -176,26 +176,26 @@ SHA-256 of its token, which only the daemon -- keeping that digest -- and the ho
 
 ## Xcode's tools
 
-Rocketwright runs `xcrun mcpbridge` only for a scope that asks -- `connectors.preferred = "mcpbridge"` or
-`connectors.mcpbridge.merge` -- and `rocketwright xcode approve` when you run it. Through it, it calls three of Xcode's
+PhoneSimulator runs `xcrun mcpbridge` only for a scope that asks -- `connectors.preferred = "mcpbridge"` or
+`connectors.mcpbridge.merge` -- and `phonesimulator xcode approve` when you run it. Through it, it calls three of Xcode's
 tools: it opens a device-interaction session, captures the screen with no command, and ends the session. It never sends
 a tap or a key through them. The approval Xcode gives is yours to give: nothing asks for it but that command, which
 opens only the project you name, or the one in the folder you run it in.
 
-A capture writes the hierarchy, a screenshot, a thumbnail and a log to Xcode's temporary folder. Rocketwright reads the
+A capture writes the hierarchy, a screenshot, a thumbnail and a log to Xcode's temporary folder. PhoneSimulator reads the
 hierarchy and removes those files -- only ones in the folder the hierarchy was written to and named for its own
 session. The hierarchy's text is the app's: a label worded to look like more of the hierarchy can misname that one
 element, as the app could by showing it.
 
 ## Apps that share their hierarchy
 
-An app built with [RocketwrightKit](app-sdk.md) answers Rocketwright with its own view hierarchy, only in a Debug build on the
+An app built with [PhoneSimulatorKit](app-sdk.md) answers PhoneSimulator with its own view hierarchy, only in a Debug build on the
 simulator; a Release build holds none of it (`make sdk-release-check`). The app listens on 127.0.0.1 only, with a new
 random secret each launch, which it writes with its port to a listing in the simulator's data folder readable by the Mac
 user alone (0600). It checks the secret before anything else, never logs it, and refuses a request from a web page (an
 `Origin` header) or addressed to another host, so a page in a browser cannot read it even by guessing the port.
 
-Rocketwright reads a listing only when it is a regular file, not a link, owned by the Mac user and readable by nobody else,
+PhoneSimulator reads a listing only when it is a regular file, not a link, owned by the Mac user and readable by nobody else,
 at most 16 KB, naming this device and a process still running; it never deletes one. It sends the secret only in a
 request's `Authorization` header, never in a URL or a log, reads at most 8 MB of an answer within
 `connectors.app.timeout_ms`, and treats what it reads as the app's words: a label worded to look like more of the
@@ -204,23 +204,23 @@ simulator could see on its screen.
 
 ## Real devices
 
-A real device is usually someone's own phone. Real devices are off for a host that embeds Rocketwright, and turning them
+A real device is usually someone's own phone. Real devices are off for a host that embeds PhoneSimulator, and turning them
 on from a page takes a code from the terminal. See [Real devices](real-devices.md#safety).
 
-- **The Mac's pairing, reused.** Rocketwright reaches a device through Xcode's `devicectl` and the Mac's usbmuxd, and
+- **The Mac's pairing, reused.** PhoneSimulator reaches a device through Xcode's `devicectl` and the Mac's usbmuxd, and
   reads its log through its lockdown service with the pairing record the Mac already has. It never pairs, unpairs,
   changes trust or touches the passcode. While TLS loads the record's certificate and key they are written to a
   temporary folder only you can open (0700, each file 0600), removed at once.
-- **WebDriverAgent is fetched pinned and checked.** Setting it up -- the viewer's Set up touch, or `rocketwright wda
-  setup` -- downloads one release by its commit and refuses it unless its SHA-256 matches the one in Rocketwright and
+- **WebDriverAgent is fetched pinned and checked.** Setting it up -- the viewer's Set up touch, or `phonesimulator wda
+  setup` -- downloads one release by its commit and refuses it unless its SHA-256 matches the one in PhoneSimulator and
   every entry of the archive stays in its folder. It is built on your Mac, signed by the team your project signs with
-  (or the one set, or this Mac's only one), under a bundle id of Rocketwright's own. Once a person has set it up for a
-  team, Rocketwright builds it again by itself for a new Xcode or another device; nothing is fetched again.
+  (or the one set, or this Mac's only one), under a bundle id of PhoneSimulator's own. Once a person has set it up for a
+  team, PhoneSimulator builds it again by itself for a new Xcode or another device; nothing is fetched again.
 - **WebDriverAgent listens only on the device's loopback.** Its API is told to (`USE_IP=127.0.0.1`) and its MJPEG
   stream, which upstream binds to every interface, is changed to bind there too; the change is made by exact text and a
   source that does not match is refused. The Mac reaches both through usbmuxd over the cable, so nothing on the
   device's network can.
-- **Changes are put back.** What Rocketwright changes on a device is read first and put back when it is let go; each
+- **Changes are put back.** What PhoneSimulator changes on a device is read first and put back when it is let go; each
   change is written to `device-changes.json` in the run folder (0600) as it is made, so a start after a crash puts it
   back.
 
@@ -235,13 +235,13 @@ See [Recording](recording.md#privacy).
 
 The MCP relay is one standard-library file. It reads its URL and credentials from the environment, talks only to
 loopback addresses, and ignores proxy settings, so a tool call never leaves the machine. When the daemon it talked to
-is gone, it goes to another port only as told by something it trusts: under `rocketwright mcp`, a listener there that
+is gone, it goes to another port only as told by something it trusts: under `phonesimulator mcp`, a listener there that
 proved it holds the admin token; run by a host with `--run-dir`, the daemon's `daemon.json` -- only the port, from a
 file and folder that are yours and nobody else may write to, naming a process of yours still running.
 
 ## What leaves your Mac
 
-Nothing, from Rocketwright itself, but one download you ask for: setting WebDriverAgent up fetches its pinned release
+Nothing, from PhoneSimulator itself, but one download you ask for: setting WebDriverAgent up fetches its pinned release
 from GitHub, once. What an agent sees -- snapshots, screenshots, logs -- goes to the agent's model provider
 as the agent's client sends it.
 

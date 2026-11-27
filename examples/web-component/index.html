@@ -2,41 +2,41 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rocketwright as a web component</title>
+<title>PhoneSimulator as a web component</title>
 <style>
   body { margin: 0; padding: 24px; font: 15px/1.5 system-ui, sans-serif; background: #101114; color: #ececef; }
   main { max-width: 480px; margin: 0 auto; }
   /* The viewer takes its look from custom properties, which pass into its shadow root. */
-  rocketwright {
+  phonesimulator {
     display: block;
     height: 78vh;
-    --rocketwright-accent: #ff6b3d;
-    --rocketwright-on-accent: #1a0d08;
-    --rocketwright-surface: #1b1c21;
-    --rocketwright-surface-sunken: #0b0b0e;
-    --rocketwright-border: #2c2d34;
-    --rocketwright-text: #f2f2f4;
-    --rocketwright-text-muted: #9a9aa3;
-    --rocketwright-radius: 14px;
+    --phonesimulator-accent: #ff6b3d;
+    --phonesimulator-on-accent: #1a0d08;
+    --phonesimulator-surface: #1b1c21;
+    --phonesimulator-surface-sunken: #0b0b0e;
+    --phonesimulator-border: #2c2d34;
+    --phonesimulator-text: #f2f2f4;
+    --phonesimulator-text-muted: #9a9aa3;
+    --phonesimulator-radius: 14px;
   }
   /* And exposes parts for anything more. */
-  rocketwright::part(screen) { border-radius: 24px; }
+  phonesimulator::part(screen) { border-radius: 24px; }
   .said { color: #9a9aa3; }
   .problem { color: #ff8a80; }
 </style>
 <main>
   <h1>My app</h1>
-  <rocket-wright id="simulator" placement="page"></rocket-wright>
+  <phone-simulator id="simulator" placement="page"></phone-simulator>
   <p id="said" class="said"></p>
 </main>
 <script type="module">
-  import { defineRocketwrightElement } from '/rocketwright.js'
+  import { definePhoneSimulatorElement } from '/phonesimulator.js'
 
-  defineRocketwrightElement()
+  definePhoneSimulatorElement()
   const element = document.getElementById('simulator')
   const said = document.getElementById('said')
 
-  element.addEventListener('rocketwright:state', (event) => {
+  element.addEventListener('phonesimulator:state', (event) => {
     const { device, connector, viewOnly } = event.detail
     said.textContent = device ? `${device.name} (${device.runtime}) through ${connector}${viewOnly ? ', view only' : ''}` : ''
   })

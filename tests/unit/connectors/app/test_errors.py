@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-from rocketwright.connectors.app.errors import AppInactive, AppRefused, AppSdkError, AppTimedOut, AppUnreachable
-from rocketwright.connectors.base import ConnectorError
+from phonesimulator.connectors.app.errors import AppInactive, AppRefused, AppSdkError, AppTimedOut, AppUnreachable
+from phonesimulator.connectors.base import ConnectorError
 
 
 def test_every_reason_is_a_connector_error_and_a_refusal_keeps_its_status() -> None:

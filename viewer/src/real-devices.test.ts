@@ -144,7 +144,7 @@ describe('a real device in the bar', () => {
     }))
     const { $ } = await live({ transport: { settings, changeSettings: vi.fn() } }, {
       ...HELLO, connector: 'iphone', capabilities: VIEW_ONLY,
-      fallback_reason: 'Touching and reading it needs WebDriverAgent: `rocketwright wda setup`.',
+      fallback_reason: 'Touching and reading it needs WebDriverAgent: `phonesimulator wda setup`.',
     })
     socket().message({ type: 'status', ...PHONE })
     const mode = $<HTMLButtonElement>('[data-smv="mode"]')

@@ -13,15 +13,15 @@ from typing import Any
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import ConnectorUnavailable
-from rocketwright.connectors.helper_process import helper_id
-from rocketwright.connectors.iphone.wda import LOG_TAIL, TAIL_BYTES, WdaService, _tail, clock_time
-from rocketwright.connectors.iphone.wda_setup import DEVICES_FILE, WdaSetup, derived_for, wda_root
-from rocketwright.host_copy import HostCopy
-from rocketwright.testing.fakes import PHONE_UDID, FakeProcess, FakeXcrun, ManualClock
-from rocketwright.testing.native import short_run_dir
-from rocketwright.testing.wda import ARCHIVE, TEST_RELEASE, FakeWda, builds_wda, left_built
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import ConnectorUnavailable
+from phonesimulator.connectors.helper_process import helper_id
+from phonesimulator.connectors.iphone.wda import LOG_TAIL, TAIL_BYTES, WdaService, _tail, clock_time
+from phonesimulator.connectors.iphone.wda_setup import DEVICES_FILE, WdaSetup, derived_for, wda_root
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.testing.fakes import PHONE_UDID, FakeProcess, FakeXcrun, ManualClock
+from phonesimulator.testing.native import short_run_dir
+from phonesimulator.testing.wda import ARCHIVE, TEST_RELEASE, FakeWda, builds_wda, left_built
 
 TEAM = "9Q48L5C2K5"
 XCODE = "/Applications/Xcode.app/Contents/Developer"
@@ -99,7 +99,7 @@ class World:
         return WdaService(
             run_dir=run,
             log_dir=self.logs,
-            owner_tag="RocketwrightTest",
+            owner_tag="PhoneSimulatorTest",
             copy=HostCopy(),
             setup=self.setup,
             opener_for=lambda udid: self.wda.opener(),
@@ -133,7 +133,7 @@ async def world(tmp_path: Path, run: Path) -> AsyncIterator[World]:
 
 
 def test_webdriveragent_is_kept_under_the_state_folder_one_build_per_team_and_xcode(tmp_path: Path) -> None:
-    assert wda_root({"ROCKETWRIGHT_STATE_DIR": str(tmp_path)}) == tmp_path / "wda"
+    assert wda_root({"PHONESIMULATOR_STATE_DIR": str(tmp_path)}) == tmp_path / "wda"
     assert derived_for(tmp_path, TEAM, XCODE).parent == tmp_path / "derived"
     assert derived_for(tmp_path, TEAM, XCODE) != derived_for(tmp_path, TEAM, "/Applications/Xcode27.app")
 
@@ -155,7 +155,7 @@ async def test_it_is_started_from_its_build_and_ended_with_its_pid_file(world: W
     assert (started, udid, team, xcode) == (test_run, PHONE_UDID, TEAM, XCODE)
     assert log == world.logs / f"wda-{helper_id(PHONE_UDID)}.log"
     pid_file = run / "wda" / f"{helper_id(PHONE_UDID)}.pid"
-    assert pid_file.read_text() == "5000 700 RocketwrightTest" and service.alive(PHONE_UDID)
+    assert pid_file.read_text() == "5000 700 PhoneSimulatorTest" and service.alive(PHONE_UDID)
     await service.shutdown()
     assert world.signals == [(5000, signal.SIGTERM)] and not pid_file.exists() and service.alive(PHONE_UDID)
 
@@ -242,10 +242,10 @@ async def test_one_that_never_answers_is_given_up_on_and_ended(world: World, run
 async def test_a_run_a_previous_host_left_is_ended_and_others_are_left_alone(world: World, run: Path) -> None:
     folder = run / "wda"
     folder.mkdir()
-    (folder / "left.pid").write_text("81 999 RocketwrightTest")  # its host is gone, it still runs xcodebuild
-    (folder / "gone.pid").write_text("82 999 RocketwrightTest")  # its host and it are both gone
+    (folder / "left.pid").write_text("81 999 PhoneSimulatorTest")  # its host is gone, it still runs xcodebuild
+    (folder / "gone.pid").write_text("82 999 PhoneSimulatorTest")  # its host and it are both gone
     (folder / "other.pid").write_text("83 999 SomeoneElse")  # another host's
-    (folder / "live.pid").write_text("84 998 RocketwrightTest")  # its host still runs
+    (folder / "live.pid").write_text("84 998 PhoneSimulatorTest")  # its host still runs
     (folder / "broken.pid").write_text("not a pid")
     world.alive |= {81, 83, 84, 998}
     world.commands.update({81: "/usr/bin/xcodebuild test-without-building", 84: "xcodebuild"})
@@ -286,7 +286,7 @@ async def test_what_last_kept_it_from_driving_a_device_is_kept_with_when_and_cle
         f"WebDriverAgent is reached only over the device's cable: plug it in. (at {clock_time(AT)})"
     )
     await service.shutdown()
-    assert (history.exit_code, history.ended_at) == (-signal.SIGTERM, AT), "ended by Rocketwright, written down too"
+    assert (history.exit_code, history.ended_at) == (-signal.SIGTERM, AT), "ended by PhoneSimulator, written down too"
 
 
 async def test_a_run_that_ends_by_itself_is_written_down_once_with_its_exit_and_last_words(

@@ -26,7 +26,7 @@ import { createScreenCanvas, fitRect, type FrameObserver } from './screen-canvas
 import { createStatusView } from './status-view'
 import { adoptStyles } from './styles'
 import { createTextOverlay } from './text-overlay'
-import type { RocketwrightTransport } from './transport'
+import type { PhoneSimulatorTransport } from './transport'
 import { createChrome } from './viewer-chrome'
 import { barMarkup, createControls, toolsMarkup, type Placement } from './viewer-controls'
 import { attachInput } from './viewer-input'
@@ -45,7 +45,7 @@ export interface ViewerState {
 }
 
 export interface ViewerOptions {
-  transport: RocketwrightTransport
+  transport: PhoneSimulatorTransport
   /** Where the view is shown; `page` when not given. */
   placement?: Placement
   /** Move the view between a dock and a window; not offered when absent, nor on a page. */
@@ -57,7 +57,7 @@ export interface ViewerOptions {
   reducedMotion?(): boolean
   /** Whether this page can decode H.264 itself; WebCodecs in a secure page when absent. */
   canDecodeH264?(): boolean
-  /** Draws the viewer's icons; Lucide's, inline, when absent. The agent's pointer is Rocketwright's own drawing. */
+  /** Draws the viewer's icons; Lucide's, inline, when absent. The agent's pointer is PhoneSimulator's own drawing. */
   icon?: IconRenderer
   /** Told whenever the device, what the server offers, or the connection changes. */
   onState?(state: ViewerState): void

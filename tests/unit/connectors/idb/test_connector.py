@@ -7,15 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.connectors.base import Capability, ConnectorUnavailable
-from rocketwright.connectors.idb.companion import Companion
-from rocketwright.connectors.idb.connector import CAPABILITIES, IdbConnector, create
-from rocketwright.connectors.registry import ConnectorContext
-from rocketwright.host_copy import HostCopy
-from rocketwright.platform.developer_dir import choose_xcode
-from rocketwright.platform.simctl import Simctl
-from rocketwright.testing.fakes import BOOTED_UDID, SELECTED_XCODE, FakeLauncher, FakeXcodeSelect, MemoryStateStore
+from phonesimulator.config.model import SimConfig
+from phonesimulator.connectors.base import Capability, ConnectorUnavailable
+from phonesimulator.connectors.idb.companion import Companion
+from phonesimulator.connectors.idb.connector import CAPABILITIES, IdbConnector, create
+from phonesimulator.connectors.registry import ConnectorContext
+from phonesimulator.host_copy import HostCopy
+from phonesimulator.platform.developer_dir import choose_xcode
+from phonesimulator.platform.simctl import Simctl
+from phonesimulator.testing.fakes import BOOTED_UDID, SELECTED_XCODE, FakeLauncher, FakeXcodeSelect, MemoryStateStore
 
 CONFIG = SimConfig.defaults()
 XCODE_27 = "/Applications/Xcode27.app/Contents/Developer"

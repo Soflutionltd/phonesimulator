@@ -1,18 +1,18 @@
 # Any other MCP client
 
-Rocketwright is an MCP server over stdio. Any client that starts one and lists its tools can use it.
+PhoneSimulator is an MCP server over stdio. Any client that starts one and lists its tools can use it.
 
 | Field | Value |
 |---|---|
-| Command | `uvx` (or `rocketwright` if it is installed on `PATH`) |
-| Arguments | `--from rocketwright==3.12.1 rocketwright mcp` (or just `mcp`) |
+| Command | `uvx` (or `phonesimulator` if it is installed on `PATH`) |
+| Arguments | `--from phonesimulator==3.12.1 phonesimulator mcp` (or just `mcp`) |
 | Optional arguments | `--scope NAME` for a scope other than the folder's; `--root DIR`, repeatable, for the folders installs and builds may reach |
 | Environment | None needed |
 | Transport | stdio, newline-delimited JSON-RPC |
 
 ## What happens when it starts
 
-1. It checks whether Rocketwright's daemon answers on `127.0.0.1` and starts one in the background when it does not
+1. It checks whether PhoneSimulator's daemon answers on `127.0.0.1` and starts one in the background when it does not
    (waiting up to 10 seconds).
 2. It reads the admin token -- it runs as you -- and mints an **agent token** for its scope, passed to the relay in its
    environment and revoked when the client goes.
@@ -30,8 +30,8 @@ build the folder it works in -- such as a git worktree of the project -- when th
 ## When the daemon stops
 
 The client can stay connected. A tool call that finds nothing listening starts the daemon again, as the first launch
-does, and is sent once more with the same token; after `rocketwright stop --daemon` the first such call only says so
-([troubleshooting](../troubleshooting.md#rocketwright-was-stopped-by-rocketwright-stop---daemon)). A daemon started again
+does, and is sent once more with the same token; after `phonesimulator stop --daemon` the first such call only says so
+([troubleshooting](../troubleshooting.md#phonesimulator-was-stopped-by-phonesimulator-stop---daemon)). A daemon started again
 on another port -- `server.port` changed meanwhile -- is found there, from `daemon.json` in the run folder or else the
 config, and the calls go there once it has proved it is your daemon. Two clients bringing it back at once start one.
 
@@ -42,20 +42,20 @@ screen, a ref no longer on screen -- come back as tool results that say what to 
 
 ## A client that runs its own server process
 
-A host application with its own server can give its agents Rocketwright's tools through the same relay, pointed at its
+A host application with its own server can give its agents PhoneSimulator's tools through the same relay, pointed at its
 own routes and credentials; see [Python host applications](../embedding/python-fastapi.md).
 
 ## Running the relay yourself
 
 A host that [shares the daemon](../embedding/shared-daemon.md) runs the relay itself (`python -I relay.py`, the
-command `relay_command` or `DaemonHost.agent` gives) rather than `rocketwright mcp`. That relay cannot start a daemon.
+command `relay_command` or `DaemonHost.agent` gives) rather than `phonesimulator mcp`. That relay cannot start a daemon.
 When the daemon is gone, a call answers in one line that nothing listens there any more and how to start it again:
-`rocketwright serve --detach`, then call again.
+`phonesimulator serve --detach`, then call again.
 
-Give it the daemon's run folder -- `--run-dir ~/.rocketwright/run`, or `ROCKETWRIGHT_RUN_DIR` when that is set;
+Give it the daemon's run folder -- `--run-dir ~/.phonesimulator/run`, or `PHONESIMULATOR_RUN_DIR` when that is set;
 `relay_command(run_dir=...)` and `DaemonHost.agent(..., run_dir=...)` add it -- and a call that finds nothing
 listening first reads where the daemon listens now from `daemon.json` there, and goes to that port. It believes the
 file only when you own it and the folder, nobody else may write to either, and the process it names is still yours
-and running; it takes only the port from it, so calls stay on `127.0.0.1` with their own path. While `rocketwright mcp`
+and running; it takes only the port from it, so calls stay on `127.0.0.1` with their own path. While `phonesimulator mcp`
 is starting a daemon from that folder, the relay waits for it before it reads. The path is no secret, so it goes in
 argv; the token stays in the environment.

@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from rocketwright.platform import adb as adb_module
-from rocketwright.platform.adb import (
+from phonesimulator.platform import adb as adb_module
+from phonesimulator.platform.adb import (
     ADB_PORT_ENV,
     ADB_SERVER_ENV,
     Adb,
@@ -26,7 +26,7 @@ from rocketwright.platform.adb import (
     parse_devices,
     server_address,
 )
-from rocketwright.testing.adb import FakeAdbServer
+from phonesimulator.testing.adb import FakeAdbServer
 
 EMULATOR = "emulator-5554"
 
@@ -56,7 +56,7 @@ def test_a_listing_is_read_device_by_device_and_says_how_each_reaches_the_mac() 
     assert listed[0].model == "sdk gphone64 arm64" and listed[1].model == ""
 
 
-def test_the_server_is_where_rocketwright_or_adb_says_else_on_adbs_own_port() -> None:
+def test_the_server_is_where_phonesimulator_or_adb_says_else_on_adbs_own_port() -> None:
     assert server_address({ADB_SERVER_ENV: "/tmp/adb.sock", ADB_PORT_ENV: "6000"}) == "/tmp/adb.sock"
     assert server_address({ADB_PORT_ENV: "6000"}) == "127.0.0.1:6000"
     assert server_address({ADB_PORT_ENV: "x"}) == server_address({}) == "127.0.0.1:5037"

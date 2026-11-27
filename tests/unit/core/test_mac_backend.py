@@ -8,13 +8,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from rocketwright.config.model import SimConfig
-from rocketwright.core.devices import NoDevice
-from rocketwright.core.mac_backend import MacBackend, MacControl
-from rocketwright.platform.errors import DeviceControlError
-from rocketwright.platform.macos import MacApp
-from rocketwright.testing.macos import FakeMacOS
-from rocketwright.testing.rig import scope
+from phonesimulator.config.model import SimConfig
+from phonesimulator.core.devices import NoDevice
+from phonesimulator.core.mac_backend import MacBackend, MacControl
+from phonesimulator.platform.errors import DeviceControlError
+from phonesimulator.platform.macos import MacApp
+from phonesimulator.testing.macos import FakeMacOS
+from phonesimulator.testing.rig import scope
 
 APP = MacApp("dev.example.Sample", "Sample", "/Applications/Sample.app", 101)
 CONFIG = SimConfig.defaults()
@@ -91,7 +91,7 @@ async def test_control_is_bound_to_the_bundle_and_exact_path(tmp_path: Path) -> 
     [
         ("openurl", ("https://example.test",), "another app"),
         ("pbcopy", ("text",), "shared"),
-        ("appearance", ("dark",), "RocketwrightKit"),
+        ("appearance", ("dark",), "PhoneSimulatorKit"),
         ("text_size", ("large",), "system-wide"),
         ("contrast", (True,), "system-wide"),
         ("reduce_motion", (True,), "system-wide"),
