@@ -5,12 +5,13 @@ Rocketwright for 3.12.0 and 3.12.1 -- a name its browser sibling carries now.
 * **The environment.** A ``SIMTRAIL_*`` variable stands for its ``PHONESIMULATOR_*`` one when that is not set, so an
   MCP client's configuration, a shell profile or a CI job written for Simtrail goes on working. A ``ROCKETWRIGHT_*``
   variable is not taken up: that prefix is the browser tool's.
-* **The folders.** ``~/Library/Application Support/<old name>`` (settings, remembered devices, tokens, the helper),
-  ``~/Library/Logs/<old name>`` and ``~/.<old name>`` become PhoneSimulator's, moved in one rename each -- what they
-  hold is untouched. Where Simtrail's was, a link is left, so a process of that install still running finds its files;
-  none is left where Rocketwright's was, since that place is the browser tool's to use. A link Simtrail's move to
-  Rocketwright left is pointed at PhoneSimulator's folder. A folder is moved only when PhoneSimulator has none yet,
-  and never when its environment variable names another place.
+* **The folders.** ``~/Library/Application Support/<old name>`` (settings, remembered devices, tokens, the helper)
+  and ``~/Library/Logs/<old name>`` become PhoneSimulator's, moved in one rename each -- what they hold is untouched --
+  as does Simtrail's ``~/.simtrail``. Where Simtrail's was, a link is left, so a process of that install still running
+  finds its files; none is left where Rocketwright's was, since that place is the browser tool's to use. A link
+  Simtrail's move to Rocketwright left is pointed at PhoneSimulator's folder. ``~/.rocketwright`` is never touched: it
+  held only what a running daemon writes, and is the browser tool's own folder now. A folder is moved only when
+  PhoneSimulator has none yet, and never when its environment variable names another place.
 
 The ``simtrail`` command stays, as another name for ``phonesimulator`` (``pyproject.toml``).
 """
@@ -53,6 +54,8 @@ def old_folders(home: Path) -> list[OldFolder]:
     found: list[OldFolder] = []
     for old_name, link in (("Rocketwright", False), ("Simtrail", True)):
         for parent, shape, new_name, variable in places:
+            if parent == home and not link:
+                continue  # ~/.rocketwright: the browser tool's
             old = shape.format(old_name if shape == "{}" else old_name.lower())
             found.append((parent / old, parent / shape.format(new_name), variable, link))
     return found
@@ -86,9 +89,9 @@ def move_folders(home: Path, env: MutableMapping[str, str]) -> tuple[list[tuple[
 
 
 def _pointed_again(link: Path, new: Path) -> list[str]:
-    """Point a link an earlier move left at PhoneSimulator's folder, once that exists and the link leads nowhere any
-    more -- Simtrail's, left pointing at Rocketwright's folder, which has just moved. Answers what could not be done."""
-    if link.exists() or not new.is_dir():
+    """Point a link an earlier move left at PhoneSimulator's folder, once that exists: Simtrail's, left pointing at
+    Rocketwright's folder -- which has just moved, or is the browser tool's now. Answers what could not be done."""
+    if not new.is_dir() or (link.exists() and link.readlink().name.lower().lstrip(".") != "rocketwright"):
         return []
     try:
         link.unlink()

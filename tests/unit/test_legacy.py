@@ -94,15 +94,17 @@ def test_rocketwrights_folders_move_with_no_link_left_and_simtrails_link_follows
     (support / "Rocketwright").mkdir(parents=True)
     (support / "Rocketwright" / "devices.json").write_text("{}")
     (support / "Simtrail").symlink_to(support / "Rocketwright", target_is_directory=True)
-    (tmp_path / ".rocketwright").mkdir()
+    (tmp_path / ".rocketwright" / "run").mkdir(parents=True)
+    (tmp_path / ".simtrail").symlink_to(tmp_path / ".rocketwright", target_is_directory=True)
     moved, problems = legacy.move_folders(tmp_path, {})
     new = support / "PhoneSimulator"
-    assert problems == [] and moved == [
-        (support / "Rocketwright", new),
-        (tmp_path / ".rocketwright", tmp_path / ".phonesimulator"),
-    ]
+    assert problems == [] and moved == [(support / "Rocketwright", new)]
     assert not (support / "Rocketwright").exists() and not (support / "Rocketwright").is_symlink()
-    assert not (tmp_path / ".rocketwright").exists(), "that place is the browser tool's now"
+    assert (tmp_path / ".rocketwright" / "run").is_dir(), "that place is the browser tool's now: left as it is"
+    assert (tmp_path / ".simtrail").resolve() == (tmp_path / ".rocketwright").resolve(), "no folder to point at yet"
+    (tmp_path / ".phonesimulator").mkdir()
+    assert legacy.move_folders(tmp_path, {}) == ([], [])
+    assert (tmp_path / ".simtrail").resolve() == (tmp_path / ".phonesimulator").resolve()
     assert (support / "Simtrail").resolve() == new.resolve() and (new / "devices.json").read_text() == "{}"
     assert legacy.move_folders(tmp_path, {}) == ([], [])
 
