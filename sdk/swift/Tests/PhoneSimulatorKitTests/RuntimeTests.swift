@@ -218,7 +218,8 @@ struct DiscoveryTests {
             let taken = LoopbackServer { _, _ in HTTPResponse(status: 200, body: Data()) }
             defer { taken.stop() }
             let port = try taken.start(port: 0)
-            Runtime(host: FakeHost(), process: process(folder), log: lines.log).start(PhoneSimulator.Options(port: port))
+            Runtime(host: FakeHost(), process: process(folder), log: lines.log).start(
+                PhoneSimulator.Options(port: port))
             let blocked = try TemporaryFolder()
             FileManager.default.createFile(atPath: "\(blocked.path)/Library", contents: Data())
             let nowhere = process(blocked) { $0.home = "\(blocked.path)/Library" }
@@ -326,9 +327,11 @@ struct DiscoveryTests {
         @Test func optionsDefaultToAnyPortThreeThousandViewsValuesAndNoDebugData() {
             let options = PhoneSimulator.Options()
             #expect(
-                options == PhoneSimulator.Options(port: 0, maxNodes: 3000, redactValues: false, swiftUIDebugData: false))
+                options == PhoneSimulator.Options(port: 0, maxNodes: 3000, redactValues: false, swiftUIDebugData: false)
+            )
             #expect(
-                PhoneSimulator.Kind.navigationBar.rawValue == "navigation_bar" && PhoneSimulator.Kind.allCases.count == 21)
+                PhoneSimulator.Kind.navigationBar.rawValue == "navigation_bar"
+                    && PhoneSimulator.Kind.allCases.count == 21)
             #expect(PhoneSimulator.sdkVersion.range(of: #"^\d+\.\d+\.\d+"#, options: .regularExpression) != nil)
         }
 

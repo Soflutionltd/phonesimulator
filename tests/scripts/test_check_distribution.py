@@ -37,7 +37,8 @@ def valid_files() -> dict[str, Any]:
         "plugins/phonesimulator/.mcp.json": {
             "mcpServers": {"device": {"command": "uvx", "args": ["--from", PIN, "phonesimulator", "mcp"]}}
         },
-        "plugins/phonesimulator/skills/simulator/SKILL.md": "---\nname: simulator\ndescription: Drive it.\n---\n\nHow.\n",
+        "plugins/phonesimulator/skills/simulator/SKILL.md": "---\nname: simulator\ndescription: Drive "
+        "it.\n---\n\nHow.\n",
         "plugins/phonesimulator/commands/open.md": "---\ndescription: Open the viewer\n---\n\nRun it.\n",
         "server.json": {
             "$schema": check_distribution.REGISTRY_SCHEMA,

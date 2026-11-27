@@ -6,8 +6,8 @@ an app built for a simulator *ad hoc* -- ``Signature=adhoc``, no team, no certif
 the same way gives it a signature as good as the one Xcode made, with its identifier, entitlements and flags kept.
 Nested frameworks keep their own signatures: only the bundle's own Info.plist changed, so only it is signed again.
 
-A real device's app is signed for that device by a team's certificate and profile, which PhoneSimulator does not hold, so
-nothing here signs one; `build.stamp` never asks it to.
+A real device's app is signed for that device by a team's certificate and profile, which PhoneSimulator does not hold,
+so nothing here signs one; `build.stamp` never asks it to.
 """
 
 from __future__ import annotations

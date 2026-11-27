@@ -34,8 +34,8 @@ SDK_SOURCE = "sdk/swift/Sources/PhoneSimulatorKit/Public/PhoneSimulator.swift"
 MARKETPLACE = ".claude-plugin/marketplace.json"
 PLUGIN = "plugins/phonesimulator"
 REGISTRY = "server.json"
-#: An install pinned to a release: ``phonesimulator==0.2.0`` from PyPI, ``@soflution/phonesimulator@0.2.0`` from npm, or a
-#: release tag -- ``…/phonesimulator@v0.1.0``, ``…/phonesimulator/releases/download/v0.1.0/…``.
+#: An install pinned to a release: ``phonesimulator==0.2.0`` from PyPI, ``@soflution/phonesimulator@0.2.0`` from npm, or
+#: a release tag -- ``…/phonesimulator@v0.1.0``, ``…/phonesimulator/releases/download/v0.1.0/…``.
 PINNED = re.compile(
     r"(?:phonesimulator==|@soflution/phonesimulator@|phonesimulator(?:@|/releases/download/)v)"
     r"(\d+\.\d+\.\d+(?:[-.+][0-9A-Za-z.]+)?)"

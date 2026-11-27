@@ -5,8 +5,8 @@
 promise about a list, so the list is written down here: a name leaving it is a break a person has to decide on, and a
 name arriving is a decision too -- adding one is adding something the project then has to keep.
 
-The second test is the one that caught the omissions: it embeds PhoneSimulator the way a host does, importing nothing but
-this surface. A host that has to reach past `api` to do the ordinary thing has found a hole in it.
+The second test is the one that caught the omissions: it embeds PhoneSimulator the way a host does, importing nothing
+but this surface. A host that has to reach past `api` to do the ordinary thing has found a hole in it.
 """
 
 from __future__ import annotations

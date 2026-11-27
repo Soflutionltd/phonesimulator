@@ -304,7 +304,8 @@
             let name: String
             var body: some View {
                 VStack {
-                    Color.red.frame(width: 60, height: 40).phonesimulator(kind: .button, name: name, identifier: "drawn")
+                    Color.red.frame(width: 60, height: 40).phonesimulator(
+                        kind: .button, name: name, identifier: "drawn")
                     Text("Named").phonesimulator("Name")
                 }
             }
@@ -352,7 +353,8 @@
             let appPath = folder.path + "/Sample.app"
             try FileManager.default.createDirectory(atPath: appPath + "/Contents", withIntermediateDirectories: true)
             let info: [String: Any] = [
-                "CFBundleIdentifier": "dev.phonesimulator.Tests", "CFBundleName": "Sample", "CFBundlePackageType": "APPL",
+                "CFBundleIdentifier": "dev.phonesimulator.Tests", "CFBundleName": "Sample",
+                "CFBundlePackageType": "APPL",
             ]
             try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0).write(
                 to: URL(fileURLWithPath: appPath + "/Contents/Info.plist"))

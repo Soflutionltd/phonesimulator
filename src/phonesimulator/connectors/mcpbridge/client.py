@@ -57,7 +57,8 @@ class BridgeRefused(BridgeError):
 
 
 async def find_bridge(developer_dir: str, xcrun: XcrunRunner = run_xcrun) -> str | None:
-    """Where the given Xcode keeps an mcpbridge PhoneSimulator can use, or None: an Xcode before 27, or one without it."""
+    """Where the given Xcode keeps an mcpbridge PhoneSimulator can use, or None: an Xcode before 27, or one without
+    it."""
     found = await xcrun("--find", "mcpbridge", timeout=10.0, developer_dir=developer_dir)
     path = found.out.strip()
     if not (found.ok and path):

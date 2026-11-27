@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``phonesimulator stop``: end a project's session on its device -- its viewers closed, its connector's companion stopped
--- as the viewer's Stop does; ``--shutdown`` shuts its simulator down too, and ``--daemon`` stops the daemon after it.
+"""``phonesimulator stop``: end a project's session on its device -- its viewers closed, its connector's companion
+stopped -- as the viewer's Stop does; ``--shutdown`` shuts its simulator down too, and ``--daemon`` stops the daemon
+after it.
 
 Only this scope is stopped: another project's device, agent and viewers are left as they are, and so is a real device,
 which PhoneSimulator never shuts down. ``--shutdown`` is refused while another scope shares the simulator -- shutting it
@@ -14,8 +15,8 @@ it; the device keeps running.
 ``--daemon`` stops the daemon only while it serves no other scope -- no device, no agent's lease, no build -- and names
 those it does, unless ``--force``; it is asked to stop as ``Ctrl-C`` would ask it, by the pid it wrote down, and waited
 for. It is written down as stopped on purpose first (`lifecycle.mark_stopped`): a ``phonesimulator mcp`` still connected
-answers its next tool call that PhoneSimulator was stopped, and starts it again on the call after. Nothing is started only
-to be stopped: with no daemon there is nothing to do.
+answers its next tool call that PhoneSimulator was stopped, and starts it again on the call after. Nothing is started
+only to be stopped: with no daemon there is nothing to do.
 """
 
 from __future__ import annotations
@@ -149,9 +150,9 @@ def stop_scope(args: argparse.Namespace, ctx: CliContext, client: DaemonClient) 
         shared = sharing(entries, scope.id)
         if shared:
             ctx.complain(
-                f"phonesimulator: {scope.label}'s simulator is also used by {', '.join(shared)}, so it is not shut down: "
-                "shutting it down would end their session too. Leave out --shutdown to stop only this one, or add "
-                "--force"
+                f"phonesimulator: {scope.label}'s simulator is also used by {', '.join(shared)}, so it is not shut "
+                "down: shutting it down would end their session too. Leave out --shutdown to stop only this one, or "
+                "add --force"
             )
             return 1
     mine = next((entry.get("udid") for entry in entries if entry["id"] == scope.id), None)

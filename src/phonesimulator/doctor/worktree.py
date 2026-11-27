@@ -3,8 +3,8 @@
 
 A standalone scope is its folder (`Scope.for_folder`), so a git worktree of a project -- a second checkout, on another
 branch -- is a scope of its own, and the ``[scopes."<id>"]`` table a person filled in for the project does not reach it:
-`phonesimulator mcp` started in the worktree runs without those settings (``build.tools`` off, say), and nothing says why.
-This check knows a worktree the way builds do (`build.checkouts`, from its files, with no git run), finds the same
+`phonesimulator mcp` started in the worktree runs without those settings (``build.tools`` off, say), and nothing says
+why. This check knows a worktree the way builds do (`build.checkouts`, from its files, with no git run), finds the same
 folder in the main checkout, and compares the two scopes' own tables in config.toml.
 
 A main checkout made with ``--separate-git-dir`` keeps its git folder elsewhere, and is found from a worktree only when

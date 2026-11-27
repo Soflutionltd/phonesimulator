@@ -19,8 +19,8 @@ JPEG_MAGIC = b"\xff\xd8"
 #: How long a screenshot may take.
 SHOT_TIMEOUT_S = 15.0
 NO_STREAM = (
-    "Without scrcpy, the screen is shown a screenshot at a time: set scrcpy up (Set up touch, or phonesimulator android "
-    "setup) for a live H.264 stream"
+    "Without scrcpy, the screen is shown a screenshot at a time: set scrcpy up (Set up touch, or phonesimulator "
+    "android setup) for a live H.264 stream"
 )
 
 

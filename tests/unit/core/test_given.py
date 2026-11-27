@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Logins handed to the daemon by ``phonesimulator login``: kept for one scope and app, taken once, dropped when late."""
+"""Logins handed to the daemon by ``phonesimulator login``: kept for one scope and app, taken once, dropped when
+late."""
 
 from __future__ import annotations
 

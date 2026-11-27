@@ -170,8 +170,8 @@ async def test_the_camera_check_says_what_the_cable_screen_s_helper_last_said_in
     (logs / "native-aaaa.log").write_text("[info] serving SIM on /s\n[error] the simulator went away\n")
     assert (await check_camera(ctx)).detail == nothing.detail
     camera = (
-        "macOS has not let phonesimulator-helper use the Camera, which reading a cabled device's screen needs: allow it "
-        "in System Settings > Privacy & Security > Camera"
+        "macOS has not let phonesimulator-helper use the Camera, which reading a cabled device's screen needs: allow "
+        "it in System Settings > Privacy & Security > Camera"
     )
     phone = logs / "native-bbbb.log"
     # An earlier run that read the screen does not hide a later one refused the Camera.

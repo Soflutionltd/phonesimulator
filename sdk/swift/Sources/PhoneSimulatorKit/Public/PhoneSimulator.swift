@@ -9,7 +9,7 @@ import Foundation
 /// the server. Catalyst and Designed for iPad apps use PhoneSimulator's per-process Accessibility adapter.
 public enum PhoneSimulator {
     /// The version of PhoneSimulator this SDK came with.
-    public static let sdkVersion = "3.12.1"
+    public static let sdkVersion = "3.13.0"
 
     /// Posted on the main thread when a native macOS Debug app starts answering PhoneSimulator -- `userInfo["wanted"]` is
     /// `true` -- and when it stops (`false`). An app that embeds a web engine which builds its accessibility tree only

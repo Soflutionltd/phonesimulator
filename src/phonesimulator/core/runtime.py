@@ -97,8 +97,8 @@ def default_recordings(
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     start: Starter = start_xcrun,
 ) -> Recordings:
-    """Recordings made by simctl for a simulator, from the frames PhoneSimulator streams otherwise, rendered by the native
-    helper."""
+    """Recordings made by simctl for a simulator, from the frames PhoneSimulator streams otherwise, rendered by the
+    native helper."""
 
     async def record_with_simctl(instance: DeviceInstance, path: Path, log: Path, codec: str) -> Any:
         simctl = Simctl(xcrun, developer_dir=instance.developer_dir, start=start)
@@ -195,7 +195,8 @@ class Runtime:
         27's UI hierarchy, for those whose ``connectors.mcpbridge.merge`` is.
 
         `vision` reads text in a screen's pixels, for the scopes whose ``perception.ocr`` is on: by default
-        PhoneSimulator's Swift helper (`perception.vision`), compiled on first use under the state folder, on a Mac only.
+        PhoneSimulator's Swift helper (`perception.vision`), compiled on first use under the state folder, on a Mac
+        only.
 
         `may_share` says whether two scopes may use one device; by default any two may. A daemon serving several hosts
         answers it so each host's devices stay its own.

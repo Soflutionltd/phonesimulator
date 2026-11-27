@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Fail when a wheel does not carry the native helper the way PhoneSimulator looks for it.
 
-Every wheel carries the helper's Swift package at ``phonesimulator/_helper_src``, so ``phonesimulator helper build`` works
-from any install. A release wheel (``--helper``) also carries the helper itself at
+Every wheel carries the helper's Swift package at ``phonesimulator/_helper_src``, so ``phonesimulator helper build``
+works from any install. A release wheel (``--helper``) also carries the helper itself at
 ``phonesimulator/_bin/phonesimulator-helper``: executable, a universal Mach-O for both Mac architectures, and tagged for
 macOS. Standard library only.
 

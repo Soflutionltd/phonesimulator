@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-"""A cabled real device's live screen: read over its cable by PhoneSimulator's native helper, the way QuickTime reads it.
+"""A cabled real device's live screen: read over its cable by PhoneSimulator's native helper, the way QuickTime reads
+it.
 
-The helper's capture mode (``phonesimulator-helper capture``) serves the screen as the native connector's helper serves a
-simulator's -- screenshots in milliseconds and H.264 at up to 60 frames a second -- so the session's screen is the same
-`HelperClient`. It needs a helper that says it can capture, and macOS's Camera permission, which the helper asks for
-itself the first time.
+The helper's capture mode (``phonesimulator-helper capture``) serves the screen as the native connector's helper serves
+a simulator's -- screenshots in milliseconds and H.264 at up to 60 frames a second -- so the session's screen is the
+same `HelperClient`. It needs a helper that says it can capture, and macOS's Camera permission, which the helper asks
+for itself the first time.
 
 A device's screen is found among the Mac's capture devices by its name. When another cabled device has the same name,
 a screenshot taken through devicectl goes with the helper to tell them apart; the capture device found is remembered,

@@ -155,7 +155,8 @@
             var body: some View {
                 VStack(spacing: 0) {
                     Color.clear.frame(width: 100, height: 120)
-                    Color.red.frame(width: 60, height: 40).phonesimulator(kind: .button, name: name, identifier: "delete")
+                    Color.red.frame(width: 60, height: 40).phonesimulator(
+                        kind: .button, name: name, identifier: "delete")
                     Color.blue.frame(width: 30, height: 30).phonesimulator("Named")
                 }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }

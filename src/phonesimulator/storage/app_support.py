@@ -2,8 +2,8 @@
 """A standalone install's folders, and the `StateStore` over them.
 
 * state -- ``~/Library/Application Support/PhoneSimulator``: config.toml, remembered devices, builds, tokens;
-* run -- ``~/.phonesimulator/run``: companion sockets and pid files. Short, because a unix socket's path may have only 104
-  bytes, and Application Support's often does not leave room;
+* run -- ``~/.phonesimulator/run``: companion sockets and pid files. Short, because a unix socket's path may have only
+  104 bytes, and Application Support's often does not leave room;
 * logs -- ``~/Library/Logs/PhoneSimulator``, where Console finds them;
 * claims -- ``<state>/claims``: which process is using which device, shared by every host on the Mac.
 

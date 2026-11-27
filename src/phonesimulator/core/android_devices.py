@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Every Android device this Mac has, by the id PhoneSimulator knows it by: AVDs, the emulators running them, and phones.
+"""Every Android device this Mac has, by the id PhoneSimulator knows it by: AVDs, the emulators running them, and
+phones.
 
 An AVD is listed whether it runs or not, by its id (`identifiers.android_id`, ``avd-…``). One that runs is the
 emulator adb lists as ``emulator-<port>``, found by asking each running emulator which AVD it is

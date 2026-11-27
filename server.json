@@ -3,7 +3,7 @@
   "name": "io.github.Soflutionltd/phonesimulator",
   "title": "PhoneSimulator",
   "description": "Drive iOS Simulators, iPhones, Android devices and macOS apps: UI snapshots, live viewer, recording.",
-  "version": "3.12.1",
+  "version": "3.13.0",
   "websiteUrl": "https://github.com/Soflutionltd/phonesimulator#readme",
   "repository": {
     "url": "https://github.com/Soflutionltd/phonesimulator",
@@ -14,7 +14,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "phonesimulator",
-      "version": "3.12.1",
+      "version": "3.13.0",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

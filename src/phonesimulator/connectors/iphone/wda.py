@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
-"""WebDriverAgent on the devices PhoneSimulator drives: found running, or started from what its setup built (`wda_setup`).
+"""WebDriverAgent on the devices PhoneSimulator drives: found running, or started from what its setup built
+(`wda_setup`).
 
 A session asks for it when it attaches (`WdaService.client`). If WebDriverAgent already answers on the device's
 loopback -- kept running from before, or started by the person -- it is used as it is. Otherwise it is started from the
 build for the device's team and Xcode, and waited for up to `real_devices.wda.startup_timeout`; the first start on a
 device waits while iOS asks the person to trust the developer and allow UI automation. With no build yet, a person sets
-it up once (the viewer's Set up touch, or ``phonesimulator wda setup``); after that a new Xcode or another device is built
-for in the background, and the device is attached again when it is ready. A WebDriverAgent PhoneSimulator
-started ends when the device is let go, unless `real_devices.wda.keep_running` says to leave it; one a crashed host left
-behind is ended the next time the host starts.
+it up once (the viewer's Set up touch, or ``phonesimulator wda setup``); after that a new Xcode or another device is
+built for in the background, and the device is attached again when it is ready. A WebDriverAgent PhoneSimulator started
+ends when the device is let go, unless `real_devices.wda.keep_running` says to leave it; one a crashed host left behind
+is ended the next time the host starts.
 
-Everything is kept under PhoneSimulator's state folder: the source (`wda_source`), a build per team and Xcode, and the pid
-file of each run; each run's output goes to the host's log folder.
+Everything is kept under PhoneSimulator's state folder: the source (`wda_source`), a build per team and Xcode, and the
+pid file of each run; each run's output goes to the host's log folder.
 
 What happened to it on each device is kept while the host runs (`WdaHistory`): how its last run ended -- its exit code
 and when -- and the last thing that kept it from driving the device, with when. A refusal, `sim_device health`,
@@ -240,9 +241,9 @@ class WdaService:
             await self._sleep(POLL_S)
 
     def alive(self, udid: str) -> bool:
-        """Whether the WebDriverAgent PhoneSimulator started on the device still runs -- True when it started none, since
-        one it found running is not its to watch. A run seen ended for the first time has its end written down, and
-        what its log last said kept as the device's last error."""
+        """Whether the WebDriverAgent PhoneSimulator started on the device still runs -- True when it started none,
+        since one it found running is not its to watch. A run seen ended for the first time has its end written down,
+        and what its log last said kept as the device's last error."""
         run = self._runs.get(udid)
         if run is None or run.process.returncode is None:
             return True

@@ -2,8 +2,8 @@
 """Recording a device's screen, from the viewer or an agent, kept as an MP4, a GIF or both, with its touches drawn in.
 
 A recording is one device's at a time. It takes its pictures from the device's own tool when that can record -- a
-simulator, through simctl -- and otherwise from the frames PhoneSimulator already streams (`recording_sources`). While it
-runs it notes every touch that lands, the agent's and a person's, with its time; when it stops, the native helper
+simulator, through simctl -- and otherwise from the frames PhoneSimulator already streams (`recording_sources`). While
+it runs it notes every touch that lands, the agent's and a person's, with its time; when it stops, the native helper
 renders what was recorded into what the settings ask for -- sped up, a GIF at its own size and rate, each touch drawn
 where and when it landed (`Renderer`) -- and it is kept in the recordings folder, private to the person, beside a note
 of what it is. Without the helper, a simulator's movie is kept as it was recorded, and its note says why nothing was

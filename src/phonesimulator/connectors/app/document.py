@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """An app's hierarchy, read in the shape a connector's accessibility document has.
 
-The app says what each view is in a snapshot's words (``button``, ``secure``, ``cell``) and PhoneSimulator's readers speak
-accessibility's (``Button``, ``SecureTextField``, ``Cell``), so the hierarchy becomes a document
+The app says what each view is in a snapshot's words (``button``, ``secure``, ``cell``) and PhoneSimulator's readers
+speak accessibility's (``Button``, ``SecureTextField``, ``Cell``), so the hierarchy becomes a document
 `perception.readers.tree_from_document` reads -- the way Xcode's hierarchy does -- and everything after it is shared.
 
 On the way, what cannot help an agent is left out: a view with no size (what it holds stays), a container that says

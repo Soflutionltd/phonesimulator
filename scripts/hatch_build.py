@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """The wheel's build hook: the native helper's Swift package, and the helper itself when a release built one.
 
-Every wheel carries the helper's sources at ``phonesimulator/_helper_src``, so ``phonesimulator helper build`` works from
-any install. A release sets `BINARY_ENV` to the universal helper it built and signed; the wheel then also carries it at
-``phonesimulator/_bin/phonesimulator-helper`` and, holding a Mac binary, is tagged for macOS rather than any platform. A
-wheel built without it is the pure one, which falls back to building the helper on first use.
+Every wheel carries the helper's sources at ``phonesimulator/_helper_src``, so ``phonesimulator helper build`` works
+from any install. A release sets `BINARY_ENV` to the universal helper it built and signed; the wheel then also carries
+it at ``phonesimulator/_bin/phonesimulator-helper`` and, holding a Mac binary, is tagged for macOS rather than any
+platform. A wheel built without it is the pure one, which falls back to building the helper on first use.
 
 Hatchling loads this file by path (``[tool.hatch.build.targets.wheel.hooks.custom]``); only `HelperBuildHook` needs it.
 """

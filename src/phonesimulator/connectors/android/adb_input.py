@@ -107,8 +107,8 @@ def typed_argument(text: str) -> str:
     """Text as ``input text`` takes it: a space is ``%s`` to it."""
     if not text.isascii() or not text.isprintable():
         raise ConnectorError(
-            "Without scrcpy, only plain ASCII text can be typed: set scrcpy up (Set up touch, or phonesimulator android "
-            "setup) to type any text"
+            "Without scrcpy, only plain ASCII text can be typed: set scrcpy up (Set up touch, or phonesimulator "
+            "android setup) to type any text"
         )
     return text.replace(" ", "%s")
 

@@ -2,8 +2,8 @@
 """Fail if Xcode's or Android's tools, idb_companion or the native helper are named anywhere they could be started.
 
 PhoneSimulator runs real programs: ``xcrun`` (simctl, xcodebuild, xcresulttool) boots devices, installs apps and builds
-whatever project an agent points it at, and ``idb_companion`` and PhoneSimulator's own ``phonesimulator-helper`` stream a
-device's screen and take its touches. The promises around them -- an argv and never a shell, a timeout that reaps, off
+whatever project an agent points it at, and ``idb_companion`` and PhoneSimulator's own ``phonesimulator-helper`` stream
+a device's screen and take its touches. The promises around them -- an argv and never a shell, a timeout that reaps, off
 meaning stopped, no helper left behind -- hold only while one module owns each:
 
 * `phonesimulator/platform/` runs xcrun, names the simctl subcommands, compiles Swift helpers (`platform.swift`),

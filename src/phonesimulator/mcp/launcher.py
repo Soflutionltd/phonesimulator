@@ -12,8 +12,8 @@
 3. **The relay** (`mcp.relay`), in this process, talking to ``/api/v1/agent``. It passes on the folders the client
    says it works in (its MCP roots), so a build runs in the one the agent is in -- the same project's git worktree,
    say -- when its token may build there (`build.checkouts`). A label for the session -- ``--label``, else
-   ``PHONESIMULATOR_AGENT_LABEL`` -- goes along in ``X-PhoneSimulator-Label``, read from the relay's environment, never its
-   argv, so viewers and other agents tell this session from another of the same client (`daemon.auth`).
+   ``PHONESIMULATOR_AGENT_LABEL`` -- goes along in ``X-PhoneSimulator-Label``, read from the relay's environment, never
+   its argv, so viewers and other agents tell this session from another of the same client (`daemon.auth`).
 4. **A lease** (`LeaseKeeper`): taken at the client's first tool call and renewed every `RENEW_S` while calls keep
    coming, so the reaper leaves the project's device alone between them. A client that has made none for
    ``device.agent_idle_minutes`` -- which each renewal's answer says, from the scope's settings in the daemon -- stops
@@ -21,11 +21,11 @@
    takes the lease again. A token the daemon refuses -- revoked -- is not renewed again, and revoking it when the
    client goes lets the lease go at once.
 5. **The daemon back** (`reviver`): a call that finds nothing listening -- the daemon stopped, or gone -- starts it
-   again as step 1 does and is sent once more, its token still good. After ``phonesimulator stop --daemon`` the first such
-   call only answers that a person stopped it, and the next starts it. Two relays starting a daemon at once start one:
-   each start waits for the run folder's start lock. A daemon started again may listen on another port -- its config
-   changed -- so where it listens is read again each time it is looked for (`daemon.json`, else the config), and the
-   relay's calls follow it there once what answers proved it is this user's daemon (`follower`).
+   again as step 1 does and is sent once more, its token still good. After ``phonesimulator stop --daemon`` the first
+   such call only answers that a person stopped it, and the next starts it. Two relays starting a daemon at once start
+   one: each start waits for the run folder's start lock. A daemon started again may listen on another port -- its
+   config changed -- so where it listens is read again each time it is looked for (`daemon.json`, else the config), and
+   the relay's calls follow it there once what answers proved it is this user's daemon (`follower`).
 6. **A warm-up** (`warm_up`): once the token is made, the daemon is asked, on a thread of its own, to attach the
    project's simulator before the client's first call -- only when it is booted already (``agent.warm_up``,
    `DeviceManager.warm`) -- so that call does not wait for it. Nothing waits for the answer, and a failure is only
@@ -83,8 +83,8 @@ REFUSED_TOKEN = (401, 403)
 #: what the scope's ``device.agent_idle_minutes`` is.
 AGENT_IDLE_S = 30 * 60.0
 STOPPED_ON_PURPOSE = (
-    "PhoneSimulator was stopped by `phonesimulator stop --daemon`, so this call was not made. Call again to start it, or "
-    "reconnect this MCP server."
+    "PhoneSimulator was stopped by `phonesimulator stop --daemon`, so this call was not made. Call again to start it, "
+    "or reconnect this MCP server."
 )
 
 logger = logging.getLogger(__name__)
@@ -632,12 +632,11 @@ def run(
 ) -> int:
     """Serve MCP for this scope until the client closes stdin. With `home` -- the folder the scope was made for -- a git
     worktree's scope with no device yet is given its main checkout's (`adopt_main_device`). `label` names the session,
-    else ``PHONESIMULATOR_AGENT_LABEL`` does (`session_label`). With `scope_from_roots`, each call acts for the project of
-    the folder the client names for it -- in its ``_meta`` under `roots_meta`, or its roots -- with a token of that
-    project's own (`ProjectTokens`); a call that names none acts for `scope`. With `run_dir`, a daemon is started
-    under its start lock, and one a person stopped is said to be (`reviver`). With `locate_daemon` -- the daemon's
-    URL as its run folder and config say now -- the daemon is followed to another port when it is started again on
-    one."""
+    else ``PHONESIMULATOR_AGENT_LABEL`` does (`session_label`). With `scope_from_roots`, each call acts for the project
+    of the folder the client names for it -- in its ``_meta`` under `roots_meta`, or its roots -- with a token of that
+    project's own (`ProjectTokens`); a call that names none acts for `scope`. With `run_dir`, a daemon is started under
+    its start lock, and one a person stopped is said to be (`reviver`). With `locate_daemon` -- the daemon's URL as its
+    run folder and config say now -- the daemon is followed to another port when it is started again on one."""
     with starting(run_dir):
         ensure_daemon(client, start_daemon, retire=retire_daemon, locate=locate_daemon)
     if home is not None:

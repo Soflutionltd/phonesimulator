@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Reading text in pixels without Vision: a text recognizer that reads what it is told to, and PhoneSimulator's Swift text
-reader played over JSON lines, answering as the real one does."""
+"""Reading text in pixels without Vision: a text recognizer that reads what it is told to, and PhoneSimulator's Swift
+text reader played over JSON lines, answering as the real one does."""
 
 from __future__ import annotations
 
@@ -46,8 +46,8 @@ LANGUAGES = ("en-US", "fr-FR", "it-IT", "de-DE", "es-ES", "pt-BR", "zh-Hans", "z
 
 
 class FakeVisionHelper:
-    """PhoneSimulator's text reader behind `spawn`: says hello as version `version`, and reads `lines` in every picture --
-    or answers `error`, or nothing while `quiet`."""
+    """PhoneSimulator's text reader behind `spawn`: says hello as version `version`, and reads `lines` in every picture
+    -- or answers `error`, or nothing while `quiet`."""
 
     def __init__(self, lines: Sequence[Mapping[str, Any]] = (), *, version: int = 1) -> None:
         self.lines = [dict(line) for line in lines]

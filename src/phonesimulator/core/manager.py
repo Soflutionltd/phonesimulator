@@ -761,8 +761,8 @@ class DeviceManager:
         instance.demo_status_bar = True
 
     async def _put_back(self, instance: DeviceInstance, backend: DeviceBackend) -> None:
-        """Take away the demo status bar ``device.status_bar`` gave, and put back what else PhoneSimulator changed on the
-        device when ``device.restore_changes`` says to."""
+        """Take away the demo status bar ``device.status_bar`` gave, and put back what else PhoneSimulator changed on
+        the device when ``device.restore_changes`` says to."""
         if instance.demo_status_bar:
             instance.demo_status_bar = False
             try:
@@ -1411,8 +1411,8 @@ class DeviceManager:
         return ended
 
     async def _delete_idle(self, instance: DeviceInstance, config: SimConfig) -> bool:
-        """Delete a simulator PhoneSimulator made, just ended as idle and shut down, as ``device.delete_created`` allows:
-        ``empty``, when it holds no app anybody installed; ``idle``, whatever it holds. One another scope still
+        """Delete a simulator PhoneSimulator made, just ended as idle and shut down, as ``device.delete_created``
+        allows: ``empty``, when it holds no app anybody installed; ``idle``, whatever it holds. One another scope still
         remembers as its own is kept, and so is every device under a memory that cannot forget one. Answers whether it
         was deleted."""
         if config.delete_created == "never" or not instance.created or instance.kind != "simulator":
@@ -1439,9 +1439,9 @@ class DeviceManager:
         return True
 
     async def prune(self, *, everything: bool, dry_run: bool) -> list[Pruned]:
-        """Delete the simulators PhoneSimulator made that nothing runs and that hold no app -- or every one nothing runs,
-        with `everything` -- as ``phonesimulator devices prune`` asks (`core.cleanup.prune`). Refused under a memory that
-        cannot list and forget what PhoneSimulator made."""
+        """Delete the simulators PhoneSimulator made that nothing runs and that hold no app -- or every one nothing
+        runs, with `everything` -- as ``phonesimulator devices prune`` asks (`core.cleanup.prune`). Refused under a
+        memory that cannot list and forget what PhoneSimulator made."""
         memory, backend = self.directory.memory, self.backends.get("simulator")
         if not isinstance(memory, CreatedDevices) or not isinstance(backend, SimulatorBackend):
             raise SimulatorUnavailable("this host's device memory cannot list the simulators PhoneSimulator made")

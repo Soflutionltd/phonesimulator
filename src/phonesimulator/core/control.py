@@ -175,10 +175,10 @@ EXACT_CHANGES = ("appearance", "text_size", "contrast", "reduce_motion", "status
 class ExactRestore(Protocol):
     """A device's tool that reads what a change replaces exactly, and writes it back so.
 
-    A simulator's or an iPhone's tool says how a device looks only in the words PhoneSimulator sets it with -- a text size
-    category, contrast on or off -- and is put back in them (`DisplayState`). An Android device's settings say more:
-    a font scale of 1.15, animations at half speed, a night mode on a schedule. Its tool keeps what it read as it was,
-    so a person's own phone gets back exactly what it had, not the nearest thing PhoneSimulator could have set.
+    A simulator's or an iPhone's tool says how a device looks only in the words PhoneSimulator sets it with -- a text
+    size category, contrast on or off -- and is put back in them (`DisplayState`). An Android device's settings say
+    more: a font scale of 1.15, animations at half speed, a night mode on a schedule. Its tool keeps what it read as it
+    was, so a person's own phone gets back exactly what it had, not the nearest thing PhoneSimulator could have set.
     """
 
     async def saved(self, udid: str, what: str) -> Any:

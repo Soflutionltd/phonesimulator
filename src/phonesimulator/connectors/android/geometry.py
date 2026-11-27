@@ -5,13 +5,14 @@
 one. Its points are Android's density-independent pixels -- pixels × 160 / density -- whole, as the protocol has them:
 a 1080 × 2424 Pixel 9 at 420 dpi is 411 × 923.
 
-**Turning**: PhoneSimulator's screen is the device's own portrait one, whichever way an app is turned (`connectors.base`).
-Android turns its whole display instead -- measured on an API 36 emulator, a screenshot, the UI tree's bounds and the
-coordinates a touch is injected at are all the turned display's, 2424 × 1080 once turned -- and says by how many
-quarters (``mCurrentOrientation`` in ``dumpsys display``, ``rotation`` in a UI dump). Turned one quarter, the
-interface's top left is the portrait screen's top right: UIKit's landscape right (`perception.orientation`), and three
-quarters is landscape left. So a screenshot is turned back to portrait, a touch on the portrait screen is turned onto
-the display, and the UI tree is read as an interface turned that way, which `perception.orientation` turns for agents.
+**Turning**: PhoneSimulator's screen is the device's own portrait one, whichever way an app is turned
+(`connectors.base`). Android turns its whole display instead -- measured on an API 36 emulator, a screenshot, the UI
+tree's bounds and the coordinates a touch is injected at are all the turned display's, 2424 × 1080 once turned -- and
+says by how many quarters (``mCurrentOrientation`` in ``dumpsys display``, ``rotation`` in a UI dump). Turned one
+quarter, the interface's top left is the portrait screen's top right: UIKit's landscape right
+(`perception.orientation`), and three quarters is landscape left. So a screenshot is turned back to portrait, a touch on
+the portrait screen is turned onto the display, and the UI tree is read as an interface turned that way, which
+`perception.orientation` turns for agents.
 """
 
 from __future__ import annotations

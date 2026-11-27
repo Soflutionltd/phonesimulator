@@ -209,8 +209,8 @@ async def _allow(ctx: CliContext) -> int:
     await show_in_finder(place, ctx.run)
     panes = " and ".join(PERMISSION_PANES.get(name, name) for name in missing)
     ctx.say(
-        f"opened Privacy & Security > {panes}, and showed the helper in the Finder: drag phonesimulator-helper into each "
-        "list (or + and pick it), turn it on, then run `phonesimulator helper status` to check"
+        f"opened Privacy & Security > {panes}, and showed the helper in the Finder: drag phonesimulator-helper into "
+        "each list (or + and pick it), turn it on, then run `phonesimulator helper status` to check"
     )
     return 0
 

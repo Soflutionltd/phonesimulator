@@ -18,8 +18,8 @@ there with a commit it was not built from.
 
 **Signing.** An app's signature seals its Info.plist, so the copy is signed again (`platform.codesign`) -- ad hoc, as
 Xcode signs an app for a simulator. A simulator only: a real device's app is signed for it by a team's certificate,
-which PhoneSimulator does not hold, so it is never stamped. A copy that cannot be stamped or signed is not installed; the
-app is, as built, and the answer says why it carries no stamp.
+which PhoneSimulator does not hold, so it is never stamped. A copy that cannot be stamped or signed is not installed;
+the app is, as built, and the answer says why it carries no stamp.
 
 **An Android app** is not changed at all: its APK is installed from a folder that also holds the stamp (`stamp_apk`),
 which the emulator keeps beside the installed app, with when it was installed (`core.android_control`). An app on an

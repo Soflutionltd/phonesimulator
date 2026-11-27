@@ -7,7 +7,8 @@ Two promises, each one call:
   agent's CLI or a macOS app opener -- in first position, handed to a wrapper such as ``env``, or as the first word of
   a shell command. A real one boots a device, builds an app or costs money, and a fake plays every one of them.
 * `isolate_state` points PhoneSimulator's state, sockets, logs, device claims, configuration and the simulators' data
-  folders at a temporary folder, so a test never reads or reaps what a PhoneSimulator or a simulator on the same Mac owns.
+  folders at a temporary folder, so a test never reads or reaps what a PhoneSimulator or a simulator on the same Mac
+  owns.
 
 They are shipped rather than kept in this repository's tests so that a host embedding PhoneSimulator can make its own
 suite keep the same promises.

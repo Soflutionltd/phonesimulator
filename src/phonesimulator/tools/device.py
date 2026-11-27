@@ -12,9 +12,9 @@ works on it, nothing builds on it and it is not the scope's own. ``list`` says w
 the scope's own, and which other agents work on. Under ``device.selection = "scope"`` a switch moves every agent of
 the scope, and whoever watches.
 
-A real device -- an iPhone or an Android phone -- is never powered on, restarted or shut down by PhoneSimulator, and what
-it says does not pretend otherwise: ``boot`` opens a session on it -- the screen, and touch where it is set up -- and
-``restart`` starts that session over, leaving the device as it is. A simulator's or an emulator's ``restart`` still
+A real device -- an iPhone or an Android phone -- is never powered on, restarted or shut down by PhoneSimulator, and
+what it says does not pretend otherwise: ``boot`` opens a session on it -- the screen, and touch where it is set up --
+and ``restart`` starts that session over, leaving the device as it is. A simulator's or an emulator's ``restart`` still
 shuts it down and boots it again.
 
 What an agent changes about how the device looks -- light or dark, its status bar, text size, contrast, reduce motion

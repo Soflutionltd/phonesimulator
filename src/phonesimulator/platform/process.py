@@ -2,8 +2,8 @@
 """Helper programs in process groups of their own, ending those groups, and asking about a pid.
 
 A companion and a build are long-running programs PhoneSimulator starts and has to be able to end completely -- with
-whatever they started in turn -- even after PhoneSimulator itself restarted and knows one only by the pid in its pid file.
-So each runs in a new session, which makes its pid its process group, and is stopped by signalling the group.
+whatever they started in turn -- even after PhoneSimulator itself restarted and knows one only by the pid in its pid
+file. So each runs in a new session, which makes its pid its process group, and is stopped by signalling the group.
 
 Each appends to a log of its own, kept across its starts; one grown past `LOG_MAX_BYTES` is moved aside to
 ``<name>.1`` as its program starts again, so a helper started over all day keeps at most twice that.

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""scrcpy's server: the release PhoneSimulator speaks to and fetching it, its protocol, and the screen, input and text it
-gives an Android session."""
+"""scrcpy's server: the release PhoneSimulator speaks to and fetching it, its protocol, and the screen, input and text
+it gives an Android session."""
 
 from __future__ import annotations
 

@@ -7,8 +7,9 @@ URLs as a ``VIEW`` intent. Launch arguments are ``key=value`` pairs, each an int
 launch's extras, not a command line.
 
 **Which commit** an app was built from -- where ``build.stamp_source`` is on -- is kept on an emulator beside the app,
-in PhoneSimulator's own folder of the device's scratch space, with the time the app was installed: an APK is never changed
-(`build.stamp`), and an install by anything else changes that time, which leaves the stamp unread. A phone keeps none.
+in PhoneSimulator's own folder of the device's scratch space, with the time the app was installed: an APK is never
+changed (`build.stamp`), and an install by anything else changes that time, which leaves the stamp unread. A phone keeps
+none.
 
 **The log** is ``logcat``'s, read from the device's own clock back: an app's lines are those its uid wrote, which
 stays the same from one launch to the next, unlike its pid.

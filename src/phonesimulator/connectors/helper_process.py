@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """A helper program run for one booted device: started, made ready, ended, and cleaned up after.
 
-idb_companion and PhoneSimulator's native helper are both long-running programs that hold a device open, so both live the
-same life, and it is written once here. A connector names its program (`HelperSpec`) and says how to run it and how to
-reach it once it runs; `HelperProcesses` does the rest:
+idb_companion and PhoneSimulator's native helper are both long-running programs that hold a device open, so both live
+the same life, and it is written once here. A connector names its program (`HelperSpec`) and says how to run it and how
+to reach it once it runs; `HelperProcesses` does the rest:
 
 * **started in a process group of its own** (`process.spawn`), its output in the host's log folder;
 * **run with the scope's Xcode**, named in ``DEVELOPER_DIR`` (`developer_dir.developer_env`), never ``xcode-select``;

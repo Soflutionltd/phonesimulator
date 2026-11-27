@@ -2,10 +2,10 @@
 """What a standalone scope may do: the daemon's `Policy`.
 
 There is no host application to turn an area off, so the simulator's own settings decide. An agent may install an app
-built inside a folder its token names (``phonesimulator mcp --root DIR``), the scope's DerivedData, or Xcode's; it builds
-in the first folder its token names -- or in the same folder of another checkout of its repository, a git worktree,
-where its agent works (`build.checkouts`). A build runs commands, which a standalone scope allows exactly while its
-build tools are on -- the person who switched them on is the person whose machine it is.
+built inside a folder its token names (``phonesimulator mcp --root DIR``), the scope's DerivedData, or Xcode's; it
+builds in the first folder its token names -- or in the same folder of another checkout of its repository, a git
+worktree, where its agent works (`build.checkouts`). A build runs commands, which a standalone scope allows exactly
+while its build tools are on -- the person who switched them on is the person whose machine it is.
 """
 
 from __future__ import annotations

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """What observe mode keeps agents off in languages besides English: ``agent.observe_languages``.
 
-An app shown in German says "Löschen" where one in English says "Delete", and PhoneSimulator cannot tell which language an
-app is shown in: a device's own language is not the app's when a scheme launches it in another. So the words of every
+An app shown in German says "Löschen" where one in English says "Delete", and PhoneSimulator cannot tell which language
+an app is shown in: a device's own language is not the app's when a scheme launches it in another. So the words of every
 language here are matched at once, beside `agent.observe_words`, unless a person narrows the list.
 
 Each language has the words its buttons use to delete, remove, reset, sign out, disconnect, save, apply, send, confirm,

@@ -31,7 +31,8 @@ START_TIMEOUT_S = 10.0
 STOP_TIMEOUT_S = 30.0
 POLL_S = 0.05
 
-#: PhoneSimulator's frame file: this, then per frame its kind, its time in seconds since the first, its length, its bytes.
+#: PhoneSimulator's frame file: this, then per frame its kind, its time in seconds since the first, its length, its
+#: bytes.
 FRAME_FILE_MAGIC = b"SMRF\x01"
 FRAME_HEADER = struct.Struct(">BdI")
 FRAME_KINDS = {"h264": 1, "jpeg": 2}

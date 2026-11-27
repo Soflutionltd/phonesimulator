@@ -136,8 +136,8 @@ class DaemonHost:
 
     def pause(self, scope_id: str, seconds: float = 60.0) -> Pause:
         """Keep agents' gestures off the scope's device for `seconds` from now, ten minutes at most: while a person
-        has the real phone in hand, say, whose touches PhoneSimulator cannot see. It lifts by itself when it runs out; set
-        it again before then to keep it, and `resume` to lift it early."""
+        has the real phone in hand, say, whose touches PhoneSimulator cannot see. It lifts by itself when it runs out;
+        set it again before then to keep it, and `resume` to lift it early."""
         return cast(Pause, self._call("PUT", self._scope(scope_id) + "/pause", {"seconds": seconds}))
 
     def resume(self, scope_id: str) -> Pause:

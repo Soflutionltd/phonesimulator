@@ -3,8 +3,8 @@
 
 scrcpy (Genymobile, Apache-2.0, `THIRD_PARTY_LICENSES.md`) streams an Android device's screen as H.264 and takes its
 touches, keys and text, from a small server it runs on the device (``app_process``). Its client and server must be the
-same release -- the server refuses any other -- so PhoneSimulator speaks one, pinned below by version, size and SHA-256 as
-GitHub publishes them.
+same release -- the server refuses any other -- so PhoneSimulator speaks one, pinned below by version, size and SHA-256
+as GitHub publishes them.
 
 Nothing is fetched until a person asks: Set up touch in the viewer, or ``phonesimulator android setup``. The release is
 written to PhoneSimulator's state folder only once its hash is the pinned one; a download that is not is thrown away.
@@ -156,8 +156,8 @@ class ScrcpyJars:
             return None
         if configured:
             return (
-                f"{configured} (android.scrcpy.path) is not a scrcpy server PhoneSimulator knows: PhoneSimulator speaks to "
-                f"release {self.release.version}"
+                f"{configured} (android.scrcpy.path) is not a scrcpy server PhoneSimulator knows: PhoneSimulator "
+                f"speaks to release {self.release.version}"
             )
         return "scrcpy's server is not set up: set it up once (Set up touch, or phonesimulator android setup)"
 

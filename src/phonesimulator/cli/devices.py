@@ -2,9 +2,10 @@
 """``phonesimulator devices``: this Mac's iOS simulators, the real devices connected to it and its Android emulators and
 phones, and which a project uses.
 
-``phonesimulator devices prune`` deletes the simulators PhoneSimulator made that nothing runs and that hold no app -- every
-one nothing runs, with ``--all`` -- and forgets them (`core.cleanup`); ``--dry-run`` only says which. While the daemon
-runs, it is asked, since it owns the memory of what was made and knows what it runs; otherwise the memory is read here.
+``phonesimulator devices prune`` deletes the simulators PhoneSimulator made that nothing runs and that hold no app --
+every one nothing runs, with ``--all`` -- and forgets them (`core.cleanup`); ``--dry-run`` only says which. While the
+daemon runs, it is asked, since it owns the memory of what was made and knows what it runs; otherwise the memory is read
+here.
 """
 
 from __future__ import annotations

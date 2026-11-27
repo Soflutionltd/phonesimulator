@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which process on the Mac is using which device.
 
-Two PhoneSimulators -- the standalone daemon and an application embedding PhoneSimulator, or two copies of either -- must
-not drive one device at once: each would start its own companion for it, and each would stop the other's. So before a
-process brings a device up it claims it, in a file named by the device in a folder every host shares
+Two PhoneSimulators -- the standalone daemon and an application embedding PhoneSimulator, or two copies of either --
+must not drive one device at once: each would start its own companion for it, and each would stop the other's. So before
+a process brings a device up it claims it, in a file named by the device in a folder every host shares
 (`app_support.claims_dir`), recording who it is: an owner name, its pid, and when that process started.
 
 A claim holds while its process is alive -- the same pid, started at the same time, so a pid the system reused for

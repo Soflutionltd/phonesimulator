@@ -217,8 +217,8 @@ async def test_a_build_that_does_not_compile_answers_with_its_errors(rig: Rig) -
     assert build.state == "failed" and build.app is None
     assert said[:2] == [
         "build FAILED · app (debug) · 0s · 1 error, 0 warnings",
-        "error app/src/main/kotlin/dev/phonesimulator/example/MainActivity.kt:21:26 Initializer type mismatch: expected "
-        "'Int', actual 'String'.",
+        "error app/src/main/kotlin/dev/phonesimulator/example/MainActivity.kt:21:26 Initializer type mismatch: "
+        "expected 'Int', actual 'String'.",
     ]
     # A log that is gone says nothing but that Gradle failed.
     build.log.unlink()

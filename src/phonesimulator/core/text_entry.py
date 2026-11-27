@@ -21,9 +21,9 @@ So ``device.typing`` decides, per scope:
   rest;
 * ``paste`` always pastes, for text that must arrive character for character, on iOS 26 and earlier.
 
-On iOS 16 to 26 the "Allow Paste" prompt a simulator shows for PhoneSimulator's own paste names where the text comes from,
-``CoreSimulatorBridge`` -- the simulator's pasteboard bridge, whatever the system's language -- so it is told from any
-other alert, and allowed (`paste_prompt_allow`): left alone, it hides the screen and the text never arrives.
+On iOS 16 to 26 the "Allow Paste" prompt a simulator shows for PhoneSimulator's own paste names where the text comes
+from, ``CoreSimulatorBridge`` -- the simulator's pasteboard bridge, whatever the system's language -- so it is told from
+any other alert, and allowed (`paste_prompt_allow`): left alone, it hides the screen and the text never arrives.
 """
 
 from __future__ import annotations

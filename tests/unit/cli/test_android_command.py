@@ -90,8 +90,9 @@ async def test_status_says_what_is_set_up_as_the_doctor_does(tmp_path: Path) -> 
             "AVDs: Pixel 9"
         )
         assert said[1].endswith("android devices: emulator-5554 (emulator, device)")
-        assert said[2].endswith("scrcpy: scrcpy's server is not set up: set it up once (Set up touch, or phonesimulator "
-                                "android setup); until then adb shows the screen a few times a second")  # fmt: skip
+        assert said[2].endswith("scrcpy: scrcpy's server is not set up: set it up once (Set up touch, or "
+                                "phonesimulator android setup); until then adb shows the screen a few times a "
+                                "second")  # fmt: skip
         assert said[-1].endswith(
             f"android builds: JDK 21.0.9 at {tmp_path / 'Applications' / STUDIO_JDK} (Android Studio)"
         )

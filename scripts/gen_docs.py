@@ -213,8 +213,8 @@ def configuration_page() -> str:
         sections.setdefault(section_of(setting), []).append(setting)
     defaults = json.loads(json.dumps(schema.nested(schema.defaults("standalone"))))
     blocks = [
-        "PhoneSimulator reads its settings on every operation; each setting below says when a change to it takes effect "
-        "-- "
+        "PhoneSimulator reads its settings on every operation; each setting below says when a change to it takes "
+        "effect -- "
         "most at once, some when a device is next brought up, the server's when the daemon restarts. From lowest to "
         "highest precedence:\n\n"
         "1. the defaults below;\n"
@@ -308,9 +308,9 @@ def protocol_page(root: Path) -> str:
     constants: Mapping[str, Any] = _json(folder / "constants.json")
     return page(
         "Screen protocol",
-        "How a viewer and a PhoneSimulator server talk over the screen socket: a hello each way, then frames and events "
-        "out and a whitelist of input in. The schemas in [`protocol/v1`](../../protocol/v1/) are the one definition "
-        "-- the Python and TypeScript types are generated from them -- and [`protocol/README.md`]"
+        "How a viewer and a PhoneSimulator server talk over the screen socket: a hello each way, then frames and "
+        "events out and a whitelist of input in. The schemas in [`protocol/v1`](../../protocol/v1/) are the one "
+        "definition -- the Python and TypeScript types are generated from them -- and [`protocol/README.md`]"
         "(../../protocol/README.md) walks through a socket's life and the rules for changing the protocol.",
         "## Close codes\n\n"
         + table(

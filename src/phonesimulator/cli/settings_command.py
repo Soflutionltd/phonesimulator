@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """``phonesimulator settings confirm``: the sensitive settings changes a page is waiting on, and the code for each.
 
-A settings panel that asks to change what PhoneSimulator runs or who may reach it waits for a person to confirm the change
-here, with the admin token no page holds. Each change is shown as it would be written; a person who recognises it types
-its code into the page.
+A settings panel that asks to change what PhoneSimulator runs or who may reach it waits for a person to confirm the
+change here, with the admin token no page holds. Each change is shown as it would be written; a person who recognises it
+types its code into the page.
 """
 
 from __future__ import annotations

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``phonesimulator android``: Android emulators and phones, which PhoneSimulator shows and drives through adb and scrcpy.
+"""``phonesimulator android``: Android emulators and phones, which PhoneSimulator shows and drives through adb and
+scrcpy.
 
 * ``status`` says what is set up -- the SDK, the devices adb lists, scrcpy's server, the JDK Gradle builds with -- as
   the doctor's Android checks do (`doctor.android`);

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The composition root: PhoneSimulator put together from seams, started and closed, told of changed settings, and the one
-answer to whether a scope's agents may use their tools now."""
+"""The composition root: PhoneSimulator put together from seams, started and closed, told of changed settings, and the
+one answer to whether a scope's agents may use their tools now."""
 
 from __future__ import annotations
 

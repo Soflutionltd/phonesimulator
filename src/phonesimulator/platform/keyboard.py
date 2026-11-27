@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which key types each character on the Mac's keyboard layout -- AZERTY, QWERTZ, US -- so text is typed, not pasted.
 
-A key PhoneSimulator presses on a simulator goes through the simulator's keyboard layout, which follows the Mac's current
-input source: with a French layout chosen, the key a US keyboard has "q" on types "a", and with a Ukrainian one the
-keys for "wifi" type "цшаш". So the keys are found for the layout in use: macOS says which virtual key, with Shift or
-Option, types each character (`platform/keymap.py`, run as a program of its own), and each virtual key is the HID key
+A key PhoneSimulator presses on a simulator goes through the simulator's keyboard layout, which follows the Mac's
+current input source: with a French layout chosen, the key a US keyboard has "q" on types "a", and with a Ukrainian one
+the keys for "wifi" type "цшаш". So the keys are found for the layout in use: macOS says which virtual key, with Shift
+or Option, types each character (`platform/keymap.py`, run as a program of its own), and each virtual key is the HID key
 a simulator is sent for it (`VIRTUAL_TO_HID`). What a layout types is read once for each layout and kept; the layout
 itself is read at every typing, since a person switches layouts as they go.
 

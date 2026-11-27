@@ -5,10 +5,9 @@ A token comes as ``Authorization: Bearer …`` or ``X-PhoneSimulator-Token``. A 
 viewer or host token for the scope, or a page's viewer session for it; an agent's routes take only an agent token, for
 the scope it names in ``X-PhoneSimulator-Scope`` (or its only scope), its title -- what viewers show beside its cursor,
 and other agents are told -- from ``X-PhoneSimulator-Client`` and the label ``X-PhoneSimulator-Label`` gives its session
-(``PHONESIMULATOR_AGENT_LABEL``), else four hex digits of its token's id so two sessions of one client are told apart, and
-the folders its client works in from ``X-PhoneSimulator-Roots``. A screen socket's credential
-is its ticket, so letting one in only checks its scope: the Host and the Origin were already checked
-(`server.security`).
+(``PHONESIMULATOR_AGENT_LABEL``), else four hex digits of its token's id so two sessions of one client are told apart,
+and the folders its client works in from ``X-PhoneSimulator-Roots``. A screen socket's credential is its ticket, so
+letting one in only checks its scope: the Host and the Origin were already checked (`server.security`).
 
 A scope in a host's namespace is in that host's group, named for the namespace -- so ``device.mode = "shared"`` gives
 each host one device of its own -- and every other scope is in the Mac's own group.

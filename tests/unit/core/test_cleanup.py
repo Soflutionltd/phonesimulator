@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Deleting the simulators PhoneSimulator made once nobody needs them: by the reaper as ``device.delete_created`` allows,
-and by ``phonesimulator devices prune`` -- never one a person made or picked, one another scope remembers, or one
-running."""
+"""Deleting the simulators PhoneSimulator made once nobody needs them: by the reaper as ``device.delete_created``
+allows, and by ``phonesimulator devices prune`` -- never one a person made or picked, one another scope remembers, or
+one running."""
 
 from __future__ import annotations
 

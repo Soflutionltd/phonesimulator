@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``phonesimulator record``: recording a project's device, as the viewer's Record button and an agent's `sim_record` do.
+"""``phonesimulator record``: recording a project's device, as the viewer's Record button and an agent's `sim_record`
+do.
 
 ``start`` begins -- as the ``recording.*`` settings say, unless ``--format``, ``--width``, ``--quality``, ``--preset``
 or ``--max-seconds`` says otherwise, named with ``--label``, and with a copy kept beside it as ``--also`` names --

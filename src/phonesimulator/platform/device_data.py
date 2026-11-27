@@ -3,8 +3,8 @@
 
 Every simulator in Xcode's default device set has a folder of its own, ``~/Library/Developer/CoreSimulator/Devices/
 <udid>/data``, which its apps see as ``SIMULATOR_SHARED_RESOURCES_DIRECTORY``. An app built with PhoneSimulator's debug
-SDK says there where it listens (`connectors.app`). PhoneSimulator only uses the default set, so the folder is worked out
-rather than asked of simctl, which would cost a program run on every snapshot.
+SDK says there where it listens (`connectors.app`). PhoneSimulator only uses the default set, so the folder is worked
+out rather than asked of simctl, which would cost a program run on every snapshot.
 
 What a person installed on a simulator is kept in its folder too, under ``data/Containers/Bundle/Application``; the
 system's own apps come with the runtime and are not there. So whether a simulator holds an app of anybody's can be read

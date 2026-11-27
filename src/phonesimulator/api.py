@@ -22,8 +22,8 @@ A host that lets a page change its settings mounts `create_settings_router` with
 `SettingsAuthenticator` and, for the settings a page may not change alone, `Confirmations`. One that keeps its own
 settings screens mounts none of it.
 
-A host can also run no PhoneSimulator of its own and share the local daemon with other hosts instead: `DaemonHost`, with a
-host token for its namespaces, answering `AgentAccess` for its agents and raising `DaemonRefused` or
+A host can also run no PhoneSimulator of its own and share the local daemon with other hosts instead: `DaemonHost`, with
+a host token for its namespaces, answering `AgentAccess` for its agents and raising `DaemonRefused` or
 `DaemonUnavailable`.
 """
 

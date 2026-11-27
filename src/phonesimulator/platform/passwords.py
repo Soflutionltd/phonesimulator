@@ -321,7 +321,8 @@ class Keychain(Source):
     """The macOS Keychain: a generic password saved with the app -- its bundle id or website -- as its service and the
     account's username as its account (``security add-generic-password -s com.example.notes -a ann@example.com -w``).
     A login is found by its service alone, and its password read only to be typed. Reached only by a process that may
-    run ``security``: ``phonesimulator login`` in your terminal, not a daemon started inside a sandbox that forbids it."""
+    run ``security``: ``phonesimulator login`` in your terminal, not a daemon started inside a sandbox that forbids
+    it."""
 
     kind = "keychain"
 

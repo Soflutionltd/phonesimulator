@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """phonesimulator-helper: found, asked its version, started and ended only here -- one per booted device.
 
-The native helper is PhoneSimulator's own Swift program (``helper/``) that reaches a simulator's screen, input and element
-tree through Apple's frameworks. It lives the life every helper does (`connectors.helper_process`): its own process
-group, the scope's Xcode, a unix socket and pid file in the host's run folder, ready when it answers, and a helper a
-crashed host left running ended the next time that host starts. What is the native helper's own is here:
+The native helper is PhoneSimulator's own Swift program (``helper/``) that reaches a simulator's screen, input and
+element tree through Apple's frameworks. It lives the life every helper does (`connectors.helper_process`): its own
+process group, the scope's Xcode, a unix socket and pid file in the host's run folder, ready when it answers, and a
+helper a crashed host left running ended the next time that host starts. What is the native helper's own is here:
 
 * **found** where it is (`find_helper`): the configured path, else the installed copy (`install_helper`), else the copy
   shipped inside PhoneSimulator's wheel, else the copy `phonesimulator helper build` built for this version;

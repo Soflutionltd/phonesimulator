@@ -13,7 +13,8 @@ iOS Simulators, real iPhones and iPads, Android emulators and phones, and macOS 
 Cursor or any MCP agent, watched live in a browser tab, at the speed of a few milliseconds a step. One tool, every
 device, no glue.
 
-*Formerly Simtrail: the `simtrail` command still works, and an existing install is taken up as it is.*
+*Formerly Simtrail, and Rocketwright for two releases (that name is now its browser sibling's): the `simtrail`
+command still works, and an existing install is taken up as it is.*
 
 [![CI](https://github.com/Soflutionltd/phonesimulator/actions/workflows/ci.yml/badge.svg)](https://github.com/Soflutionltd/phonesimulator/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)

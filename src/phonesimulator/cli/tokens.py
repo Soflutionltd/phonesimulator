@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """``phonesimulator token``: make, list and revoke the daemon's scoped tokens.
 
-The command reads the token file directly -- it runs as the person who installed PhoneSimulator -- and the daemon reads it
-on every request, so a revoked token stops working at once. A token is revoked through the daemon while it runs, so
+The command reads the token file directly -- it runs as the person who installed PhoneSimulator -- and the daemon reads
+it on every request, so a revoked token stops working at once. A token is revoked through the daemon while it runs, so
 what its agent held is let go with it. A new token is printed once, on stdout, and never again.
 
 A ``host`` token is for an application sharing the daemon: ``--scope 'notes:*'`` gives it the scopes whose ids start

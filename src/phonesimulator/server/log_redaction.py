@@ -9,8 +9,8 @@ credential still does not belong in a log.
 `install` adds `CredentialFilter` to the two loggers uvicorn writes those lines through. It redacts the record's
 arguments in place: uvicorn's access formatter unpacks them, so the message cannot simply be flattened.
 
-It also adds `LeaseLineFilter` to the access log: each ``phonesimulator mcp`` renews its lease every 30 seconds while its
-client works, and a day of those lines drowns everything else. A lease starting, lapsing and being let go is logged
+It also adds `LeaseLineFilter` to the access log: each ``phonesimulator mcp`` renews its lease every 30 seconds while
+its client works, and a day of those lines drowns everything else. A lease starting, lapsing and being let go is logged
 once each, by the leases themselves (`daemon.lease`).
 """
 

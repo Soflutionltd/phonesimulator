@@ -93,11 +93,9 @@ MJPEG_ON_LOOPBACK = Patch(
 SYNTHESIZER = "WebDriverAgentLib/Utilities/FBW3CActionsSynthesizer.m"
 _MOVE_ITEM = "@interface FBPointerMoveItem : FBW3CGestureItem\n\n@end\n"
 _SCREEN_POINT = """
-// PhoneSimulator: a point given in the viewport is where it is on the screen -- an iPhone's app fills the screen -- so it
-// is used as given, not looked up against the app, an accessibility round trip of about 240 ms a point. A point given
-// any other way is looked up as before.
-static CGPoint FBPhoneSimulatorScreenPoint(FBBaseGestureItem *item)
-{
+// PhoneSimulator: a point given in the viewport is where it is on the screen -- an iPhone's app fills the screen -- so
+it // is used as given, not looked up against the app, an accessibility round trip of about 240 ms a point. A point
+given // any other way is looked up as before. static CGPoint FBPhoneSimulatorScreenPoint(FBBaseGestureItem *item) {
   NSDictionary<NSString *, id> *action = item.actionItem;
   if (![[action objectForKey:FB_ACTION_ITEM_KEY_TYPE] isEqualToString:FB_ACTION_ITEM_TYPE_POINTER_MOVE]) {
     FBBaseGestureItem *previous =
@@ -153,8 +151,9 @@ def configured(path: str) -> Path:
     for patch in PATCHES:
         if patch.required and patch.new not in _read(folder, patch):
             raise WdaSourceError(
-                f"{folder / patch.path} does not keep the screen stream on the device's loopback: make PhoneSimulator's "
-                "change to it (docs/real-devices.md), or leave real_devices.wda.path empty to use PhoneSimulator's copy"
+                f"{folder / patch.path} does not keep the screen stream on the device's loopback: make "
+                "PhoneSimulator's change to it (docs/real-devices.md), or leave real_devices.wda.path empty to use "
+                "PhoneSimulator's copy"
             )
     return folder
 

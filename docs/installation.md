@@ -75,7 +75,7 @@ uses it when the native helper cannot be used, and `connectors.preferred = "idb"
 The viewer is [on npm](https://www.npmjs.com/package/@soflution/phonesimulator) as `@soflution/phonesimulator`:
 
 ```sh
-npm install @soflution/phonesimulator@3.12.1
+npm install @soflution/phonesimulator@3.13.0
 ```
 
 See [the web component](embedding/web-component.md).

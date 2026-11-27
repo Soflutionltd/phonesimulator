@@ -3,9 +3,9 @@
 screen stream kept on the device, and built for a device, which Xcode registers with the team (`build.wda`).
 
 A person asks for it the first time -- the viewer's Set up touch, or ``phonesimulator wda setup``. After that it is
-PhoneSimulator's to redo: a team with a build has a person's yes, so a new Xcode, or a device its build was not made for,
-is built for by itself when a session needs it (`WdaService.client`). One setup runs per team and Xcode at a time, and
-what it came to is kept until the next is asked for, so a failure is shown rather than tried again and again.
+PhoneSimulator's to redo: a team with a build has a person's yes, so a new Xcode, or a device its build was not made
+for, is built for by itself when a session needs it (`WdaService.client`). One setup runs per team and Xcode at a time,
+and what it came to is kept until the next is asked for, so a failure is shown rather than tried again and again.
 
 Which devices a build was made for is written beside it (`DEVICES_FILE`): a build's profile covers the devices its team
 had when it was made, and a build for a device registers that device first.

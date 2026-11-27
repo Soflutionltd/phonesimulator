@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Every setting PhoneSimulator has, once: its key, where it lives in config.toml, its default, its rule and what it does.
+"""Every setting PhoneSimulator has, once: its key, where it lives in config.toml, its default, its rule and what it
+does.
 
 Everything else about configuration is derived from this table rather than written again: the flat values a host
 embedding PhoneSimulator keeps (`defaults`, `errors`), the nested `config.toml` a standalone install reads (`flatten`,
-`nested`), the ``PHONESIMULATOR_*`` environment variables (`Setting.env`), `phonesimulator config`, the viewer's settings
-panel (`Section`, `Rule.spec`, and when a change takes effect, for whom, and whether a page may make it alone), and the
-generated reference in `docs/reference/configuration.md`.
+`nested`), the ``PHONESIMULATOR_*`` environment variables (`Setting.env`), `phonesimulator config`, the viewer's
+settings panel (`Section`, `Rule.spec`, and when a change takes effect, for whom, and whether a page may make it alone),
+and the generated reference in `docs/reference/configuration.md`.
 
 Each value is checked on its own, so a value its rule refuses reads as its default (`SimConfig.from_flat`) instead of
 breaking the rest, and the refusal reads the same wherever it is reported.
@@ -486,8 +487,8 @@ class Setting:
     effect: Effect = "live"
     #: Whether a scope may have its own value, or only the whole daemon's counts.
     reach: Reach = "scope"
-    #: Whether it decides what PhoneSimulator runs or who may reach it -- a program, an Xcode, commands, origins, the port
-    #: -- so that a page may not change it without a person confirming at the terminal.
+    #: Whether it decides what PhoneSimulator runs or who may reach it -- a program, an Xcode, commands, origins, the
+    #: port -- so that a page may not change it without a person confirming at the terminal.
     sensitive: bool = False
 
     @property
@@ -500,7 +501,8 @@ class Setting:
 
     @property
     def env(self) -> str:
-        """The environment variable that overrides it: ``PHONESIMULATOR_`` and its path, upper-cased, with underscores."""
+        """The environment variable that overrides it: ``PHONESIMULATOR_`` and its path, upper-cased, with
+        underscores."""
         return ENV_PREFIX + self.path.upper().replace(".", "_")
 
     def errors(self, value: Any, *, name: str | None = None) -> list[str]:
@@ -528,8 +530,8 @@ SETTINGS: tuple[Setting, ...] = (
             "Indigo messages before that; `dtuhid` or `indigo` uses only that one.",
             effect="next_device"),
     Setting("native_startup_timeout", "connectors.native.startup_timeout", 15, Whole(3, 120),
-            "How many seconds the native helper has to reach a device and open its screen before PhoneSimulator gives up "
-            "on it, and `auto` falls back to idb.",
+            "How many seconds the native helper has to reach a device and open its screen before PhoneSimulator gives "
+            "up on it, and `auto` falls back to idb.",
             effect="next_device"),
     Setting("native_idle_key_frames", "connectors.native.idle_key_frames", True, Flag(),
             "Whether the native helper's H.264 stream sends a key frame every second while the screen is still, so a "
@@ -545,8 +547,9 @@ SETTINGS: tuple[Setting, ...] = (
             "a widget's text, the status bar. Each snapshot takes 0.2 to 0.9 seconds longer. Needs Xcode 27, and "
             "Xcode's approval (`phonesimulator xcode approve`)."),
     Setting("app_merge", "connectors.app.merge", True, Flag(),
-            "Whether an agent's snapshots also read the view hierarchy an app shares through PhoneSimulator's debug SDK, "
-            "when a debug build with it runs in front: what accessibility leaves out is added -- a tappable card, a "
+            "Whether an agent's snapshots also read the view hierarchy an app shares through PhoneSimulator's debug "
+            "SDK, when a debug build with it runs in front: what accessibility leaves out is added -- a tappable "
+            "card, a "
             "custom control -- and what it found without a label is named. Nothing changes while no app shares one."),
     Setting("app_name_unlabeled", "connectors.app.name_unlabeled", True, Flag(),
             "Whether the app's hierarchy also names what accessibility found without a label -- an icon button, an "
@@ -585,12 +588,13 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("shutdown_on_idle", "device.shutdown_on_idle", True, Flag(),
             "Whether stopping an idle device also shuts it down, when PhoneSimulator booted or created it."),
     Setting("delete_created", "device.delete_created", "empty", Choice(("empty", "idle", "never")),
-            "What becomes of a simulator PhoneSimulator created for a scope -- each takes 1.5-3.5 GB on disk -- once it "
-            "is "
+            "What becomes of a simulator PhoneSimulator created for a scope -- each takes 1.5-3.5 GB on disk -- once "
+            "it is "
             "stopped as idle and shut down. `empty` deletes it when it holds no app anybody installed, `idle` deletes "
             "it whatever it holds, `never` keeps it. A simulator a person picked, a real device or an Android "
             "emulator is never deleted, nor one another scope still uses, nor any while `device.shutdown_on_idle` is "
-            "off. The scope's next call creates a fresh one. `phonesimulator devices prune` deletes those already left."),
+            "off. The scope's next call creates a fresh one. `phonesimulator devices prune` deletes those already "
+            "left."),
     Setting("device_templates", "device.templates", True, Flag(),
             "Whether a new simulator is copied from a template -- one PhoneSimulator created and booted once, for each "
             "runtime and device type -- rather than created blank: it is ready in about half the time, since its "
@@ -657,8 +661,8 @@ SETTINGS: tuple[Setting, ...] = (
             sensitive=True),
     Setting("real_devices_agents_choose", "real_devices.agents_choose", True, Flag(),
             "Whether an agent may switch its project to a connected iPhone or iPad itself (`sim_device choose`). Off, "
-            "only a person picks one, in the viewer or with `phonesimulator devices choose`; an agent may still choose a "
-            "simulator.",
+            "only a person picks one, in the viewer or with `phonesimulator devices choose`; an agent may still "
+            "choose a simulator.",
             embedded_default=False,
             sensitive=True),
     Setting("real_devices_developer_dir", "real_devices.developer_dir", "", AbsolutePath(),
@@ -685,9 +689,9 @@ SETTINGS: tuple[Setting, ...] = (
             sensitive=True),
     Setting("wda_enabled", "real_devices.wda.enabled", True, Flag(),
             "Whether WebDriverAgent is used to touch, type on and read a real device. A person sets it up once -- "
-            "Set up touch in the viewer, or `phonesimulator wda setup` -- which builds it with the team and installs it "
-            "on the device; after that a new Xcode or another device is set up by itself. Off, a real device is view "
-            "only.",
+            "Set up touch in the viewer, or `phonesimulator wda setup` -- which builds it with the team and installs "
+            "it on the device; after that a new Xcode or another device is set up by itself. Off, a real device is "
+            "view only.",
             embedded_default=False,
             sensitive=True),
     Setting("wda_path", "real_devices.wda.path", "", AbsolutePath(example="/Users/you/src/WebDriverAgent"),
@@ -696,7 +700,8 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("wda_startup_timeout", "real_devices.wda.startup_timeout", 180, Whole(30, 600),
             "How long WebDriverAgent has to start on a device, in seconds; the first start builds it."),
     Setting("wda_keep_running", "real_devices.wda.keep_running", False, Flag(),
-            "Whether WebDriverAgent keeps running on a device after PhoneSimulator lets the device go, so it answers at "
+            "Whether WebDriverAgent keeps running on a device after PhoneSimulator lets the device go, so it answers "
+            "at "
             "once next time."),
     Setting("wda_source_timeout_ms", "real_devices.wda.source_timeout_ms", 5000, Whole(1000, 60000),
             "How long a snapshot waits for WebDriverAgent to build a screen's element tree, in milliseconds, before it "
@@ -738,7 +743,8 @@ SETTINGS: tuple[Setting, ...] = (
             sensitive=True),
     Setting("android_phones", "android.phones", True, Flag(),
             "Whether the Android phones adb reaches -- by cable, or over Wi-Fi once paired -- are offered beside "
-            "emulators. A phone is never started or shut down by PhoneSimulator, and what it changes there is put back.",
+            "emulators. A phone is never started or shut down by PhoneSimulator, and what it changes there is put "
+            "back.",
             embedded_default=False,
             effect="next_device",
             sensitive=True),
@@ -749,8 +755,8 @@ SETTINGS: tuple[Setting, ...] = (
             embedded_default=False,
             sensitive=True),
     Setting("android_emulator_window", "android.emulator.window", False, Flag(),
-            "Whether an emulator PhoneSimulator starts shows its own window too. Off, it runs headless and is seen only "
-            "in PhoneSimulator's viewer.",
+            "Whether an emulator PhoneSimulator starts shows its own window too. Off, it runs headless and is seen "
+            "only in PhoneSimulator's viewer.",
             effect="next_device"),
     Setting("android_emulator_gpu", "android.emulator.gpu", "auto", Choice(("auto", "host", "swiftshader_indirect")),
             "How an emulator PhoneSimulator starts draws: as the emulator chooses (`auto`), on the Mac's GPU (`host`), "
@@ -767,12 +773,12 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("scrcpy", "android.scrcpy.enabled", True, Flag(),
             "Whether scrcpy's server streams an Android device's screen as live H.264 and takes its touches, keys and "
             "text. A person sets it up once -- Set up touch in the viewer, or `phonesimulator android setup` -- which "
-            "fetches the release PhoneSimulator pins and checks it. Off, or before that, adb alone shows a screenshot a "
-            "few times a second and taps slowly.",
+            "fetches the release PhoneSimulator pins and checks it. Off, or before that, adb alone shows a screenshot "
+            "a few times a second and taps slowly.",
             effect="next_connection"),
     Setting("scrcpy_path", "android.scrcpy.path", "", AbsolutePath(example="/opt/homebrew/share/scrcpy/scrcpy-server"),
-            "A scrcpy server to use instead of the one PhoneSimulator fetches: it must be a release PhoneSimulator knows, "
-            "which is checked by its hash.",
+            "A scrcpy server to use instead of the one PhoneSimulator fetches: it must be a release PhoneSimulator "
+            "knows, which is checked by its hash.",
             effect="next_connection",
             sensitive=True),
     Setting("android_java_home", "android.java_home", "",
@@ -789,17 +795,17 @@ SETTINGS: tuple[Setting, ...] = (
             "The widest a streamed frame is, in pixels."),
     Setting("agent_tools", "agent.tools", True, Flag(), "Whether agents are offered the simulator's MCP tools."),
     Setting("agent_warm_up", "agent.warm_up", True, Flag(),
-            "Whether `phonesimulator mcp` gets the project's simulator ready for its agent as it starts, so the agent's "
-            "first tool call does not wait for it: the simulator's session is attached in the background -- only "
-            "when the project's own simulator is already booted. Nothing is booted or created for it, a real "
+            "Whether `phonesimulator mcp` gets the project's simulator ready for its agent as it starts, so the "
+            "agent's first tool call does not wait for it: the simulator's session is attached in the background -- "
+            "only when the project's own simulator is already booted. Nothing is booted or created for it, a real "
             "device, an Android device or a Mac app is never touched, and the device is not held for the agent: "
             "left unused, it idles out like any other."),
     Setting("agent_cursor", "agent.cursor", True, Flag(),
             "Whether viewers draw the agent's pointer, touches and trails."),
     Setting("cursor_color", "agent.cursor_color", "", Color(),
             "The colour of the agent's pointer, its label and the rings its taps leave, as `#RRGGBB` -- a host's own "
-            "primary colour, say. Empty: a viewer's accent (`--phonesimulator-cursor`, else `--phonesimulator-accent`), "
-            "and "
+            "primary colour, say. Empty: a viewer's accent (`--phonesimulator-cursor`, else "
+            "`--phonesimulator-accent`), and "
             "over a macOS app the Mac's accent colour. The label's text is white or near-black, whichever reads "
             "better on it."),
     Setting("cursor_park_after_s", "agent.cursor_park_after_s", 30, Whole(5, 3600),

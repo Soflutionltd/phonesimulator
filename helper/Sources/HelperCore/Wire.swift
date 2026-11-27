@@ -3,7 +3,7 @@ import Foundation
 
 /// The helper's version, which is PhoneSimulator's: PhoneSimulator refuses a helper of another version.
 public enum HelperVersion {
-    public static let current = "3.12.1"
+    public static let current = "3.13.0"
 }
 
 /// What a frame on the socket is.

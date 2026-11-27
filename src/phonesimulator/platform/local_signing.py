@@ -206,8 +206,8 @@ class LocalSigning:
             self._unlock()
             argv = (CODESIGN, "--force", "--sign", found, "--keychain", str(self.keychain), "--identifier",
                     HELPER_IDENTIFIER, "--timestamp=none", str(binary))  # fmt: skip
-            # codesign finds an identity only in a keychain on the user's search list, --keychain or not: PhoneSimulator's
-            # is put on it for this one call and the list put back as it was, whatever happens.
+            # codesign finds an identity only in a keychain on the user's search list, --keychain or not:
+            # PhoneSimulator's is put on it for this one call and the list put back as it was, whatever happens.
             listed = self._search_list()
             self._must(
                 (SECURITY, "list-keychains", "-d", "user", "-s", *listed, str(self.keychain)),

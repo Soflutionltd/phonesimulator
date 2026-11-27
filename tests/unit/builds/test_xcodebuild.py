@@ -895,8 +895,8 @@ async def test_a_run_past_its_timeout_is_ended_with_its_process_group(rig: Rig) 
     build = await rig.begin(timeout_s=0.01)
     answer = await rig.runner.result(SCOPE.id, build.id, wait_s=5)
     assert answer == (
-        "build b1 was stopped after 0s, the longest a run may take here (build.timeout_minutes, `phonesimulator config`)"
-        f"\nlog {build.log}"
+        "build b1 was stopped after 0s, the longest a run may take here (build.timeout_minutes, `phonesimulator "
+        f"config`)\nlog {build.log}"
     )
     assert rig.signals == [(4000, signal.SIGTERM)] and build.state == "timed_out"
     assert rig.runner.running(SCOPE.id) is None

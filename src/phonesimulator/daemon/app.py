@@ -355,9 +355,9 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
 
     @app.post(AGENT + "/warm")
     async def agent_warm(request: Request) -> dict[str, Any]:
-        """Get this agent's scope's simulator ready before its first tool call -- ``phonesimulator mcp`` asks as it starts
-        -- when that is free: only a simulator already booted is attached, in the background, and nothing is held for
-        the agent (`DeviceManager.warm`). Answers at once, whatever it did."""
+        """Get this agent's scope's simulator ready before its first tool call -- ``phonesimulator mcp`` asks as it
+        starts -- when that is free: only a simulator already booted is attached, in the background, and nothing is held
+        for the agent (`DeviceManager.warm`). Answers at once, whatever it did."""
         try:
             caller = await auth.agent(request)
         except Refused as exc:
@@ -425,8 +425,8 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
     @app.post(ADMIN + "/devices/prune")
     async def prune(body: PruneRequest, request: Request) -> dict[str, Any]:
         """Delete the simulators PhoneSimulator made that nothing runs and that hold no app -- every one nothing runs,
-        with ``all`` -- forgetting each (``phonesimulator devices prune``); ``dry_run`` only says which. Answers each one
-        found."""
+        with ``all`` -- forgetting each (``phonesimulator devices prune``); ``dry_run`` only says which. Answers each
+        one found."""
         admin(request)
         try:
             found = await daemon.runtime.manager.prune(everything=body.all, dry_run=body.dry_run)
@@ -437,7 +437,8 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
         return ok({"devices": [entry.as_json() for entry in found], "dry_run": body.dry_run})
 
     def agent_label(token_id: str) -> str:
-        """How an agent holding a lease is named: its token's label -- ``phonesimulator mcp (pid 4242)`` -- or its id."""
+        """How an agent holding a lease is named: its token's label -- ``phonesimulator mcp (pid 4242)`` -- or its
+        id."""
         record = daemon.tokens.find(token_id)
         return record.label if record is not None and record.label else token_id
 
@@ -463,16 +464,16 @@ def create_app(daemon: Daemon, on_stopped: Callable[[], object] | None = None) -
 
     @app.post(ADMIN + "/scopes/{scope_id}/inherit")
     async def inherit(scope_id: str, body: InheritRequest, request: Request) -> dict[str, Any]:
-        """Give a scope with no device yet the device of another -- ``phonesimulator mcp`` started in a git worktree asks
-        for its main checkout's -- so its first call does not create a new one. Answers the UDID given, or null."""
+        """Give a scope with no device yet the device of another -- ``phonesimulator mcp`` started in a git worktree
+        asks for its main checkout's -- so its first call does not create a new one. Answers the UDID given, or null."""
         admin(request)
         return ok({"udid": daemon.runtime.manager.inherit(named(scope_id), named(body.source))})
 
     @app.post(ADMIN + "/logins")
     async def give_login(body: GivenLoginRequest, request: Request) -> dict[str, Any]:
-        """Keep a login ``phonesimulator login`` read from the person's password manager -- outside any sandbox the daemon
-        runs in -- for one `sim_login` of this scope and app (`core.given`): answers the item to pass it as, never the
-        login. Kept in memory only, and dropped once taken or after two minutes."""
+        """Keep a login ``phonesimulator login`` read from the person's password manager -- outside any sandbox the
+        daemon runs in -- for one `sim_login` of this scope and app (`core.given`): answers the item to pass it as,
+        never the login. Kept in memory only, and dropped once taken or after two minutes."""
         admin(request)
         scope = named(body.scope)
         if not body.password and not body.totp:

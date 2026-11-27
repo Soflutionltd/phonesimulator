@@ -220,8 +220,8 @@ def test_a_refusal_or_an_unreachable_server_is_a_result_and_a_failed_list_is_ask
         "The PhoneSimulator server refused the call: HTTP 403",
         "The PhoneSimulator server refused the call: cross-origin request refused",
         "The PhoneSimulator server could not be reached: <urlopen error timed out>",
-        "The PhoneSimulator server could not be reached: the PhoneSimulator server answered with something that is not an "
-        "object",
+        "The PhoneSimulator server could not be reached: the PhoneSimulator server answered with something that is "
+        "not an object",
     ]
     assert all(reply["result"]["isError"] for reply in replies[3:])
 

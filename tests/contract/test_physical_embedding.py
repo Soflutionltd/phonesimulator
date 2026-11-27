@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a host embedding PhoneSimulator can rely on of a real device, whatever the host is.
 
-Each test is driven the way a host drives PhoneSimulator: a `Runtime` built from `phonesimulator.api` with the host's seams,
-the person, screen and agent routers mounted under the host's own prefix, and the runtime's `call`, `reconcile`,
+Each test is driven the way a host drives PhoneSimulator: a `Runtime` built from `phonesimulator.api` with the host's
+seams, the person, screen and agent routers mounted under the host's own prefix, and the runtime's `call`, `reconcile`,
 `start` and `close`. Under it is PhoneSimulator's own testing Mac -- devicectl answering as two iPhones printed it, a
 phone connector that is view only until WebDriverAgent is set up -- and nothing real. A device's state is looked at
 directly only to check what the routes said.
@@ -110,7 +110,8 @@ NOW = _validators(
 
 
 class Host:
-    """A host application embedding PhoneSimulator, with real devices turned on by its person and agents choosing off."""
+    """A host application embedding PhoneSimulator, with real devices turned on by its person and agents choosing
+    off."""
 
     def __init__(
         self,

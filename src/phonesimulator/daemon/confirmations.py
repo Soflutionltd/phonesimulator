@@ -3,8 +3,8 @@
 
 A setting that decides what PhoneSimulator runs or who may reach it is not changed on a page's word alone: a page is
 untrusted, and one that could turn on command execution or add an origin could let anything in. So such a change waits
-here, known by a digest of exactly what it changes. ``phonesimulator settings confirm`` -- with the admin token, which no
-page ever holds -- shows each waiting change and its code; a person who recognises the change types the code into the
+here, known by a digest of exactly what it changes. ``phonesimulator settings confirm`` -- with the admin token, which
+no page ever holds -- shows each waiting change and its code; a person who recognises the change types the code into the
 page, and the page sends the change again with it.
 
 A code is a short run of letters and digits that cannot be misread, bound to its change: it confirms that change and no

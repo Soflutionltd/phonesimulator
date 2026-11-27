@@ -28,8 +28,8 @@ def test_a_kotlin_compile_error_is_placed_in_the_project() -> None:
     summary = gradle_log.read_log(fixture("gradle-kotlin-error.log"), ROOT, succeeded=False, seconds=4.2)
     assert render_build(summary, label="app (debug)", root=ROOT) == [
         "build FAILED · app (debug) · 4.2s · 1 error, 0 warnings",
-        "error app/src/main/kotlin/dev/phonesimulator/example/MainActivity.kt:21:26 Initializer type mismatch: expected "
-        "'Int', actual 'String'.",
+        "error app/src/main/kotlin/dev/phonesimulator/example/MainActivity.kt:21:26 Initializer type mismatch: "
+        "expected 'Int', actual 'String'.",
     ]
 
 

@@ -10,8 +10,8 @@ and in ``viewer-sessions.json`` (0600) beside its other credentials -- so an ope
 install, until its session expires as it would have or every page's is ended (``phonesimulator token sign-out``).
 
 A code remembers what kind of session it opens, and so does the session: a ``viewer`` (``phonesimulator open``), an
-``embed`` (a host's frame), or ``settings`` (``phonesimulator open --settings``), the one kind that may change settings --
-for `SETTINGS_TTL_S`, not the twelve hours a viewer stays open.
+``embed`` (a host's frame), or ``settings`` (``phonesimulator open --settings``), the one kind that may change settings
+-- for `SETTINGS_TTL_S`, not the twelve hours a viewer stays open.
 """
 
 from __future__ import annotations

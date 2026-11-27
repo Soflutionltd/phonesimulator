@@ -2,8 +2,8 @@
 """A standalone install's `ConfigSource`: config.toml, the environment and command-line values, read as they change.
 
 Precedence, lowest first: the profile's defaults, the file's values, the file's ``[scopes."<id>"]`` table for the scope
-asked about, ``PHONESIMULATOR_*`` variables, and values given on the command line. Every value is checked by its rule, and
-one that is refused reads as the next lower value would.
+asked about, ``PHONESIMULATOR_*`` variables, and values given on the command line. Every value is checked by its rule,
+and one that is refused reads as the next lower value would.
 
 The file is read again only when its modification time or size changes, so `get` can be called on every operation
 and a `phonesimulator config set` applies to the next one. What is wrong with the file or the variables is collected by

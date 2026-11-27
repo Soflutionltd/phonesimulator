@@ -3,8 +3,8 @@
 
 A simulator's UDID is a UUID (``D946616B-6E4F-4F5C-8C76-54FAD9B7D702``). A real device's hardware UDID is either the
 eight-and-sixteen form every device since 2018 has (``00008120-0011223344556677``) or the forty hex digits older ones
-had. PhoneSimulator names a real device by its hardware UDID and never by CoreDevice's own identifier, which is a UUID and
-would read as a simulator -- so the shape of a remembered identifier is enough to know which backend owns it.
+had. PhoneSimulator names a real device by its hardware UDID and never by CoreDevice's own identifier, which is a UUID
+and would read as a simulator -- so the shape of a remembered identifier is enough to know which backend owns it.
 
 An Android device has no identifier of that kind that lasts: adb's serial for an emulator is its console port, which
 changes from one launch to the next, and a name may hold characters a device's id may not. So PhoneSimulator names an

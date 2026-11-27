@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""An MCP server over stdio that knows no tools: it asks a PhoneSimulator server which there are, and hands it every call.
+"""An MCP server over stdio that knows no tools: it asks a PhoneSimulator server which there are, and hands it every
+call.
 
 An MCP client -- Claude Code, Codex, Cursor -- starts this over stdio. It lists the tools the server offers now -- asked
 again each time, since they change with settings and with what a device's connector can do, and the client is told
@@ -9,8 +10,8 @@ their checks and what a viewer shows live in one place, and all a client can rea
 
 Where calls go comes from the environment, never argv: the server's URL (``--url-env``, or ``--url`` when it is no
 secret) and each header the server authenticates with (``--header NAME=ENVVAR``) -- such as the agent token
-``phonesimulator mcp`` minted, or a host application's own session credential. The URL must be a loopback one, and a proxy
-named in the environment is ignored: a loopback call must not leave the machine. The client's own name, from
+``phonesimulator mcp`` minted, or a host application's own session credential. The URL must be a loopback one, and a
+proxy named in the environment is ignored: a loopback call must not leave the machine. The client's own name, from
 ``initialize``, goes along in ``--client-header``, so a viewer can say which agent is at work.
 
 The folders the client works in go along too, in ``--roots-header``, so a build runs in the folder the agent works in
@@ -91,8 +92,8 @@ ROOT_PATH_MAX = 1024
 ROOTS_REQUEST = "phonesimulator-roots"
 #: How long a tool call waits for the client's roots, asked for just before it, before it goes with those last heard.
 ROOTS_WAIT_S = 2.0
-#: What PhoneSimulator's daemon writes in its run folder once it listens -- its pid, port and version -- and the lock held
-#: while one is started there (`daemon.lifecycle`).
+#: What PhoneSimulator's daemon writes in its run folder once it listens -- its pid, port and version -- and the lock
+#: held while one is started there (`daemon.lifecycle`).
 DAEMON_FILE = "daemon.json"
 START_LOCK_FILE = "daemon-start.lock"
 DAEMON_HOST = "127.0.0.1"
@@ -186,9 +187,9 @@ def _number(value: object, below: int | None = None) -> int | None:
 
 
 def daemon_port(run_dir: str) -> int | None:
-    """The port PhoneSimulator's daemon listens on, from ``daemon.json`` in its run folder -- or None. Believed only from
-    a regular file this user owns in a folder this user owns, neither writable by anyone else, naming a process of this
-    user's still running."""
+    """The port PhoneSimulator's daemon listens on, from ``daemon.json`` in its run folder -- or None. Believed only
+    from a regular file this user owns in a folder this user owns, neither writable by anyone else, naming a process of
+    this user's still running."""
     folder = os.path.abspath(os.path.expanduser(run_dir))
     try:
         if not _private(os.stat(folder)):
@@ -241,8 +242,8 @@ def relay_command(
 ) -> list[str]:
     """The command line that runs this relay isolated, for a client's MCP configuration: secrets stay in env. With
     `run_dir`, PhoneSimulator's run folder, a call that finds the daemon gone follows it to the port it listens on now.
-    With `server_version` -- PhoneSimulator's version, say -- ``serverInfo.version`` says it. With `ca_env`, the variable
-    holding the PEM certificate a host's HTTPS server is trusted by, in place of the system's roots."""
+    With `server_version` -- PhoneSimulator's version, say -- ``serverInfo.version`` says it. With `ca_env`, the
+    variable holding the PEM certificate a host's HTTPS server is trusted by, in place of the system's roots."""
     argv = [python, "-I", os.path.abspath(__file__), "--url-env", url_env, "--server-name", server_name]
     if server_version:
         argv += ["--server-version", server_version]

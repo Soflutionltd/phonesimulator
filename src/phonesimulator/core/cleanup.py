@@ -97,9 +97,9 @@ async def prune(
     env: Mapping[str, str],
     home: Path | None = None,
 ) -> list[Pruned]:
-    """Delete the simulators PhoneSimulator made that nothing runs -- PhoneSimulator, or a person who booted one -- and that
-    hold no app, or every such one with `everything`. A `dry_run` deletes nothing and forgets nothing. One simctl no
-    longer lists is forgotten, unsaid. Answers each one found, by UDID."""
+    """Delete the simulators PhoneSimulator made that nothing runs -- PhoneSimulator, or a person who booted one -- and
+    that hold no app, or every such one with `everything`. A `dry_run` deletes nothing and forgets nothing. One simctl
+    no longer lists is forgotten, unsaid. Answers each one found, by UDID."""
     listed = {device.udid: device for device in await simctl.devices()}
     # A template new simulators are copied from is never pruned, --all or not (`core.devices`).
     templates = memory.all_templates() if isinstance(memory, DeviceTemplates) else set()

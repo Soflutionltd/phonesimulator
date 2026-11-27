@@ -1,10 +1,31 @@
 # Changelog
 
-All notable changes to Rocketwright -- called Simtrail until 3.12.0 -- are documented here. The format follows
+All notable changes to PhoneSimulator -- called Simtrail until 3.11, and Rocketwright in 3.12.0 and 3.12.1 -- are
+documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [3.13.0] - 2026-11-27
+
+### Changed
+
+- **Rocketwright is now PhoneSimulator.** The name Rocketwright goes to its browser sibling (formerly Flintrail), so
+  the pair reads as what each drives. The command is `phonesimulator`, the Python package `phonesimulator`, the
+  viewer's npm package `@soflution/phonesimulator` and its element `<phone-simulator>`, the Swift SDK
+  `PhoneSimulatorKit`, the native helper `phonesimulator-helper`, settings' environment variables `PHONESIMULATOR_*`,
+  and the MCP server `phonesimulator`. The agent tools keep their names (`sim_snapshot`, `sim_act`, ...).
+- An install from before goes on working: `simtrail` stays as another name for the command, a `SIMTRAIL_*` variable
+  stands for its `PHONESIMULATOR_*` one when that is not set, and the first start moves Rocketwright's or Simtrail's
+  folders (`~/Library/Application Support`, `~/Library/Logs`, `~/.rocketwright` or `~/.simtrail`) to
+  PhoneSimulator's -- settings, remembered devices, tokens and the helper's signing kept. The `rocketwright` command
+  and `ROCKETWRIGHT_*` variables are not kept: they are the browser tool's now. An MCP client configured with
+  `rocketwright mcp` is changed to `phonesimulator mcp`.
+- The PyPI package `rocketwright` and the npm package `@soflution/rocketwright` end at 3.12.1; a last `rocketwright`
+  release on PyPI installs `phonesimulator`.
+- Simulators PhoneSimulator creates are named `PhoneSimulator · <project>`; one made under an earlier name is renamed
+  when its project is next opened.
 
 ## [3.12.1] - 2026-11-26
 

@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """The ``flutter`` command PhoneSimulator builds, tests and runs a Flutter app with.
 
-It is the one ``build.flutter_path`` names -- the command, or the SDK folder it is in -- else the one on PhoneSimulator's
-own ``PATH``, else one where it is usually installed: Homebrew's (``/opt/homebrew/share/flutter/bin/flutter``) or a
-person's own (``~/flutter/bin/flutter``, ``~/development/flutter/bin/flutter``). A daemon started by launchd or by a
-host application often has a ``PATH`` without the folders a person's shell adds, which is why those places are looked
-in too. A path the settings name that is not a ``flutter`` is that answer, None: a build with another Flutter than the
-one a person named would not be the build they asked for.
+It is the one ``build.flutter_path`` names -- the command, or the SDK folder it is in -- else the one on
+PhoneSimulator's own ``PATH``, else one where it is usually installed: Homebrew's
+(``/opt/homebrew/share/flutter/bin/flutter``) or a person's own (``~/flutter/bin/flutter``,
+``~/development/flutter/bin/flutter``). A daemon started by launchd or by a host application often has a ``PATH``
+without the folders a person's shell adds, which is why those places are looked in too. A path the settings name that is
+not a ``flutter`` is that answer, None: a build with another Flutter than the one a person named would not be the build
+they asked for.
 
 Every call of flutter starts here: `start_flutter` for a build or a test run, its output appended to a log, and
 `open_flutter_run` for ``flutter run --machine``, spoken to over its pipes. Each runs in a process group of its own,

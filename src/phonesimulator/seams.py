@@ -2,8 +2,8 @@
 """The seams between PhoneSimulator and whatever runs it: the few things a host decides.
 
 PhoneSimulator's core boots devices, streams them and plays gestures. What it must *ask* is here, as protocols a host
-implements -- the standalone daemon's implementations are in `phonesimulator.daemon`, and a host embedding PhoneSimulator
-passes its own to `phonesimulator.api.Runtime.build`:
+implements -- the standalone daemon's implementations are in `phonesimulator.daemon`, and a host embedding
+PhoneSimulator passes its own to `phonesimulator.api.Runtime.build`:
 
 * `ConfigSource` -- a scope's settings, read on every operation so a change applies at once;
 * `StateStore` -- where builds are kept, where sockets, logs and claims live, and who owns them;
@@ -83,8 +83,8 @@ class DeviceMemory(Protocol):
         ...
 
     def created(self, scope: Scope) -> set[str]:
-        """The UDIDs of devices PhoneSimulator created for this scope's host. Only these are ever deleted, and only under
-        a memory that can also list and forget them (`core.devices.CreatedDevices`)."""
+        """The UDIDs of devices PhoneSimulator created for this scope's host. Only these are ever deleted, and only
+        under a memory that can also list and forget them (`core.devices.CreatedDevices`)."""
         ...
 
     def choose(self, scope: Scope, shared: bool, udid: str) -> None:

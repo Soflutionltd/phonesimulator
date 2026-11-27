@@ -19,14 +19,14 @@ the phone itself, through `phonesimulator.api` as a host drives it:
 Nothing it runs may ask a phone to reboot, restart, shut down, be erased, unpaired or have anything deleted or
 uninstalled: every xcrun call that is devicectl's or names the phone is checked before it is run, refused when it
 would, and the test fails. It runs view only -- WebDriverAgent off, and the phone not touchable -- unless
-`PHONESIMULATOR_LIVE_DEVICE_WDA=1`, which needs WebDriverAgent set up first with `phonesimulator wda setup --device <udid>`
-and its team in `PHONESIMULATOR_LIVE_DEVICE_TEAM`, and fails unless the phone can then be touched; `sim_act` is listed
-either way. With `PHONESIMULATOR_LIVE_DEVICE_WORKFLOW=1`, an additional check opens Settings, reads it, exercises action
-results and records a short local clip, then returns Home. It needs WDA and a native helper; all artifacts stay in
-the temporary test folder. Without that flag nothing is tapped. `PHONESIMULATOR_LIVE_DEVICE_DEVELOPER_DIR` names the Xcode
-(default: the one
-xcode-select names), `PHONESIMULATOR_LIVE_HELPER` the native helper that reads the cable screen (default: none, so
-screenshots), and `PHONESIMULATOR_LIVE_DEVICE_UNATTENDED=1` skips the steps that need a person at the terminal.
+`PHONESIMULATOR_LIVE_DEVICE_WDA=1`, which needs WebDriverAgent set up first with `phonesimulator wda setup --device
+<udid>` and its team in `PHONESIMULATOR_LIVE_DEVICE_TEAM`, and fails unless the phone can then be touched; `sim_act` is
+listed either way. With `PHONESIMULATOR_LIVE_DEVICE_WORKFLOW=1`, an additional check opens Settings, reads it, exercises
+action results and records a short local clip, then returns Home. It needs WDA and a native helper; all artifacts stay
+in the temporary test folder. Without that flag nothing is tapped. `PHONESIMULATOR_LIVE_DEVICE_DEVELOPER_DIR` names the
+Xcode (default: the one xcode-select names), `PHONESIMULATOR_LIVE_HELPER` the native helper that reads the cable screen
+(default: none, so screenshots), and `PHONESIMULATOR_LIVE_DEVICE_UNATTENDED=1` skips the steps that need a person at the
+terminal.
 
 `PHONESIMULATOR_LIVE_DEVICE_CAPTURE_RESTART=1` also requires the cable screen across three helper starts. Use a signed
 `make helper-build` helper and allow its Camera request once. Resolve any Apple device-support update alert before
@@ -113,8 +113,8 @@ def _only_from_make_live_device(request: pytest.FixtureRequest) -> None:
 
 
 def refused_argv(args: tuple[str, ...]) -> bool:
-    """Whether an xcrun call would ask something of the phone that PhoneSimulator never asks: only devicectl's, and those
-    that name the phone, are looked at -- simctl shutting down a simulator is no concern here."""
+    """Whether an xcrun call would ask something of the phone that PhoneSimulator never asks: only devicectl's, and
+    those that name the phone, are looked at -- simctl shutting down a simulator is no concern here."""
     about_the_phone = (args[:1] == ("devicectl",)) or UDID in args
     return about_the_phone and bool(NEVER & set(args))
 

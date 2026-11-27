@@ -2,8 +2,8 @@
 """What this major version of PhoneSimulator promises, written down once, and whether the code still keeps it.
 
 `docs/stability.md` says what is stable, and since when; this makes it checkable. It describes the surface -- the names
-on `phonesimulator.api` with their parameters and attributes, the protocol's schemas, constants and close codes, the agent
-tools' arguments, the settings, the command line, and the viewer package's exports, element, events, parts, custom
+on `phonesimulator.api` with their parameters and attributes, the protocol's schemas, constants and close codes, the
+agent tools' arguments, the settings, the command line, and the viewer package's exports, element, events, parts, custom
 properties and option types -- and compares a description of the code now with the one committed for the major version,
 `compat/surface-v3.json`.
 

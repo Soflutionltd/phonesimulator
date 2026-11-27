@@ -347,8 +347,8 @@ async def _run(args: dict[str, Any], ctx: ToolContext, kind: str) -> Result:
             test_diagnostics=config.build_test_diagnostics,
             team=await _team(ctx, config, folder) if is_device_udid(udid) else "",
             after=after if kind == "build" else None,
-            # A build is held to it once built, before PhoneSimulator installs it; a test host xcodebuild installs itself,
-            # and flutter run its app.
+            # A build is held to it once built, before PhoneSimulator installs it; a test host xcodebuild installs
+            # itself, and flutter run its app.
             expected_bundle_id=config.build_expected_bundle_id if kind != "build" else "",
             device_kind=device_kind,
             java_home=config.android_java_home,

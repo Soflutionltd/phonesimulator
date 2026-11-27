@@ -2,8 +2,8 @@
 """The words PhoneSimulator uses for where its settings are and what its scopes are, which a host supplies.
 
 A message such as "the iOS Simulator is off" has to say where to turn it on, and that place is the host's: the
-`phonesimulator config` command for a standalone install, a settings page for an application that embeds PhoneSimulator. So
-every such message is built here from a `HostCopy`, whose defaults are the standalone install's, and a host passes
+`phonesimulator config` command for a standalone install, a settings page for an application that embeds PhoneSimulator.
+So every such message is built here from a `HostCopy`, whose defaults are the standalone install's, and a host passes
 its own.
 
 A host that rewrites a method keeps what PhoneSimulator calls it with: a message that needs more to say is a new method

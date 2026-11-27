@@ -17,8 +17,8 @@ What Xcode refuses is said so a person can act on it:
 * **a session that ended** -- Xcode closed it, or another reader took its name -- is opened again once;
 * **a device already in a session** -- Xcode lets a device have one at a time, measured -- is taken back when the
   session is one PhoneSimulator left there, named for this device (a read that timed out, a process that died), since
-  PhoneSimulator's claim on the device means no other PhoneSimulator is using it; another agent's session is said and left
-  be;
+  PhoneSimulator's claim on the device means no other PhoneSimulator is using it; another agent's session is said and
+  left be;
 * **an Xcode before 27** -- found once, before the first read -- says it needs Xcode 27.
 """
 

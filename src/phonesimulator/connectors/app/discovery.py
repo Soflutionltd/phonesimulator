@@ -3,9 +3,9 @@
 
 A running app built with the debug SDK writes a listing -- its port, its process, a secret new each launch -- under
 the simulator's data folder, or under its own container when that cannot be written (``protocol/app-sdk/v1``). A
-listing is only believed as far as the Mac can vouch for it: a regular file, not a link, owned by the user PhoneSimulator
-runs as and readable by nobody else, small, for this simulator, named for the app it describes, and written by a
-process that is still there. Anything else is passed over, and never deleted: the file is the app's.
+listing is only believed as far as the Mac can vouch for it: a regular file, not a link, owned by the user
+PhoneSimulator runs as and readable by nobody else, small, for this simulator, named for the app it describes, and
+written by a process that is still there. Anything else is passed over, and never deleted: the file is the app's.
 """
 
 from __future__ import annotations

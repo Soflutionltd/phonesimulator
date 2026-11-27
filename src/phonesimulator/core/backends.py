@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Each kind of device, and how PhoneSimulator lists it, finds a scope's, brings it up and puts it away.
 
-A simulator is listed and booted by simctl, and a scope that has none is given one PhoneSimulator makes; a real device is
-listed by devicectl, is never booted or shut down, and is used only once it is picked -- by a person, or by an agent
-while ``real_devices.agents_choose`` lets it. `DeviceBackend` is that
-difference, one per kind, so `DeviceManager` asks the kind of the device in front of it and nothing else: it never
-calls simctl or devicectl itself. What is asked of a device once it runs -- installing, launching, the log -- is its
-backend's `DeviceControl`.
+A simulator is listed and booted by simctl, and a scope that has none is given one PhoneSimulator makes; a real device
+is listed by devicectl, is never booted or shut down, and is used only once it is picked -- by a person, or by an agent
+while ``real_devices.agents_choose`` lets it. `DeviceBackend` is that difference, one per kind, so `DeviceManager` asks
+the kind of the device in front of it and nothing else: it never calls simctl or devicectl itself. What is asked of a
+device once it runs -- installing, launching, the log -- is its backend's `DeviceControl`.
 """
 
 from __future__ import annotations

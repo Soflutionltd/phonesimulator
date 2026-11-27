@@ -2,10 +2,10 @@
 """What a person calls each scope the daemon serves -- ``Sociomator``, not ``project-sociomator-e80a0c71``.
 
 A scope reaches the daemon by its id alone; its label -- the project's name (`scope.project_name`) -- is told by what
-knows the folder: ``phonesimulator open`` names it as it asks for a login code, and an agent token made for folders names
-each folder's. The daemon keeps them in ``scope-names.json`` (0600) beside its tokens, so a simulator it makes, a
-tab's title and the settings panel read the project's name after a restart too. A scope never named is called by its
-id, as before.
+knows the folder: ``phonesimulator open`` names it as it asks for a login code, and an agent token made for folders
+names each folder's. The daemon keeps them in ``scope-names.json`` (0600) beside its tokens, so a simulator it makes, a
+tab's title and the settings panel read the project's name after a restart too. A scope never named is called by its id,
+as before.
 """
 
 from __future__ import annotations

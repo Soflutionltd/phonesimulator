@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The ``phonesimulator`` command line, with no daemon, process, server, browser or Xcode: every command against a daemon
-answered in memory, and a refusal a person can act on as one line and exit status 1."""
+"""The ``phonesimulator`` command line, with no daemon, process, server, browser or Xcode: every command against a
+daemon answered in memory, and a refusal a person can act on as one line and exit status 1."""
 
 from __future__ import annotations
 
@@ -1172,8 +1172,8 @@ def test_stop_shutdown_refuses_while_another_scope_shares_the_simulator_unless_f
     here.daemon.answers[("GET", "/api/v1/admin/in-use")] = {"scopes": served}
     assert here("stop", "--shutdown", "--scope", "demo") == 1
     assert here.err.getvalue() == (
-        "phonesimulator: demo's simulator is also used by tp-2, so it is not shut down: shutting it down would end their "
-        "session too. Leave out --shutdown to stop only this one, or add --force\n"
+        "phonesimulator: demo's simulator is also used by tp-2, so it is not shut down: shutting it down would end "
+        "their session too. Leave out --shutdown to stop only this one, or add --force\n"
     )
     assert here.daemon.made("DELETE", DEMO) == [], "nothing was stopped"
     here.daemon.answers[("DELETE", DEMO)] = {"stopped": True, "shut_down": False}

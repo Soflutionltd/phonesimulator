@@ -7,10 +7,10 @@ standalone install, `JsonDeviceMemory`, a private file in PhoneSimulator's state
 again after a restart, and a device a person picks stays picked.
 
 A remembered device that no longer exists -- deleted in Xcode, its runtime removed -- is replaced the next time the
-scope asks. A device PhoneSimulator made is listed as made. Only such a device is ever deleted: by the reaper once it has
-ended it as idle, as ``device.delete_created`` allows, or by ``phonesimulator devices prune``. Either needs a memory that
-can list and forget what PhoneSimulator made (`CreatedDevices`), as `JsonDeviceMemory` can; a host's own memory without
-that keeps every device.
+scope asks. A device PhoneSimulator made is listed as made. Only such a device is ever deleted: by the reaper once it
+has ended it as idle, as ``device.delete_created`` allows, or by ``phonesimulator devices prune``. Either needs a memory
+that can list and forget what PhoneSimulator made (`CreatedDevices`), as `JsonDeviceMemory` can; a host's own memory
+without that keeps every device.
 
 A new device is copied from a **template** while ``device.templates`` is on (`DeviceDirectory.resolve`): a simulator
 PhoneSimulator made for one runtime and device type, booted once and shut down, so that a copy (``simctl clone``) skips
@@ -111,8 +111,8 @@ def memory_keys(scope: Scope) -> frozenset[str]:
 
 @runtime_checkable
 class CreatedDevices(Protocol):
-    """A `DeviceMemory` that can also say who remembers a device PhoneSimulator made, and forget one deleted. Optional: a
-    memory without it never has a device deleted."""
+    """A `DeviceMemory` that can also say who remembers a device PhoneSimulator made, and forget one deleted. Optional:
+    a memory without it never has a device deleted."""
 
     def all_created(self) -> set[str]:
         """The UDIDs of every device PhoneSimulator made, whichever scope it was made for."""

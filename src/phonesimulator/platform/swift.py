@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Helpers PhoneSimulator compiles for itself from Swift it ships -- the one place ``swiftc`` is run.
 
-Some of what PhoneSimulator does needs a macOS framework Python cannot reach: Vision reads text in a screenshot's pixels.
-A helper for it is a Swift source file in the package, compiled on first use with the Xcode a scope uses
+Some of what PhoneSimulator does needs a macOS framework Python cannot reach: Vision reads text in a screenshot's
+pixels. A helper for it is a Swift source file in the package, compiled on first use with the Xcode a scope uses
 (``device.developer_dir``) through ``xcrun`` -- so no binary is shipped, signed or trusted beyond the Xcode already
 trusted to build apps -- and kept under a folder named for a hash of the source and the compiler's version: a new
 PhoneSimulator or a new Xcode compiles again, and nothing else does.

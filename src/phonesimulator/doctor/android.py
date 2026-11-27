@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The doctor's checks for Android emulators and phones: what a person can see is set up, and what to do if it is not.
 
-* **android sdk** -- the SDK PhoneSimulator found, its adb and emulator, whether adb's server answers, and the AVDs, with
-  what stands in the way of one that cannot start;
+* **android sdk** -- the SDK PhoneSimulator found, its adb and emulator, whether adb's server answers, and the AVDs,
+  with what stands in the way of one that cannot start;
 * **android devices** -- the emulators running and the phones adb lists, and a phone that has to be allowed first;
 * **scrcpy** -- whether scrcpy's server is on and set up (`phonesimulator android setup`), checked by its hash;
 * **android builds** -- the JDK a Gradle build would run with, while build tools are on.

@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The Android emulator: started for an AVD, known again after PhoneSimulator restarts, and spoken to through its console.
+"""The Android emulator: started for an AVD, known again after PhoneSimulator restarts, and spoken to through its
+console.
 
-**Starting** runs ``emulator -avd <name> -port <port>`` in a process group of its own, with its output in PhoneSimulator's
-log folder -- headless (``-no-window``) unless ``android.emulator.window`` shows its own window, with no audio and no
-boot animation. The port is chosen from the even ones the emulator takes (5554-5680) that no running emulator has, and
-names the device to adb: ``emulator-5554``.
+**Starting** runs ``emulator -avd <name> -port <port>`` in a process group of its own, with its output in
+PhoneSimulator's log folder -- headless (``-no-window``) unless ``android.emulator.window`` shows its own window, with
+no audio and no boot animation. The port is chosen from the even ones the emulator takes (5554-5680) that no running
+emulator has, and names the device to adb: ``emulator-5554``.
 
 **Knowing which ones PhoneSimulator started**: each start leaves a pid file under PhoneSimulator's run folder naming the
-pid, the host that started it (its owner tag), the AVD and the port. An emulator PhoneSimulator started is shut down as a
-simulator it booted is; one a person started -- from Android Studio, say -- is not, and a restart of PhoneSimulator tells
-the two apart by these files (`Emulators.started_here`). A pid file whose pid no longer runs the emulator is stale and
-is thrown away; one another host wrote is never read as this one's.
+pid, the host that started it (its owner tag), the AVD and the port. An emulator PhoneSimulator started is shut down as
+a simulator it booted is; one a person started -- from Android Studio, say -- is not, and a restart of PhoneSimulator
+tells the two apart by these files (`Emulators.started_here`). A pid file whose pid no longer runs the emulator is stale
+and is thrown away; one another host wrote is never read as this one's.
 
 **The console** listens on 127.0.0.1 at the emulator's port. It asks for the token in
 ``~/.emulator_console_auth_token`` (read here only, never logged or put in a command line), then answers each command

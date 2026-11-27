@@ -3,8 +3,8 @@
 ``Building``.
 
 A viewer shows it beside the agent's pointer and its name, and the macOS overlay beside the pointer it draws over the
-app. Every phrase is made here, from what PhoneSimulator itself is about to do -- a gesture it plays, a tool call it runs,
-a wait it waits -- so every place that shows one says the same. It is a person's words: brief, never parsed back.
+app. Every phrase is made here, from what PhoneSimulator itself is about to do -- a gesture it plays, a tool call it
+runs, a wait it waits -- so every place that shows one says the same. It is a person's words: brief, never parsed back.
 """
 
 from __future__ import annotations
